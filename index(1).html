@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Apno Ki Talash — اپنوں کی تلاش</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #faf7f2;
+    --surface: #ffffff;
+    --border: #e0d8cc;
+    --ink: #2a2318;
+    --muted: #7a6e5e;
+    --gold: #9a6f2f;
+    --gold2: #c9a84c;
+    --goldl: #f5ead5;
+    --red: #8b2e2e;
+    --green: #2e6e4a;
+    --accent: #5c3d11;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: 'Lato', sans-serif; min-height: 100vh; }
+
+  /* ===== AUTH GATE ===== */
+  #auth-gate {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(145deg, #e8f0e3 0%, #d4e6c9 35%, #c8ddb8 65%, #b8d4a5 100%);
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239a6f2f' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+  .auth-box {
+    background: #ffffff; border: 1px solid #c8d9b5;
+    border-top: 3px solid var(--gold2);
+    padding: 56px 44px; width: 420px; text-align: center;
+    box-shadow: 0 20px 60px rgba(46,74,48,0.18);
+  }
+  .auth-box .urdu { font-family: 'Amiri', serif; font-size: 2.6rem; color: var(--gold); direction: rtl; line-height: 1.2; margin-bottom: 6px; }
+  .auth-box .eng { font-size: 0.75rem; color: #6a8a5a; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 36px; }
+  .auth-box .prompt { font-size: 0.85rem; color: #5a7a4a; margin-bottom: 20px; line-height: 1.6; }
+  .auth-box input {
+    width: 100%; padding: 14px 16px; background: #f5f9f2;
+    border: 1px solid #b8d4a0; color: var(--ink);
+    font-size: 1rem; font-family: 'Lato', sans-serif;
+    outline: none; transition: border 0.2s; margin-bottom: 14px;
+    text-align: center;
+  }
+  .auth-box input:focus { border-color: var(--gold2); }
+  .auth-box input::placeholder { color: #9ab88a; }
+  .btn-enter {
+    width: 100%; padding: 14px; background: var(--gold2); color: #1a1208;
+    border: none; font-family: 'Lato', sans-serif; font-weight: 700;
+    font-size: 0.85rem; letter-spacing: 0.12em; text-transform: uppercase;
+    cursor: pointer; transition: background 0.2s;
+  }
+  .btn-enter:hover { background: #dbb83c; }
+  .auth-err { color: #c0392b; font-size: 0.82rem; margin-top: 12px; display: none; }
+  .auth-note { font-size: 0.75rem; color: #8aaa7a; margin-top: 16px; line-height: 1.5; }
+
+  /* ===== MAIN APP ===== */
+  #app { display: none; }
+
+  header {
+    background: linear-gradient(135deg, #4a6741 0%, #3d5c3a 50%, #2e4a30 100%); color: #f0ede6;
+    padding: 0 32px; display: flex; align-items: center;
+    justify-content: space-between; height: 64px;
+    border-bottom: 2px solid var(--gold2);
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  }
+  .logo { display: flex; align-items: center; gap: 14px; }
+  .logo-urdu { font-family: 'Amiri', serif; font-size: 1.5rem; color: var(--gold2); direction: rtl; }
+  .logo-eng { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: #c5d9b8; }
+  .huser { font-size: 0.82rem; color: #c5d9b8; }
+  .huser span { color: var(--gold2); }
+
+  nav {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 32px; gap: 4px;
+    overflow-x: auto;
+  }
+  .nav-tab {
+    padding: 16px 20px; font-size: 0.82rem; letter-spacing: 0.08em;
+    text-transform: uppercase; cursor: pointer; color: var(--muted);
+    border-bottom: 2px solid transparent; transition: all 0.2s;
+    background: none; border-top: none; border-left: none; border-right: none;
+    font-family: 'Lato', sans-serif; white-space: nowrap;
+  }
+  .nav-tab:hover { color: var(--ink); }
+  .nav-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  main { padding: 28px 32px; max-width: 1100px; margin: 0 auto; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* STATS BAR */
+  .stats-bar {
+    display: flex; gap: 16px; margin-bottom: 28px; flex-wrap: wrap;
+  }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 18px 24px; flex: 1; min-width: 120px;
+    border-top: 3px solid var(--gold2);
+  }
+  .stat-card .num { font-size: 1.8rem; font-weight: 700; color: var(--gold); line-height: 1; }
+  .stat-card .lbl { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; }
+
+  /* SEARCH */
+  .search-wrap { position: relative; margin-bottom: 20px; }
+  .search-wrap input {
+    width: 100%; padding: 14px 20px 14px 48px;
+    border: 1px solid var(--border); background: var(--surface);
+    font-size: 1rem; font-family: 'Lato', sans-serif; color: var(--ink);
+    outline: none; transition: border 0.2s;
+  }
+  .search-wrap input:focus { border-color: var(--gold2); }
+  .search-wrap .icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 1.1rem; }
+  .filter-row { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 7px 16px; border: 1px solid var(--border); background: var(--surface);
+    font-family: 'Lato', sans-serif; font-size: 0.8rem; color: var(--muted);
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.05em;
+  }
+  .filter-btn.active, .filter-btn:hover { border-color: var(--gold); color: var(--gold); background: var(--goldl); }
+
+  /* PEOPLE TABLE */
+  .result-count { font-size: 0.82rem; color: var(--muted); margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); }
+  th { background: var(--goldl); color: var(--accent); text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.1em; padding: 11px 14px; text-align: left; border-bottom: 2px solid var(--gold2); }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.87rem; vertical-align: top; }
+  tr:hover td { background: #fdf9f2; }
+  .person-name { font-weight: 700; color: var(--ink); cursor: pointer; }
+  .person-name:hover { color: var(--gold); text-decoration: underline; }
+  .badge { display: inline-block; padding: 2px 7px; font-size: 0.68rem; border-radius: 2px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+  .badge-M { background: #dbeafe; color: #1e40af; }
+  .badge-F { background: #fce7f3; color: #9d174d; }
+  .badge-deceased { background: #f1f5f9; color: #64748b; }
+  .badge-current { background: #dcfce7; color: #166534; }
+  .badge-former { background: #fef3c7; color: #92400e; }
+
+  /* PERSON DETAIL */
+  .person-detail {
+    background: var(--surface); border: 1px solid var(--border);
+    border-top: 3px solid var(--gold2); padding: 28px;
+  }
+  .detail-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .detail-header h2 { font-family: 'Amiri', serif; font-size: 1.8rem; color: var(--ink); }
+  .detail-header .meta { color: var(--muted); font-size: 0.82rem; margin-top: 4px; }
+  .btn-back { padding: 8px 18px; border: 1px solid var(--border); background: none; font-family: 'Lato', sans-serif; font-size: 0.8rem; color: var(--muted); cursor: pointer; transition: all 0.2s; }
+  .btn-back:hover { border-color: var(--gold); color: var(--gold); }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media(max-width:600px){ .detail-grid { grid-template-columns: 1fr; } }
+  .detail-field { padding: 12px 14px; background: var(--bg); border: 1px solid var(--border); }
+  .detail-field .key { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .detail-field .val { font-size: 0.9rem; color: var(--ink); }
+  .section-h { font-family: 'Amiri', serif; font-size: 1.1rem; color: var(--gold); margin-bottom: 12px; margin-top: 20px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .family-card { background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--gold2); padding: 14px; margin-bottom: 10px; }
+  .family-card .fc-title { font-weight: 700; font-size: 0.87rem; margin-bottom: 6px; }
+  .family-card .fc-detail { font-size: 0.8rem; color: var(--muted); }
+  .children-list { list-style: none; padding: 0; }
+  .children-list li { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.87rem; cursor: pointer; }
+  .children-list li:hover { color: var(--gold); }
+
+  /* TREE VIEW */
+  .tree-wrap { overflow-x: auto; }
+  .tree-node {
+    display: inline-flex; flex-direction: column; align-items: center;
+    gap: 8px; min-width: 140px;
+  }
+  .tree-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-top: 3px solid var(--gold2); padding: 10px 14px;
+    text-align: center; font-size: 0.78rem; min-width: 130px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .tree-box:hover { border-color: var(--gold); background: var(--goldl); }
+  .tree-box .tname { font-weight: 700; color: var(--ink); }
+  .tree-box .tmeta { color: var(--muted); margin-top: 2px; font-size: 0.7rem; }
+  .tree-children { display: flex; gap: 20px; padding-top: 20px; position: relative; }
+  .tree-children::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 1px; height: 20px; background: var(--border); }
+
+  /* FULL GENERATION TREE */
+  .gen-tree { overflow-x: auto; padding: 20px 0; }
+  .gen-section { margin-bottom: 0; }
+  .gen-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; text-align: center; margin: 16px 0 8px; border-top: 1px dashed var(--border); padding-top: 12px; }
+  .gen-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; padding: 4px 0; }
+  .tree-box-anc { background: #edf3e8; border: 1px solid #b8d4a0; border-top: 3px solid #6a9a50; }
+  .tree-box-focus { background: var(--goldl); border: 2px solid var(--gold2); border-top: 3px solid var(--gold); box-shadow: 0 2px 12px rgba(154,111,47,0.2); }
+  .tree-box-desc { background: #eaf0f8; border: 1px solid #a8c4e0; border-top: 3px solid #5a8ab0; }
+  .tree-connector { text-align: center; color: var(--border); font-size: 1.2rem; line-height: 1; margin: 2px 0; }
+
+  @media print {
+    #auth-gate, header, nav, .search-wrap, .filter-row, #tree-search-results, button, .btn-back, .pagination { display: none !important; }
+    body { background: white; }
+    .gen-tree { overflow: visible; }
+    .tree-box { page-break-inside: avoid; }
+    .panel { display: block !important; }
+    #panel-search, #panel-stats { display: none !important; }
+    #panel-tree { display: block !important; }
+    main { padding: 0; max-width: 100%; }
+  }
+
+  /* LOADING */
+  .loading { text-align: center; padding: 60px; color: var(--muted); }
+  .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty-state { text-align: center; padding: 60px; color: var(--muted); }
+  .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+
+  /* PAGINATION */
+  .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+  .page-btn { padding: 7px 13px; border: 1px solid var(--border); background: var(--surface); font-family: 'Lato', sans-serif; font-size: 0.8rem; cursor: pointer; color: var(--muted); transition: all 0.2s; }
+  .page-btn.active, .page-btn:hover { border-color: var(--gold); color: var(--gold); background: var(--goldl); }
+
+  /* TOAST */
+  #toast { position: fixed; bottom: 20px; right: 20px; background: var(--ink); color: #e8e4dc; padding: 12px 18px; font-size: 0.82rem; z-index: 9999; transform: translateY(60px); opacity: 0; transition: all 0.3s; border-left: 3px solid var(--gold2); }
+  #toast.show { transform: translateY(0); opacity: 1; }
+
+  @media(max-width: 600px) {
+    header { padding: 0 16px; }
+    main { padding: 16px; }
+    nav { padding: 0 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- AUTH GATE -->
+<div id="auth-gate">
+  <div class="auth-box">
+    <div class="urdu">اپنوں کی تلاش</div>
+    <div class="eng">Apno Ki Talash — Family Heritage</div>
+    <p class="prompt">This is a private family tree archive.<br>Please enter your name to continue.</p>
+    <input type="text" id="visitor-name" placeholder="Your full name" maxlength="100" onkeydown="if(event.key==='Enter')doEnter()"/>
+    <button class="btn-enter" onclick="doEnter()">Enter →</button>
+    <div class="auth-err" id="auth-err">Please enter your name to continue.</div>
+    <div class="auth-note">Your name will be recorded for access tracking purposes.</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <header>
+    <div class="logo">
+      <div>
+        <div class="logo-urdu">اپنوں کی تلاش</div>
+        <div class="logo-eng">Family Heritage Archive</div>
+      </div>
+    </div>
+    <div class="huser">Welcome, <span id="user-display"></span></div>
+  </header>
+
+  <nav>
+    <button class="nav-tab active" onclick="switchTab('search', this)">🔍 Search</button>
+    <button class="nav-tab" onclick="switchTab('tree', this)">🌳 Browse Tree</button>
+    <button class="nav-tab" onclick="switchTab('stats', this)">📊 Stats</button>
+  </nav>
+
+  <main>
+
+    <!-- SEARCH PANEL -->
+    <div id="panel-search" class="panel active">
+      <div class="search-wrap">
+        <span class="icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Search by name…" oninput="onSearch()"/>
+      </div>
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+        <button class="filter-btn" onclick="setFilter('M',this)">Male</button>
+        <button class="filter-btn" onclick="setFilter('F',this)">Female</button>
+        <button class="filter-btn" onclick="setFilter('deceased',this)">Deceased</button>
+      </div>
+      <div id="search-results">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- TREE PANEL -->
+    <div id="panel-tree" class="panel">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <div class="search-wrap" style="max-width:400px;margin-bottom:0;flex:1">
+          <span class="icon">🔍</span>
+          <input type="text" id="tree-search" placeholder="Find person to browse from…" oninput="treeSearch()"/>
+        </div>
+        <button onclick="printTree()" style="padding:10px 20px;background:var(--gold2);color:#1a1208;border:none;font-family:'Lato',sans-serif;font-weight:700;font-size:0.8rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;white-space:nowrap" title="Print / Save as PDF">🖨 Print Tree</button>
+      </div>
+      <div id="tree-search-results" style="margin-bottom:16px"></div>
+      <div id="tree-view" class="tree-wrap">
+        <div class="empty-state"><div class="icon">🌳</div><p>Search for a person above to browse their full family tree.</p></div>
+      </div>
+    </div>
+
+    <!-- STATS PANEL -->
+    <div id="panel-stats" class="panel">
+      <div class="stats-bar" id="stats-bar">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+      <div id="stats-detail"></div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://fusairoeiabmqvsbxhfi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1c2Fpcm9laWFibXF2c2J4aGZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MTUwNTgsImV4cCI6MjA5MzQ5MTA1OH0.uTVlBn4iDFZzAeD2i4Bzt4fXVxGequ2W9LIxugBIKsA';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let searchFilter = 'all';
+let searchPage = 0;
+const PAGE_SIZE = 50;
+let searchTotal = 0;
+let lastQuery = '';
+let searchTimer = null;
+
+// ===== AUTH =====
+async function doEnter() {
+  const name = document.getElementById('visitor-name').value.trim();
+  if (!name) { document.getElementById('auth-err').style.display = 'block'; return; }
+
+  // Check if blocked
+  const { data: existing } = await sb.from('visitors').select('*').ilike('name_entered', name).maybeSingle();
+  if (existing?.is_blocked) {
+    document.getElementById('auth-err').textContent = 'Access denied. Please contact the administrator.';
+    document.getElementById('auth-err').style.display = 'block'; return;
+  }
+
+  // Upsert visitor
+  if (existing) {
+    await sb.from('visitors').update({ last_seen: new Date().toISOString(), visit_count: (existing.visit_count || 0) + 1 }).eq('id', existing.id);
+  } else {
+    await sb.from('visitors').insert({ name_entered: name, ip_hint: getIpHint() });
+  }
+
+  currentUser = name;
+  document.getElementById('user-display').textContent = name;
+  document.getElementById('auth-gate').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadSearch('');
+}
+
+function getIpHint() {
+  // Basic browser fingerprint (not exact IP)
+  return `${navigator.language}|${screen.width}x${screen.height}|${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
+}
+
+// ===== TABS =====
+function switchTab(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name === 'stats') loadStats();
+}
+
+// ===== SEARCH =====
+function setFilter(f, btn) {
+  searchFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  searchPage = 0;
+  loadSearch(document.getElementById('search-input').value.trim());
+}
+
+function onSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    searchPage = 0;
+    loadSearch(document.getElementById('search-input').value.trim());
+  }, 300);
+}
+
+async function loadSearch(q) {
+  lastQuery = q;
+  const el = document.getElementById('search-results');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  let query = sb.from('people').select('uid,name,given_name,surname,sex,birth_place,death_flag,marr_status', { count: 'exact' });
+
+  if (q) query = query.ilike('name', `%${q}%`);
+  if (searchFilter === 'M') query = query.eq('sex', 'M');
+  else if (searchFilter === 'F') query = query.eq('sex', 'F');
+  else if (searchFilter === 'deceased') query = query.eq('death_flag', true);
+
+  query = query.order('name').range(searchPage * PAGE_SIZE, (searchPage + 1) * PAGE_SIZE - 1);
+
+  const { data, count, error } = await query;
+  searchTotal = count || 0;
+
+  if (error) { el.innerHTML = '<div class="empty-state">Error loading data.</div>'; return; }
+  if (!data || !data.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>No results found.</p></div>'; return;
+  }
+
+  const pages = Math.ceil(searchTotal / PAGE_SIZE);
+  el.innerHTML = `
+    <div class="result-count">${searchTotal.toLocaleString()} people found${q ? ` for "${q}"` : ''}</div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>Name</th><th>Sex</th><th>Birth Place</th><th>Deceased</th><th>Status</th>
+      </tr></thead>
+      <tbody>${data.map(p => `
+        <tr>
+          <td><span class="person-name" onclick="showPerson('${p.uid}')">${p.name || '(unnamed)'}</span></td>
+          <td>${p.sex ? `<span class="badge badge-${p.sex}">${p.sex === 'M' ? '♂ M' : '♀ F'}</span>` : '-'}</td>
+          <td>${p.birth_place || '-'}</td>
+          <td>${p.death_flag ? '✓' : '-'}</td>
+          <td>${p.marr_status ? `<span class="badge badge-${p.marr_status}">${p.marr_status}</span>` : '-'}</td>
+        </tr>
+      `).join('')}</tbody>
+    </table>
+    </div>
+    ${pages > 1 ? `<div class="pagination">${buildPagination(pages)}</div>` : ''}
+  `;
+}
+
+function buildPagination(pages) {
+  let html = '';
+  if (searchPage > 0) html += `<button class="page-btn" onclick="goPage(${searchPage-1})">‹ Prev</button>`;
+  const start = Math.max(0, searchPage - 2), end = Math.min(pages - 1, searchPage + 2);
+  for (let i = start; i <= end; i++) {
+    html += `<button class="page-btn ${i===searchPage?'active':''}" onclick="goPage(${i})">${i+1}</button>`;
+  }
+  if (searchPage < pages - 1) html += `<button class="page-btn" onclick="goPage(${searchPage+1})">Next ›</button>`;
+  return html;
+}
+function goPage(p) { searchPage = p; loadSearch(lastQuery); window.scrollTo(0,0); }
+
+// ===== PERSON DETAIL =====
+async function showPerson(uid) {
+  const el = document.getElementById('search-results');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  // Fetch person
+  const { data: p } = await sb.from('people').select('*').eq('uid', uid).single();
+  if (!p) { el.innerHTML = '<div class="empty-state">Person not found.</div>'; return; }
+
+  // Fetch families as spouse
+  const { data: famsAsSpouse } = await sb.from('families')
+    .select('*')
+    .or(`husband_uid.eq.${uid},wife_uid.eq.${uid}`);
+
+  // Fetch families as child
+  const { data: famsAsChild } = await sb.from('family_members')
+    .select('family_uid, role')
+    .eq('person_uid', uid)
+    .eq('role', 'child');
+
+  // Get parent family details
+  let parentFamily = null;
+  if (famsAsChild && famsAsChild.length > 0) {
+    const { data: pf } = await sb.from('families').select('*').eq('uid', famsAsChild[0].family_uid).single();
+    parentFamily = pf;
+  }
+
+  // Fetch spouse names
+  const spouseUids = [];
+  (famsAsSpouse || []).forEach(f => {
+    if (f.husband_uid && f.husband_uid !== uid) spouseUids.push(f.husband_uid);
+    if (f.wife_uid && f.wife_uid !== uid) spouseUids.push(f.wife_uid);
+  });
+  let spouseMap = {};
+  if (spouseUids.length) {
+    const { data: spouses } = await sb.from('people').select('uid,name').in('uid', spouseUids);
+    (spouses || []).forEach(s => spouseMap[s.uid] = s.name);
+  }
+
+  // Fetch children
+  const famUids = (famsAsSpouse || []).map(f => f.uid);
+  let childrenMap = {};
+  if (famUids.length) {
+    const { data: members } = await sb.from('family_members').select('family_uid,person_uid').in('family_uid', famUids).eq('role','child');
+    if (members && members.length) {
+      const childUids = members.map(m => m.person_uid);
+      const { data: childPeople } = await sb.from('people').select('uid,name,sex').in('uid', childUids);
+      (childPeople || []).forEach(c => { childrenMap[c.uid] = c; });
+    }
+  }
+
+  // Fetch parent names
+  let fatherName = '-', motherName = '-';
+  if (parentFamily) {
+    if (parentFamily.husband_uid) {
+      const { data: dad } = await sb.from('people').select('uid,name').eq('uid', parentFamily.husband_uid).single();
+      if (dad) fatherName = `<span class="person-name" onclick="showPerson('${dad.uid}')">${dad.name}</span>`;
+    }
+    if (parentFamily.wife_uid) {
+      const { data: mum } = await sb.from('people').select('uid,name').eq('uid', parentFamily.wife_uid).single();
+      if (mum) motherName = `<span class="person-name" onclick="showPerson('${mum.uid}')">${mum.name}</span>`;
+    }
+  }
+
+  const spouseFamilies = (famsAsSpouse || []).map(f => {
+    const spouseUid = f.husband_uid === uid ? f.wife_uid : f.husband_uid;
+    const spouseName = spouseMap[spouseUid] || '(unknown)';
+    const children = Object.values(childrenMap).filter(c => {
+      // match via members
+      return true; // simplified — all children shown below
+    });
+    return { f, spouseUid, spouseName };
+  });
+
+  const allChildren = Object.values(childrenMap);
+
+  el.innerHTML = `
+    <div class="person-detail">
+      <div class="detail-header">
+        <div>
+          <h2>${p.name || '(unnamed)'}</h2>
+          <div class="meta">
+            ${p.sex ? `<span class="badge badge-${p.sex}">${p.sex === 'M' ? '♂ Male' : '♀ Female'}</span>` : ''}
+            ${p.death_flag ? `&nbsp;<span class="badge badge-deceased">Deceased</span>` : ''}
+            ${p.marr_status ? `&nbsp;<span class="badge badge-${p.marr_status}">${p.marr_status}</span>` : ''}
+          </div>
+        </div>
+        <button class="btn-back" onclick="loadSearch('${lastQuery}')">← Back to Results</button>
+      </div>
+
+      <div class="detail-grid">
+        ${p.given_name ? `<div class="detail-field"><div class="key">Given Name</div><div class="val">${p.given_name}</div></div>` : ''}
+        ${p.birth_place ? `<div class="detail-field"><div class="key">Birth Place</div><div class="val">${p.birth_place}</div></div>` : ''}
+        ${p.birth_date ? `<div class="detail-field"><div class="key">Birth Date</div><div class="val">${p.birth_date}</div></div>` : ''}
+        ${p.death_date ? `<div class="detail-field"><div class="key">Death Date</div><div class="val">${p.death_date}</div></div>` : ''}
+        ${p.death_place ? `<div class="detail-field"><div class="key">Death Place</div><div class="val">${p.death_place}</div></div>` : ''}
+        ${p.occupation ? `<div class="detail-field"><div class="key">Occupation</div><div class="val">${p.occupation}</div></div>` : ''}
+        <div class="detail-field"><div class="key">Father</div><div class="val">${fatherName}</div></div>
+        <div class="detail-field"><div class="key">Mother</div><div class="val">${motherName}</div></div>
+      </div>
+
+      ${spouseFamilies.length ? `
+        <div class="section-h">Marriage(s)</div>
+        ${spouseFamilies.map(({ f, spouseUid, spouseName }) => `
+          <div class="family-card">
+            <div class="fc-title">
+              Spouse: <span class="person-name" onclick="showPerson('${spouseUid}')">${spouseName}</span>
+              ${f.marr_status ? `<span class="badge badge-${f.marr_status}" style="margin-left:8px">${f.marr_status}</span>` : ''}
+            </div>
+            <div class="fc-detail">
+              ${f.marr_date ? `📅 ${f.marr_date}` : ''}
+              ${f.marr_place ? `&nbsp; 📍 ${f.marr_place}` : ''}
+            </div>
+          </div>
+        `).join('')}
+      ` : ''}
+
+      ${allChildren.length ? `
+        <div class="section-h">Children (${allChildren.length})</div>
+        <ul class="children-list">
+          ${allChildren.map(c => `
+            <li onclick="showPerson('${c.uid}')">
+              ${c.sex ? `<span class="badge badge-${c.sex}">${c.sex}</span>&nbsp;` : ''}
+              ${c.name || '(unnamed)'}
+            </li>
+          `).join('')}
+        </ul>
+      ` : ''}
+    </div>
+  `;
+}
+
+// ===== TREE BROWSE =====
+let treeTimer = null;
+function treeSearch() {
+  clearTimeout(treeTimer);
+  treeTimer = setTimeout(async () => {
+    const q = document.getElementById('tree-search').value.trim();
+    const el = document.getElementById('tree-search-results');
+    if (!q) { el.innerHTML = ''; return; }
+    const { data } = await sb.from('people').select('uid,name,sex').ilike('name', `%${q}%`).limit(10);
+    if (!data || !data.length) { el.innerHTML = '<div style="font-size:0.82rem;color:var(--muted)">No matches</div>'; return; }
+    el.innerHTML = data.map(p => `
+      <div onclick="loadTree('${p.uid}')" style="padding:8px 12px;background:var(--surface);border:1px solid var(--border);cursor:pointer;margin-bottom:4px;font-size:0.85rem" onmouseover="this.style.background='var(--goldl)'" onmouseout="this.style.background='var(--surface)'">
+        ${p.name || '(unnamed)'} ${p.sex ? `<span class="badge badge-${p.sex}">${p.sex}</span>` : ''}
+      </div>
+    `).join('');
+  }, 300);
+}
+
+async function loadTree(uid) {
+  document.getElementById('tree-search-results').innerHTML = '';
+  document.getElementById('tree-view').innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px;font-size:0.85rem;color:var(--muted)">Building family tree…</p></div>';
+
+  // --- helpers ---
+  async function fetchPerson(id) {
+    const { data } = await sb.from('people').select('uid,name,sex,birth_date,birth_place,death_flag').eq('uid', id).single();
+    return data;
+  }
+  async function fetchParentFamily(personUid) {
+    const { data: fm } = await sb.from('family_members').select('family_uid').eq('person_uid', personUid).eq('role','child').maybeSingle();
+    if (!fm) return null;
+    const { data: f } = await sb.from('families').select('*').eq('uid', fm.family_uid).single();
+    return f;
+  }
+  async function fetchSpouseFamilies(personUid) {
+    const { data } = await sb.from('families').select('*').or(`husband_uid.eq.${personUid},wife_uid.eq.${personUid}`);
+    return data || [];
+  }
+  async function fetchChildren(famUid) {
+    const { data: members } = await sb.from('family_members').select('person_uid').eq('family_uid', famUid).eq('role','child');
+    if (!members || !members.length) return [];
+    const { data: kids } = await sb.from('people').select('uid,name,sex,birth_date,death_flag').in('uid', members.map(m => m.person_uid));
+    return kids || [];
+  }
+
+  function personBox(p, style='') {
+    if (!p) return `<div class="tree-box ${style}" style="min-width:120px"><div class="tname" style="color:var(--muted);font-style:italic">Unknown</div></div>`;
+    const meta = [p.sex||'', p.birth_date||'', p.birth_place||'', p.death_flag?'†':''].filter(Boolean).join(' · ');
+    return `<div class="tree-box ${style}" style="min-width:120px;cursor:pointer" onclick="loadTree('${p.uid}')"><div class="tname">${p.name||'?'}</div>${meta?`<div class="tmeta">${meta}</div>`:''}
+    </div>`;
+  }
+
+  // --- Build ancestor chain (upward, up to 6 levels) ---
+  let ancestorLevels = []; // each entry: array of {person, family} for that generation
+  let currentAncFamilies = [null]; // start: we need parents of the focus person
+  const focusPerson = await fetchPerson(uid);
+  if (!focusPerson) { document.getElementById('tree-view').innerHTML = '<div class="empty-state">Person not found.</div>'; return; }
+
+  // Gather ancestors level by level
+  let ancQueue = [uid]; // UIDs whose parents we need
+  for (let gen = 0; gen < 6; gen++) {
+    const levelFamilies = [];
+    for (const pUid of ancQueue) {
+      if (!pUid) { levelFamilies.push(null); continue; }
+      const fam = await fetchParentFamily(pUid);
+      levelFamilies.push(fam);
+    }
+    const hasAny = levelFamilies.some(f => f !== null);
+    if (!hasAny) break;
+    ancestorLevels.unshift(levelFamilies); // prepend so oldest is first
+    // Next iteration: collect parents of everyone in these families
+    ancQueue = [];
+    for (const fam of levelFamilies) {
+      ancQueue.push(fam ? fam.husband_uid : null);
+      ancQueue.push(fam ? fam.wife_uid : null);
+    }
+  }
+
+  // Fetch all ancestor people
+  const allAncUids = new Set();
+  ancestorLevels.forEach(level => level.forEach(fam => {
+    if (fam) { if (fam.husband_uid) allAncUids.add(fam.husband_uid); if (fam.wife_uid) allAncUids.add(fam.wife_uid); }
+  }));
+  const ancPeopleMap = {};
+  if (allAncUids.size) {
+    const { data: ap } = await sb.from('people').select('uid,name,sex,birth_date,birth_place,death_flag').in('uid', [...allAncUids]);
+    (ap||[]).forEach(p => ancPeopleMap[p.uid] = p);
+  }
+
+  // --- Build descendant tree (downward, up to 5 generations) ---
+  async function buildDescTree(personUid, depth) {
+    if (depth <= 0) return null;
+    const fams = await fetchSpouseFamilies(personUid);
+    if (!fams.length) return { uid: personUid, spouseFamilies: [] };
+    const spouseFamilies = [];
+    for (const fam of fams) {
+      const spouseUid = fam.husband_uid === personUid ? fam.wife_uid : fam.husband_uid;
+      let spouse = null;
+      if (spouseUid) { const { data } = await sb.from('people').select('uid,name,sex,birth_date,death_flag').eq('uid', spouseUid).single(); spouse = data; }
+      const children = await fetchChildren(fam.uid);
+      const childTrees = [];
+      for (const child of children) {
+        const subtree = await buildDescTree(child.uid, depth - 1);
+        childTrees.push({ person: child, subtree });
+      }
+      spouseFamilies.push({ fam, spouse, childTrees });
+    }
+    return { uid: personUid, spouseFamilies };
+  }
+
+  const descTree = await buildDescTree(uid, 5);
+
+  // --- Render ---
+  function renderDescendants(node, indent=0) {
+    if (!node || !node.spouseFamilies || !node.spouseFamilies.length) return '';
+    let html = '';
+    for (const { fam, spouse, childTrees } of node.spouseFamilies) {
+      html += `<div style="margin-top:${indent===0?0:8}px">`;
+      if (spouse) {
+        html += `<div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin-bottom:4px">`;
+        html += `<div style="font-size:0.72rem;color:var(--muted)">+ Spouse</div>`;
+        html += personBox(spouse, 'tree-box-desc');
+        html += `</div>`;
+      }
+      if (childTrees.length) {
+        html += `<div style="font-size:0.7rem;color:var(--muted);text-align:center;margin:4px 0">Children (${childTrees.length})</div>`;
+        html += `<div class="gen-row">`;
+        for (const { person, subtree } of childTrees) {
+          html += `<div style="text-align:center">`;
+          html += personBox(person, 'tree-box-desc');
+          if (subtree && subtree.spouseFamilies && subtree.spouseFamilies.length) {
+            html += `<div style="font-size:0.65rem;color:var(--muted);margin-top:4px">▼</div>`;
+            html += `<div style="border-left:2px dashed #a8c4e0;padding-left:8px;margin-left:8px;margin-top:4px">`;
+            html += renderDescendants(subtree, indent+1);
+            html += `</div>`;
+          }
+          html += `</div>`;
+        }
+        html += `</div>`;
+      }
+      html += `</div>`;
+    }
+    return html;
+  }
+
+  let html = `<div class="gen-tree">`;
+
+  // Ancestors
+  if (ancestorLevels.length) {
+    ancestorLevels.forEach((levelFams, i) => {
+      const genNum = ancestorLevels.length - i;
+      html += `<div class="gen-label">Ancestors — Generation +${genNum}</div>`;
+      html += `<div class="gen-row">`;
+      levelFams.forEach(fam => {
+        if (!fam) { html += `<div class="tree-box tree-box-anc" style="min-width:100px;opacity:0.35"><div class="tname" style="font-style:italic;color:var(--muted)">Unknown</div></div>`; return; }
+        const father = fam.husband_uid ? ancPeopleMap[fam.husband_uid] : null;
+        const mother = fam.wife_uid ? ancPeopleMap[fam.wife_uid] : null;
+        html += `<div style="display:inline-flex;gap:6px;align-items:flex-start">`;
+        html += personBox(father, 'tree-box-anc');
+        html += personBox(mother, 'tree-box-anc');
+        html += `</div>`;
+      });
+      html += `</div>`;
+      html += `<div class="tree-connector">↓</div>`;
+    });
+  }
+
+  // Focus person
+  html += `<div class="gen-label" style="border-top:2px solid var(--gold2);color:var(--gold)">📍 Focus Person</div>`;
+  html += `<div class="gen-row">`;
+  html += personBox(focusPerson, 'tree-box-focus');
+  html += `</div>`;
+
+  // Descendants
+  if (descTree && descTree.spouseFamilies && descTree.spouseFamilies.length) {
+    html += `<div class="tree-connector">↓</div>`;
+    html += `<div class="gen-label" style="color:#5a8ab0">Descendants</div>`;
+    html += renderDescendants(descTree);
+  }
+
+  html += `</div>`;
+  document.getElementById('tree-view').innerHTML = html;
+}
+
+function printTree() {
+  const panel = document.getElementById('panel-tree');
+  if (!panel.classList.contains('active')) {
+    alert('Please search for a person in the Browse Tree tab first.');
+    return;
+  }
+  window.print();
+}
+
+function showPersonInSearch(uid) {
+  switchTab('search', document.querySelector('.nav-tab'));
+  showPerson(uid);
+}
+
+// ===== STATS =====
+async function loadStats() {
+  const bar = document.getElementById('stats-bar');
+  const detail = document.getElementById('stats-detail');
+  bar.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  const [
+    { count: totalPeople },
+    { count: totalFamilies },
+    { count: malePeople },
+    { count: femalePeople },
+    { count: deceased },
+    { data: uploads }
+  ] = await Promise.all([
+    sb.from('people').select('*', { count: 'exact', head: true }),
+    sb.from('families').select('*', { count: 'exact', head: true }),
+    sb.from('people').select('*', { count: 'exact', head: true }).eq('sex', 'M'),
+    sb.from('people').select('*', { count: 'exact', head: true }).eq('sex', 'F'),
+    sb.from('people').select('*', { count: 'exact', head: true }).eq('death_flag', true),
+    sb.from('gedcom_uploads').select('filename,uploaded_at,people_count,families_count').order('uploaded_at', { ascending: false })
+  ]);
+
+  bar.innerHTML = `
+    <div class="stat-card"><div class="num">${(totalPeople||0).toLocaleString()}</div><div class="lbl">Total People</div></div>
+    <div class="stat-card"><div class="num">${(totalFamilies||0).toLocaleString()}</div><div class="lbl">Families</div></div>
+    <div class="stat-card"><div class="num">${(malePeople||0).toLocaleString()}</div><div class="lbl">Male</div></div>
+    <div class="stat-card"><div class="num">${(femalePeople||0).toLocaleString()}</div><div class="lbl">Female</div></div>
+    <div class="stat-card"><div class="num">${(deceased||0).toLocaleString()}</div><div class="lbl">Deceased</div></div>
+  `;
+
+  if (uploads && uploads.length) {
+    detail.innerHTML = `
+      <h3 style="font-family:'Amiri',serif;color:var(--gold);font-size:1.1rem;margin-bottom:14px">GEDCOM Sources (${uploads.length})</h3>
+      <table>
+        <thead><tr><th>File</th><th>People</th><th>Families</th><th>Uploaded</th></tr></thead>
+        <tbody>${uploads.map(u => `
+          <tr>
+            <td>${u.filename}</td>
+            <td>${u.people_count?.toLocaleString()}</td>
+            <td>${u.families_count?.toLocaleString()}</td>
+            <td>${new Date(u.uploaded_at).toLocaleDateString()}</td>
+          </tr>
+        `).join('')}</tbody>
+      </table>
+    `;
+  }
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show';
+  clearTimeout(t._to);
+  t._to = setTimeout(() => t.className = '', 3000);
+}
+</script>
+</body>
+</html>

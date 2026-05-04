@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AKT Admin Panel</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0f0e0c;
+    --surface: #1a1814;
+    --surface2: #232018;
+    --border: #33302a;
+    --gold: #c9a84c;
+    --gold2: #e8c96a;
+    --red: #c0392b;
+    --red2: #e74c3c;
+    --green: #27ae60;
+    --text: #e8e4dc;
+    --muted: #8a8070;
+    --accent: #8b5e2a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Lato', sans-serif; min-height: 100vh; }
+
+  /* LOGIN */
+  #login-screen {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh;
+    background: radial-gradient(ellipse at center, #1a1510 0%, #0a0906 100%);
+  }
+  .login-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-top: 3px solid var(--gold); padding: 48px 40px;
+    width: 380px; text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .login-box h1 { font-family: 'Amiri', serif; font-size: 2rem; color: var(--gold); margin-bottom: 4px; }
+  .login-box p { color: var(--muted); font-size: 0.85rem; margin-bottom: 32px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .login-box input {
+    width: 100%; padding: 12px 16px; background: var(--bg);
+    border: 1px solid var(--border); color: var(--text);
+    font-size: 1rem; font-family: 'Lato', sans-serif;
+    margin-bottom: 16px; outline: none; transition: border 0.2s;
+  }
+  .login-box input:focus { border-color: var(--gold); }
+  .btn-gold {
+    background: var(--gold); color: #0f0e0c; border: none;
+    padding: 12px 24px; font-family: 'Lato', sans-serif;
+    font-weight: 700; font-size: 0.9rem; cursor: pointer;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    transition: background 0.2s; width: 100%;
+  }
+  .btn-gold:hover { background: var(--gold2); }
+  .login-err { color: var(--red2); font-size: 0.85rem; margin-top: 12px; display: none; }
+
+  /* LAYOUT */
+  #app { display: none; }
+  header {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 0 32px; display: flex; align-items: center;
+    justify-content: space-between; height: 60px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  header h1 { font-family: 'Amiri', serif; color: var(--gold); font-size: 1.4rem; }
+  header .hright { display: flex; align-items: center; gap: 16px; }
+  .btn-sm {
+    padding: 7px 16px; border: 1px solid var(--border); background: transparent;
+    color: var(--muted); font-family: 'Lato', sans-serif; font-size: 0.8rem;
+    cursor: pointer; letter-spacing: 0.05em; transition: all 0.2s;
+  }
+  .btn-sm:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-danger { border-color: var(--red); color: var(--red); }
+  .btn-danger:hover { background: var(--red); color: #fff; }
+
+  nav {
+    background: var(--surface2); border-bottom: 1px solid var(--border);
+    display: flex; gap: 0;
+  }
+  .nav-tab {
+    padding: 14px 28px; font-size: 0.85rem; letter-spacing: 0.08em;
+    text-transform: uppercase; cursor: pointer; color: var(--muted);
+    border-bottom: 2px solid transparent; transition: all 0.2s;
+    background: none; border-top: none; border-left: none; border-right: none;
+    font-family: 'Lato', sans-serif;
+  }
+  .nav-tab:hover { color: var(--text); }
+  .nav-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  main { padding: 32px; max-width: 1200px; margin: 0 auto; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 24px; margin-bottom: 24px;
+  }
+  .card h2 { font-family: 'Amiri', serif; color: var(--gold); font-size: 1.3rem; margin-bottom: 16px; }
+  .card h3 { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+
+  /* UPLOAD ZONE */
+  .drop-zone {
+    border: 2px dashed var(--border); padding: 48px 24px;
+    text-align: center; cursor: pointer; transition: all 0.2s;
+    margin-bottom: 16px;
+  }
+  .drop-zone:hover, .drop-zone.dragover { border-color: var(--gold); background: rgba(201,168,76,0.05); }
+  .drop-zone .icon { font-size: 3rem; margin-bottom: 12px; }
+  .drop-zone p { color: var(--muted); font-size: 0.9rem; }
+  .drop-zone strong { color: var(--text); }
+  #file-input { display: none; }
+
+  /* PROGRESS */
+  .progress-wrap { margin: 16px 0; display: none; }
+  .progress-label { font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .progress-bar { height: 4px; background: var(--border); }
+  .progress-fill { height: 4px; background: var(--gold); width: 0%; transition: width 0.3s; }
+
+  /* PREVIEW TABLE */
+  .preview-box { display: none; margin-top: 20px; }
+  .stats-row { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat-chip {
+    background: var(--bg); border: 1px solid var(--border);
+    padding: 12px 20px; flex: 1; min-width: 120px;
+  }
+  .stat-chip .num { font-size: 1.6rem; font-weight: 700; color: var(--gold); }
+  .stat-chip .lbl { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { background: var(--bg); color: var(--muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.08em; padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: rgba(201,168,76,0.03); }
+  .badge {
+    display: inline-block; padding: 2px 8px; font-size: 0.7rem;
+    border-radius: 2px; font-weight: 700; text-transform: uppercase;
+  }
+  .badge-m { background: rgba(52,152,219,0.2); color: #5dade2; }
+  .badge-f { background: rgba(231,76,60,0.2); color: #ec7063; }
+  .badge-deceased { background: rgba(127,140,141,0.2); color: #95a5a6; }
+  .badge-current { background: rgba(39,174,96,0.2); color: #58d68d; }
+  .badge-former { background: rgba(243,156,18,0.2); color: #f5b041; }
+
+  /* DUPLICATE PANEL */
+  .dup-item {
+    background: var(--bg); border: 1px solid var(--border);
+    border-left: 3px solid var(--gold); padding: 16px;
+    margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+  }
+  .dup-info { flex: 1; min-width: 200px; }
+  .dup-info .name { font-weight: 700; color: var(--text); }
+  .dup-info .meta { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+  .dup-actions { display: flex; gap: 8px; }
+
+  /* ACTION BUTTONS */
+  .btn-green {
+    padding: 8px 18px; background: var(--green); color: #fff;
+    border: none; font-family: 'Lato', sans-serif; font-size: 0.8rem;
+    font-weight: 700; cursor: pointer; transition: opacity 0.2s;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .btn-green:hover { opacity: 0.85; }
+  .btn-red {
+    padding: 8px 18px; background: var(--red); color: #fff;
+    border: none; font-family: 'Lato', sans-serif; font-size: 0.8rem;
+    font-weight: 700; cursor: pointer; transition: opacity 0.2s;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .btn-red:hover { opacity: 0.85; }
+  .btn-outline {
+    padding: 8px 18px; background: transparent; color: var(--muted);
+    border: 1px solid var(--border); font-family: 'Lato', sans-serif;
+    font-size: 0.8rem; cursor: pointer; transition: all 0.2s;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .btn-outline:hover { border-color: var(--text); color: var(--text); }
+
+  /* UPLOADS HISTORY */
+  .upload-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 8px; }
+  .upload-row:last-child { border-bottom: none; }
+  .upload-row .fname { font-weight: 700; color: var(--text); font-size: 0.9rem; }
+  .upload-row .fmeta { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+  .upload-row .faction { display: flex; gap: 8px; }
+
+  /* VISITORS */
+  .visitor-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 8px; }
+  .visitor-row.blocked td, .visitor-row.blocked { opacity: 0.5; }
+  .search-bar { width: 100%; padding: 10px 14px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: 'Lato', sans-serif; font-size: 0.9rem; margin-bottom: 16px; outline: none; }
+  .search-bar:focus { border-color: var(--gold); }
+
+  /* SETTINGS */
+  .setting-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
+  .setting-row label { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .setting-row input { padding: 9px 14px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: 'Lato', sans-serif; font-size: 0.9rem; width: 260px; outline: none; }
+  .setting-row input:focus { border-color: var(--gold); }
+
+  /* TOAST */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 4px solid var(--green); padding: 14px 20px;
+    font-size: 0.85rem; z-index: 9999; transform: translateY(80px);
+    opacity: 0; transition: all 0.3s; max-width: 340px;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.err { border-left-color: var(--red2); }
+
+  /* LOADING */
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty { text-align: center; padding: 48px; color: var(--muted); font-size: 0.9rem; }
+  .section-title { font-family: 'Amiri', serif; font-size: 1.1rem; color: var(--gold); margin-bottom: 12px; margin-top: 24px; }
+  .mt16 { margin-top: 16px; }
+  .flex-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>Apno Ki Talash</h1>
+    <p>Admin Panel</p>
+    <input type="password" id="pw-input" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <button class="btn-gold" onclick="doLogin()">Enter</button>
+    <div class="login-err" id="login-err">Incorrect password. Please try again.</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <header>
+    <h1>🕌 AKT Admin</h1>
+    <div class="hright">
+      <span id="hdr-stats" style="font-size:0.8rem;color:var(--muted)"></span>
+      <button class="btn-sm" onclick="loadAll()">↻ Refresh</button>
+      <button class="btn-sm btn-danger" onclick="doLogout()">Logout</button>
+    </div>
+  </header>
+
+  <nav>
+    <button class="nav-tab active" onclick="switchTab('upload')">Upload GEDCOM</button>
+    <button class="nav-tab" onclick="switchTab('uploads')">Uploads History</button>
+    <button class="nav-tab" onclick="switchTab('visitors')">Visitors</button>
+    <button class="nav-tab" onclick="switchTab('settings')">Settings</button>
+  </nav>
+
+  <main>
+
+    <!-- UPLOAD PANEL -->
+    <div id="panel-upload" class="panel active">
+      <div class="card">
+        <h2>Upload GEDCOM File</h2>
+        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()"
+             ondragover="event.preventDefault();this.classList.add('dragover')"
+             ondragleave="this.classList.remove('dragover')"
+             ondrop="handleDrop(event)">
+          <div class="icon">📂</div>
+          <p><strong>Click to browse</strong> or drag & drop a .ged file here</p>
+          <p style="margin-top:6px;font-size:0.78rem;">Parsed entirely in your browser — no file is sent to any server during parsing</p>
+        </div>
+        <input type="file" id="file-input" accept=".ged" onchange="handleFile(this.files[0])"/>
+
+        <div class="progress-wrap" id="parse-progress">
+          <div class="progress-label"><span id="parse-label">Parsing…</span><span id="parse-pct">0%</span></div>
+          <div class="progress-bar"><div class="progress-fill" id="parse-fill"></div></div>
+        </div>
+      </div>
+
+      <!-- PREVIEW -->
+      <div class="preview-box" id="preview-box">
+        <div class="card">
+          <h2>Preview — <span id="prev-filename"></span></h2>
+          <div class="stats-row">
+            <div class="stat-chip"><div class="num" id="prev-people">0</div><div class="lbl">People</div></div>
+            <div class="stat-chip"><div class="num" id="prev-fams">0</div><div class="lbl">Families</div></div>
+            <div class="stat-chip"><div class="num" id="prev-dups">0</div><div class="lbl">Duplicates</div></div>
+            <div class="stat-chip"><div class="num" id="prev-new">0</div><div class="lbl">New</div></div>
+          </div>
+
+          <!-- DUPLICATE SECTION -->
+          <div id="dup-section" style="display:none">
+            <div class="section-title">⚠️ Duplicate UIDs Found</div>
+            <p style="font-size:0.82rem;color:var(--muted);margin-bottom:16px;">These people already exist in the database. Choose what to do with each, or use bulk actions below.</p>
+            <div class="flex-row" style="margin-bottom:16px;">
+              <button class="btn-green" onclick="bulkOverwrite()">✔ Overwrite All Duplicates</button>
+              <button class="btn-outline" onclick="bulkSkip()">✖ Skip All Duplicates</button>
+            </div>
+            <div id="dup-list"></div>
+          </div>
+
+          <!-- SAMPLE PEOPLE -->
+          <div class="section-title" style="margin-top:24px">Sample People (first 20)</div>
+          <div style="overflow-x:auto">
+            <table id="prev-table">
+              <thead><tr>
+                <th>Name</th><th>Sex</th><th>Birth Place</th><th>Death</th><th>Status</th>
+              </tr></thead>
+              <tbody id="prev-tbody"></tbody>
+            </table>
+          </div>
+
+          <div class="flex-row mt16">
+            <button class="btn-gold" id="confirm-btn" onclick="confirmUpload()">✔ Confirm & Push to Database</button>
+            <button class="btn-outline" onclick="resetUpload()">✖ Cancel</button>
+          </div>
+          <div class="progress-wrap" id="push-progress" style="margin-top:16px">
+            <div class="progress-label"><span id="push-label">Pushing…</span><span id="push-pct">0%</span></div>
+            <div class="progress-bar"><div class="progress-fill" id="push-fill"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UPLOADS HISTORY -->
+    <div id="panel-uploads" class="panel">
+      <div class="card">
+        <h2>Uploads History</h2>
+        <div id="uploads-list"><div class="empty">Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- VISITORS -->
+    <div id="panel-visitors" class="panel">
+      <div class="card">
+        <h2>Site Visitors</h2>
+        <div class="flex-row" style="margin-bottom:16px">
+          <input class="search-bar" id="visitor-search" placeholder="Search by name…" oninput="filterVisitors()" style="flex:1;margin:0"/>
+          <button class="btn-sm" onclick="loadVisitors()">↻ Refresh</button>
+        </div>
+        <div id="visitors-table-wrap">
+          <table>
+            <thead><tr>
+              <th>Name Entered</th><th>Visits</th><th>First Seen</th><th>Last Seen</th><th>Status</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="visitors-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="panel-settings" class="panel">
+      <div class="card">
+        <h2>Settings</h2>
+        <div class="setting-row">
+          <label>Admin Password</label>
+          <div class="flex-row">
+            <input type="password" id="new-pw" placeholder="New password"/>
+            <button class="btn-green" onclick="changePassword()">Update</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <label>Supabase URL</label>
+          <span style="font-size:0.8rem;color:var(--muted)">https://fusairoeiabmqvsbxhfi.supabase.co</span>
+        </div>
+        <div class="setting-row">
+          <label>Database Stats</label>
+          <div id="db-stats" style="font-size:0.85rem;color:var(--muted)">Loading…</div>
+        </div>
+        <div class="setting-row" style="border:none">
+          <label style="color:var(--red)">Danger Zone</label>
+          <button class="btn-red" onclick="confirmNuke()">🗑 Delete ALL Data</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://fusairoeiabmqvsbxhfi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1c2Fpcm9laWFibXF2c2J4aGZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MTUwNTgsImV4cCI6MjA5MzQ5MTA1OH0.uTVlBn4iDFZzAeD2i4Bzt4fXVxGequ2W9LIxugBIKsA';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let adminPassword = 'akt2024';
+let parsedData = null; // { people, families, familyMembers, filename }
+let dupDecisions = {}; // uid -> 'overwrite' | 'skip'
+let allVisitors = [];
+
+// ===================== AUTH =====================
+async function doLogin() {
+  const pw = document.getElementById('pw-input').value.trim();
+  // Fetch password from DB
+  const { data } = await sb.from('admin_config').select('value').eq('key','admin_password').single();
+  const correct = data ? data.value : 'akt2024';
+  if (pw === correct) {
+    adminPassword = correct;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadAll();
+  } else {
+    document.getElementById('login-err').style.display = 'block';
+  }
+}
+function doLogout() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('pw-input').value = '';
+}
+
+// ===================== TABS =====================
+function switchTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'uploads') loadUploads();
+  if (name === 'visitors') loadVisitors();
+  if (name === 'settings') loadDbStats();
+}
+
+// ===================== GEDCOM PARSER =====================
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+}
+
+function handleFile(file) {
+  if (!file || !file.name.toLowerCase().endsWith('.ged')) {
+    toast('Please select a valid .ged file', true); return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => parseGedcom(e.target.result, file.name);
+  reader.readAsText(file, 'UTF-8');
+}
+
+function parseGedcom(text, filename) {
+  const prog = document.getElementById('parse-progress');
+  const fill = document.getElementById('parse-fill');
+  const label = document.getElementById('parse-label');
+  const pct = document.getElementById('parse-pct');
+  prog.style.display = 'block';
+
+  // Parse line by line
+  const lines = text.split(/\r?\n/);
+  const people = {};
+  const families = {};
+  const familyMembers = [];
+
+  let cur = null, curType = null;
+  let subRecord = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (i % 5000 === 0) {
+      const p = Math.round(i / lines.length * 100);
+      fill.style.width = p + '%'; pct.textContent = p + '%';
+    }
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    const m = line.match(/^(\d+)\s+(@[^@]+@)?\s*([A-Z_]+)(.*)$/);
+    if (!m) continue;
+    const level = +m[1], tag = m[3].trim(), val = (m[4] || '').trim();
+    const xref = m[2] ? m[2].trim() : null;
+
+    if (level === 0) {
+      subRecord = null;
+      if (tag === 'INDI') {
+        cur = { raw_gedcom_id: xref, uid: '', name: '', given_name: '', surname: '', sex: '', birth_date: '', birth_place: '', death_flag: false, death_date: '', death_place: '', occupation: '', contact_address: '', marr_status: '', fams: [], famc: [] };
+        curType = 'INDI'; people[xref] = cur;
+      } else if (tag === 'FAM') {
+        cur = { raw_gedcom_id: xref, uid: '', husband_raw: '', wife_raw: '', marr_date: '', marr_place: '', marr_status: '', children_raw: [] };
+        curType = 'FAM'; families[xref] = cur;
+      } else { cur = null; curType = null; }
+      continue;
+    }
+
+    if (!cur) continue;
+
+    if (curType === 'INDI') {
+      if (level === 1) {
+        subRecord = tag;
+        if (tag === '_UID') cur.uid = val;
+        else if (tag === 'NAME') cur.name = val.replace(/\//g,'').trim();
+        else if (tag === 'SEX') cur.sex = val;
+        else if (tag === 'DEAT') cur.death_flag = (val === 'Y' || val === 'y' || true);
+        else if (tag === 'FAMS') cur.fams.push(val);
+        else if (tag === 'FAMC') cur.famc.push(val);
+        else if (tag === 'OCCU') cur.occupation = val;
+      } else if (level === 2) {
+        if (subRecord === 'NAME') {
+          if (tag === 'GIVN') cur.given_name = val;
+          else if (tag === 'SURN') cur.surname = val;
+        } else if (subRecord === 'BIRT') {
+          if (tag === 'DATE') cur.birth_date = val;
+          else if (tag === 'PLAC') cur.birth_place = val;
+        } else if (subRecord === 'DEAT') {
+          if (tag === 'DATE') cur.death_date = val;
+          else if (tag === 'PLAC') cur.death_place = val;
+        } else if (subRecord === 'FACT' && tag === 'TYPE' && val.toLowerCase().includes('contact')) {
+          subRecord = 'FACT_CONTACT';
+        } else if (subRecord === 'ADDR') {
+          cur.contact_address = val;
+        }
+      }
+    }
+
+    if (curType === 'FAM') {
+      if (level === 1) {
+        subRecord = tag;
+        if (tag === 'HUSB') cur.husband_raw = val;
+        else if (tag === 'WIFE') cur.wife_raw = val;
+        else if (tag === 'CHIL') cur.children_raw.push(val);
+        else if (tag === '_MSTAT') cur.marr_status = val;
+        else if (tag === '_UID') cur.uid = val;
+      } else if (level === 2) {
+        if (subRecord === 'MARR') {
+          if (tag === 'DATE') cur.marr_date = val;
+          else if (tag === 'PLAC') cur.marr_place = val;
+          else if (tag === '_UID' && !cur.uid) cur.uid = val;
+        }
+      }
+    }
+  }
+
+  fill.style.width = '100%'; pct.textContent = '100%';
+  label.textContent = 'Parse complete!';
+
+  // Build lookup: raw GEDCOM ID -> UID
+  const rawToUid = {};
+  Object.values(people).forEach(p => { if (p.raw_gedcom_id) rawToUid[p.raw_gedcom_id] = p.uid || p.raw_gedcom_id; });
+
+  // Resolve family members
+  const famList = [];
+  Object.values(families).forEach(f => {
+    if (!f.uid) f.uid = f.raw_gedcom_id; // fallback
+    const hUid = rawToUid[f.husband_raw] || f.husband_raw;
+    const wUid = rawToUid[f.wife_raw] || f.wife_raw;
+    famList.push({ uid: f.uid, raw_gedcom_id: f.raw_gedcom_id, husband_uid: hUid, wife_uid: wUid, marr_date: f.marr_date, marr_place: f.marr_place, marr_status: f.marr_status });
+    f.children_raw.forEach((cRaw, idx) => {
+      const cUid = rawToUid[cRaw] || cRaw;
+      familyMembers.push({ family_uid: f.uid, person_uid: cUid, role: 'child', birth_order: idx + 1 });
+    });
+  });
+
+  // Propagate _MSTAT from family to person
+  Object.values(families).forEach(f => {
+    if (f.marr_status) {
+      [f.husband_raw, f.wife_raw].forEach(raw => {
+        if (raw && people[raw]) people[raw].marr_status = f.marr_status;
+      });
+    }
+  });
+
+  const peopleList = Object.values(people).filter(p => p.uid);
+
+  parsedData = { people: peopleList, families: famList, familyMembers, filename };
+  showPreview();
+}
+
+async function showPreview() {
+  document.getElementById('parse-progress').style.display = 'none';
+  const { people, families, filename } = parsedData;
+  document.getElementById('prev-filename').textContent = filename;
+  document.getElementById('prev-people').textContent = people.length;
+  document.getElementById('prev-fams').textContent = families.length;
+  document.getElementById('preview-box').style.display = 'block';
+
+  // Check duplicates
+  const uids = people.map(p => p.uid);
+  const { data: existing } = await sb.from('people').select('uid,name').in('uid', uids);
+  const existingMap = {};
+  (existing || []).forEach(e => existingMap[e.uid] = e);
+  const dups = people.filter(p => existingMap[p.uid]);
+
+  document.getElementById('prev-dups').textContent = dups.length;
+  document.getElementById('prev-new').textContent = people.length - dups.length;
+
+  // Render duplicates
+  if (dups.length > 0) {
+    dupDecisions = {};
+    dups.forEach(p => dupDecisions[p.uid] = 'overwrite'); // default: overwrite
+    document.getElementById('dup-section').style.display = 'block';
+    const dl = document.getElementById('dup-list');
+    dl.innerHTML = dups.map(p => `
+      <div class="dup-item" id="dup-${p.uid.replace(/[^a-z0-9]/gi,'_')}">
+        <div class="dup-info">
+          <div class="name">${p.name || '(no name)'}</div>
+          <div class="meta">UID: ${p.uid} &nbsp;|&nbsp; Existing name: <em>${existingMap[p.uid]?.name || '?'}</em></div>
+        </div>
+        <div class="dup-actions">
+          <button class="btn-green" onclick="setDup('${p.uid}','overwrite',this)">Overwrite</button>
+          <button class="btn-outline" onclick="setDup('${p.uid}','skip',this)">Skip</button>
+        </div>
+      </div>
+    `).join('');
+  } else {
+    document.getElementById('dup-section').style.display = 'none';
+  }
+
+  // Sample table
+  const tbody = document.getElementById('prev-tbody');
+  tbody.innerHTML = people.slice(0,20).map(p => `
+    <tr>
+      <td>${p.name || '-'}</td>
+      <td><span class="badge badge-${(p.sex||'').toLowerCase()}">${p.sex || '?'}</span></td>
+      <td>${p.birth_place || '-'}</td>
+      <td>${p.death_flag ? '✓' : '-'}</td>
+      <td>${p.marr_status ? `<span class="badge badge-${p.marr_status}">${p.marr_status}</span>` : '-'}</td>
+    </tr>
+  `).join('');
+}
+
+function setDup(uid, decision, btn) {
+  dupDecisions[uid] = decision;
+  const row = document.getElementById('dup-' + uid.replace(/[^a-z0-9]/gi,'_'));
+  if (row) row.style.opacity = decision === 'skip' ? '0.4' : '1';
+}
+function bulkOverwrite() { Object.keys(dupDecisions).forEach(k => setDup(k,'overwrite',null)); toast('All duplicates set to Overwrite'); }
+function bulkSkip() { Object.keys(dupDecisions).forEach(k => setDup(k,'skip',null)); toast('All duplicates set to Skip'); }
+
+// ===================== PUSH TO DB =====================
+async function confirmUpload() {
+  if (!parsedData) return;
+  const btn = document.getElementById('confirm-btn');
+  btn.disabled = true; btn.textContent = 'Pushing…';
+
+  const prog = document.getElementById('push-progress');
+  const fill = document.getElementById('push-fill');
+  const label = document.getElementById('push-label');
+  const pct = document.getElementById('push-pct');
+  prog.style.display = 'block';
+
+  const { people, families, familyMembers, filename } = parsedData;
+
+  // 1. Create upload log
+  label.textContent = 'Creating upload record…'; fill.style.width = '5%'; pct.textContent = '5%';
+  const { data: uploadRow, error: upErr } = await sb.from('gedcom_uploads').insert({ filename, people_count: people.length, families_count: families.length }).select().single();
+  if (upErr) { toast('Failed to create upload record: ' + upErr.message, true); btn.disabled = false; btn.textContent = '✔ Confirm & Push to Database'; return; }
+  const gedcomId = uploadRow.id;
+
+  // 2. Push people (skip/overwrite based on decisions)
+  label.textContent = 'Pushing people…'; fill.style.width = '15%'; pct.textContent = '15%';
+  const toInsert = people.filter(p => dupDecisions[p.uid] !== 'skip');
+  const BATCH = 200;
+  for (let i = 0; i < toInsert.length; i += BATCH) {
+    const batch = toInsert.slice(i, i + BATCH).map(p => ({
+      uid: p.uid, gedcom_id: gedcomId, name: p.name, given_name: p.given_name,
+      surname: p.surname, sex: p.sex, birth_date: p.birth_date, birth_place: p.birth_place,
+      death_flag: p.death_flag, death_date: p.death_date, death_place: p.death_place,
+      occupation: p.occupation, contact_address: p.contact_address, marr_status: p.marr_status,
+      raw_gedcom_id: p.raw_gedcom_id, updated_at: new Date().toISOString()
+    }));
+    const { error } = await sb.from('people').upsert(batch, { onConflict: 'uid' });
+    if (error) console.warn('People batch error:', error.message);
+    const p2 = Math.round(15 + (i / toInsert.length) * 35);
+    fill.style.width = p2 + '%'; pct.textContent = p2 + '%';
+  }
+
+  // 3. Push families
+  label.textContent = 'Pushing families…'; fill.style.width = '55%'; pct.textContent = '55%';
+  // Filter families where both husband and wife UIDs exist in our people
+  const validUids = new Set(people.map(p => p.uid));
+  const famsBatch = families.map(f => ({
+    uid: f.uid, gedcom_id: gedcomId,
+    husband_uid: validUids.has(f.husband_uid) ? f.husband_uid : null,
+    wife_uid: validUids.has(f.wife_uid) ? f.wife_uid : null,
+    marr_date: f.marr_date, marr_place: f.marr_place, marr_status: f.marr_status,
+    raw_gedcom_id: f.raw_gedcom_id
+  }));
+  for (let i = 0; i < famsBatch.length; i += BATCH) {
+    const { error } = await sb.from('families').upsert(famsBatch.slice(i, i+BATCH), { onConflict: 'uid' });
+    if (error) console.warn('Family batch error:', error.message);
+  }
+
+  // 4. Push family members
+  label.textContent = 'Pushing children…'; fill.style.width = '75%'; pct.textContent = '75%';
+  // Only include if family uid and person uid both valid
+  const famUids = new Set(famsBatch.map(f => f.uid));
+  const fmBatch = familyMembers.filter(fm => famUids.has(fm.family_uid) && validUids.has(fm.person_uid));
+  for (let i = 0; i < fmBatch.length; i += BATCH) {
+    const { error } = await sb.from('family_members').upsert(fmBatch.slice(i, i+BATCH), { onConflict: 'family_uid,person_uid' });
+    if (error) console.warn('FM batch error:', error.message);
+  }
+
+  fill.style.width = '100%'; pct.textContent = '100%';
+  label.textContent = 'Done!';
+  toast(`✔ Uploaded ${people.length} people, ${families.length} families from ${filename}`);
+  btn.disabled = false; btn.textContent = '✔ Confirm & Push to Database';
+  setTimeout(() => { resetUpload(); loadAll(); }, 2000);
+}
+
+function resetUpload() {
+  parsedData = null; dupDecisions = {};
+  document.getElementById('preview-box').style.display = 'none';
+  document.getElementById('parse-progress').style.display = 'none';
+  document.getElementById('push-progress').style.display = 'none';
+  document.getElementById('file-input').value = '';
+}
+
+// ===================== UPLOADS HISTORY =====================
+async function loadUploads() {
+  const list = document.getElementById('uploads-list');
+  list.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+  const { data, error } = await sb.from('gedcom_uploads').select('*').order('uploaded_at', { ascending: false });
+  if (error || !data || !data.length) { list.innerHTML = '<div class="empty">No uploads yet.</div>'; return; }
+  list.innerHTML = data.map(u => `
+    <div class="upload-row">
+      <div>
+        <div class="fname">📁 ${u.filename}</div>
+        <div class="fmeta">${u.people_count} people &nbsp;·&nbsp; ${u.families_count} families &nbsp;·&nbsp; ${new Date(u.uploaded_at).toLocaleString()}</div>
+        ${u.notes ? `<div class="fmeta" style="margin-top:4px">📝 ${u.notes}</div>` : ''}
+      </div>
+      <div class="faction">
+        <button class="btn-sm btn-danger" onclick="deleteUpload('${u.id}','${u.filename.replace(/'/g,"\\'")}')">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function deleteUpload(id, name) {
+  if (!confirm(`Delete upload "${name}" and ALL its people/families? This cannot be undone.`)) return;
+  const { error } = await sb.from('gedcom_uploads').delete().eq('id', id);
+  if (error) { toast('Error: ' + error.message, true); return; }
+  toast(`Deleted upload: ${name}`);
+  loadUploads(); loadAll();
+}
+
+// ===================== VISITORS =====================
+async function loadVisitors() {
+  const tbody = document.getElementById('visitors-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" class="empty"><span class="spinner"></span> Loading…</td></tr>';
+  const { data } = await sb.from('visitors').select('*').order('last_seen', { ascending: false });
+  allVisitors = data || [];
+  renderVisitors(allVisitors);
+}
+
+function renderVisitors(visitors) {
+  const tbody = document.getElementById('visitors-tbody');
+  if (!visitors.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No visitors yet.</td></tr>'; return; }
+  tbody.innerHTML = visitors.map(v => `
+    <tr class="${v.is_blocked ? 'blocked' : ''}">
+      <td>${v.name_entered}</td>
+      <td>${v.visit_count}</td>
+      <td>${new Date(v.first_seen).toLocaleDateString()}</td>
+      <td>${new Date(v.last_seen).toLocaleDateString()}</td>
+      <td>${v.is_blocked ? '<span class="badge" style="background:rgba(192,57,43,0.2);color:#e74c3c">Blocked</span>' : '<span class="badge badge-current">Active</span>'}</td>
+      <td>
+        ${v.is_blocked
+          ? `<button class="btn-sm" onclick="unblockVisitor('${v.id}')">Unblock</button>`
+          : `<button class="btn-sm btn-danger" onclick="blockVisitor('${v.id}')">Block</button>`
+        }
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterVisitors() {
+  const q = document.getElementById('visitor-search').value.toLowerCase();
+  renderVisitors(allVisitors.filter(v => v.name_entered.toLowerCase().includes(q)));
+}
+
+async function blockVisitor(id) {
+  const reason = prompt('Reason for blocking (optional):') || '';
+  await sb.from('visitors').update({ is_blocked: true, block_reason: reason }).eq('id', id);
+  toast('Visitor blocked'); loadVisitors();
+}
+async function unblockVisitor(id) {
+  await sb.from('visitors').update({ is_blocked: false, block_reason: null }).eq('id', id);
+  toast('Visitor unblocked'); loadVisitors();
+}
+
+// ===================== SETTINGS =====================
+async function loadDbStats() {
+  const el = document.getElementById('db-stats');
+  const [{ count: pc }, { count: fc }, { count: vc }] = await Promise.all([
+    sb.from('people').select('*', { count: 'exact', head: true }),
+    sb.from('families').select('*', { count: 'exact', head: true }),
+    sb.from('visitors').select('*', { count: 'exact', head: true })
+  ]);
+  el.innerHTML = `${pc?.toLocaleString() || 0} people &nbsp;·&nbsp; ${fc?.toLocaleString() || 0} families &nbsp;·&nbsp; ${vc || 0} visitors`;
+}
+
+async function changePassword() {
+  const pw = document.getElementById('new-pw').value.trim();
+  if (!pw || pw.length < 4) { toast('Password must be at least 4 characters', true); return; }
+  const { error } = await sb.from('admin_config').update({ value: pw, updated_at: new Date().toISOString() }).eq('key', 'admin_password');
+  if (error) { toast('Error: ' + error.message, true); return; }
+  adminPassword = pw;
+  document.getElementById('new-pw').value = '';
+  toast('Password updated successfully');
+}
+
+async function confirmNuke() {
+  const confirm1 = confirm('⚠️ This will DELETE ALL people, families, and uploads. Are you absolutely sure?');
+  if (!confirm1) return;
+  const typed = prompt('Type DELETE to confirm:');
+  if (typed !== 'DELETE') return;
+  await sb.from('family_members').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await sb.from('families').delete().neq('uid', 'x');
+  await sb.from('people').delete().neq('uid', 'x');
+  await sb.from('gedcom_uploads').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  toast('All data deleted'); loadAll();
+}
+
+// ===================== UTILS =====================
+async function loadAll() {
+  const [{ count: pc }, { count: fc }] = await Promise.all([
+    sb.from('people').select('*', { count: 'exact', head: true }),
+    sb.from('families').select('*', { count: 'exact', head: true })
+  ]);
+  document.getElementById('hdr-stats').textContent = `${(pc||0).toLocaleString()} people · ${(fc||0).toLocaleString()} families`;
+}
+
+function toast(msg, isErr = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show' + (isErr ? ' err' : '');
+  clearTimeout(t._to);
+  t._to = setTimeout(() => t.className = '', 3500);
+}
+</script>
+</body>
+</html>

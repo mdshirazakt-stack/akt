@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Apno Ki Talash — اپنوں کی تلاش</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #faf7f2;
+    --surface: #ffffff;
+    --border: #e0d8cc;
+    --ink: #2a2318;
+    --muted: #7a6e5e;
+    --gold: #9a6f2f;
+    --gold2: #c9a84c;
+    --goldl: #f5ead5;
+    --red: #8b2e2e;
+    --green: #2e6e4a;
+    --accent: #5c3d11;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: 'Lato', sans-serif; min-height: 100vh; }
+
+  /* ===== AUTH GATE ===== */
+  #auth-gate {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(145deg, #e8f0e3 0%, #d4e6c9 35%, #c8ddb8 65%, #b8d4a5 100%);
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239a6f2f' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+  .auth-box {
+    background: #ffffff; border: 1px solid #c8d9b5;
+    border-top: 3px solid var(--gold2);
+    padding: 56px 44px; width: 420px; text-align: center;
+    box-shadow: 0 20px 60px rgba(46,74,48,0.18);
+  }
+  .auth-box .urdu { font-family: 'Amiri', serif; font-size: 2.6rem; color: var(--gold); direction: rtl; line-height: 1.2; margin-bottom: 6px; }
+  .auth-box .eng { font-size: 0.75rem; color: #6a8a5a; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 36px; }
+  .auth-box .prompt { font-size: 0.85rem; color: #5a7a4a; margin-bottom: 20px; line-height: 1.6; }
+  .auth-box input {
+    width: 100%; padding: 14px 16px; background: #f5f9f2;
+    border: 1px solid #b8d4a0; color: var(--ink);
+    font-size: 1rem; font-family: 'Lato', sans-serif;
+    outline: none; transition: border 0.2s; margin-bottom: 14px;
+    text-align: center;
+  }
+  .auth-box input:focus { border-color: var(--gold2); }
+  .auth-box input::placeholder { color: #9ab88a; }
+  .btn-enter {
+    width: 100%; padding: 14px; background: var(--gold2); color: #1a1208;
+    border: none; font-family: 'Lato', sans-serif; font-weight: 700;
+    font-size: 0.85rem; letter-spacing: 0.12em; text-transform: uppercase;
+    cursor: pointer; transition: background 0.2s;
+  }
+  .btn-enter:hover { background: #dbb83c; }
+  .auth-err { color: #c0392b; font-size: 0.82rem; margin-top: 12px; display: none; }
+  .auth-note { font-size: 0.75rem; color: #8aaa7a; margin-top: 16px; line-height: 1.5; }
+
+  /* ===== MAIN APP ===== */
+  #app { display: none; }
+
+  header {
+    background: linear-gradient(135deg, #4a6741 0%, #3d5c3a 50%, #2e4a30 100%); color: #f0ede6;
+    padding: 0 32px; display: flex; align-items: center;
+    justify-content: space-between; height: 64px;
+    border-bottom: 2px solid var(--gold2);
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  }
+  .logo { display: flex; align-items: center; gap: 14px; }
+  .logo-urdu { font-family: 'Amiri', serif; font-size: 1.5rem; color: var(--gold2); direction: rtl; }
+  .logo-eng { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: #c5d9b8; }
+  .huser { font-size: 0.82rem; color: #c5d9b8; }
+  .huser span { color: var(--gold2); }
+
+  nav {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 32px; gap: 4px;
+    overflow-x: auto;
+  }
+  .nav-tab {
+    padding: 16px 20px; font-size: 0.82rem; letter-spacing: 0.08em;
+    text-transform: uppercase; cursor: pointer; color: var(--muted);
+    border-bottom: 2px solid transparent; transition: all 0.2s;
+    background: none; border-top: none; border-left: none; border-right: none;
+    font-family: 'Lato', sans-serif; white-space: nowrap;
+  }
+  .nav-tab:hover { color: var(--ink); }
+  .nav-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  main { padding: 28px 32px; max-width: 1100px; margin: 0 auto; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* STATS BAR */
+  .stats-bar {
+    display: flex; gap: 16px; margin-bottom: 28px; flex-wrap: wrap;
+  }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 18px 24px; flex: 1; min-width: 120px;
+    border-top: 3px solid var(--gold2);
+  }
+  .stat-card .num { font-size: 1.8rem; font-weight: 700; color: var(--gold); line-height: 1; }
+  .stat-card .lbl { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; }
+
+  /* SEARCH */
+  .search-wrap { position: relative; margin-bottom: 20px; }
+  .search-wrap input {
+    width: 100%; padding: 14px 20px 14px 48px;
+    border: 1px solid var(--border); background: var(--surface);
+    font-size: 1rem; font-family: 'Lato', sans-serif; color: var(--ink);
+    outline: none; transition: border 0.2s;
+  }
+  .search-wrap input:focus { border-color: var(--gold2); }
+  .search-wrap .icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 1.1rem; }
+  .filter-row { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 7px 16px; border: 1px solid var(--border); background: var(--surface);
+    font-family: 'Lato', sans-serif; font-size: 0.8rem; color: var(--muted);
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.05em;
+  }
+  .filter-btn.active, .filter-btn:hover { border-color: var(--gold); color: var(--gold); background: var(--goldl); }
+
+  /* PLACE CHIPS */
+  .place-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px 4px 8px;
+    border: 1px solid #b8d4a0; background: #f0f7eb;
+    font-family: 'Lato', sans-serif; font-size: 0.78rem; color: #3a6030;
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .place-chip:hover { background: #d4ebc4; border-color: #6a9a50; color: #2a4a22; }
+  .place-chip.active { background: #4a7040; border-color: #3a5830; color: #fff; }
+  .place-chip .chip-count { font-size: 0.68rem; opacity: 0.75; }
+
+  /* SOURCE FILTER DROPDOWN */
+  .source-filter-row {
+    display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;
+  }
+  .source-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; white-space: nowrap; }
+  #source-select { border-color: var(--border); }
+  #source-select:focus { border-color: var(--gold2); outline: none; }
+  .source-tag { display: inline-block; padding: 1px 6px; font-size: 0.65rem; background: #e8f0e3; color: #4a7040; border: 1px solid #b8d4a0; border-radius: 2px; margin-left: 4px; vertical-align: middle; font-weight: 700; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* PEOPLE TABLE */
+  .result-count { font-size: 0.82rem; color: var(--muted); margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); }
+  th { background: var(--goldl); color: var(--accent); text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.1em; padding: 11px 14px; text-align: left; border-bottom: 2px solid var(--gold2); }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.87rem; vertical-align: top; }
+  tr:hover td { background: #fdf9f2; }
+  .person-name { font-weight: 700; color: var(--ink); cursor: pointer; }
+  .person-name:hover { color: var(--gold); text-decoration: underline; }
+  .badge { display: inline-block; padding: 2px 7px; font-size: 0.68rem; border-radius: 2px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+  .badge-M { background: #dbeafe; color: #1e40af; }
+  .badge-F { background: #fce7f3; color: #9d174d; }
+  .badge-deceased { background: #f1f5f9; color: #64748b; }
+  .badge-current { background: #dcfce7; color: #166534; }
+  .badge-former { background: #fef3c7; color: #92400e; }
+
+  /* PERSON DETAIL */
+  .person-detail {
+    background: var(--surface); border: 1px solid var(--border);
+    border-top: 3px solid var(--gold2); padding: 28px;
+  }
+  .detail-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .detail-header h2 { font-family: 'Amiri', serif; font-size: 1.8rem; color: var(--ink); }
+  .detail-header .meta { color: var(--muted); font-size: 0.82rem; margin-top: 4px; }
+  .btn-back { padding: 8px 18px; border: 1px solid var(--border); background: none; font-family: 'Lato', sans-serif; font-size: 0.8rem; color: var(--muted); cursor: pointer; transition: all 0.2s; }
+  .btn-back:hover { border-color: var(--gold); color: var(--gold); }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media(max-width:600px){ .detail-grid { grid-template-columns: 1fr; } }
+  .detail-field { padding: 12px 14px; background: var(--bg); border: 1px solid var(--border); }
+  .detail-field .key { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .detail-field .val { font-size: 0.9rem; color: var(--ink); }
+  .section-h { font-family: 'Amiri', serif; font-size: 1.1rem; color: var(--gold); margin-bottom: 12px; margin-top: 20px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .family-card { background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--gold2); padding: 14px; margin-bottom: 10px; }
+  .family-card .fc-title { font-weight: 700; font-size: 0.87rem; margin-bottom: 6px; }
+  .family-card .fc-detail { font-size: 0.8rem; color: var(--muted); }
+  .children-list { list-style: none; padding: 0; }
+  .children-list li { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.87rem; cursor: pointer; }
+  .children-list li:hover { color: var(--gold); }
+
+  /* TREE VIEW */
+  .tree-wrap { overflow-x: auto; }
+  .tree-node {
+    display: inline-flex; flex-direction: column; align-items: center;
+    gap: 8px; min-width: 140px;
+  }
+  .tree-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-top: 3px solid var(--gold2); padding: 10px 14px;
+    text-align: center; font-size: 0.78rem; min-width: 130px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .tree-box:hover { border-color: var(--gold); background: var(--goldl); }
+  .tree-box .tname { font-weight: 700; color: var(--ink); }
+  .tree-box .tmeta { color: var(--muted); margin-top: 2px; font-size: 0.7rem; }
+  .tree-children { display: flex; gap: 20px; padding-top: 20px; position: relative; }
+  .tree-children::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 1px; height: 20px; background: var(--border); }
+
+  /* FULL GENERATION TREE */
+  .gen-tree { overflow-x: auto; padding: 20px 0; }
+  .gen-section { margin-bottom: 0; }
+  .gen-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; text-align: center; margin: 16px 0 8px; border-top: 1px dashed var(--border); padding-top: 12px; }
+  .gen-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; padding: 4px 0; }
+  .tree-box-anc { background: #edf3e8; border: 1px solid #b8d4a0; border-top: 3px solid #6a9a50; }
+  .tree-box-focus { background: var(--goldl); border: 2px solid var(--gold2); border-top: 3px solid var(--gold); box-shadow: 0 2px 12px rgba(154,111,47,0.2); }
+  .tree-box-desc { background: #eaf0f8; border: 1px solid #a8c4e0; border-top: 3px solid #5a8ab0; }
+  .tree-box-spouse { background: #f5f0fa; border: 1px solid #c8b8e0; border-top: 3px solid #9a80c0; }
+
+  /* ── FAMILY GROUP CARDS ── */
+  .fam-group {
+    display: inline-flex; flex-direction: column; align-items: center;
+    border: 1px solid var(--border); background: var(--surface);
+    padding: 10px 12px 12px; margin: 4px; vertical-align: top;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .fam-group-header { display: flex; align-items: flex-start; gap: 0; }
+  .fam-toggle {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    font-size: 0.7rem; padding: 2px 8px; cursor: pointer;
+    font-family: 'Lato', sans-serif; margin-top: 8px; margin-left: 8px;
+    transition: all 0.15s; white-space: nowrap; align-self: flex-start;
+  }
+  .fam-toggle:hover { border-color: var(--gold); color: var(--gold); }
+  .fam-children { width: 100%; margin-top: 8px; }
+  .fam-children-inner {
+    display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
+    padding-top: 14px; position: relative;
+  }
+  .fam-children-inner::before {
+    content: ''; position: absolute; top: 0; left: 10%; right: 10%;
+    height: 2px; background: var(--border);
+  }
+  .fam-child-col { display: flex; flex-direction: column; align-items: center; }
+  .fam-child-tick { width: 2px; height: 12px; background: var(--border); margin: 0 auto; }
+  .fam-children-label {
+    font-size: 0.68rem; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.1em; text-align: center; margin-bottom: 4px;
+  }
+  .gen-section-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 0; }
+  .tree-connector { text-align: center; color: var(--border); font-size: 1.2rem; line-height: 1; margin: 2px 0; }
+
+  /* ===== DIRECTORY PANEL ===== */
+  .dir-file-section { margin-bottom: 32px; }
+  .dir-file-heading {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 18px; background: var(--goldl);
+    border-left: 4px solid var(--gold2); border-radius: 2px;
+    cursor: pointer; user-select: none;
+    transition: background 0.15s;
+  }
+  .dir-file-heading:hover { background: #edddb8; }
+  .dir-file-title {
+    flex: 1; font-weight: 700; font-size: 0.9rem; color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+  .dir-file-meta { font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+  .dir-chevron { font-size: 0.7rem; color: var(--gold); transition: transform 0.2s; }
+  .dir-chevron.open { transform: rotate(90deg); }
+  .dir-people-list {
+    display: none; flex-wrap: wrap; gap: 0;
+    border: 1px solid var(--border); border-top: none;
+  }
+  .dir-people-list.open { display: flex; }
+  .dir-person-row {
+    width: 50%; padding: 9px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; transition: background 0.12s;
+    box-sizing: border-box;
+  }
+  .dir-person-row:hover { background: var(--goldl); }
+  .dir-person-row:nth-child(odd) { border-right: 1px solid var(--border); }
+  .dir-sex-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  }
+  .dir-sex-dot.M { background: #4a7ab5; }
+  .dir-sex-dot.F { background: #c2607a; }
+  .dir-sex-dot.U { background: var(--muted); }
+  .dir-name { font-size: 0.84rem; color: var(--ink); flex: 1; }
+  .dir-name.deceased { color: var(--muted); text-decoration: line-through; }
+  .dir-badge { font-size: 0.65rem; color: var(--muted); background: #ece8e0; padding: 1px 5px; border-radius: 2px; white-space: nowrap; }
+  .dir-empty { padding: 18px 16px; color: var(--muted); font-size: 0.82rem; font-style: italic; width: 100%; }
+
+  @media (max-width: 600px) {
+    .dir-person-row { width: 100%; border-right: none !important; }
+  }
+
+  @media print {
+    #auth-gate, header, nav, .search-wrap, .filter-row, #tree-search-results, button, .btn-back, .pagination { display: none !important; }
+    body { background: white; }
+    .gen-tree { overflow: visible; }
+    .tree-box { page-break-inside: avoid; }
+    .panel { display: block !important; }
+    #panel-search, #panel-stats { display: none !important; }
+    #panel-tree { display: block !important; }
+    main { padding: 0; max-width: 100%; }
+  }
+
+  /* LOADING */
+  .loading { text-align: center; padding: 60px; color: var(--muted); }
+  .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty-state { text-align: center; padding: 60px; color: var(--muted); }
+  .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+
+  /* PAGINATION */
+  .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+  .page-btn { padding: 7px 13px; border: 1px solid var(--border); background: var(--surface); font-family: 'Lato', sans-serif; font-size: 0.8rem; cursor: pointer; color: var(--muted); transition: all 0.2s; }
+  .page-btn.active, .page-btn:hover { border-color: var(--gold); color: var(--gold); background: var(--goldl); }
+
+  /* TOAST */
+  #toast { position: fixed; bottom: 20px; right: 20px; background: var(--ink); color: #e8e4dc; padding: 12px 18px; font-size: 0.82rem; z-index: 9999; transform: translateY(60px); opacity: 0; transition: all 0.3s; border-left: 3px solid var(--gold2); }
+  #toast.show { transform: translateY(0); opacity: 1; }
+
+  @media(max-width: 600px) {
+    header { padding: 0 16px; }
+    main { padding: 16px; }
+    nav { padding: 0 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- AUTH GATE -->
+<div id="auth-gate">
+  <div class="auth-box">
+    <div class="urdu">اپنوں کی تلاش</div>
+    <div class="eng">Apno Ki Talash — Family Heritage</div>
+    <p class="prompt">This is a private family tree archive.<br>Please enter your name to continue.</p>
+    <input type="text" id="visitor-name" placeholder="Your full name" maxlength="100" onkeydown="if(event.key==='Enter')doEnter()"/>
+    <button class="btn-enter" onclick="doEnter()">Enter →</button>
+    <div class="auth-err" id="auth-err">Please enter your name to continue.</div>
+    <div class="auth-note">Your name will be recorded for access tracking purposes.</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <header>
+    <div class="logo">
+      <div>
+        <div class="logo-urdu">اپنوں کی تلاش</div>
+        <div class="logo-eng">Family Heritage Archive</div>
+      </div>
+    </div>
+    <div class="huser">Welcome, <span id="user-display"></span></div>
+  </header>
+
+  <nav>
+    <button class="nav-tab active" onclick="switchTab('search', this)">🔍 Search</button>
+    <button class="nav-tab" onclick="switchTab('tree', this)">🌳 Browse Tree</button>
+    <button class="nav-tab" onclick="switchTab('directory', this)">📋 Directory</button>
+    <button class="nav-tab" onclick="switchTab('stats', this)">📊 Stats</button>
+  </nav>
+
+  <main>
+
+    <!-- SEARCH PANEL -->
+    <div id="panel-search" class="panel active">
+      <div class="search-wrap">
+        <span class="icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Search by name…" oninput="onSearch()"/>
+      </div>
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+        <button class="filter-btn" onclick="setFilter('M',this)">Male</button>
+        <button class="filter-btn" onclick="setFilter('F',this)">Female</button>
+        <button class="filter-btn" onclick="setFilter('deceased',this)">Deceased</button>
+      </div>
+
+      <!-- PLACE QUICK-FILTERS -->
+      <div id="place-filter-row" style="display:none;margin-bottom:10px">
+        <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">📍 Filter by Place</div>
+        <div id="place-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
+      <div class="source-filter-row" id="source-filter-row" style="display:none">
+        <span class="source-label">📁 Source File:</span>
+        <div style="position:relative;flex:1;max-width:480px">
+          <select id="source-select" onchange="setSourceFilterDropdown(this)" style="width:100%;padding:7px 32px 7px 10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'Lato',sans-serif;font-size:0.82rem;cursor:pointer;appearance:none;outline:none;transition:border 0.2s">
+            <option value="">All Files</option>
+          </select>
+          <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted);font-size:0.7rem">▼</span>
+        </div>
+        <span id="source-count-label" style="font-size:0.75rem;color:var(--muted);white-space:nowrap"></span>
+      </div>
+      <div id="search-results">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- TREE PANEL -->
+    <div id="panel-tree" class="panel">
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div class="search-wrap" style="max-width:420px;margin-bottom:0;flex:1">
+            <span class="icon">🔍</span>
+            <input type="text" id="tree-search" placeholder="Type a name to search…" oninput="treeSearch()"/>
+          </div>
+          <div style="font-size:0.75rem;color:var(--muted);white-space:nowrap">↑ Search, then click a name below to build the tree</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button onclick="printTree()" style="padding:9px 18px;background:var(--accent);color:#fff;border:none;font-family:'Lato',sans-serif;font-weight:700;font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;white-space:nowrap;transition:background 0.2s" onmouseover="this.style.background='#2e4a30'" onmouseout="this.style.background='var(--accent)'" title="Print the currently displayed tree">🖨 Print Tree</button>
+          <span id="tree-person-label" style="font-size:0.78rem;color:var(--muted);font-style:italic"></span>
+        </div>
+      </div>
+      <div id="tree-search-results" style="margin-bottom:12px"></div>
+      <div id="tree-view" class="tree-wrap">
+        <div class="empty-state"><div class="icon">🌳</div><p>Search for a person above, then click their name to build and browse their family tree.</p></div>
+      </div>
+    </div>
+
+    <!-- DIRECTORY PANEL -->
+    <div id="panel-directory" class="panel">
+      <div id="dir-container">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- STATS PANEL -->
+    <div id="panel-stats" class="panel">
+      <div class="stats-bar" id="stats-bar">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+      <div id="stats-detail"></div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://fusairoeiabmqvsbxhfi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1c2Fpcm9laWFibXF2c2J4aGZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MTUwNTgsImV4cCI6MjA5MzQ5MTA1OH0.uTVlBn4iDFZzAeD2i4Bzt4fXVxGequ2W9LIxugBIKsA';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let searchFilter = 'all';
+let sourceFilter = null; // gedcom_id UUID or null = all
+let gedcomUploads = []; // [{id, filename, shortname}]
+let searchPage = 0;
+const PAGE_SIZE = 50;
+let searchTotal = 0;
+let lastQuery = '';
+let searchTimer = null;
+
+// ===== AUTH =====
+async function doEnter() {
+  const name = document.getElementById('visitor-name').value.trim();
+  if (!name) { document.getElementById('auth-err').style.display = 'block'; return; }
+
+  // Check if blocked
+  const { data: existing } = await sb.from('visitors').select('*').ilike('name_entered', name).maybeSingle();
+  if (existing?.is_blocked) {
+    document.getElementById('auth-err').textContent = 'Access denied. Please contact the administrator.';
+    document.getElementById('auth-err').style.display = 'block'; return;
+  }
+
+  // Upsert visitor
+  if (existing) {
+    await sb.from('visitors').update({ last_seen: new Date().toISOString(), visit_count: (existing.visit_count || 0) + 1 }).eq('id', existing.id);
+  } else {
+    await sb.from('visitors').insert({ name_entered: name, ip_hint: getIpHint() });
+  }
+
+  currentUser = name;
+  document.getElementById('user-display').textContent = name;
+  document.getElementById('auth-gate').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  await loadGedcomSources();
+  loadSearch('');
+}
+
+function getIpHint() {
+  // Basic browser fingerprint (not exact IP)
+  return `${navigator.language}|${screen.width}x${screen.height}|${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
+}
+
+// ===== GEDCOM SOURCE FILTER =====
+async function loadGedcomSources() {
+  const { data } = await sb.from('gedcom_uploads').select('id,filename,people_count').order('filename');
+  if (!data || !data.length) return;
+  gedcomUploads = data.map(u => ({ id: u.id, filename: u.filename, count: u.people_count || 0 }));
+
+  // ── Populate source dropdown ──
+  const sel = document.getElementById('source-select');
+  sel.innerHTML = `<option value="">All Files (${gedcomUploads.reduce((s,u)=>s+u.count,0).toLocaleString()} people)</option>`;
+  gedcomUploads.forEach(u => {
+    const opt = document.createElement('option');
+    opt.value = u.id;
+    opt.textContent = u.filename.replace(/\.ged$/i, '') + `  (${u.count.toLocaleString()})`;
+    opt.title = u.filename;
+    sel.appendChild(opt);
+  });
+  document.getElementById('source-filter-row').style.display = 'flex';
+
+  // ── Extract places and build chips ──
+  buildPlaceChips(gedcomUploads);
+}
+
+// ── Place extraction from filenames ──────────────────────────────
+// Known place words for this region — extend as needed
+const KNOWN_PLACES = [
+  'mau','lar','nawanagar','deoria','ballia','gazipur','ghazipur',
+  'gorakhpur','banaras','varanasi','azamgarh','basti','faizabad',
+  'sitapur','lucknow','allahabad','prayagraj','jaunpur','ambedkarnagar',
+  'pipradeha','noonahara','nonahara','dakhin','paschim','poorab',
+  'kothe','bahorwan','bahorwan','rasra','hata','sanaullah','fateh','nagar',
+  'mohalla','mohala','chowk','bazar','bazar','tola','pura','pur',
+  'gaon','gram','deh','deh','ganj','gunj','sarai','katra','patti',
+  'rampur','ramnagar','shivpur','mahmoodpur','mahmudpur','hasanpur',
+  'husainpur','alipur','karimpur','rahimpur','nandpur','chandpur',
+  'mubarakpur','mubarkpur','saidpur','sayedpur','ibrahimpur',
+  'nawabganj','shahganj','sultanpur','pratapgarh','mirzapur',
+  'chunar','robertsganj','padrauna','kushinagar','maharajganj',
+  'siddharthnagar','barhalganj','sahjanwa','campierganj','nichlaul',
+  'sonauli','nautanwa','anpara','renukut','obra','duddhi',
+];
+
+// Words that should NEVER be treated as place names
+const NOT_PLACES = new Set([
+  'so','do','son','daughter','wife','husband','bin','bint','binte',
+  'and','the','of','in','at','by','for','with','from','to',
+  'shaikh','sheikh','syed','haji','maulana','maulvi','janab',
+  'mohammad','muhammad','mohd','md','ahmed','ahmad','ali','hassan',
+  'hussain','khan','ansari','qureshi','farooqi','siddiqi','siddiqui',
+  'dist','district','tehsil','block','ps','po','via','nr','near',
+  'late','al','abu','umm','ibn','bani','usmani','qadri',
+  'ra','rh','db','sb','sb','ib','ie',
+]);
+
+function extractPlacesFromFilename(filename) {
+  // Remove extension, split on separators
+  const base = filename.replace(/\.ged$/i, '');
+  // Split on _ - ( ) . , spaces and numbers at start
+  const words = base
+    .replace(/^\d+[-_\s]+/, '')           // strip leading number prefix like "153-"
+    .split(/[\s_\-\(\),\.&]+/)
+    .map(w => w.toLowerCase().trim())
+    .filter(w => w.length >= 3);
+
+  const found = new Set();
+
+  for (const word of words) {
+    // Direct match in known places list
+    if (KNOWN_PLACES.includes(word) && !NOT_PLACES.has(word)) {
+      found.add(canonicalPlace(word));
+      continue;
+    }
+    // Check if word CONTAINS a known place (e.g. "noonahara" contains "nonahara")
+    for (const place of KNOWN_PLACES) {
+      if (place.length >= 4 && (word.includes(place) || place.includes(word))) {
+        if (!NOT_PLACES.has(place)) found.add(canonicalPlace(place));
+      }
+    }
+  }
+
+  // Also scan the full filename string directly for multi-word places
+  const lower = base.toLowerCase();
+  for (const place of KNOWN_PLACES) {
+    if (place.length >= 4 && lower.includes(place) && !NOT_PLACES.has(place)) {
+      found.add(canonicalPlace(place));
+    }
+  }
+
+  return [...found];
+}
+
+// Canonical display form (title case + known aliases)
+const PLACE_ALIASES = {
+  'ghazipur': 'Gazipur', 'gazipur': 'Gazipur',
+  'mau': 'Mau', 'lar': 'Lar',
+  'nawanagar': 'Nawanagar',
+  'deoria': 'Deoria', 'ballia': 'Ballia',
+  'nonahara': 'Noonahara', 'noonahara': 'Noonahara',
+  'dakhin': 'Dakhin Lar', 'paschim': 'Paschim Lar', 'poorab': 'Poorab',
+  'bahorwan': 'Bahorwan', 'rasra': 'Rasra', 'hata': 'Hata',
+  'pipradeha': 'Pipradeha',
+};
+function canonicalPlace(p) {
+  return PLACE_ALIASES[p.toLowerCase()] || (p.charAt(0).toUpperCase() + p.slice(1));
+}
+
+// Build and render the place chips
+function buildPlaceChips(uploads) {
+  // Map: canonicalPlace → [ gedcomId, ... ]
+  const placeMap = new Map();
+
+  uploads.forEach(u => {
+    const places = extractPlacesFromFilename(u.filename);
+    places.forEach(place => {
+      if (!placeMap.has(place)) placeMap.set(place, { ids: [], count: 0 });
+      placeMap.get(place).ids.push(u.id);
+      placeMap.get(place).count += u.count;
+    });
+  });
+
+  if (!placeMap.size) return;
+
+  // Sort by people count descending
+  const sorted = [...placeMap.entries()].sort((a, b) => b[1].count - a[1].count);
+
+  const container = document.getElementById('place-chips');
+  container.innerHTML = '';
+
+  // "All places" reset chip
+  const allChip = document.createElement('button');
+  allChip.className = 'place-chip active';
+  allChip.id = 'place-chip-all';
+  allChip.innerHTML = `🗺 All Places`;
+  allChip.onclick = () => setPlaceFilter(null, allChip);
+  container.appendChild(allChip);
+
+  sorted.forEach(([place, info]) => {
+    const chip = document.createElement('button');
+    chip.className = 'place-chip';
+    chip.dataset.placeIds = JSON.stringify(info.ids);
+    chip.innerHTML = `📍 ${place} <span class="chip-count">(${info.count.toLocaleString()})</span>`;
+    chip.title = `${info.ids.length} file${info.ids.length > 1 ? 's' : ''} for ${place}`;
+    chip.onclick = () => setPlaceFilter(info.ids, chip);
+    container.appendChild(chip);
+  });
+
+  document.getElementById('place-filter-row').style.display = 'block';
+}
+
+// Active place filter: array of gedcom IDs, or null = all
+let placeFilterIds = null;
+
+function setPlaceFilter(ids, chip) {
+  placeFilterIds = ids;
+
+  // Update chip active states
+  document.querySelectorAll('.place-chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+
+  // If a place is selected, also reset the source dropdown to "All"
+  // (place filter overrides source filter for these IDs)
+  if (ids) {
+    sourceFilter = null;
+    const sel = document.getElementById('source-select');
+    if (sel) sel.value = '';
+    document.getElementById('source-count-label').textContent =
+      `${ids.length} file${ids.length > 1 ? 's' : ''} selected`;
+  } else {
+    document.getElementById('source-count-label').textContent = '';
+  }
+
+  searchPage = 0;
+  // Switch to search tab
+  switchTab('search', document.querySelector('.nav-tab[onclick*="search"]'));
+  loadSearch(document.getElementById('search-input').value.trim());
+}
+
+function setSourceFilterDropdown(sel) {
+  sourceFilter = sel.value || null;
+  placeFilterIds = null; // clear place filter when source is manually chosen
+  // Reset place chips
+  document.querySelectorAll('.place-chip').forEach(c => c.classList.remove('active'));
+  const allChip = document.getElementById('place-chip-all');
+  if (allChip) allChip.classList.add('active');
+  const label = document.getElementById('source-count-label');
+  if (sourceFilter) {
+    const u = gedcomUploads.find(u => u.id === sourceFilter);
+    label.textContent = u ? `${u.count.toLocaleString()} people in this file` : '';
+  } else {
+    label.textContent = '';
+  }
+  searchPage = 0;
+  loadSearch(document.getElementById('search-input').value.trim());
+}
+
+function setSourceFilter(id) {
+  sourceFilter = id;
+  const sel = document.getElementById('source-select');
+  if (sel) sel.value = id || '';
+  searchPage = 0;
+  loadSearch(document.getElementById('search-input').value.trim());
+}
+
+// ===== TABS =====
+function switchTab(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name === 'stats') loadStats();
+  if (name === 'directory') loadDirectory();
+}
+
+// ===== DIRECTORY =====
+let dirLoaded = false;
+
+async function loadDirectory() {
+  if (dirLoaded) return;
+  const container = document.getElementById('dir-container');
+
+  // 1. Fetch all gedcom files ordered by filename
+  const { data: files, error: ferr } = await sb
+    .from('gedcom_uploads')
+    .select('id, filename, people_count')
+    .order('filename');
+
+  if (ferr || !files || !files.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>No GEDCOM files found.</p></div>';
+    return;
+  }
+
+  // 2. Fetch ALL people (uid, name, sex, death_flag, source_file_id) — paginated
+  let allPeople = [];
+  let from = 0;
+  const BATCH = 1000;
+  while (true) {
+    const { data: batch } = await sb
+      .from('people')
+      .select('uid, name, sex, death_flag, source_file_id')
+      .range(from, from + BATCH - 1);
+    if (!batch || !batch.length) break;
+    allPeople = allPeople.concat(batch);
+    if (batch.length < BATCH) break;
+    from += BATCH;
+  }
+
+  // 3. Group people by source_file_id
+  const byFile = {};
+  allPeople.forEach(p => {
+    const fid = p.source_file_id || '__unknown__';
+    if (!byFile[fid]) byFile[fid] = [];
+    byFile[fid].push(p);
+  });
+
+  // 4. Sort people within each file: alphabetically by name
+  Object.values(byFile).forEach(arr =>
+    arr.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+  );
+
+  // 5. Render
+  let html = '';
+  files.forEach((file, idx) => {
+    const people = byFile[file.id] || [];
+    const sectionId = 'dir-sec-' + idx;
+    const listId = 'dir-list-' + idx;
+    // Strip .ged, clean up underscores/dashes for display
+    const displayName = file.filename
+      .replace(/\.ged$/i, '')
+      .replace(/^(\d+[-_]+)/, '<span style="color:var(--gold);font-size:0.95em;margin-right:4px">$1</span>');
+
+    html += `
+      <div class="dir-file-section">
+        <div class="dir-file-heading" onclick="toggleDirSection('${listId}','${sectionId}')">
+          <span class="dir-chevron" id="${sectionId}">▶</span>
+          <span class="dir-file-title">${displayName}</span>
+          <span class="dir-file-meta">${people.length.toLocaleString()} ${people.length === 1 ? 'person' : 'people'}</span>
+        </div>
+        <div class="dir-people-list" id="${listId}">
+          ${people.length === 0
+            ? '<div class="dir-empty">No people found in this file.</div>'
+            : people.map(p => `
+              <div class="dir-person-row" onclick="dirShowPerson('${p.uid}')">
+                <span class="dir-sex-dot ${p.sex || 'U'}"></span>
+                <span class="dir-name${p.death_flag ? ' deceased' : ''}">${p.name || '(unnamed)'}</span>
+                ${p.death_flag ? '<span class="dir-badge">d.</span>' : ''}
+              </div>`).join('')
+          }
+        </div>
+      </div>`;
+  });
+
+  container.innerHTML = html;
+  dirLoaded = true;
+}
+
+function toggleDirSection(listId, chevronId) {
+  const list = document.getElementById(listId);
+  const chev = document.getElementById(chevronId);
+  const isOpen = list.classList.contains('open');
+  list.classList.toggle('open', !isOpen);
+  chev.classList.toggle('open', !isOpen);
+}
+
+function dirShowPerson(uid) {
+  // Switch to search tab, show person detail there
+  switchTab('search', document.querySelector('.nav-tab[onclick*="search"]'));
+  showPerson(uid);
+}
+
+
+// ===== SEARCH =====
+function setFilter(f, btn) {
+  searchFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  searchPage = 0;
+  loadSearch(document.getElementById('search-input').value.trim());
+}
+
+function onSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    searchPage = 0;
+    loadSearch(document.getElementById('search-input').value.trim());
+  }, 300);
+}
+
+// ── FUZZY SEARCH HELPERS ──────────────────────────────────────────
+
+// Strips common honorifics/prefixes that shouldn't affect matching
+const STRIP_PREFIXES = /^(haji|haj|haz|hazrat|maulana|maulvi|shaikh|sheikh|shiekh|syed|sayyid|dr|dr\.|hafiz|qari|mufti|janab|janabs?|begum|bibi|khatoon|khanam)\s+/i;
+
+// Normalize a single word for phonetic-ish matching
+// Maps common Urdu/Arabic name spelling variants to a canonical root
+function normWord(w) {
+  w = w.toLowerCase().trim();
+  // Remove common honorific prefixes
+  w = w.replace(STRIP_PREFIXES, '');
+  // Vowel/consonant equivalences common in Urdu romanisation
+  w = w.replace(/ph/g, 'f');
+  w = w.replace(/ck|kh?/g, 'k');
+  w = w.replace(/gh/g, 'g');
+  w = w.replace(/sh/g, 's');
+  w = w.replace(/ch/g, 'c');
+  w = w.replace(/th/g, 't');
+  w = w.replace(/oo+/g, 'u');
+  w = w.replace(/ee+|ie/g, 'i');
+  w = w.replace(/aa+/g, 'a');
+  w = w.replace(/uu+/g, 'u');
+  w = w.replace(/ou/g, 'u');
+  w = w.replace(/[aeiou]+$/g, '');   // strip trailing vowels (maqbool→maqbul→maqbl)
+  w = w.replace(/(.)\1+/g, '$1');    // collapse repeated chars (ll→l, rr→r)
+  // j↔z↔s confusion (siraj/siraz/siras)
+  w = w.replace(/[zj]/g, 's');
+  // q↔k, v↔w, b↔p at start
+  w = w.replace(/q/g, 'k');
+  w = w.replace(/v/g, 'w');
+  return w;
+}
+
+// Returns all ilike patterns to try for a token
+// e.g. "siraz" → ['%siraz%', '%siraj%', '%sirac%']
+function fuzzyPatterns(token) {
+  const patterns = new Set();
+  const t = token.toLowerCase().trim();
+  patterns.add('%' + t + '%');                      // exact substring
+
+  // Strip leading honorific and search without it
+  const stripped = t.replace(STRIP_PREFIXES, '');
+  if (stripped !== t) patterns.add('%' + stripped + '%');
+
+  // Common letter substitutions — generate variants
+  const variants = new Set([t, stripped]);
+  for (const base of [t, stripped]) {
+    variants.add(base.replace(/j/g, 'z').replace(/z/g, 'j'));
+    variants.add(base.replace(/oo/g, 'u').replace(/ul$/,'ul').replace(/ool$/,'ul'));
+    variants.add(base.replace(/oo/g, 'u'));
+    variants.add(base.replace(/u([^aeiou])/g, 'oo$1'));
+    variants.add(base.replace(/q/g, 'k').replace(/k/g, 'q'));
+    variants.add(base.replace(/ie|ee/g, 'i'));
+    variants.add(base.replace(/ph/g, 'f').replace(/f/g, 'ph'));
+    variants.add(base.replace(/([bcdfghjklmnpqrstvwxyz])\1/g, '$1'));  // dedup
+    variants.add(base.replace(/aa/g, 'a').replace(/ii/g, 'i'));
+    // Drop last vowel (maqbool → maqbol, maqbul → common endings)
+    variants.add(base.replace(/[aeiou]+$/, ''));
+  }
+  for (const v of variants) {
+    if (v.length >= 3) patterns.add('%' + v + '%');
+  }
+  return [...patterns];
+}
+
+// Score a result name against the query tokens (higher = better match)
+function scoreMatch(name, tokens) {
+  if (!name) return 0;
+  const lname = name.toLowerCase();
+  let score = 0;
+  for (const tok of tokens) {
+    const tl = tok.toLowerCase();
+    if (lname.includes(tl)) { score += 10; continue; }           // exact substring
+    // partial: each char of token present in order
+    const stripped = tl.replace(STRIP_PREFIXES, '');
+    if (lname.includes(stripped)) { score += 8; continue; }
+    if (normWord(lname) === normWord(tl)) { score += 6; continue; }
+    // trigram-ish: count matching 2-grams
+    let bi = 0;
+    for (let i = 0; i < tl.length - 1; i++) {
+      if (lname.includes(tl[i] + tl[i+1])) bi++;
+    }
+    score += bi;
+  }
+  return score;
+}
+
+// Highlight matched tokens in a name string
+function highlightName(name, tokens) {
+  if (!name || !tokens.length) return name || '(unnamed)';
+  let result = name;
+  // Build a regex that matches any token or its stripped variant
+  const parts = [];
+  for (const tok of tokens) {
+    const t = tok.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    parts.push(t);
+    const s = tok.replace(STRIP_PREFIXES, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (s !== t && s.length >= 3) parts.push(s);
+  }
+  if (!parts.length) return name;
+  try {
+    const rx = new RegExp('(' + parts.join('|') + ')', 'gi');
+    result = name.replace(rx, '<mark style="background:#fff3a3;padding:0 1px;border-radius:1px">$1</mark>');
+  } catch(e) {}
+  return result;
+}
+
+// ── MAIN SEARCH ───────────────────────────────────────────────────
+
+async function loadSearch(q) {
+  lastQuery = q;
+  const el = document.getElementById('search-results');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  const baseSelect = 'uid,name,given_name,surname,sex,birth_place,death_flag,marr_status,gedcom_id';
+
+  // Split query into meaningful tokens (ignore short words, trim)
+  const rawTokens = q ? q.trim().split(/\s+/).filter(t => t.length >= 2) : [];
+
+  let data = [], count = 0;
+
+  if (!rawTokens.length) {
+    // No query — just apply filters and paginate
+    let query = sb.from('people').select(baseSelect, { count: 'exact' });
+    if (searchFilter === 'M') query = query.eq('sex', 'M');
+    else if (searchFilter === 'F') query = query.eq('sex', 'F');
+    else if (searchFilter === 'deceased') query = query.eq('death_flag', true);
+    if (placeFilterIds)  query = query.in('gedcom_id', placeFilterIds);
+    else if (sourceFilter) query = query.eq('gedcom_id', sourceFilter);
+    query = query.order('name').range(searchPage * PAGE_SIZE, (searchPage + 1) * PAGE_SIZE - 1);
+    const res = await query;
+    data = res.data || [];
+    count = res.count || 0;
+
+  } else {
+    // ── FUZZY MULTI-TOKEN SEARCH ──
+    // Strategy: fetch a broader candidate set using OR across all fuzzy
+    // patterns for each token, then score + sort client-side.
+    // For 1-2 tokens we can paginate server-side; for fuzzy we over-fetch
+    // and re-rank.
+
+    const FETCH_LIMIT = 500; // fetch up to 500 candidates to re-rank
+
+    // Build OR filter: for each token, collect patterns and OR them
+    // Supabase JS v2 supports .or() with comma-separated conditions
+    const orClauses = [];
+    for (const tok of rawTokens) {
+      const patterns = fuzzyPatterns(tok);
+      for (const pat of patterns) {
+        // Escape single quotes in pattern
+        const safe = pat.replace(/'/g, "''");
+        orClauses.push('name.ilike.' + safe);
+      }
+    }
+
+    // Deduplicate
+    const uniqueClauses = [...new Set(orClauses)];
+
+    let query = sb.from('people').select(baseSelect);
+    if (searchFilter === 'M') query = query.eq('sex', 'M');
+    else if (searchFilter === 'F') query = query.eq('sex', 'F');
+    else if (searchFilter === 'deceased') query = query.eq('death_flag', true);
+    if (sourceFilter) query = query.eq('gedcom_id', sourceFilter);
+
+    // Apply OR across all fuzzy patterns
+    // Supabase allows .or('cond1,cond2,...') — but has URL length limits
+    // Chunk into groups of 40 patterns if needed, union results
+    const CHUNK = 40;
+    const allResults = new Map(); // uid → row
+
+    for (let ci = 0; ci < uniqueClauses.length; ci += CHUNK) {
+      const chunk = uniqueClauses.slice(ci, ci + CHUNK).join(',');
+      let q2 = sb.from('people').select(baseSelect).or(chunk).limit(FETCH_LIMIT);
+      if (searchFilter === 'M') q2 = q2.eq('sex', 'M');
+      else if (searchFilter === 'F') q2 = q2.eq('sex', 'F');
+      else if (searchFilter === 'deceased') q2 = q2.eq('death_flag', true);
+      if (placeFilterIds)  q2 = q2.in('gedcom_id', placeFilterIds);
+      else if (sourceFilter) q2 = q2.eq('gedcom_id', sourceFilter);
+      const { data: chunk_data } = await q2;
+      (chunk_data || []).forEach(row => { if (!allResults.has(row.uid)) allResults.set(row.uid, row); });
+    }
+
+    // Score and sort
+    const scored = [...allResults.values()].map(row => ({
+      ...row,
+      _score: scoreMatch(row.name, rawTokens)
+    })).filter(r => r._score > 0)
+      .sort((a, b) => b._score - a._score);
+
+    count = scored.length;
+    // Paginate client-side after scoring
+    data = scored.slice(searchPage * PAGE_SIZE, (searchPage + 1) * PAGE_SIZE);
+  }
+
+  // ── RENDER ───────────────────────────────────────────────────────
+  const srcMap = {};
+  gedcomUploads.forEach(u => srcMap[u.id] = u.filename.replace(/\.ged$/i,''));
+  const activeSource = sourceFilter ? gedcomUploads.find(u => u.id === sourceFilter) : null;
+  const activePlaceChip = placeFilterIds ? document.querySelector('.place-chip.active:not(#place-chip-all)') : null;
+  const filterDesc = activePlaceChip
+    ? ` in <em>📍 ${activePlaceChip.textContent.replace(/\(.*\)/, '').trim()}</em>`
+    : activeSource ? ` in <em>${activeSource.filename.replace(/\.ged$/i,'')}</em>` : '';
+  const fuzzyNote = rawTokens.length ? `<span style="font-size:0.75rem;color:var(--muted);margin-left:8px">✦ fuzzy + variant matching active</span>` : '';
+
+  if (!data.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>No results found for "<strong>${q}</strong>".<br><span style="font-size:0.82rem;color:var(--muted)">Try fewer words, or check the spelling — fuzzy matching is already active.</span></p></div>`;
+    return;
+  }
+
+  const pages = Math.ceil(count / PAGE_SIZE);
+  el.innerHTML = `
+    <div class="result-count">${count.toLocaleString()} people found${q ? ` for "<strong>${q}</strong>"` : ''}${filterDesc}${fuzzyNote}</div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>Name</th><th>Sex</th><th>Birth Place</th><th>Deceased</th><th>Status</th><th>Source</th>
+      </tr></thead>
+      <tbody>${data.map(p => {
+        const src = srcMap[p.gedcom_id] || '';
+        const displayName = highlightName(p.name || '(unnamed)', rawTokens);
+        return `
+        <tr>
+          <td><span class="person-name" onclick="showPerson('${p.uid}')">${displayName}</span></td>
+          <td>${p.sex ? `<span class="badge badge-${p.sex}">${p.sex === 'M' ? '♂ M' : '♀ F'}</span>` : '-'}</td>
+          <td>${p.birth_place || '-'}</td>
+          <td>${p.death_flag ? '✓' : '-'}</td>
+          <td>${p.marr_status ? `<span class="badge badge-${p.marr_status}">${p.marr_status}</span>` : '-'}</td>
+          <td>${src ? `<span class="source-tag" title="${p.gedcom_id}">${src}</span>` : '-'}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+    </div>
+    ${pages > 1 ? `<div class="pagination">${buildPagination(pages)}</div>` : ''}
+  `;
+}
+
+function buildPagination(pages) {
+  let html = '';
+  if (searchPage > 0) html += `<button class="page-btn" onclick="goPage(${searchPage-1})">‹ Prev</button>`;
+  const start = Math.max(0, searchPage - 2), end = Math.min(pages - 1, searchPage + 2);
+  for (let i = start; i <= end; i++) {
+    html += `<button class="page-btn ${i===searchPage?'active':''}" onclick="goPage(${i})">${i+1}</button>`;
+  }
+  if (searchPage < pages - 1) html += `<button class="page-btn" onclick="goPage(${searchPage+1})">Next ›</button>`;
+  return html;
+}
+function goPage(p) { searchPage = p; loadSearch(lastQuery); window.scrollTo(0,0); }
+
+// ===== PERSON DETAIL =====
+async function showPerson(uid) {
+  const el = document.getElementById('search-results');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  // Fetch person
+  const { data: p } = await sb.from('people').select('*').eq('uid', uid).single();
+  if (!p) { el.innerHTML = '<div class="empty-state">Person not found.</div>'; return; }
+
+  // Fetch families as spouse
+  const { data: famsAsSpouse } = await sb.from('families')
+    .select('*')
+    .or(`husband_uid.eq.${uid},wife_uid.eq.${uid}`);
+
+  // Fetch families as child
+  const { data: famsAsChild } = await sb.from('family_members')
+    .select('family_uid, role')
+    .eq('person_uid', uid)
+    .eq('role', 'child');
+
+  // Get parent family details
+  let parentFamily = null;
+  if (famsAsChild && famsAsChild.length > 0) {
+    const { data: pf } = await sb.from('families').select('*').eq('uid', famsAsChild[0].family_uid).single();
+    parentFamily = pf;
+  }
+
+  // Fetch spouse names
+  const spouseUids = [];
+  (famsAsSpouse || []).forEach(f => {
+    if (f.husband_uid && f.husband_uid !== uid) spouseUids.push(f.husband_uid);
+    if (f.wife_uid && f.wife_uid !== uid) spouseUids.push(f.wife_uid);
+  });
+  let spouseMap = {};
+  if (spouseUids.length) {
+    const { data: spouses } = await sb.from('people').select('uid,name').in('uid', spouseUids);
+    (spouses || []).forEach(s => spouseMap[s.uid] = s.name);
+  }
+
+  // Fetch children
+  const famUids = (famsAsSpouse || []).map(f => f.uid);
+  let childrenMap = {};
+  if (famUids.length) {
+    const { data: members } = await sb.from('family_members').select('family_uid,person_uid').in('family_uid', famUids).eq('role','child');
+    if (members && members.length) {
+      const childUids = members.map(m => m.person_uid);
+      const { data: childPeople } = await sb.from('people').select('uid,name,sex').in('uid', childUids);
+      (childPeople || []).forEach(c => { childrenMap[c.uid] = c; });
+    }
+  }
+
+  // Fetch parent names
+  let fatherName = '-', motherName = '-';
+  if (parentFamily) {
+    if (parentFamily.husband_uid) {
+      const { data: dad } = await sb.from('people').select('uid,name').eq('uid', parentFamily.husband_uid).single();
+      if (dad) fatherName = `<span class="person-name" onclick="showPerson('${dad.uid}')">${dad.name}</span>`;
+    }
+    if (parentFamily.wife_uid) {
+      const { data: mum } = await sb.from('people').select('uid,name').eq('uid', parentFamily.wife_uid).single();
+      if (mum) motherName = `<span class="person-name" onclick="showPerson('${mum.uid}')">${mum.name}</span>`;
+    }
+  }
+
+  const spouseFamilies = (famsAsSpouse || []).map(f => {
+    const spouseUid = f.husband_uid === uid ? f.wife_uid : f.husband_uid;
+    const spouseName = spouseMap[spouseUid] || '(unknown)';
+    const children = Object.values(childrenMap).filter(c => {
+      // match via members
+      return true; // simplified — all children shown below
+    });
+    return { f, spouseUid, spouseName };
+  });
+
+  const allChildren = Object.values(childrenMap);
+
+  el.innerHTML = `
+    <div class="person-detail">
+      <div class="detail-header">
+        <div>
+          <h2>${p.name || '(unnamed)'}</h2>
+          <div class="meta">
+            ${p.sex ? `<span class="badge badge-${p.sex}">${p.sex === 'M' ? '♂ Male' : '♀ Female'}</span>` : ''}
+            ${p.death_flag ? `&nbsp;<span class="badge badge-deceased">Deceased</span>` : ''}
+            ${p.marr_status ? `&nbsp;<span class="badge badge-${p.marr_status}">${p.marr_status}</span>` : ''}
+          </div>
+        </div>
+        <button class="btn-back" onclick="loadSearch('${lastQuery}')">← Back to Results</button>
+      </div>
+
+      <div class="detail-grid">
+        ${p.given_name ? `<div class="detail-field"><div class="key">Given Name</div><div class="val">${p.given_name}</div></div>` : ''}
+        ${p.birth_place ? `<div class="detail-field"><div class="key">Birth Place</div><div class="val">${p.birth_place}</div></div>` : ''}
+        ${p.birth_date ? `<div class="detail-field"><div class="key">Birth Date</div><div class="val">${p.birth_date}</div></div>` : ''}
+        ${p.death_date ? `<div class="detail-field"><div class="key">Death Date</div><div class="val">${p.death_date}</div></div>` : ''}
+        ${p.death_place ? `<div class="detail-field"><div class="key">Death Place</div><div class="val">${p.death_place}</div></div>` : ''}
+        ${p.occupation ? `<div class="detail-field"><div class="key">Occupation</div><div class="val">${p.occupation}</div></div>` : ''}
+        <div class="detail-field"><div class="key">Father</div><div class="val">${fatherName}</div></div>
+        <div class="detail-field"><div class="key">Mother</div><div class="val">${motherName}</div></div>
+      </div>
+
+      ${spouseFamilies.length ? `
+        <div class="section-h">Marriage(s)</div>
+        ${spouseFamilies.map(({ f, spouseUid, spouseName }) => `
+          <div class="family-card">
+            <div class="fc-title">
+              Spouse: <span class="person-name" onclick="showPerson('${spouseUid}')">${spouseName}</span>
+              ${f.marr_status ? `<span class="badge badge-${f.marr_status}" style="margin-left:8px">${f.marr_status}</span>` : ''}
+            </div>
+            <div class="fc-detail">
+              ${f.marr_date ? `📅 ${f.marr_date}` : ''}
+              ${f.marr_place ? `&nbsp; 📍 ${f.marr_place}` : ''}
+            </div>
+          </div>
+        `).join('')}
+      ` : ''}
+
+      ${allChildren.length ? `
+        <div class="section-h">Children (${allChildren.length})</div>
+        <ul class="children-list">
+          ${allChildren.map(c => `
+            <li onclick="showPerson('${c.uid}')">
+              ${c.sex ? `<span class="badge badge-${c.sex}">${c.sex}</span>&nbsp;` : ''}
+              ${c.name || '(unnamed)'}
+            </li>
+          `).join('')}
+        </ul>
+      ` : ''}
+    </div>
+  `;
+}
+
+// ===== TREE BROWSE =====
+let treeTimer = null;
+function treeSearch() {
+  clearTimeout(treeTimer);
+  treeTimer = setTimeout(async () => {
+    const q = document.getElementById('tree-search').value.trim();
+    const el = document.getElementById('tree-search-results');
+    if (!q) { el.innerHTML = ''; return; }
+
+    const rawTokens = q.split(/\s+/).filter(t => t.length >= 2);
+    const orClauses = [...new Set(rawTokens.flatMap(t => fuzzyPatterns(t)).map(p => 'name.ilike.' + p.replace(/'/g, "''")))];
+
+    const allResults = new Map();
+    const CHUNK = 40;
+    for (let ci = 0; ci < orClauses.length; ci += CHUNK) {
+      const chunk = orClauses.slice(ci, ci + CHUNK).join(',');
+      const { data } = await sb.from('people').select('uid,name,sex').or(chunk).limit(60);
+      (data || []).forEach(r => { if (!allResults.has(r.uid)) allResults.set(r.uid, r); });
+    }
+
+    const results = [...allResults.values()]
+      .map(r => ({ ...r, _score: scoreMatch(r.name, rawTokens) }))
+      .filter(r => r._score > 0)
+      .sort((a, b) => b._score - a._score)
+      .slice(0, 15);
+
+    if (!results.length) { el.innerHTML = '<div style="font-size:0.82rem;color:var(--muted);padding:8px">No matches found — try a different spelling</div>'; return; }
+    el.innerHTML = results.map(p => `
+      <div onclick="loadTree('${p.uid}')" style="padding:8px 12px;background:var(--surface);border:1px solid var(--border);cursor:pointer;margin-bottom:4px;font-size:0.85rem" onmouseover="this.style.background='var(--goldl)'" onmouseout="this.style.background='var(--surface)'">
+        ${highlightName(p.name || '(unnamed)', rawTokens)} ${p.sex ? `<span class="badge badge-${p.sex}">${p.sex}</span>` : ''}
+      </div>
+    `).join('');
+  }, 350);
+}
+
+async function loadTree(uid) {
+  document.getElementById('tree-search-results').innerHTML = '';
+  document.getElementById('tree-person-label').textContent = 'Loading\u2026';
+  document.getElementById('tree-view').innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px;font-size:0.85rem;color:var(--muted)">Building family tree\u2026</p></div>';
+
+  async function getPerson(id) {
+    if (!id) return null;
+    const { data } = await sb.from('people').select('uid,name,sex,birth_date,birth_place,death_flag').eq('uid', id).maybeSingle();
+    return data;
+  }
+  async function getParentFamily(personUid) {
+    if (!personUid) return null;
+    const { data: fm } = await sb.from('family_members').select('family_uid').eq('person_uid', personUid).eq('role','child').maybeSingle();
+    if (!fm) return null;
+    const { data: f } = await sb.from('families').select('*').eq('uid', fm.family_uid).maybeSingle();
+    return f;
+  }
+  async function getSpouseFamilies(personUid) {
+    if (!personUid) return [];
+    const { data } = await sb.from('families').select('*').or('husband_uid.eq.' + personUid + ',wife_uid.eq.' + personUid);
+    return data || [];
+  }
+  async function getChildren(famUid) {
+    const { data: members } = await sb.from('family_members').select('person_uid,birth_order').eq('family_uid', famUid).eq('role','child').order('birth_order');
+    if (!members || !members.length) return [];
+    const { data: kids } = await sb.from('people').select('uid,name,sex,birth_date,birth_place,death_flag').in('uid', members.map(function(m){ return m.person_uid; }));
+    var ord = {};
+    members.forEach(function(m){ ord[m.person_uid] = m.birth_order || 999; });
+    return (kids || []).sort(function(a,b){ return ord[a.uid] - ord[b.uid]; });
+  }
+
+  var focusPerson = await getPerson(uid);
+  if (!focusPerson) { document.getElementById('tree-view').innerHTML = '<div class="empty-state">Person not found.</div>'; return; }
+  document.getElementById('tree-person-label').textContent = 'Showing tree for: ' + (focusPerson.name || '(unnamed)');
+
+  // ── Render helpers ──
+  var _tid = 0;
+
+  function pBox(p, cls) {
+    if (!p) return '<div class="tree-box ' + cls + '" style="min-width:110px;opacity:0.35"><div class="tname" style="font-style:italic;color:var(--muted)">\u2014</div></div>';
+    var parts = [];
+    if (p.sex) parts.push(p.sex);
+    if (p.birth_date) parts.push(p.birth_date);
+    if (p.birth_place) parts.push(p.birth_place);
+    if (p.death_flag) parts.push('\u2020');
+    var meta = parts.join(' \u00b7 ');
+    return '<div class="tree-box ' + cls + '" style="min-width:110px;max-width:180px;cursor:pointer" onclick="loadTree(\'' + p.uid + '\')">'
+      + '<div class="tname">' + (p.name || '?') + '</div>'
+      + (meta ? '<div class="tmeta">' + meta + '</div>' : '')
+      + '</div>';
+  }
+
+  function vConn(h) { h = h || 14; return '<div style="width:2px;height:' + h + 'px;background:var(--border);margin:0 auto"></div>'; }
+
+  function genDivider() {
+    return vConn(8) + '<div class="tree-connector" style="margin:2px 0">\u2193</div>' + vConn(6);
+  }
+
+  // Builds a family-group card: couple header + collapsible children
+  function famCard(person, cls, spouse, childrenHtml, childCount) {
+    var tid = 'fg' + (_tid++);
+    var spouseColor = cls === 'tree-box-focus' ? 'var(--gold)' : cls === 'tree-box-anc' ? '#6a9a50' : '#5a8ab0';
+    var spouseCls   = cls === 'tree-box-anc'   ? 'tree-box-anc' : cls === 'tree-box-focus' ? 'tree-box-desc' : 'tree-box-spouse';
+    var h = '<div class="fam-group" id="' + tid + '_wrap">';
+    h += '<div class="fam-group-header">';
+    h += pBox(person, cls);
+    if (spouse) {
+      h += '<div style="padding:10px 5px 0;font-size:0.9rem;color:' + spouseColor + ';font-weight:700;line-height:1">\u26ad</div>';
+      h += pBox(spouse, spouseCls);
+    }
+    if (childCount > 0) {
+      h += '<button class="fam-toggle" id="' + tid + '_btn" onclick="toggleFamGroup(\'' + tid + '\')">'
+        + '\u25bc\u00a0' + childCount + ' child' + (childCount > 1 ? 'ren' : '')
+        + '</button>';
+    }
+    h += '</div>'; // fam-group-header
+    if (childCount > 0) {
+      h += '<div class="fam-children" id="' + tid + '_ch">';
+      h += '<div class="fam-children-label">Children (' + childCount + ')</div>';
+      h += '<div class="fam-children-inner">' + childrenHtml + '</div>';
+      h += '</div>';
+    }
+    h += '</div>'; // fam-group
+    return h;
+  }
+
+  function childLeaves(children) {
+    return children.map(function(c) {
+      return '<div class="fam-child-col"><div class="fam-child-tick"></div>' + pBox(c, 'tree-box-desc') + '</div>';
+    }).join('');
+  }
+
+  // ══════════════════════════════════
+  // BUILD ANCESTORS
+  // ══════════════════════════════════
+  var ancestorRows = [];
+  var ancQueue = [uid];
+  for (var ag = 0; ag < 6; ag++) {
+    var arow = [];
+    for (var ai = 0; ai < ancQueue.length; ai++) {
+      arow.push(ancQueue[ai] ? await getParentFamily(ancQueue[ai]) : null);
+    }
+    if (!arow.some(function(f){ return !!f; })) break;
+    ancestorRows.push(arow);
+    var nextAncQ = [];
+    arow.forEach(function(f) {
+      nextAncQ.push(f ? f.husband_uid : null);
+      nextAncQ.push(f ? f.wife_uid   : null);
+    });
+    ancQueue = nextAncQ;
+  }
+  var allAncUids = new Set();
+  ancestorRows.forEach(function(row) {
+    row.forEach(function(f) {
+      if (f) { if (f.husband_uid) allAncUids.add(f.husband_uid); if (f.wife_uid) allAncUids.add(f.wife_uid); }
+    });
+  });
+  var ancMap = {};
+  if (allAncUids.size) {
+    var ancArr = Array.from(allAncUids);
+    var { data: ancPpl } = await sb.from('people').select('uid,name,sex,birth_date,birth_place,death_flag').in('uid', ancArr);
+    (ancPpl || []).forEach(function(p){ ancMap[p.uid] = p; });
+  }
+
+  // ══════════════════════════════════
+  // BUILD DESCENDANTS
+  // Each descGenRows[g] = array of { person, spouse, children }
+  // grouped by marriage — so each card = one couple + their children
+  // ══════════════════════════════════
+  var focusFams = await getSpouseFamilies(uid);
+  var visited = new Set([uid]);
+
+  // Focus marriages (shown in focus row)
+  var focusMarriages = [];
+  for (var fi = 0; fi < focusFams.length; fi++) {
+    var ff = focusFams[fi];
+    var fSpouseUid = ff.husband_uid === uid ? ff.wife_uid : ff.husband_uid;
+    var fSpouse = await getPerson(fSpouseUid);
+    var fChildren = await getChildren(ff.uid);
+    var freshFC = fChildren.filter(function(c){ return !visited.has(c.uid); });
+    freshFC.forEach(function(c){ visited.add(c.uid); });
+    focusMarriages.push({ spouse: fSpouse, children: freshFC });
+  }
+
+  // Seed gen 1 people = all children of focus
+  var gen1People = [];
+  focusMarriages.forEach(function(m){ m.children.forEach(function(c){ gen1People.push(c); }); });
+
+  var descGenRows = [];
+  var currentPeople = gen1People;
+
+  for (var dg = 0; dg < 6 && currentPeople.length; dg++) {
+    var genRow = [];
+    var nextPeople = [];
+    for (var di = 0; di < currentPeople.length; di++) {
+      var person = currentPeople[di];
+      var pfams = await getSpouseFamilies(person.uid);
+      if (pfams.length === 0) {
+        genRow.push({ person: person, spouse: null, children: [] });
+      } else {
+        for (var pfi = 0; pfi < pfams.length; pfi++) {
+          var pfam = pfams[pfi];
+          var pSpouseUid = pfam.husband_uid === person.uid ? pfam.wife_uid : pfam.husband_uid;
+          var pSpouse = await getPerson(pSpouseUid);
+          var pChildren = await getChildren(pfam.uid);
+          var freshPC = pChildren.filter(function(c){ return !visited.has(c.uid); });
+          freshPC.forEach(function(c){ visited.add(c.uid); nextPeople.push(c); });
+          genRow.push({ person: person, spouse: pSpouse, children: freshPC });
+        }
+      }
+    }
+    if (genRow.length) descGenRows.push(genRow);
+    currentPeople = nextPeople;
+  }
+
+  // ══════════════════════════════════
+  // RENDER
+  // ══════════════════════════════════
+  var html = '<div class="gen-tree" style="overflow-x:auto;padding-bottom:32px">';
+
+  // Ancestor rows (oldest first)
+  var orderedAnc = ancestorRows.slice().reverse();
+  orderedAnc.forEach(function(rowFams, ri) {
+    var genNum = orderedAnc.length - ri;
+    html += '<div class="gen-label" style="color:#5a7a50">\u25b2 Ancestor Generation ' + genNum + '</div>';
+    html += '<div class="gen-section-row">';
+    rowFams.forEach(function(fam) {
+      if (!fam) return;
+      var father = fam.husband_uid ? ancMap[fam.husband_uid] : null;
+      var mother = fam.wife_uid   ? ancMap[fam.wife_uid]   : null;
+      html += famCard(father, 'tree-box-anc', mother, null, 0);
+    });
+    html += '</div>';
+    html += genDivider();
+  });
+
+  // Focus person row — one card per marriage
+  html += '<div class="gen-label" style="border-top:2px solid var(--gold2);color:var(--gold);margin-top:4px">\ud83d\udccd Focus Person</div>';
+  html += '<div class="gen-section-row">';
+  if (focusMarriages.length === 0) {
+    html += famCard(focusPerson, 'tree-box-focus', null, null, 0);
+  } else {
+    focusMarriages.forEach(function(m) {
+      html += famCard(focusPerson, 'tree-box-focus', m.spouse, childLeaves(m.children), m.children.length);
+    });
+  }
+  html += '</div>';
+
+  // Descendant generation rows
+  descGenRows.forEach(function(genRow, gi) {
+    html += genDivider();
+    html += '<div class="gen-label" style="color:#5a7ab0">\u25bc Descendant Generation ' + (gi + 1) + '</div>';
+    html += '<div class="gen-section-row">';
+    genRow.forEach(function(entry) {
+      html += famCard(entry.person, 'tree-box-desc', entry.spouse, childLeaves(entry.children), entry.children.length);
+    });
+    html += '</div>';
+  });
+
+  html += '</div>'; // gen-tree
+  document.getElementById('tree-view').innerHTML = html;
+}
+
+function toggleFamGroup(tid) {
+  var ch  = document.getElementById(tid + '_ch');
+  var btn = document.getElementById(tid + '_btn');
+  if (!ch || !btn) return;
+  var hidden = ch.style.display === 'none';
+  ch.style.display = hidden ? '' : 'none';
+  var label = btn.textContent.replace(/^[\u25bc\u25b6]\u00a0/, '');
+  btn.textContent = (hidden ? '\u25bc\u00a0' : '\u25b6\u00a0') + label;
+}
+
+function printTree() {
+  const panel = document.getElementById('panel-tree');
+  if (!panel.classList.contains('active')) {
+    alert('Please search for a person in the Browse Tree tab first.');
+    return;
+  }
+  window.print();
+}
+
+function showPersonInSearch(uid) {
+  switchTab('search', document.querySelector('.nav-tab'));
+  showPerson(uid);
+}
+
+// ===== STATS =====
+async function loadStats() {
+  const bar = document.getElementById('stats-bar');
+  const detail = document.getElementById('stats-detail');
+  bar.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  const [
+    { count: totalPeople },
+    { count: totalFamilies },
+    { count: malePeople },
+    { count: femalePeople },
+    { count: deceased },
+    { data: uploads }
+  ] = await Promise.all([
+    sb.from('people').select('*', { count: 'exact', head: true }),
+    sb.from('families').select('*', { count: 'exact', head: true }),
+    sb.from('people').select('*', { count: 'exact', head: true }).eq('sex', 'M'),
+    sb.from('people').select('*', { count: 'exact', head: true }).eq('sex', 'F'),
+    sb.from('people').select('*', { count: 'exact', head: true }).eq('death_flag', true),
+    sb.from('gedcom_uploads').select('filename,uploaded_at,people_count,families_count').order('uploaded_at', { ascending: false })
+  ]);
+
+  bar.innerHTML = `
+    <div class="stat-card"><div class="num">${(totalPeople||0).toLocaleString()}</div><div class="lbl">Total People</div></div>
+    <div class="stat-card"><div class="num">${(totalFamilies||0).toLocaleString()}</div><div class="lbl">Families</div></div>
+    <div class="stat-card"><div class="num">${(malePeople||0).toLocaleString()}</div><div class="lbl">Male</div></div>
+    <div class="stat-card"><div class="num">${(femalePeople||0).toLocaleString()}</div><div class="lbl">Female</div></div>
+    <div class="stat-card"><div class="num">${(deceased||0).toLocaleString()}</div><div class="lbl">Deceased</div></div>
+  `;
+
+  if (uploads && uploads.length) {
+    detail.innerHTML = `
+      <h3 style="font-family:'Amiri',serif;color:var(--gold);font-size:1.1rem;margin-bottom:14px">GEDCOM Sources (${uploads.length})</h3>
+      <table>
+        <thead><tr><th>File</th><th>People</th><th>Families</th><th>Uploaded</th></tr></thead>
+        <tbody>${uploads.map(u => `
+          <tr>
+            <td>${u.filename}</td>
+            <td>${u.people_count?.toLocaleString()}</td>
+            <td>${u.families_count?.toLocaleString()}</td>
+            <td>${new Date(u.uploaded_at).toLocaleDateString()}</td>
+          </tr>
+        `).join('')}</tbody>
+      </table>
+    `;
+  }
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show';
+  clearTimeout(t._to);
+  t._to = setTimeout(() => t.className = '', 3000);
+}
+</script>
+</body>
+</html>

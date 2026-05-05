@@ -476,11 +476,117 @@ function handleFiles(files) {
   if (gedFiles.length > 500) { toast('Maximum 500 files allowed at once.', true); gedFiles.splice(500); }
   if (gedFiles.length === 1) {
     const reader = new FileReader();
-    reader.onload = e => parseGedcom(e.target.result, gedFiles[0].name);
+    reader.onload = e => {
+      const text = e.target.result;
+      const validation = validateGedcom(text, gedFiles[0].name);
+      if (!validation.ok) {
+        toast('❌ ' + validation.errors[0], true);
+        return;
+      }
+      if (validation.warnings.length) {
+        // Show warnings as a non-blocking toast then proceed
+        toast('⚠️ ' + validation.warnings.join(' | '), true);
+      }
+      parseGedcom(text, gedFiles[0].name);
+    };
     reader.readAsText(gedFiles[0], 'UTF-8');
   } else {
     processMultipleFiles(gedFiles);
   }
+}
+
+
+// ===================== GEDCOM VALIDATOR =====================
+// Returns { ok: bool, warnings: [], errors: [] }
+function validateGedcom(text, filename) {
+  const warnings = [], errors = [];
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+
+  let indiCount = 0, famCount = 0, badLines = 0;
+  let uidCount = 0, famUidCount = 0;
+  const xrefs = new Set(), dupXrefs = [];
+  const famXrefs = new Set(), famChildXrefs = [];
+  const people = {}, families = {};
+  let cur = null, curType = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim().replace(/^\uFEFF/, ''); // strip BOM
+    if (!line) continue;
+    const m = line.match(/^(\d+)\s+(@[^@]+@)?\s*([A-Z_0-9]+)(.*)/);
+    if (!m) { badLines++; continue; }
+    const level = +m[1], xref = m[2]?.trim(), tag = m[3].trim(), val = (m[4]||'').trim();
+
+    if (level === 0) {
+      if (tag === 'INDI') {
+        indiCount++;
+        if (xref) {
+          if (xrefs.has(xref)) dupXrefs.push(xref);
+          xrefs.add(xref);
+        }
+        cur = { uid:'', raw:xref, famc:[], fams:[] }; curType='INDI'; people[xref]=cur;
+      } else if (tag === 'FAM') {
+        famCount++;
+        if (xref) famXrefs.add(xref);
+        cur = { uid:'', raw:xref, husb:'', wife:'', chil:[] }; curType='FAM'; families[xref]=cur;
+      } else { cur=null; curType=null; }
+      continue;
+    }
+    if (!cur) continue;
+    if (curType==='INDI') {
+      if (tag==='_UID') { cur.uid=val; uidCount++; }
+      else if (tag==='FAMC') cur.famc.push(val);
+      else if (tag==='FAMS') cur.fams.push(val);
+    } else if (curType==='FAM') {
+      if (tag==='_UID') { cur.uid=val; famUidCount++; }
+      else if (tag==='HUSB') cur.husb=val;
+      else if (tag==='WIFE') cur.wife=val;
+      else if (tag==='CHIL') cur.chil.push(val);
+    }
+  }
+
+  // Apply uid fallback
+  Object.values(people).forEach(p => { if (!p.uid && p.raw) p.uid = p.raw.replace(/@/g,''); });
+  Object.values(families).forEach(f => { if (!f.uid && f.raw) f.uid = f.raw.replace(/@/g,''); });
+  const rawToUid = {};
+  Object.values(people).forEach(p => { if (p.raw) rawToUid[p.raw] = p.uid; });
+
+  // Check family_member resolution
+  let fmBad = 0;
+  Object.values(families).forEach(f => {
+    f.chil.forEach(cRaw => { if (!rawToUid[cRaw]) fmBad++; });
+  });
+
+  // Check parent resolution
+  let parBad = 0;
+  Object.values(people).forEach(p => {
+    p.famc.forEach(fRaw => { if (!families[fRaw]) parBad++; });
+  });
+
+  // Check FAMS references exist
+  let famsBad = 0;
+  Object.values(people).forEach(p => {
+    p.fams.forEach(fRaw => { if (!families[fRaw]) famsBad++; });
+  });
+
+  // --- Hard errors ---
+  if (indiCount === 0) errors.push('No INDI records found — file may be corrupt or wrong format');
+  if (badLines > indiCount * 0.1) errors.push(`High bad line rate: ${badLines} unparseable lines`);
+
+  // --- Warnings ---
+  if (uidCount === 0) warnings.push('No _UID tags — using xref fallback IDs (OK, but less stable)');
+  if (uidCount > 0 && uidCount < indiCount) warnings.push(`Only ${uidCount}/${indiCount} people have _UID tags`);
+  if (dupXrefs.length) warnings.push(`Duplicate xrefs: ${dupXrefs.slice(0,5).join(', ')}`);
+  if (fmBad > 0) warnings.push(`${fmBad} CHIL references point to unknown person xrefs`);
+  if (parBad > 0) warnings.push(`${parBad} FAMC references point to unknown family xrefs`);
+  if (famsBad > 0) warnings.push(`${famsBad} FAMS references point to unknown family xrefs`);
+  if (indiCount > 0 && famCount === 0) warnings.push('No FAM records — family relationships will be missing');
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    warnings,
+    stats: { indiCount, famCount, uidCount, badLines }
+  };
 }
 
 async function processMultipleFiles(files) {
@@ -514,6 +620,19 @@ async function processMultipleFiles(files) {
         r.onerror = () => rej(new Error('File read failed'));
         r.readAsText(files[i], 'UTF-8');
       });
+
+      // Validate before pushing
+      const validation = validateGedcom(text, files[i].name);
+      if (!validation.ok) {
+        const errList = validation.errors.map(e => `<br>&nbsp;&nbsp;&nbsp;&nbsp;❌ ${e}`).join('');
+        logLine(`&nbsp;&nbsp;✖ <span style="color:var(--red2)">Skipped — validation failed:${errList}</span>`, true);
+        failCount++;
+        continue;
+      }
+      if (validation.warnings.length) {
+        const warnList = validation.warnings.map(w => `<br>&nbsp;&nbsp;&nbsp;&nbsp;⚠️ ${w}`).join('');
+        logLine(`&nbsp;&nbsp;<span style="color:#b45309">Warnings:${warnList}</span>`);
+      }
 
       const parsed = parseGedcomSync(text, files[i].name);
       logLine(`&nbsp;&nbsp;↳ Parsed: ${parsed.people.length} people, ${parsed.families.length} families`);

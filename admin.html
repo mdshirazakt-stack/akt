@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Apnon Ki Talash — Admin Panel</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #faf8f5;
+    --surface: #ffffff;
+    --surface2: #f3f0eb;
+    --border: #e5e0d8;
+    --gold: #e8844a;
+    --gold2: #f0a070;
+    --red: #c0392b;
+    --red2: #e74c3c;
+    --green: #1a7a4a;
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --accent: #e8844a;
+    --header-bg: #1a1a1a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Lato', sans-serif; min-height: 100vh; }
+
+  /* LOGIN */
+  #login-screen {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh;
+    background: linear-gradient(145deg, #faf8f5 0%, #f3f0eb 50%, #ece8e1 100%);
+  }
+  .login-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-top: 3px solid var(--gold); padding: 48px 40px;
+    width: 380px; text-align: center;
+    box-shadow: 0 20px 60px rgba(46,74,48,0.2);
+  }
+  .login-box h1 { font-family: 'Amiri', serif; font-size: 2rem; color: var(--gold); margin-bottom: 4px; }
+  .login-box p { color: var(--muted); font-size: 0.85rem; margin-bottom: 32px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .login-box input {
+    width: 100%; padding: 12px 16px; background: var(--bg);
+    border: 1px solid var(--border); color: var(--text);
+    font-size: 1rem; font-family: 'Lato', sans-serif;
+    margin-bottom: 16px; outline: none; transition: border 0.2s;
+  }
+  .login-box input:focus { border-color: var(--gold); }
+  .btn-gold {
+    background: var(--gold); color: #ffffff; border: none;
+    padding: 12px 24px; font-family: 'Lato', sans-serif;
+    font-weight: 700; font-size: 0.9rem; cursor: pointer;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    transition: background 0.2s; width: 100%;
+  }
+  .btn-gold:hover { background: #c9683a; color: #fff; }
+  .login-err { color: var(--red2); font-size: 0.85rem; margin-top: 12px; display: none; }
+
+  /* LAYOUT */
+  #app { display: none; }
+  header {
+    background: #1a1a1a; border-bottom: 2px solid var(--gold2);
+    padding: 0 32px; display: flex; align-items: center;
+    justify-content: space-between; height: 60px;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  }
+  header h1 { font-family: 'Amiri', serif; color: var(--gold2); font-size: 1.4rem; }
+  header .hright { display: flex; align-items: center; gap: 16px; }
+  header #hdr-stats { color: #aaaaaa !important; }
+  .btn-sm {
+    padding: 7px 16px; border: 1px solid var(--border); background: transparent;
+    color: var(--muted); font-family: 'Lato', sans-serif; font-size: 0.8rem;
+    cursor: pointer; letter-spacing: 0.05em; transition: all 0.2s;
+  }
+  .btn-sm:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-danger { border-color: var(--red); color: var(--red); }
+  .btn-danger:hover { background: var(--red); color: #fff; }
+
+  nav {
+    background: var(--surface2); border-bottom: 1px solid var(--border);
+    display: flex; gap: 0;
+  }
+  .nav-tab {
+    padding: 14px 24px; font-size: 0.82rem; letter-spacing: 0.08em;
+    text-transform: uppercase; cursor: pointer; color: var(--muted);
+    border-bottom: 2px solid transparent; transition: all 0.2s;
+    background: none; border-top: none; border-left: none; border-right: none;
+    font-family: 'Lato', sans-serif;
+  }
+  .nav-tab:hover { color: var(--text); }
+  .nav-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  main { padding: 32px; max-width: 1200px; margin: 0 auto; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 24px; margin-bottom: 24px;
+  }
+  .card h2 { font-family: 'Amiri', serif; color: var(--gold); font-size: 1.3rem; margin-bottom: 16px; }
+  .card h3 { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; }
+
+  /* UPLOAD ZONE */
+  .drop-zone {
+    border: 2px dashed var(--border); padding: 48px 24px;
+    text-align: center; cursor: pointer; transition: all 0.2s;
+    margin-bottom: 16px;
+  }
+  .drop-zone:hover, .drop-zone.dragover { border-color: var(--gold); background: rgba(232,132,74,0.06); }
+  .drop-zone .icon { font-size: 3rem; margin-bottom: 12px; }
+  .drop-zone p { color: var(--muted); font-size: 0.9rem; }
+  .drop-zone strong { color: var(--text); }
+  #file-input { display: none; }
+
+  /* PROGRESS */
+  .progress-wrap { margin: 16px 0; display: none; }
+  .progress-label { font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .progress-bar { height: 4px; background: var(--border); }
+  .progress-fill { height: 4px; background: var(--gold); width: 0%; transition: width 0.3s; }
+
+  /* PREVIEW TABLE */
+  .preview-box { display: none; margin-top: 20px; }
+  .stats-row { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat-chip {
+    background: var(--bg); border: 1px solid var(--border);
+    padding: 12px 20px; flex: 1; min-width: 120px;
+  }
+  .stat-chip .num { font-size: 1.6rem; font-weight: 700; color: var(--gold); }
+  .stat-chip .lbl { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { background: var(--bg); color: var(--muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.08em; padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: rgba(232,132,74,0.04); }
+  .badge {
+    display: inline-block; padding: 2px 8px; font-size: 0.7rem;
+    border-radius: 2px; font-weight: 700; text-transform: uppercase;
+  }
+  .badge-m { background: rgba(52,152,219,0.2); color: #5dade2; }
+  .badge-f { background: rgba(231,76,60,0.2); color: #ec7063; }
+  .badge-deceased { background: rgba(127,140,141,0.2); color: #95a5a6; }
+  .badge-current { background: rgba(39,174,96,0.2); color: #58d68d; }
+  .badge-former { background: rgba(243,156,18,0.2); color: #f5b041; }
+
+  /* DUPLICATE PANEL */
+  .dup-item {
+    background: var(--bg); border: 1px solid var(--border);
+    border-left: 3px solid var(--gold); padding: 16px;
+    margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+  }
+  .dup-info { flex: 1; min-width: 200px; }
+  .dup-info .name { font-weight: 700; color: var(--text); }
+  .dup-info .meta { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+  .dup-actions { display: flex; gap: 8px; }
+
+  /* ACTION BUTTONS */
+  .btn-green {
+    padding: 8px 18px; background: var(--gold); color: #fff;
+    border: none; font-family: 'Lato', sans-serif; font-size: 0.8rem;
+    font-weight: 700; cursor: pointer; transition: opacity 0.2s;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .btn-green:hover { opacity: 0.85; }
+  .btn-red {
+    padding: 8px 18px; background: var(--red); color: #fff;
+    border: none; font-family: 'Lato', sans-serif; font-size: 0.8rem;
+    font-weight: 700; cursor: pointer; transition: opacity 0.2s;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .btn-red:hover { opacity: 0.85; }
+  .btn-outline {
+    padding: 8px 18px; background: transparent; color: var(--muted);
+    border: 1px solid var(--border); font-family: 'Lato', sans-serif;
+    font-size: 0.8rem; cursor: pointer; transition: all 0.2s;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .btn-outline:hover { border-color: var(--text); color: var(--text); }
+
+  /* UPLOADS HISTORY */
+  .upload-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 8px; }
+  .upload-row:last-child { border-bottom: none; }
+  .upload-row .fname { font-weight: 700; color: var(--text); font-size: 0.9rem; }
+  .upload-row .fmeta { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+  .upload-row .faction { display: flex; gap: 8px; }
+
+  /* VISITORS */
+  .visitor-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 8px; }
+  .visitor-row.blocked td, .visitor-row.blocked { opacity: 0.5; }
+  .search-bar { width: 100%; padding: 10px 14px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: 'Lato', sans-serif; font-size: 0.9rem; margin-bottom: 16px; outline: none; }
+  .search-bar:focus { border-color: var(--gold); }
+
+  /* SETTINGS */
+  .setting-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
+  .setting-row label { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .setting-row input { padding: 9px 14px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: 'Lato', sans-serif; font-size: 0.9rem; width: 260px; outline: none; }
+  .setting-row input:focus { border-color: var(--gold); }
+
+  /* ACTIVITY HISTORY */
+  .activity-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+  .activity-filter-btn {
+    padding: 6px 14px; border: 1px solid var(--border); background: var(--surface);
+    font-family: 'Lato', sans-serif; font-size: 0.78rem; color: var(--muted);
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.04em;
+  }
+  .activity-filter-btn.active, .activity-filter-btn:hover { border-color: var(--gold); color: var(--gold); background: #fdf4ee; }
+  .activity-row {
+    display: flex; align-items: flex-start; gap: 12px; padding: 10px 0;
+    border-bottom: 1px solid var(--border); font-size: 0.85rem;
+  }
+  .activity-row:last-child { border-bottom: none; }
+  .activity-time { font-size: 0.75rem; color: var(--muted); white-space: nowrap; min-width: 90px; }
+  .activity-name { font-weight: 700; color: var(--text); min-width: 140px; }
+  .activity-action { color: var(--muted); flex: 1; }
+  .activity-badge { display: inline-block; padding: 1px 7px; font-size: 0.68rem; border-radius: 2px; font-weight: 700; text-transform: uppercase; background: #eaf0f8; color: #5a8ab0; }
+
+  /* TOAST */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 4px solid var(--green); padding: 14px 20px;
+    font-size: 0.85rem; z-index: 9999; transform: translateY(80px);
+    opacity: 0; transition: all 0.3s; max-width: 340px;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.err { border-left-color: var(--red2); }
+
+  /* LOADING */
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty { text-align: center; padding: 48px; color: var(--muted); font-size: 0.9rem; }
+  .section-title { font-family: 'Amiri', serif; font-size: 1.1rem; color: var(--gold); margin-bottom: 12px; margin-top: 24px; }
+  .mt16 { margin-top: 16px; }
+  .flex-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>Apno Ki Talash</h1>
+    <p>Admin Panel</p>
+    <input type="password" id="pw-input" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <button class="btn-gold" onclick="doLogin()">Enter</button>
+    <div class="login-err" id="login-err">Incorrect password. Please try again.</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <header>
+    <h1>🌿 Apnon Ki Talash — Admin</h1>
+    <div class="hright">
+      <span id="hdr-stats" style="font-size:0.8rem;color:var(--muted)"></span>
+      <button class="btn-sm" onclick="loadAll()">↻ Refresh</button>
+      <button class="btn-sm btn-danger" onclick="doLogout()">Logout</button>
+    </div>
+  </header>
+
+  <nav>
+    <button class="nav-tab active" onclick="switchTab('upload', this)">Upload GEDCOM</button>
+    <button class="nav-tab" onclick="switchTab('uploads', this)">Uploads History</button>
+    <button class="nav-tab" onclick="switchTab('visitors', this)">Visitors</button>
+    <button class="nav-tab" onclick="switchTab('activity', this)">Activity History</button>
+    <button class="nav-tab" onclick="switchTab('settings', this)">Settings</button>
+  </nav>
+
+  <main>
+
+    <!-- UPLOAD PANEL -->
+    <div id="panel-upload" class="panel active">
+      <div class="card">
+        <h2>Upload GEDCOM File</h2>
+        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()"
+             ondragover="event.preventDefault();this.classList.add('dragover')"
+             ondragleave="this.classList.remove('dragover')"
+             ondrop="handleDrop(event)">
+          <div class="icon">📂</div>
+          <p><strong>Click to browse</strong> or drag & drop up to <strong>500 .ged files</strong> at once</p>
+          <p style="margin-top:6px;font-size:0.78rem;">Parsed entirely in your browser — no file is sent to any server during parsing</p>
+        </div>
+        <input type="file" id="file-input" accept=".ged" multiple onchange="handleFiles(this.files)"/>
+
+        <div class="progress-wrap" id="parse-progress">
+          <div class="progress-label"><span id="parse-label">Parsing…</span><span id="parse-pct">0%</span></div>
+          <div class="progress-bar"><div class="progress-fill" id="parse-fill"></div></div>
+        </div>
+
+        <!-- MULTI-FILE BATCH PROGRESS (shown when uploading multiple files) -->
+        <div id="batch-progress" style="display:none;margin-top:20px">
+          <div style="font-size:0.85rem;color:var(--muted);margin-bottom:10px">
+            Batch upload: <strong id="batch-status">0 / 0 files</strong>
+          </div>
+          <div class="progress-bar" style="margin-bottom:10px"><div class="progress-fill" id="batch-fill" style="width:0%"></div></div>
+          <div id="batch-log" style="max-height:260px;overflow-y:auto;font-size:0.78rem;border:1px solid var(--border);background:var(--bg);padding:10px"></div>
+        </div>
+      </div>
+
+      <!-- PREVIEW -->
+      <div class="preview-box" id="preview-box">
+        <div class="card">
+          <h2>Preview — <span id="prev-filename"></span></h2>
+          <div class="stats-row">
+            <div class="stat-chip"><div class="num" id="prev-people">0</div><div class="lbl">People</div></div>
+            <div class="stat-chip"><div class="num" id="prev-fams">0</div><div class="lbl">Families</div></div>
+            <div class="stat-chip"><div class="num" id="prev-dups">0</div><div class="lbl">Duplicates</div></div>
+            <div class="stat-chip"><div class="num" id="prev-new">0</div><div class="lbl">New</div></div>
+          </div>
+
+          <!-- DUPLICATE SECTION -->
+          <div id="dup-section" style="display:none">
+            <div class="section-title">⚠️ Duplicate UIDs Found</div>
+            <p style="font-size:0.82rem;color:var(--muted);margin-bottom:16px;">These people already exist in the database. Choose what to do with each, or use bulk actions below.</p>
+            <div class="flex-row" style="margin-bottom:16px;">
+              <button class="btn-green" onclick="bulkOverwrite()">✔ Overwrite All Duplicates</button>
+              <button class="btn-outline" onclick="bulkSkip()">✖ Skip All Duplicates</button>
+            </div>
+            <div id="dup-list"></div>
+          </div>
+
+          <!-- SAMPLE PEOPLE -->
+          <div class="section-title" style="margin-top:24px">Sample People (first 20)</div>
+          <div style="overflow-x:auto">
+            <table id="prev-table">
+              <thead><tr>
+                <th>Name</th><th>Sex</th><th>Birth Place</th><th>Death</th><th>Status</th>
+              </tr></thead>
+              <tbody id="prev-tbody"></tbody>
+            </table>
+          </div>
+
+          <div class="flex-row mt16">
+            <button class="btn-gold" id="confirm-btn" onclick="confirmUpload()">✔ Confirm & Push to Database</button>
+            <button class="btn-outline" onclick="resetUpload()">✖ Cancel</button>
+          </div>
+          <div class="progress-wrap" id="push-progress" style="margin-top:16px">
+            <div class="progress-label"><span id="push-label">Pushing…</span><span id="push-pct">0%</span></div>
+            <div class="progress-bar"><div class="progress-fill" id="push-fill"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UPLOADS HISTORY -->
+    <div id="panel-uploads" class="panel">
+      <div class="card">
+        <h2>Uploads History</h2>
+        <div id="uploads-list"><div class="empty">Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- VISITORS -->
+    <div id="panel-visitors" class="panel">
+      <div class="card">
+        <h2>Site Visitors</h2>
+        <div class="flex-row" style="margin-bottom:16px">
+          <input class="search-bar" id="visitor-search" placeholder="Search by name…" oninput="filterVisitors()" style="flex:1;margin:0"/>
+          <button class="btn-sm" onclick="loadVisitors()">↻ Refresh</button>
+        </div>
+        <div id="visitors-table-wrap">
+          <table>
+            <thead><tr>
+              <th>Name Entered</th><th>Visits</th><th>First Seen</th><th>Last Seen</th><th>Status</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="visitors-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACTIVITY HISTORY -->
+    <div id="panel-activity" class="panel">
+      <div class="card">
+        <h2>Activity History <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">(last 24 hours)</span></h2>
+        <div class="activity-filters">
+          <input class="search-bar" id="activity-search" placeholder="Search by visitor name…" oninput="filterActivity()" style="max-width:240px;margin:0;flex:1"/>
+          <button class="activity-filter-btn active" onclick="setActivityRange('today',this)">Today</button>
+          <button class="activity-filter-btn" onclick="setActivityRange('yesterday',this)">Yesterday</button>
+          <button class="activity-filter-btn" onclick="setActivityRange('week',this)">This Week</button>
+          <button class="btn-sm" onclick="loadActivity()">↻ Refresh</button>
+        </div>
+        <div id="activity-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="panel-settings" class="panel">
+      <div class="card">
+        <h2>Settings</h2>
+        <div class="setting-row">
+          <label>Admin Password</label>
+          <div class="flex-row">
+            <input type="password" id="new-pw" placeholder="New password"/>
+            <button class="btn-green" onclick="changePassword()">Update</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <label>Supabase URL</label>
+          <span style="font-size:0.8rem;color:var(--muted)">https://fusairoeiabmqvsbxhfi.supabase.co</span>
+        </div>
+        <div class="setting-row">
+          <label>Database Stats</label>
+          <div id="db-stats" style="font-size:0.85rem;color:var(--muted)">Loading…</div>
+        </div>
+        <div class="setting-row" style="border:none">
+          <label style="color:var(--red)">Danger Zone</label>
+          <button class="btn-red" onclick="confirmNuke()">🗑 Delete ALL Data</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://fusairoeiabmqvsbxhfi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1c2Fpcm9laWFibXF2c2J4aGZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MTUwNTgsImV4cCI6MjA5MzQ5MTA1OH0.uTVlBn4iDFZzAeD2i4Bzt4fXVxGequ2W9LIxugBIKsA';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let adminPassword = 'akt2024';
+let parsedData = null; // { people, families, familyMembers, filename }
+let dupDecisions = {}; // uid -> 'overwrite' | 'skip'
+let allVisitors = [];
+
+// ===================== AUTH =====================
+async function doLogin() {
+  const pw = document.getElementById('pw-input').value.trim();
+  // Fetch password from DB
+  const { data } = await sb.from('admin_config').select('value').eq('key','admin_password').single();
+  const correct = data ? data.value : 'akt2024';
+  if (pw === correct) {
+    adminPassword = correct;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadAll();
+  } else {
+    document.getElementById('login-err').style.display = 'block';
+  }
+}
+function doLogout() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('pw-input').value = '';
+}
+
+// ===================== TABS =====================
+function switchTab(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  if (btn) btn.classList.add('active'); else event.target.classList.add('active');
+  if (name === 'uploads') loadUploads();
+  if (name === 'visitors') loadVisitors();
+  if (name === 'settings') loadDbStats();
+  if (name === 'activity') loadActivity();
+}
+
+// ===================== GEDCOM PARSER =====================
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('dragover');
+  const files = e.dataTransfer.files;
+  if (files && files.length) handleFiles(files);
+}
+
+function handleFiles(files) {
+  const gedFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.ged'));
+  if (!gedFiles.length) { toast('Please select valid .ged file(s)', true); return; }
+  if (gedFiles.length > 500) { toast('Maximum 500 files allowed at once.', true); gedFiles.splice(500); }
+  if (gedFiles.length === 1) {
+    const reader = new FileReader();
+    reader.onload = e => parseGedcom(e.target.result, gedFiles[0].name);
+    reader.readAsText(gedFiles[0], 'UTF-8');
+  } else {
+    processMultipleFiles(gedFiles);
+  }
+}
+
+async function processMultipleFiles(files) {
+  // Show batch progress UI, hide single-file preview
+  document.getElementById('batch-progress').style.display = 'block';
+  document.getElementById('preview-box').style.display = 'none';
+  const batchFill = document.getElementById('batch-fill');
+  const batchStatus = document.getElementById('batch-status');
+  const batchLog = document.getElementById('batch-log');
+  batchLog.innerHTML = '';
+
+  function logLine(msg, isErr = false) {
+    const line = document.createElement('div');
+    line.style.cssText = `padding:3px 0;border-bottom:1px solid var(--border);color:${isErr ? 'var(--red2)' : 'var(--text)'}`;
+    line.innerHTML = msg;
+    batchLog.appendChild(line);
+    batchLog.scrollTop = batchLog.scrollHeight;
+  }
+
+  let successCount = 0, failCount = 0;
+
+  for (let i = 0; i < files.length; i++) {
+    batchStatus.textContent = `${i + 1} / ${files.length} files`;
+    batchFill.style.width = Math.round((i / files.length) * 100) + '%';
+    logLine(`<span style="color:var(--muted)">[${i+1}/${files.length}]</span> 📂 Parsing <strong>${files[i].name}</strong>…`);
+
+    try {
+      const text = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = e => res(e.target.result);
+        r.onerror = () => rej(new Error('File read failed'));
+        r.readAsText(files[i], 'UTF-8');
+      });
+
+      const parsed = parseGedcomSync(text, files[i].name);
+      logLine(`&nbsp;&nbsp;↳ Parsed: ${parsed.people.length} people, ${parsed.families.length} families`);
+
+      // Push directly to DB (overwrite duplicates, no preview)
+      const result = await pushParsedData(parsed, (msg) => {
+        // update last log line with push status
+        const last = batchLog.lastElementChild;
+        if (last) last.innerHTML += ` <span style="color:var(--muted)">${msg}</span>`;
+      });
+
+      logLine(`&nbsp;&nbsp;✔ <span style="color:var(--green)">Done — ${result.people} people, ${result.families} families pushed</span>`);
+      successCount++;
+      // Small pause between files to avoid overwhelming Supabase
+      await new Promise(r => setTimeout(r, 300));
+    } catch (err) {
+      logLine(`&nbsp;&nbsp;✖ <span style="color:var(--red2)">Error: ${err.message}</span>`, true);
+      failCount++;
+    }
+  }
+
+  batchFill.style.width = '100%';
+  batchStatus.textContent = `Complete: ${successCount} succeeded, ${failCount} failed`;
+  logLine(`<strong>🎉 Batch upload complete — ${successCount}/${files.length} files pushed successfully</strong>`);
+  toast(`✔ ${successCount} files uploaded!`);
+  loadAll();
+  loadUploads();
+}
+
+function handleFile(file) {
+  if (!file || !file.name.toLowerCase().endsWith('.ged')) {
+    toast('Please select a valid .ged file', true); return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => parseGedcom(e.target.result, file.name);
+  reader.readAsText(file, 'UTF-8');
+}
+
+function parseGedcom(text, filename) {
+  const prog = document.getElementById('parse-progress');
+  const fill = document.getElementById('parse-fill');
+  const label = document.getElementById('parse-label');
+  const pct = document.getElementById('parse-pct');
+  prog.style.display = 'block';
+
+  // Parse line by line
+  const lines = text.split(/\r?\n/);
+  const people = {};
+  const families = {};
+  const familyMembers = [];
+
+  let cur = null, curType = null;
+  let subRecord = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (i % 5000 === 0) {
+      const p = Math.round(i / lines.length * 100);
+      fill.style.width = p + '%'; pct.textContent = p + '%';
+    }
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    const m = line.match(/^(\d+)\s+(@[^@]+@)?\s*([A-Z_]+)(.*)$/);
+    if (!m) continue;
+    const level = +m[1], tag = m[3].trim(), val = (m[4] || '').trim();
+    const xref = m[2] ? m[2].trim() : null;
+
+    if (level === 0) {
+      subRecord = null;
+      if (tag === 'INDI') {
+        cur = { raw_gedcom_id: xref, uid: '', name: '', given_name: '', surname: '', sex: '', birth_date: '', birth_place: '', death_flag: false, death_date: '', death_place: '', occupation: '', contact_address: '', marr_status: '', fams: [], famc: [] };
+        curType = 'INDI'; people[xref] = cur;
+      } else if (tag === 'FAM') {
+        cur = { raw_gedcom_id: xref, uid: '', husband_raw: '', wife_raw: '', marr_date: '', marr_place: '', marr_status: '', children_raw: [] };
+        curType = 'FAM'; families[xref] = cur;
+      } else { cur = null; curType = null; }
+      continue;
+    }
+
+    if (!cur) continue;
+
+    if (curType === 'INDI') {
+      if (level === 1) {
+        subRecord = tag;
+        if (tag === '_UID') cur.uid = val;
+        else if (tag === 'NAME') cur.name = val.replace(/\//g,'').trim();
+        else if (tag === 'SEX') cur.sex = val;
+        else if (tag === 'DEAT') cur.death_flag = (val === 'Y' || val === 'y' || true);
+        else if (tag === 'FAMS') cur.fams.push(val);
+        else if (tag === 'FAMC') cur.famc.push(val);
+        else if (tag === 'OCCU') cur.occupation = val;
+      } else if (level === 2) {
+        if (subRecord === 'NAME') {
+          if (tag === 'GIVN') cur.given_name = val;
+          else if (tag === 'SURN') cur.surname = val;
+        } else if (subRecord === 'BIRT') {
+          if (tag === 'DATE') cur.birth_date = val;
+          else if (tag === 'PLAC') cur.birth_place = val;
+        } else if (subRecord === 'DEAT') {
+          if (tag === 'DATE') cur.death_date = val;
+          else if (tag === 'PLAC') cur.death_place = val;
+        } else if (subRecord === 'FACT' && tag === 'TYPE' && val.toLowerCase().includes('contact')) {
+          subRecord = 'FACT_CONTACT';
+        } else if (subRecord === 'ADDR') {
+          cur.contact_address = val;
+        }
+      }
+    }
+
+    if (curType === 'FAM') {
+      if (level === 1) {
+        subRecord = tag;
+        if (tag === 'HUSB') cur.husband_raw = val;
+        else if (tag === 'WIFE') cur.wife_raw = val;
+        else if (tag === 'CHIL') cur.children_raw.push(val);
+        else if (tag === '_MSTAT') cur.marr_status = val;
+        else if (tag === '_UID') cur.uid = val;
+      } else if (level === 2) {
+        if (subRecord === 'MARR') {
+          if (tag === 'DATE') cur.marr_date = val;
+          else if (tag === 'PLAC') cur.marr_place = val;
+          else if (tag === '_UID' && !cur.uid) cur.uid = val;
+        }
+      }
+    }
+  }
+
+  fill.style.width = '100%'; pct.textContent = '100%';
+  label.textContent = 'Parse complete!';
+
+  // uid fallback FIRST — before building any lookups
+  Object.values(people).forEach(p => { if (!p.uid && p.raw_gedcom_id) p.uid = p.raw_gedcom_id.replace(/@/g, ''); });
+  Object.values(families).forEach(f => { if (!f.uid && f.raw_gedcom_id) f.uid = f.raw_gedcom_id.replace(/@/g, ''); });
+
+  // Build lookup AFTER uid fallback so all keys resolve correctly
+  const rawToUid = {};
+  Object.values(people).forEach(p => { if (p.raw_gedcom_id) rawToUid[p.raw_gedcom_id] = p.uid; });
+
+  // Resolve family members
+  const famList = [];
+  Object.values(families).forEach(f => {
+    const hUid = rawToUid[f.husband_raw] || null;
+    const wUid = rawToUid[f.wife_raw] || null;
+    famList.push({ uid: f.uid, raw_gedcom_id: f.raw_gedcom_id, husband_uid: hUid, wife_uid: wUid, marr_date: f.marr_date, marr_place: f.marr_place, marr_status: f.marr_status });
+    f.children_raw.forEach((cRaw, idx) => {
+      const cUid = rawToUid[cRaw];
+      if (cUid) familyMembers.push({ family_uid: f.uid, person_uid: cUid, role: 'child', birth_order: idx + 1 });
+    });
+  });
+
+  // Propagate _MSTAT from family to person
+  Object.values(families).forEach(f => {
+    if (f.marr_status) {
+      [f.husband_raw, f.wife_raw].forEach(raw => {
+        if (raw && people[raw]) people[raw].marr_status = f.marr_status;
+      });
+    }
+  });
+
+  const peopleList = Object.values(people).filter(p => p.uid);
+
+  parsedData = { people: peopleList, families: famList, familyMembers, filename };
+  showPreview();
+}
+
+async function showPreview() {
+  document.getElementById('parse-progress').style.display = 'none';
+  const { people, families, filename } = parsedData;
+  document.getElementById('prev-filename').textContent = filename;
+  document.getElementById('prev-people').textContent = people.length;
+  document.getElementById('prev-fams').textContent = families.length;
+  document.getElementById('preview-box').style.display = 'block';
+
+  // Check duplicates
+  const uids = people.map(p => p.uid);
+  const { data: existing } = await sb.from('people').select('uid,name').in('uid', uids);
+  const existingMap = {};
+  (existing || []).forEach(e => existingMap[e.uid] = e);
+  const dups = people.filter(p => existingMap[p.uid]);
+
+  document.getElementById('prev-dups').textContent = dups.length;
+  document.getElementById('prev-new').textContent = people.length - dups.length;
+
+  // Render duplicates
+  if (dups.length > 0) {
+    dupDecisions = {};
+    dups.forEach(p => dupDecisions[p.uid] = 'overwrite'); // default: overwrite
+    document.getElementById('dup-section').style.display = 'block';
+    const dl = document.getElementById('dup-list');
+    dl.innerHTML = dups.map(p => `
+      <div class="dup-item" id="dup-${p.uid.replace(/[^a-z0-9]/gi,'_')}">
+        <div class="dup-info">
+          <div class="name">${p.name || '(no name)'}</div>
+          <div class="meta">UID: ${p.uid} &nbsp;|&nbsp; Existing name: <em>${existingMap[p.uid]?.name || '?'}</em></div>
+        </div>
+        <div class="dup-actions">
+          <button class="btn-green" onclick="setDup('${p.uid}','overwrite',this)">Overwrite</button>
+          <button class="btn-outline" onclick="setDup('${p.uid}','skip',this)">Skip</button>
+        </div>
+      </div>
+    `).join('');
+  } else {
+    document.getElementById('dup-section').style.display = 'none';
+  }
+
+  // Sample table
+  const tbody = document.getElementById('prev-tbody');
+  tbody.innerHTML = people.slice(0,20).map(p => `
+    <tr>
+      <td>${p.name || '-'}</td>
+      <td><span class="badge badge-${(p.sex||'').toLowerCase()}">${p.sex || '?'}</span></td>
+      <td>${p.birth_place || '-'}</td>
+      <td>${p.death_flag ? '✓' : '-'}</td>
+      <td>${p.marr_status ? `<span class="badge badge-${p.marr_status}">${p.marr_status}</span>` : '-'}</td>
+    </tr>
+  `).join('');
+}
+
+function setDup(uid, decision, btn) {
+  dupDecisions[uid] = decision;
+  const row = document.getElementById('dup-' + uid.replace(/[^a-z0-9]/gi,'_'));
+  if (row) row.style.opacity = decision === 'skip' ? '0.4' : '1';
+}
+function bulkOverwrite() { Object.keys(dupDecisions).forEach(k => setDup(k,'overwrite',null)); toast('All duplicates set to Overwrite'); }
+function bulkSkip() { Object.keys(dupDecisions).forEach(k => setDup(k,'skip',null)); toast('All duplicates set to Skip'); }
+
+// ===================== PUSH TO DB =====================
+async function confirmUpload() {
+  if (!parsedData) return;
+  const btn = document.getElementById('confirm-btn');
+  btn.disabled = true; btn.textContent = 'Pushing…';
+
+  const prog = document.getElementById('push-progress');
+  const fill = document.getElementById('push-fill');
+  const label = document.getElementById('push-label');
+  const pct = document.getElementById('push-pct');
+  prog.style.display = 'block';
+
+  // Filter out skipped duplicates before pushing
+  const toInsert = parsedData.people.filter(p => dupDecisions[p.uid] !== 'skip');
+  const adjustedData = { ...parsedData, people: toInsert };
+
+  const steps = ['Creating record…','Pushing people…','Pushing families…','Pushing children…'];
+  let step = 0;
+  const onProgress = () => {
+    const s = steps[step++] || 'Working…';
+    label.textContent = s;
+    fill.style.width = (10 + step * 22) + '%';
+    pct.textContent = fill.style.width;
+  };
+
+  try {
+    onProgress();
+    const result = await pushParsedData(adjustedData, onProgress);
+    fill.style.width = '100%'; pct.textContent = '100%';
+    label.textContent = 'Done!';
+    toast(`✔ Uploaded ${result.people} people, ${result.families} families from ${parsedData.filename}`);
+    btn.disabled = false; btn.textContent = '✔ Confirm & Push to Database';
+    setTimeout(() => { resetUpload(); loadAll(); loadUploads(); }, 2000);
+  } catch (err) {
+    toast('Upload failed: ' + err.message, true);
+    btn.disabled = false; btn.textContent = '✔ Confirm & Push to Database';
+  }
+}
+
+function resetUpload() {
+  parsedData = null; dupDecisions = {};
+  document.getElementById('preview-box').style.display = 'none';
+  document.getElementById('parse-progress').style.display = 'none';
+  document.getElementById('push-progress').style.display = 'none';
+  document.getElementById('batch-progress').style.display = 'none';
+  document.getElementById('batch-log').innerHTML = '';
+  document.getElementById('file-input').value = '';
+}
+
+// ===================== UPLOADS HISTORY =====================
+async function loadUploads() {
+  const list = document.getElementById('uploads-list');
+  list.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+  const { data, error } = await sb.from('gedcom_uploads').select('*').order('uploaded_at', { ascending: false });
+  if (error || !data || !data.length) { list.innerHTML = '<div class="empty">No uploads yet.</div>'; return; }
+  list.innerHTML = data.map(u => `
+    <div class="upload-row">
+      <div>
+        <div class="fname">📁 ${u.filename}</div>
+        <div class="fmeta">${u.people_count} people &nbsp;·&nbsp; ${u.families_count} families &nbsp;·&nbsp; ${new Date(u.uploaded_at).toLocaleString()}</div>
+        ${u.notes ? `<div class="fmeta" style="margin-top:4px">📝 ${u.notes}</div>` : ''}
+      </div>
+      <div class="faction">
+        <button class="btn-sm btn-danger" onclick="deleteUpload('${u.id}','${u.filename.replace(/'/g,"\\'")}')">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function deleteUpload(id, name) {
+  if (!confirm(`Delete "${name}"?\n\nThis will permanently remove:\n• All people from this file\n• All families from this file\n• All family member links\n• The upload record itself\n\nThis cannot be undone.`)) return;
+
+  toast(`Deleting "${name}"…`);
+
+  try {
+    // Step 1 — get all family UIDs for this gedcom
+    const { data: famRows, error: e1 } = await sb.from('families').select('uid').eq('gedcom_id', id);
+    if (e1) throw new Error('Fetching families: ' + e1.message);
+    const famUids = (famRows || []).map(f => f.uid);
+
+    // Step 2 — delete family_members for those families
+    if (famUids.length) {
+      const CHUNK = 200;
+      for (let i = 0; i < famUids.length; i += CHUNK) {
+        const { error: e2 } = await sb.from('family_members').delete().in('family_uid', famUids.slice(i, i + CHUNK));
+        if (e2) throw new Error('Deleting family_members: ' + e2.message);
+      }
+    }
+
+    // Step 3 — delete families
+    const { error: e3 } = await sb.from('families').delete().eq('gedcom_id', id);
+    if (e3) throw new Error('Deleting families: ' + e3.message);
+
+    // Step 4 — delete people
+    const { error: e4 } = await sb.from('people').delete().eq('gedcom_id', id);
+    if (e4) throw new Error('Deleting people: ' + e4.message);
+
+    // Step 5 — delete the upload record itself
+    const { error: e5 } = await sb.from('gedcom_uploads').delete().eq('id', id);
+    if (e5) throw new Error('Deleting upload record: ' + e5.message);
+
+    toast(`✔ Deleted "${name}" and all its data`);
+    loadUploads();
+    loadAll();
+  } catch (err) {
+    toast('Delete failed: ' + err.message, true);
+  }
+}
+
+// ===================== VISITORS =====================
+async function loadVisitors() {
+  const tbody = document.getElementById('visitors-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" class="empty"><span class="spinner"></span> Loading…</td></tr>';
+  const { data } = await sb.from('visitors').select('*').order('last_seen', { ascending: false });
+  allVisitors = data || [];
+  renderVisitors(allVisitors);
+}
+
+function renderVisitors(visitors) {
+  const tbody = document.getElementById('visitors-tbody');
+  if (!visitors.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No visitors yet.</td></tr>'; return; }
+  tbody.innerHTML = visitors.map(v => `
+    <tr class="${v.is_blocked ? 'blocked' : ''}">
+      <td>${v.name_entered}</td>
+      <td>${v.visit_count}</td>
+      <td>${new Date(v.first_seen).toLocaleDateString()}</td>
+      <td>${new Date(v.last_seen).toLocaleDateString()}</td>
+      <td>${v.is_blocked ? '<span class="badge" style="background:rgba(192,57,43,0.2);color:#e74c3c">Blocked</span>' : '<span class="badge badge-current">Active</span>'}</td>
+      <td>
+        ${v.is_blocked
+          ? `<button class="btn-sm" onclick="unblockVisitor('${v.id}')">Unblock</button>`
+          : `<button class="btn-sm btn-danger" onclick="blockVisitor('${v.id}')">Block</button>`
+        }
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterVisitors() {
+  const q = document.getElementById('visitor-search').value.toLowerCase();
+  renderVisitors(allVisitors.filter(v => v.name_entered.toLowerCase().includes(q)));
+}
+
+async function blockVisitor(id) {
+  const reason = prompt('Reason for blocking (optional):') || '';
+  await sb.from('visitors').update({ is_blocked: true, block_reason: reason }).eq('id', id);
+  toast('Visitor blocked'); loadVisitors();
+}
+async function unblockVisitor(id) {
+  await sb.from('visitors').update({ is_blocked: false, block_reason: null }).eq('id', id);
+  toast('Visitor unblocked'); loadVisitors();
+}
+
+// ===================== SETTINGS =====================
+async function loadDbStats() {
+  const el = document.getElementById('db-stats');
+  const [{ count: pc }, { count: fc }, { count: vc }] = await Promise.all([
+    sb.from('people').select('*', { count: 'exact', head: true }),
+    sb.from('families').select('*', { count: 'exact', head: true }),
+    sb.from('visitors').select('*', { count: 'exact', head: true })
+  ]);
+  el.innerHTML = `${pc?.toLocaleString() || 0} people &nbsp;·&nbsp; ${fc?.toLocaleString() || 0} families &nbsp;·&nbsp; ${vc || 0} visitors`;
+}
+
+async function changePassword() {
+  const pw = document.getElementById('new-pw').value.trim();
+  if (!pw || pw.length < 4) { toast('Password must be at least 4 characters', true); return; }
+  const { error } = await sb.from('admin_config').update({ value: pw, updated_at: new Date().toISOString() }).eq('key', 'admin_password');
+  if (error) { toast('Error: ' + error.message, true); return; }
+  adminPassword = pw;
+  document.getElementById('new-pw').value = '';
+  toast('Password updated successfully');
+}
+
+async function confirmNuke() {
+  const confirm1 = confirm('⚠️ This will DELETE ALL people, families, and uploads. Are you absolutely sure?');
+  if (!confirm1) return;
+  const typed = prompt('Type DELETE to confirm:');
+  if (typed !== 'DELETE') return;
+  await sb.from('family_members').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await sb.from('families').delete().neq('uid', 'x');
+  await sb.from('people').delete().neq('uid', 'x');
+  await sb.from('gedcom_uploads').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  toast('All data deleted'); loadAll();
+}
+
+// ===================== ACTIVITY HISTORY =====================
+let activityRange = 'today';
+let allActivity = [];
+
+function setActivityRange(range, btn) {
+  activityRange = range;
+  document.querySelectorAll('.activity-filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  loadActivity();
+}
+
+async function loadActivity() {
+  const list = document.getElementById('activity-list');
+  if (!list) return;
+  list.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+
+  const now = new Date();
+  let fromDate;
+  if (activityRange === 'today') {
+    fromDate = new Date(now); fromDate.setHours(0,0,0,0);
+  } else if (activityRange === 'yesterday') {
+    fromDate = new Date(now); fromDate.setDate(fromDate.getDate()-1); fromDate.setHours(0,0,0,0);
+    const toDate = new Date(fromDate); toDate.setHours(23,59,59,999);
+    // fetch yesterday range
+    const { data } = await sb.from('visitors')
+      .select('name_entered,last_seen,visit_count,first_seen')
+      .gte('last_seen', fromDate.toISOString())
+      .lte('last_seen', toDate.toISOString())
+      .order('last_seen', { ascending: false });
+    allActivity = data || [];
+    renderActivity(allActivity);
+    return;
+  } else if (activityRange === 'week') {
+    fromDate = new Date(now); fromDate.setDate(fromDate.getDate() - 7); fromDate.setHours(0,0,0,0);
+  } else {
+    // 24 hours default
+    fromDate = new Date(now.getTime() - 24*60*60*1000);
+  }
+
+  const { data, error } = await sb.from('visitors')
+    .select('name_entered,last_seen,visit_count,first_seen,is_blocked')
+    .gte('last_seen', fromDate.toISOString())
+    .order('last_seen', { ascending: false });
+
+  if (error) { list.innerHTML = '<div class="empty">Error loading activity.</div>'; return; }
+  allActivity = data || [];
+  renderActivity(allActivity);
+}
+
+function renderActivity(items) {
+  const list = document.getElementById('activity-list');
+  if (!items.length) { list.innerHTML = '<div class="empty">No activity found for this period.</div>'; return; }
+  list.innerHTML = items.map(v => {
+    const lastSeen = new Date(v.last_seen);
+    const firstSeen = new Date(v.first_seen);
+    const isNew = (lastSeen - firstSeen) < 60000; // first visit within 1 min = new
+    return `<div class="activity-row">
+      <div class="activity-time">${lastSeen.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}<br><span style="font-size:0.68rem">${lastSeen.toLocaleDateString()}</span></div>
+      <div class="activity-name">${v.name_entered}${v.is_blocked ? ' <span style="color:var(--red2);font-size:0.7rem">[blocked]</span>':''}</div>
+      <div class="activity-action">
+        ${isNew ? '<span class="activity-badge" style="background:#e8f5e9;color:#2e7d32">New Visit</span>' : `<span class="activity-badge">Return Visit</span>`}
+        &nbsp; Visit #${v.visit_count}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterActivity() {
+  const q = document.getElementById('activity-search').value.toLowerCase();
+  renderActivity(allActivity.filter(v => v.name_entered.toLowerCase().includes(q)));
+}
+
+// ===================== UTILS =====================
+async function loadAll() {
+  const [{ count: pc }, { count: fc }] = await Promise.all([
+    sb.from('people').select('*', { count: 'exact', head: true }),
+    sb.from('families').select('*', { count: 'exact', head: true })
+  ]);
+  document.getElementById('hdr-stats').textContent = `${(pc||0).toLocaleString()} people · ${(fc||0).toLocaleString()} families`;
+  if (document.getElementById('panel-activity').classList.contains('active')) loadActivity();
+}
+
+// ===================== SYNC PARSER (no UI, returns data) =====================
+function parseGedcomSync(text, filename) {
+  const lines = text.split(/\r?\n/);
+  const people = {};
+  const families = {};
+  const familyMembers = [];
+  let cur = null, curType = null, subRecord = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const m = line.match(/^(\d+)\s+(@[^@]+@)?\s*([A-Z_]+)(.*)$/);
+    if (!m) continue;
+    const level = +m[1], tag = m[3].trim(), val = (m[4] || '').trim();
+    const xref = m[2] ? m[2].trim() : null;
+
+    if (level === 0) {
+      subRecord = null;
+      if (tag === 'INDI') {
+        cur = { raw_gedcom_id: xref, uid: '', name: '', given_name: '', surname: '', sex: '', birth_date: '', birth_place: '', death_flag: false, death_date: '', death_place: '', occupation: '', contact_address: '', marr_status: '', fams: [], famc: [] };
+        curType = 'INDI'; people[xref] = cur;
+      } else if (tag === 'FAM') {
+        cur = { raw_gedcom_id: xref, uid: '', husband_raw: '', wife_raw: '', marr_date: '', marr_place: '', marr_status: '', children_raw: [] };
+        curType = 'FAM'; families[xref] = cur;
+      } else { cur = null; curType = null; }
+      continue;
+    }
+    if (!cur) continue;
+
+    if (curType === 'INDI') {
+      if (level === 1) {
+        subRecord = tag;
+        if (tag === '_UID') cur.uid = val;
+        else if (tag === 'NAME') cur.name = val.replace(/\//g,'').trim();
+        else if (tag === 'SEX') cur.sex = val;
+        else if (tag === 'DEAT') cur.death_flag = true;
+        else if (tag === 'FAMS') cur.fams.push(val);
+        else if (tag === 'FAMC') cur.famc.push(val);
+        else if (tag === 'OCCU') cur.occupation = val;
+      } else if (level === 2) {
+        if (subRecord === 'NAME') {
+          if (tag === 'GIVN') cur.given_name = val;
+          else if (tag === 'SURN') cur.surname = val;
+        } else if (subRecord === 'BIRT') {
+          if (tag === 'DATE') cur.birth_date = val;
+          else if (tag === 'PLAC') cur.birth_place = val;
+        } else if (subRecord === 'DEAT') {
+          if (tag === 'DATE') cur.death_date = val;
+          else if (tag === 'PLAC') cur.death_place = val;
+        } else if (subRecord === 'ADDR') {
+          cur.contact_address = val;
+        }
+      }
+    }
+    if (curType === 'FAM') {
+      if (level === 1) {
+        subRecord = tag;
+        if (tag === 'HUSB') cur.husband_raw = val;
+        else if (tag === 'WIFE') cur.wife_raw = val;
+        else if (tag === 'CHIL') cur.children_raw.push(val);
+        else if (tag === '_MSTAT') cur.marr_status = val;
+        else if (tag === '_UID') cur.uid = val;
+      } else if (level === 2) {
+        if (subRecord === 'MARR') {
+          if (tag === 'DATE') cur.marr_date = val;
+          else if (tag === 'PLAC') cur.marr_place = val;
+          else if (tag === '_UID' && !cur.uid) cur.uid = val;
+        }
+      }
+    }
+  }
+
+  // uid fallback FIRST — before building any lookups
+  Object.values(people).forEach(p => { if (!p.uid && p.raw_gedcom_id) p.uid = p.raw_gedcom_id.replace(/@/g, ''); });
+  Object.values(families).forEach(f => { if (!f.uid && f.raw_gedcom_id) f.uid = f.raw_gedcom_id.replace(/@/g, ''); });
+
+  // Build lookup AFTER uid fallback
+  const rawToUid = {};
+  Object.values(people).forEach(p => { if (p.raw_gedcom_id) rawToUid[p.raw_gedcom_id] = p.uid; });
+
+  const famList = [];
+  Object.values(families).forEach(f => {
+    const hUid = rawToUid[f.husband_raw] || null;
+    const wUid = rawToUid[f.wife_raw] || null;
+    famList.push({ uid: f.uid, raw_gedcom_id: f.raw_gedcom_id, husband_uid: hUid, wife_uid: wUid, marr_date: f.marr_date, marr_place: f.marr_place, marr_status: f.marr_status });
+    f.children_raw.forEach((cRaw, idx) => {
+      const cUid = rawToUid[cRaw];
+      if (cUid) familyMembers.push({ family_uid: f.uid, person_uid: cUid, role: 'child', birth_order: idx + 1 });
+    });
+  });
+  Object.values(families).forEach(f => {
+    if (f.marr_status) {
+      [f.husband_raw, f.wife_raw].forEach(raw => { if (raw && people[raw]) people[raw].marr_status = f.marr_status; });
+    }
+  });
+
+  return {
+    people: Object.values(people).filter(p => p.uid),
+    families: famList,
+    familyMembers,
+    filename
+  };
+}
+
+// ===================== PUSH PARSED DATA (used by batch & single confirm) =====================
+// Returns true if uid looks like a raw GEDCOM xref fallback (e.g. "I6", "F77")
+// rather than a proper _UID tag value (UUID or other app-specific id)
+function isXrefUid(uid) {
+  return /^[A-Z]\d+$/.test(uid);
+}
+
+// Namespace xref-based uids with gedcomId prefix to avoid collisions across uploads
+// e.g. "I6" -> "abc123_I6", but "c5b077bb-8207-..." stays unchanged
+function nsUid(uid, prefix) {
+  return isXrefUid(uid) ? prefix + '_' + uid : uid;
+}
+
+async function pushParsedData(parsed, onProgress) {
+  const { people, families, familyMembers, filename } = parsed;
+  const BATCH = 200;
+
+  onProgress && onProgress('→ creating upload record');
+  const { data: uploadRow, error: upErr } = await sb.from('gedcom_uploads')
+    .insert({ filename, people_count: people.length, families_count: families.length })
+    .select().single();
+  if (upErr) throw new Error('Upload record: ' + upErr.message);
+  const gedcomId = uploadRow.id;
+  const pfx = gedcomId.slice(0, 8); // short prefix for readability
+
+  // Namespace any xref-based uids (e.g. "I6"->"abc123_I6") to prevent
+  // collisions when multiple GEDCOMs use the same simple numeric xrefs
+  people.forEach(p => { p.uid = nsUid(p.uid, pfx); });
+  families.forEach(f => {
+    f.uid = nsUid(f.uid, pfx);
+    if (f.husband_uid) f.husband_uid = nsUid(f.husband_uid, pfx);
+    if (f.wife_uid) f.wife_uid = nsUid(f.wife_uid, pfx);
+  });
+  familyMembers.forEach(m => {
+    m.family_uid = nsUid(m.family_uid, pfx);
+    m.person_uid = nsUid(m.person_uid, pfx);
+  });
+
+  onProgress && onProgress('→ pushing people');
+  const validUids = new Set(people.map(p => p.uid));
+  for (let i = 0; i < people.length; i += BATCH) {
+    const batch = people.slice(i, i + BATCH).map(p => ({
+      uid: p.uid, gedcom_id: gedcomId, name: p.name, given_name: p.given_name,
+      surname: p.surname, sex: p.sex, birth_date: p.birth_date, birth_place: p.birth_place,
+      death_flag: p.death_flag, death_date: p.death_date, death_place: p.death_place,
+      occupation: p.occupation, contact_address: p.contact_address, marr_status: p.marr_status,
+      raw_gedcom_id: p.raw_gedcom_id, updated_at: new Date().toISOString()
+    }));
+    const { error } = await sb.from('people').upsert(batch, { onConflict: 'uid' });
+    if (error) console.warn('People batch error:', error.message);
+  }
+
+  onProgress && onProgress('→ pushing families');
+  const famsBatch = families.map(f => ({
+    uid: f.uid, gedcom_id: gedcomId,
+    husband_uid: validUids.has(f.husband_uid) ? f.husband_uid : null,
+    wife_uid: validUids.has(f.wife_uid) ? f.wife_uid : null,
+    marr_date: f.marr_date, marr_place: f.marr_place, marr_status: f.marr_status,
+    raw_gedcom_id: f.raw_gedcom_id
+  }));
+  for (let i = 0; i < famsBatch.length; i += BATCH) {
+    const { error } = await sb.from('families').upsert(famsBatch.slice(i, i+BATCH), { onConflict: 'uid' });
+    if (error) console.warn('Family batch error:', error.message);
+  }
+
+  onProgress && onProgress('→ pushing children');
+  const famUids = new Set(famsBatch.map(f => f.uid));
+  const fmBatch = familyMembers.filter(fm => famUids.has(fm.family_uid) && validUids.has(fm.person_uid));
+  for (let i = 0; i < fmBatch.length; i += BATCH) {
+    const { error } = await sb.from('family_members').upsert(fmBatch.slice(i, i+BATCH), { onConflict: 'family_uid,person_uid' });
+    if (error) console.warn('FM batch error:', error.message);
+  }
+
+  return { people: people.length, families: families.length };
+}
+
+function toast(msg, isErr = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show' + (isErr ? ' err' : '');
+  clearTimeout(t._to);
+  t._to = setTimeout(() => t.className = '', 3500);
+}
+</script>
+</body>
+</html>

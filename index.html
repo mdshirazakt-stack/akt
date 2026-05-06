@@ -1934,5 +1934,51 @@ function showPersonFromByfile(uid) {
 }
 
 </script>
+
+<!-- Back to top button -->
+<button id="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})"
+  style="display:none;position:fixed;bottom:28px;right:28px;z-index:9999;
+         width:44px;height:44px;border-radius:50%;border:none;
+         background:var(--gold);color:#fff;font-size:1.2rem;
+         cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.18);
+         transition:opacity 0.2s" title="Back to top">↑</button>
+
+<!-- Person detail popup (All Names tab) -->
+<div id="person-popup-overlay"
+  style="display:none;position:fixed;inset:0;z-index:10000;
+         background:rgba(0,0,0,0.45);backdrop-filter:blur(2px);overflow-y:auto"
+  onclick="closePersonPopup(event)">
+  <div id="person-popup"
+    style="position:relative;margin:40px auto;max-width:760px;
+           background:var(--paper);border-radius:12px;padding:28px 32px;
+           box-shadow:0 8px 40px rgba(0,0,0,0.25);min-height:200px"
+    onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                margin-bottom:18px;border-bottom:1px solid var(--border);padding-bottom:12px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="popup-prev" onclick="navigatePopup(-1)"
+          style="padding:5px 14px;border-radius:6px;border:1px solid var(--border);
+                 background:transparent;cursor:pointer;font-size:0.85rem;color:var(--text)">
+          ← Prev
+        </button>
+        <button id="popup-next" onclick="navigatePopup(1)"
+          style="padding:5px 14px;border-radius:6px;border:1px solid var(--border);
+                 background:transparent;cursor:pointer;font-size:0.85rem;color:var(--text)">
+          Next →
+        </button>
+        <span id="popup-counter"
+          style="font-size:0.78rem;color:var(--muted);margin-left:4px"></span>
+      </div>
+      <button onclick="document.getElementById('person-popup-overlay').style.display='none';document.body.style.overflow=''"
+        style="padding:5px 14px;border-radius:6px;border:1px solid var(--border);
+               background:transparent;cursor:pointer;font-size:0.85rem;color:var(--text)">
+        ✕ Close
+      </button>
+    </div>
+    <div id="person-popup-body">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
 </body>
 </html>

@@ -467,6 +467,9 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
+let currentVisitCount = 0;
+let activityLogDisabled = false;
+let locationHintPromise = null;
 let searchFilter = 'all';
 let sourceFilter = null; // gedcom_id UUID or null = all
 let gedcomUploads = []; // [{id, filename, shortname}]
@@ -490,9 +493,11 @@ async function doEnter() {
 
   // Upsert visitor
   if (existing) {
-    await sb.from('visitors').update({ last_seen: new Date().toISOString(), visit_count: (existing.visit_count || 0) + 1 }).eq('id', existing.id);
+    currentVisitCount = (existing.visit_count || 0) + 1;
+    await sb.from('visitors').update({ last_seen: new Date().toISOString(), visit_count: currentVisitCount, ip_hint: getIpHint() }).eq('id', existing.id);
   } else {
-    await sb.from('visitors').insert({ name_entered: name, ip_hint: getIpHint() });
+    await sb.from('visitors').insert({ name_entered: name, visit_count: 1, ip_hint: getIpHint() });
+    currentVisitCount = 1;
   }
 
   currentUser = name;
@@ -500,12 +505,76 @@ async function doEnter() {
   document.getElementById('auth-gate').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   await loadGedcomSources();
+  logActivity('login', `Logged in: ${name}`, { visit_count: currentVisitCount });
   loadSearch('');
 }
 
 function getIpHint() {
   // Basic browser fingerprint (not exact IP)
   return `${navigator.language}|${screen.width}x${screen.height}|${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
+}
+
+function getDeviceInfo() {
+  const ua = navigator.userAgent || '';
+  const platform = navigator.platform || '';
+  const isMobile = /Mobi|Android|iPhone|iPad/i.test(ua);
+  let browser = 'Browser';
+  if (/Edg\//.test(ua)) browser = 'Edge';
+  else if (/Chrome\//.test(ua) && !/Chromium/.test(ua)) browser = 'Chrome';
+  else if (/Safari\//.test(ua) && !/Chrome\//.test(ua)) browser = 'Safari';
+  else if (/Firefox\//.test(ua)) browser = 'Firefox';
+  return `${isMobile ? 'Mobile' : 'Desktop'} · ${platform || 'Unknown OS'} · ${browser}`;
+}
+
+function getLocationHint() {
+  if (locationHintPromise) return locationHintPromise;
+  locationHintPromise = (async () => {
+    const fallback = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2500);
+      const res = await fetch('https://ipapi.co/json/', { signal: controller.signal });
+      clearTimeout(timer);
+      if (!res.ok) throw new Error('Location lookup failed');
+      const geo = await res.json();
+      const parts = [geo.city, geo.region, geo.country_name].filter(Boolean);
+      return parts.length ? parts.join(', ') : fallback;
+    } catch (err) {
+      return fallback;
+    }
+  })();
+  return locationHintPromise;
+}
+
+function logActivity(action, target, details) {
+  if (!currentUser || activityLogDisabled) return;
+  getLocationHint().then(locationHint => {
+    const payload = {
+      visitor_name: currentUser,
+      action,
+      target: target || '',
+      details: {
+        ...(details || {}),
+        visit_count: currentVisitCount,
+        location_hint: locationHint,
+        page: location.pathname || '/',
+        screen: `${screen.width}x${screen.height}`,
+        language: navigator.language || '',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || ''
+      },
+      device: getDeviceInfo(),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+      location_hint: locationHint
+    };
+    sb.from('activity_logs').insert(payload).then(({ error }) => {
+      if (!error) return;
+      const fallbackPayload = { ...payload };
+      delete fallbackPayload.location_hint;
+      sb.from('activity_logs').insert(fallbackPayload).then(({ error: retryError }) => {
+        if (retryError) activityLogDisabled = true;
+      });
+    });
+  });
 }
 
 // ===== GEDCOM SOURCE FILTER =====
@@ -716,6 +785,8 @@ function switchTab(name, btn) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   if (btn) btn.classList.add('active');
+  const labels = { search: 'Search', tree: 'Browse Tree', stats: 'Stats', byfile: 'Index', allnames: 'All Names' };
+  logActivity('open_tab', `Opened ${labels[name] || name}`, { tab: name });
   if (name === 'stats') loadStats();
   if (name === 'byfile') loadByFile();
   if (name === 'allnames') loadAllNames();
@@ -944,6 +1015,7 @@ async function loadSearch(q) {
 
   if (!data.length) {
     el.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>No results found for "<strong>${q}</strong>".<br><span style="font-size:0.82rem;color:var(--muted)">Try fewer words, or check the spelling — fuzzy matching is already active.</span></p></div>`;
+    if (q) logActivity('search', `Searched people: ${q}`, { query: q, result_count: 0 });
     return;
   }
 
@@ -972,6 +1044,7 @@ async function loadSearch(q) {
     </div>
     ${pages > 1 ? `<div class="pagination">${buildPagination(pages)}</div>` : ''}
   `;
+  if (q) logActivity('search', `Searched people: ${q}`, { query: q, result_count: count, page: searchPage + 1 });
 }
 
 function buildPagination(pages) {
@@ -1002,6 +1075,7 @@ async function renderPersonDetail(uid, el) {
   // Fetch person
   const { data: p } = await sb.from('people').select('*').eq('uid', uid).single();
   if (!p) { el.innerHTML = '<div class="empty-state">Person not found.</div>'; return; }
+  logActivity('view_person', `Viewed: ${p.name || '(unnamed)'}`, { person_uid: p.uid, source_id: p.gedcom_id || '' });
 
   // Fetch families as spouse
   const { data: famsAsSpouse } = await sb.from('families')
@@ -1224,6 +1298,7 @@ async function loadTree(uid) {
   var focusPerson = await getPerson(uid);
   if (!focusPerson) { document.getElementById('tree-view').innerHTML = '<div class="empty-state">Person not found.</div>'; return; }
   document.getElementById('tree-person-label').textContent = 'Showing tree for: ' + (focusPerson.name || '(unnamed)');
+  logActivity('tree_view', `Tree view: ${focusPerson.name || '(unnamed)'}`, { person_uid: focusPerson.uid });
 
   // ── Render helpers ──
   var _tid = 0;
@@ -1429,6 +1504,9 @@ function printTree() {
     alert('Please search for a person in the Browse Tree tab first.');
     return;
   }
+  const label = document.getElementById('tree-person-label')?.textContent || '';
+  const personName = label.replace(/^Showing tree for:\s*/i, '').trim();
+  logActivity('print_tree', personName ? `Printed tree for: ${personName}` : 'Printed tree', { label });
   window.print();
 }
 
@@ -1494,6 +1572,7 @@ let byfileSearchTimer = null;
 async function loadByFile() {
   if (byfileLoaded) { applyByfileSearch(); return; }
   if (!gedcomUploads.length) return;
+  logActivity('open_index', 'Opened Index', { file_count: gedcomUploads.length });
 
   byfileLoaded = true;
   const container = document.getElementById('byfile-list');
@@ -1547,6 +1626,8 @@ async function toggleGed(id) {
 
   hdr.classList.add('open');
   body.classList.add('open');
+  const upload = gedcomUploads.find(u => u.id === id);
+  logActivity('open_index_file', `Opened index file: ${upload ? upload.filename : id}`, { gedcom_id: id });
 
   // Already loaded?
   if (byfilePeopleCache[id]) {
@@ -1644,6 +1725,7 @@ function onByfileSearch() {
 
 function applyByfileSearch() {
   const q = document.getElementById('byfile-search').value.trim();
+  if (q) logActivity('index_filter', `Filtered index: ${q}`, { query: q });
   // For sections already loaded, re-render with filter
   // For un-loaded sections, just let them load normally when opened
   Object.keys(byfilePeopleCache).forEach(id => {

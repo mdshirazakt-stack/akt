@@ -308,8 +308,8 @@
           <div class="stats-row">
             <div class="stat-chip"><div class="num" id="prev-people">0</div><div class="lbl">People</div></div>
             <div class="stat-chip"><div class="num" id="prev-fams">0</div><div class="lbl">Families</div></div>
-            <div class="stat-chip"><div class="num" id="prev-dups">0</div><div class="lbl">Duplicates</div></div>
-            <div class="stat-chip"><div class="num" id="prev-new">0</div><div class="lbl">New</div></div>
+            <div class="stat-chip"><div class="num" id="prev-dups">0</div><div class="lbl">Person Checks</div></div>
+            <div class="stat-chip"><div class="num" id="prev-new">0</div><div class="lbl">Ready</div></div>
           </div>
 
           <!-- DUPLICATE SECTION -->
@@ -479,10 +479,23 @@ function handleDrop(e) {
   if (files && files.length) handleFiles(files);
 }
 
-function handleFiles(files) {
+async function handleFiles(files) {
   const gedFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.ged'));
   if (!gedFiles.length) { toast('Please select valid .ged file(s)', true); return; }
   if (gedFiles.length > 500) { toast('Maximum 500 files allowed at once.', true); gedFiles.splice(500); }
+
+  let shouldContinue = false;
+  try {
+    shouldContinue = await confirmGedcomFilenameUpload(gedFiles);
+  } catch (err) {
+    toast(err.message, true);
+    return;
+  }
+  if (!shouldContinue) {
+    toast('Upload cancelled.');
+    return;
+  }
+
   if (gedFiles.length === 1) {
     const reader = new FileReader();
     reader.onload = e => {
@@ -502,6 +515,41 @@ function handleFiles(files) {
   } else {
     processMultipleFiles(gedFiles);
   }
+}
+
+async function confirmGedcomFilenameUpload(files) {
+  const existingNames = await getExistingGedcomFilenameSet();
+  const seenInBatch = new Set();
+  const duplicateNames = [];
+
+  files.forEach(file => {
+    const normalized = normalizeGedcomFilename(file.name);
+    if (existingNames.has(normalized) || seenInBatch.has(normalized)) {
+      duplicateNames.push(file.name);
+    }
+    seenInBatch.add(normalized);
+  });
+
+  if (!duplicateNames.length) return true;
+
+  const uniqueNames = [...new Set(duplicateNames)];
+  const list = uniqueNames.slice(0, 15).join('\n');
+  const more = uniqueNames.length > 15 ? `\n...and ${uniqueNames.length - 15} more` : '';
+  return confirm(
+    `This GEDCOM filename already exists in upload history or repeats in this batch.\n\n${list}${more}\n\nContinue or cancel?`
+  );
+}
+
+async function getExistingGedcomFilenameSet() {
+  const { data, error } = await sb
+    .from('gedcom_uploads')
+    .select('filename');
+  if (error) throw new Error('Upload history check failed: ' + error.message);
+  return new Set((data || []).map(row => normalizeGedcomFilename(row.filename)));
+}
+
+function normalizeGedcomFilename(name) {
+  return String(name || '').trim().toLowerCase();
 }
 
 
@@ -818,37 +866,10 @@ async function showPreview() {
   document.getElementById('prev-fams').textContent = families.length;
   document.getElementById('preview-box').style.display = 'block';
 
-  // Check duplicates
-  const uids = people.map(p => p.uid);
-  const { data: existing } = await sb.from('people').select('uid,name').in('uid', uids);
-  const existingMap = {};
-  (existing || []).forEach(e => existingMap[e.uid] = e);
-  const dups = people.filter(p => existingMap[p.uid]);
-
-  document.getElementById('prev-dups').textContent = dups.length;
-  document.getElementById('prev-new').textContent = people.length - dups.length;
-
-  // Render duplicates
-  if (dups.length > 0) {
-    dupDecisions = {};
-    dups.forEach(p => dupDecisions[p.uid] = 'overwrite'); // default: overwrite
-    document.getElementById('dup-section').style.display = 'block';
-    const dl = document.getElementById('dup-list');
-    dl.innerHTML = dups.map(p => `
-      <div class="dup-item" id="dup-${p.uid.replace(/[^a-z0-9]/gi,'_')}">
-        <div class="dup-info">
-          <div class="name">${p.name || '(no name)'}</div>
-          <div class="meta">UID: ${p.uid} &nbsp;|&nbsp; Existing name: <em>${existingMap[p.uid]?.name || '?'}</em></div>
-        </div>
-        <div class="dup-actions">
-          <button class="btn-green" onclick="setDup('${p.uid}','overwrite',this)">Overwrite</button>
-          <button class="btn-outline" onclick="setDup('${p.uid}','skip',this)">Skip</button>
-        </div>
-      </div>
-    `).join('');
-  } else {
-    document.getElementById('dup-section').style.display = 'none';
-  }
+  dupDecisions = {};
+  document.getElementById('prev-dups').textContent = 'Off';
+  document.getElementById('prev-new').textContent = people.length;
+  document.getElementById('dup-section').style.display = 'none';
 
   // Sample table
   const tbody = document.getElementById('prev-tbody');

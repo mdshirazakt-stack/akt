@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Apno Ki Talash — اپنوں کی تلاش</title>
+<link rel="icon" type="image/png" href="apnonkitalash-icon-light.png"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
 <style>
@@ -26,34 +27,84 @@
   /* ===== AUTH GATE ===== */
   #auth-gate {
     min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(145deg, #e8f0e3 0%, #d4e6c9 35%, #c8ddb8 65%, #b8d4a5 100%);
-    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239a6f2f' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    padding: 38px;
+    background:
+      radial-gradient(circle at 18% 18%, rgba(201,168,76,0.20), transparent 30%),
+      linear-gradient(135deg, #fbf7ef 0%, #efe5d4 50%, #dfe8d8 100%);
+    position: relative; overflow: hidden;
+  }
+  #auth-gate::before {
+    content: ''; position: absolute; inset: 0;
+    background: url('apnonkitalash-logo-favicon.png') center/cover no-repeat;
+    opacity: 0.16; filter: saturate(0.9);
+  }
+  #auth-gate::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(250,247,242,0.82) 0%, rgba(250,247,242,0.58) 48%, rgba(46,74,48,0.72) 100%);
+  }
+  .auth-shell {
+    position: relative; z-index: 1; width: min(1080px, 100%);
+    display: grid; grid-template-columns: minmax(0, 1.05fr) 420px;
+    gap: 34px; align-items: center;
+  }
+  .auth-story { color: var(--ink); padding: 24px 0; }
+  .auth-mark-large {
+    width: min(360px, 70vw); aspect-ratio: 1 / 1; overflow: hidden;
+    border: 1px solid rgba(201,168,76,0.38); background: rgba(255,255,255,0.48);
+    box-shadow: 0 24px 60px rgba(92,61,17,0.14); margin-bottom: 26px;
+  }
+  .auth-mark-large img { width: 100%; height: 100%; object-fit: cover; }
+  .auth-story h1 {
+    font-family: 'Amiri', serif; font-size: clamp(3rem, 7vw, 5.4rem);
+    line-height: 0.95; font-weight: 700; color: #264532; letter-spacing: 0;
+  }
+  .auth-story .subtitle {
+    margin-top: 16px; color: var(--gold); letter-spacing: 0.18em;
+    text-transform: uppercase; font-weight: 700; font-size: 0.82rem;
+  }
+  .auth-story .line {
+    width: min(420px, 78vw); height: 1px; background: linear-gradient(90deg, var(--gold2), transparent);
+    margin: 22px 0;
+  }
+  .auth-story p { max-width: 540px; color: #5f5547; line-height: 1.75; font-size: 1rem; }
+  .auth-mini-stats { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+  .auth-mini-stats span {
+    border: 1px solid rgba(154,111,47,0.28); background: rgba(255,255,255,0.50);
+    padding: 8px 12px; color: #4b6046; font-size: 0.76rem; letter-spacing: 0.08em;
+    text-transform: uppercase; font-weight: 700;
   }
   .auth-box {
-    background: #ffffff; border: 1px solid #c8d9b5;
+    background: rgba(255,255,255,0.88); border: 1px solid rgba(201,168,76,0.42);
     border-top: 3px solid var(--gold2);
-    padding: 56px 44px; width: 420px; text-align: center;
+    padding: 40px 36px; width: 100%; text-align: center;
     box-shadow: 0 20px 60px rgba(46,74,48,0.18);
+    backdrop-filter: blur(10px);
   }
-  .auth-box .urdu { font-family: 'Amiri', serif; font-size: 2.6rem; color: var(--gold); direction: rtl; line-height: 1.2; margin-bottom: 6px; }
-  .auth-box .eng { font-size: 0.75rem; color: #6a8a5a; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 36px; }
-  .auth-box .prompt { font-size: 0.85rem; color: #5a7a4a; margin-bottom: 20px; line-height: 1.6; }
+  .auth-icon {
+    width: 86px; height: 86px; margin: 0 auto 14px; overflow: hidden;
+    border: 1px solid rgba(201,168,76,0.38); box-shadow: 0 12px 28px rgba(92,61,17,0.12);
+    background: #f8f1e5;
+  }
+  .auth-icon img { width: 100%; height: 100%; object-fit: cover; }
+  .auth-box .urdu { font-family: 'Amiri', serif; font-size: 2.3rem; color: #264532; direction: rtl; line-height: 1.2; margin-bottom: 4px; }
+  .auth-box .eng { font-size: 0.72rem; color: var(--gold); letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 30px; font-weight: 700; }
+  .auth-box .prompt { font-size: 0.88rem; color: #5f5547; margin-bottom: 20px; line-height: 1.65; }
   .auth-box input {
-    width: 100%; padding: 14px 16px; background: #f5f9f2;
-    border: 1px solid #b8d4a0; color: var(--ink);
+    width: 100%; padding: 14px 16px; background: rgba(250,247,242,0.9);
+    border: 1px solid #d2c5b3; color: var(--ink);
     font-size: 1rem; font-family: 'Lato', sans-serif;
     outline: none; transition: border 0.2s; margin-bottom: 14px;
     text-align: center;
   }
-  .auth-box input:focus { border-color: var(--gold2); }
+  .auth-box input:focus { border-color: var(--gold2); box-shadow: 0 0 0 3px rgba(201,168,76,0.13); }
   .auth-box input::placeholder { color: #9ab88a; }
   .btn-enter {
-    width: 100%; padding: 14px; background: var(--gold2); color: #1a1208;
+    width: 100%; padding: 14px; background: #2f4d37; color: #fff9ef;
     border: none; font-family: 'Lato', sans-serif; font-weight: 700;
     font-size: 0.85rem; letter-spacing: 0.12em; text-transform: uppercase;
     cursor: pointer; transition: background 0.2s;
   }
-  .btn-enter:hover { background: #dbb83c; }
+  .btn-enter:hover { background: #213b2a; }
   .auth-err { color: #c0392b; font-size: 0.82rem; margin-top: 12px; display: none; }
   .auth-note { font-size: 0.75rem; color: #8aaa7a; margin-top: 16px; line-height: 1.5; }
 
@@ -61,7 +112,10 @@
   #app { display: none; }
 
   header {
-    background: linear-gradient(135deg, #4a6741 0%, #3d5c3a 50%, #2e4a30 100%); color: #f0ede6;
+    background:
+      linear-gradient(135deg, rgba(74,103,65,0.97) 0%, rgba(61,92,58,0.97) 50%, rgba(46,74,48,0.98) 100%),
+      url('apnonkitalash-logo-favicon.png') center/cover no-repeat;
+    color: #f0ede6;
     padding: 0 32px; display: flex; align-items: center;
     justify-content: space-between; height: 64px;
     border-bottom: 2px solid var(--gold2);
@@ -69,6 +123,12 @@
     box-shadow: 0 2px 12px rgba(0,0,0,0.15);
   }
   .logo { display: flex; align-items: center; gap: 14px; }
+  .header-mark {
+    width: 42px; height: 42px; overflow: hidden; flex: 0 0 42px;
+    border: 1px solid rgba(201,168,76,0.55); background: rgba(250,247,242,0.92);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+  }
+  .header-mark img { width: 100%; height: 100%; object-fit: cover; }
   .logo-urdu { font-family: 'Amiri', serif; font-size: 1.5rem; color: var(--gold2); direction: rtl; }
   .logo-eng { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: #c5d9b8; }
   .huser { font-size: 0.82rem; color: #c5d9b8; }
@@ -325,6 +385,21 @@
     header { padding: 0 16px; }
     main { padding: 16px; }
     nav { padding: 0 12px; }
+    #auth-gate { padding: 18px; align-items: stretch; }
+    .auth-shell { grid-template-columns: 1fr; gap: 14px; align-content: center; }
+    .auth-story { text-align: center; padding: 0; }
+    .auth-mark-large { display: none; }
+    .auth-story h1 { font-size: 2.55rem; }
+    .auth-story .subtitle { font-size: 0.7rem; }
+    .auth-story .line { margin: 12px auto; }
+    .auth-story p { display: none; }
+    .auth-mini-stats { justify-content: center; margin-top: 10px; }
+    .auth-mini-stats span { font-size: 0.66rem; padding: 7px 9px; }
+    .auth-box { padding: 24px 20px; }
+    .auth-box .urdu { font-size: 2rem; }
+    .auth-icon { width: 58px; height: 58px; margin-bottom: 10px; }
+    .header-mark { width: 36px; height: 36px; flex-basis: 36px; }
+    .logo { gap: 10px; }
   }
 </style>
 </head>
@@ -332,14 +407,29 @@
 
 <!-- AUTH GATE -->
 <div id="auth-gate">
-  <div class="auth-box">
-    <div class="urdu">اپنوں کی تلاش</div>
-    <div class="eng">Apno Ki Talash — Family Heritage</div>
-    <p class="prompt">This is a private family tree archive.<br>Please enter your name to continue.</p>
-    <input type="text" id="visitor-name" placeholder="Your full name" maxlength="100" onkeydown="if(event.key==='Enter')doEnter()"/>
-    <button class="btn-enter" onclick="doEnter()">Enter →</button>
-    <div class="auth-err" id="auth-err">Please enter your name to continue.</div>
-    <div class="auth-note">Your name will be recorded for access tracking purposes.</div>
+  <div class="auth-shell">
+    <section class="auth-story" aria-label="Apno Ki Talash">
+      <div class="auth-mark-large"><img src="apnonkitalash-icon-light.png" alt="Apno Ki Talash logo"/></div>
+      <h1>Apnon Ki Talash</h1>
+      <div class="subtitle">Rooted in faith, connected forever</div>
+      <div class="line"></div>
+      <p>Search family records, explore source GEDCOM files, and browse connected family trees from one private heritage archive.</p>
+      <div class="auth-mini-stats">
+        <span>Family Tree</span>
+        <span>Source Index</span>
+        <span>Heritage Archive</span>
+      </div>
+    </section>
+    <div class="auth-box">
+      <div class="auth-icon"><img src="apnonkitalash-icon-light.png" alt="Apno Ki Talash icon"/></div>
+      <div class="urdu">اپنوں کی تلاش</div>
+      <div class="eng">Apno Ki Talash</div>
+      <p class="prompt">This is a private family tree archive.<br>Please enter your name to continue.</p>
+      <input type="text" id="visitor-name" placeholder="Your full name" maxlength="100" onkeydown="if(event.key==='Enter')doEnter()"/>
+      <button class="btn-enter" onclick="doEnter()">Enter Archive</button>
+      <div class="auth-err" id="auth-err">Please enter your name to continue.</div>
+      <div class="auth-note">Your name will be recorded for access tracking purposes.</div>
+    </div>
   </div>
 </div>
 
@@ -347,6 +437,7 @@
 <div id="app">
   <header>
     <div class="logo">
+      <div class="header-mark"><img src="apnonkitalash-icon-light.png" alt=""/></div>
       <div>
         <div class="logo-urdu">اپنوں کی تلاش</div>
         <div class="logo-eng">Family Heritage Archive</div>
@@ -579,9 +670,11 @@ function logActivity(action, target, details) {
 
 // ===== GEDCOM SOURCE FILTER =====
 async function loadGedcomSources() {
-  const { data } = await sb.from('gedcom_uploads').select('id,filename,people_count').order('filename');
+  const { data } = await sb.from('gedcom_uploads').select('id,filename,people_count');
   if (!data || !data.length) return;
-  gedcomUploads = data.map(u => ({ id: u.id, filename: u.filename, count: u.people_count || 0 }));
+  gedcomUploads = data
+    .map(u => ({ id: u.id, filename: u.filename, count: u.people_count || 0 }))
+    .sort(compareGedcomFiles);
 
   // ── Populate source dropdown ──
   const sel = document.getElementById('source-select');
@@ -597,6 +690,26 @@ async function loadGedcomSources() {
 
   // ── Extract places and build chips ──
   buildPlaceChips(gedcomUploads);
+}
+
+function gedcomFileNumbers(filename) {
+  const matches = String(filename || '').match(/\d+/g);
+  return matches ? matches.map(n => parseInt(n, 10)) : [99999];
+}
+
+function compareGedcomFiles(a, b) {
+  const an = gedcomFileNumbers(a.filename);
+  const bn = gedcomFileNumbers(b.filename);
+  const len = Math.max(an.length, bn.length);
+  for (let i = 0; i < len; i++) {
+    const av = an[i] ?? -1;
+    const bv = bn[i] ?? -1;
+    if (av !== bv) return av - bv;
+  }
+  return String(a.filename || '').localeCompare(String(b.filename || ''), undefined, {
+    numeric: true,
+    sensitivity: 'base'
+  });
 }
 
 // ── Place extraction from filenames ──────────────────────────────
@@ -1578,13 +1691,7 @@ async function loadByFile() {
   const container = document.getElementById('byfile-list');
   container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
-  // Sort files by numeric prefix — extract first run of digits anywhere in filename
-  const getNum = f => { const m = f.filename.match(/(\d+)/); return m ? parseInt(m[1], 10) : 99999; };
-  const sorted = [...gedcomUploads].sort((a, b) => {
-    const na = getNum(a);
-    const nb = getNum(b);
-    return na !== nb ? na - nb : a.filename.localeCompare(b.filename);
-  });
+  const sorted = [...gedcomUploads].sort(compareGedcomFiles);
 
   // Build skeleton — one section per file
   container.innerHTML = sorted.map((u, idx) => {

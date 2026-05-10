@@ -133,6 +133,9 @@
 
   table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
   th { background: var(--bg); color: var(--muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.08em; padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  th.sortable { cursor: pointer; user-select: none; transition: color 0.2s; }
+  th.sortable:hover { color: var(--gold); }
+  .sort-indicator { color: var(--gold); font-size: 0.7rem; margin-left: 4px; }
   td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
   tr:hover td { background: rgba(232,132,74,0.04); }
   .badge {
@@ -386,7 +389,13 @@
         <div id="visitors-table-wrap">
           <table>
             <thead><tr>
-              <th>Name Entered</th><th>Total Visits</th><th>First Seen (IST)</th><th>Last Seen (IST)</th><th>Device / Timezone</th><th>Status</th><th>Actions</th>
+              <th class="sortable" onclick="sortVisitorsBy('name_entered')">Name Entered <span class="sort-indicator" id="sort-name_entered"></span></th>
+              <th class="sortable" onclick="sortVisitorsBy('visit_count')">Total Visits <span class="sort-indicator" id="sort-visit_count"></span></th>
+              <th class="sortable" onclick="sortVisitorsBy('first_seen')">First Seen (IST) <span class="sort-indicator" id="sort-first_seen"></span></th>
+              <th class="sortable" onclick="sortVisitorsBy('last_seen')">Last Seen (IST) <span class="sort-indicator" id="sort-last_seen"></span></th>
+              <th class="sortable" onclick="sortVisitorsBy('timezone')">Timezone <span class="sort-indicator" id="sort-timezone"></span></th>
+              <th class="sortable" onclick="sortVisitorsBy('status')">Status <span class="sort-indicator" id="sort-status"></span></th>
+              <th>Actions</th>
             </tr></thead>
             <tbody id="visitors-tbody"></tbody>
           </table>
@@ -459,6 +468,7 @@ let adminPassword = 'akt2024';
 let parsedData = null; // { people, families, familyMembers, filename }
 let dupDecisions = {}; // uid -> 'overwrite' | 'skip'
 let allVisitors = [];
+let visitorSort = { key: 'last_seen', dir: 'desc' };
 
 // ===================== AUTH =====================
 async function doLogin() {
@@ -1109,13 +1119,15 @@ async function loadVisitors() {
 function renderVisitors(visitors) {
   const tbody = document.getElementById('visitors-tbody');
   if (!visitors.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No visitors yet.</td></tr>'; return; }
-  tbody.innerHTML = visitors.map(v => `
+  updateVisitorSortIndicators();
+  const sortedVisitors = sortVisitorRows(visitors);
+  tbody.innerHTML = sortedVisitors.map(v => `
     <tr class="${v.is_blocked ? 'blocked' : ''}">
       <td>${escapeHtml(v.name_entered)}</td>
       <td><strong>${Number(v.visit_count || 0).toLocaleString()}</strong></td>
-      <td>${formatIST(v.first_seen)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(v.first_seen)}</span></td>
-      <td>${formatIST(v.last_seen)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(v.last_seen)}</span></td>
-      <td style="font-size:0.78rem;color:var(--muted)">${formatVisitorHint(v.ip_hint)}</td>
+      <td>${formatIST(v.first_seen, false)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(v.first_seen)}</span></td>
+      <td>${formatIST(v.last_seen, false)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(v.last_seen)}</span></td>
+      <td style="font-size:0.78rem;color:var(--muted)">${formatVisitorTimezone(v.ip_hint)}</td>
       <td>${v.is_blocked ? '<span class="badge" style="background:rgba(192,57,43,0.2);color:#e74c3c">Blocked</span>' : '<span class="badge badge-current">Active</span>'}</td>
       <td>
         ${v.is_blocked
@@ -1130,6 +1142,49 @@ function renderVisitors(visitors) {
 function filterVisitors() {
   const q = document.getElementById('visitor-search').value.toLowerCase();
   renderVisitors(allVisitors.filter(v => v.name_entered.toLowerCase().includes(q)));
+}
+
+function sortVisitorsBy(key) {
+  if (visitorSort.key === key) {
+    visitorSort.dir = visitorSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    visitorSort.key = key;
+    visitorSort.dir = ['visit_count', 'first_seen', 'last_seen'].includes(key) ? 'desc' : 'asc';
+  }
+  filterVisitors();
+}
+
+function sortVisitorRows(visitors) {
+  const dir = visitorSort.dir === 'asc' ? 1 : -1;
+  return [...visitors].sort((a, b) => {
+    let av;
+    let bv;
+    if (visitorSort.key === 'visit_count') {
+      av = Number(a.visit_count || 0);
+      bv = Number(b.visit_count || 0);
+    } else if (visitorSort.key === 'first_seen' || visitorSort.key === 'last_seen') {
+      av = new Date(a[visitorSort.key] || 0).getTime();
+      bv = new Date(b[visitorSort.key] || 0).getTime();
+    } else if (visitorSort.key === 'timezone') {
+      av = formatVisitorTimezone(a.ip_hint).toLowerCase();
+      bv = formatVisitorTimezone(b.ip_hint).toLowerCase();
+    } else if (visitorSort.key === 'status') {
+      av = a.is_blocked ? 'blocked' : 'active';
+      bv = b.is_blocked ? 'blocked' : 'active';
+    } else {
+      av = String(a.name_entered || '').toLowerCase();
+      bv = String(b.name_entered || '').toLowerCase();
+    }
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return String(a.name_entered || '').localeCompare(String(b.name_entered || ''));
+  });
+}
+
+function updateVisitorSortIndicators() {
+  document.querySelectorAll('[id^="sort-"]').forEach(el => { el.textContent = ''; });
+  const el = document.getElementById('sort-' + visitorSort.key);
+  if (el) el.textContent = visitorSort.dir === 'asc' ? '▲' : '▼';
 }
 
 async function blockVisitor(id) {
@@ -1243,9 +1298,9 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString();
 }
 
-function formatIST(value) {
+function formatIST(value, includeZone = true) {
   if (!value) return '—';
-  return new Date(value).toLocaleString('en-IN', {
+  const formatted = new Date(value).toLocaleString('en-IN', {
     timeZone: 'Asia/Kolkata',
     day: '2-digit',
     month: 'short',
@@ -1254,7 +1309,8 @@ function formatIST(value) {
     minute: '2-digit',
     second: '2-digit',
     hour12: true
-  }) + ' IST';
+  });
+  return includeZone ? formatted + ' IST' : formatted;
 }
 
 function timeAgo(value) {
@@ -1285,6 +1341,10 @@ function formatVisitorHint(value) {
   if (hint.screenSize) parts.push(hint.screenSize);
   if (hint.timezone) parts.push(hint.timezone);
   return parts.length ? parts.join(' · ') : '—';
+}
+
+function formatVisitorTimezone(value) {
+  return parseVisitorHint(value).timezone || '—';
 }
 
 function activityIcon(action) {

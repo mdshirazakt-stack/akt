@@ -1190,6 +1190,10 @@ async function renderPersonDetail(uid, el) {
   if (!p) { el.innerHTML = '<div class="empty-state">Person not found.</div>'; return; }
   logActivity('view_person', `Viewed: ${p.name || '(unnamed)'}`, { person_uid: p.uid, source_id: p.gedcom_id || '' });
 
+  // Source GEDCOM lookup
+  const srcUpload = gedcomUploads.find(u => u.id === p.gedcom_id);
+  const srcLabel = srcUpload ? srcUpload.filename.replace(/\.ged$/i, '') : '';
+
   // Fetch families as spouse
   const { data: famsAsSpouse } = await sb.from('families')
     .select('*')
@@ -1280,7 +1284,10 @@ async function renderPersonDetail(uid, el) {
             ${p.marr_status ? `&nbsp;<span class="badge badge-${p.marr_status}">${p.marr_status}</span>` : ''}
           </div>
         </div>
-        <button class="btn-back" onclick="loadSearch('${lastQuery}')">← Back to Results</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-back" onclick="loadSearch('${lastQuery}')">← Back to Results</button>
+          <button class="btn-back" style="background:var(--green);color:#fff;border-color:var(--green)" onclick="openPersonInTree('${p.uid}')">🌳 Browse Tree</button>
+        </div>
       </div>
 
       <div class="detail-grid">
@@ -1292,6 +1299,7 @@ async function renderPersonDetail(uid, el) {
         ${p.occupation ? `<div class="detail-field"><div class="key">Occupation</div><div class="val">${p.occupation}</div></div>` : ''}
         <div class="detail-field"><div class="key">Father</div><div class="val">${fatherName}</div></div>
         <div class="detail-field"><div class="key">Mother</div><div class="val">${motherName}</div></div>
+        ${srcLabel ? `<div class="detail-field" style="grid-column:1/-1"><div class="key">Source</div><div class="val"><span class="source-tag" style="cursor:pointer" onclick="navigateToGedcomIndex('${p.gedcom_id}')" title="Open Index and expand this file">📁 ${srcLabel}</span></div></div>` : ''}
       </div>
 
       ${spouseFamilies.length ? `
@@ -1380,7 +1388,7 @@ function treeSearch() {
 async function loadTree(uid) {
   document.getElementById('tree-search-results').innerHTML = '';
   document.getElementById('tree-person-label').textContent = 'Loading\u2026';
-  document.getElementById('tree-view').innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px;font-size:0.85rem;color:var(--muted)">Building family tree\u2026</p></div>';
+  document.getElementById('tree-view').innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px;font-size:0.85rem;color:var(--muted)">Building family tree\u2026</p><p style="margin-top:8px;font-size:0.8rem;color:var(--muted)">This may take 1\u20133 minutes for large or complex families. Please wait.</p></div>';
 
   async function getPerson(id) {
     if (!id) return null;
@@ -1484,8 +1492,8 @@ async function loadTree(uid) {
     ancestorRows.push(arow);
     var nextAncQ = [];
     arow.forEach(function(f) {
+      // Follow paternal (male) line only — wives are shown as spouses in the card but not traversed upward
       nextAncQ.push(f ? f.husband_uid : null);
-      nextAncQ.push(f ? f.wife_uid   : null);
     });
     ancQueue = nextAncQ;
   }
@@ -1626,6 +1634,26 @@ function printTree() {
 function showPersonInSearch(uid) {
   switchTab('search', document.querySelector('.nav-tab'));
   showPerson(uid);
+}
+
+function openPersonInTree(uid) {
+  const btn = document.querySelector('.nav-tab[onclick*="tree"]');
+  switchTab('tree', btn);
+  loadTree(uid);
+}
+
+function navigateToGedcomIndex(gedcomId) {
+  const btn = document.querySelector('.nav-tab[onclick*="byfile"]');
+  switchTab('byfile', btn);
+  // Wait for the skeleton to render, then open and scroll to the file
+  const tryOpen = () => {
+    const hdr = document.getElementById('ged-hdr-' + gedcomId);
+    if (!hdr) { setTimeout(tryOpen, 100); return; }
+    if (!hdr.classList.contains('open')) toggleGed(gedcomId);
+    const sec = document.getElementById('ged-sec-' + gedcomId);
+    if (sec) setTimeout(() => sec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
+  };
+  setTimeout(tryOpen, 80);
 }
 
 // ===== STATS =====

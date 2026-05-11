@@ -569,10 +569,16 @@
 
           <div style="margin-bottom:20px">
             <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:6px">About You</div>
-            <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700;margin-bottom:12px">
-              Your name <span style="color:var(--red)">*</span>
-              <input id="cf-requester-name" required placeholder="Your full name" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
-            </label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+              <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                Your name <span style="color:var(--red)">*</span>
+                <input id="cf-requester-name" required placeholder="Your full name" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+              </label>
+              <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                Your mobile <span style="color:var(--red)">*</span>
+                <input id="cf-requester-mobile" required type="tel" placeholder="Mobile number" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+              </label>
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex-wrap:wrap">
               <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
                 Your father's name
@@ -1548,7 +1554,7 @@ async function renderPersonDetail(uid, el) {
         </ul>
       ` : ''}
 
-      ${srcLabel ? `<div style="margin-top:22px;padding-top:12px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--muted)">📁 Source: <span class="person-name" style="font-size:0.78rem" onclick="navigateToGedcomIndex('${p.gedcom_id}')">${srcLabel}</span></div>` : ''}
+      ${srcLabel ? `<div style="margin-top:22px;padding-top:12px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--muted)">📁 Source: <span style="font-size:0.78rem;color:#2563eb;text-decoration:underline;cursor:pointer" onclick="navigateToGedcomIndex('${p.gedcom_id}')">${srcLabel}</span></div>` : ''}
     </div>
   `;
 }
@@ -1908,7 +1914,7 @@ function openCorrectionForm() {
   st.textContent = '';
   // Reset form fields except context and requester name
   ['cf-corr-name','cf-corr-parents','cf-corr-siblings','cf-corr-spouse','cf-corr-children',
-   'cf-requester-father','cf-family-number'].forEach(id => {
+   'cf-requester-mobile','cf-requester-father','cf-family-number'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -1939,6 +1945,7 @@ async function submitCorrection(event) {
     person_uid:               document.getElementById('cf-person-uid').value || null,
     person_name:              document.getElementById('cf-person-name-hidden').value || null,
     requester_name:           requesterName,
+    requester_mobile:         document.getElementById('cf-requester-mobile').value.trim() || null,
     requester_father_name:    document.getElementById('cf-requester-father').value.trim() || null,
     requester_family_number:  document.getElementById('cf-family-number').value.trim() || null,
     correction_name:          corrName || null,

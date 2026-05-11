@@ -452,6 +452,7 @@
     <button class="nav-tab" onclick="switchTab('stats', this)">📊 Stats</button>
     <button class="nav-tab" onclick="switchTab('byfile', this)">📋 Index</button>
     <button class="nav-tab" onclick="switchTab('allnames', this)">🔤 All Names</button>
+    <button class="nav-tab" onclick="switchTab('corrections', this)">📝 Corrections</button>
   </nav>
 
   <main>
@@ -547,6 +548,71 @@
       <div id="allnames-list"></div>
     </div>
 
+    <!-- CORRECTIONS PANEL -->
+    <div id="panel-corrections" class="panel">
+      <div style="padding:24px 28px;max-width:720px">
+        <h2 style="font-family:'Amiri',serif;font-size:1.6rem;color:var(--ink);margin-bottom:4px">📝 Request a Correction</h2>
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:22px;line-height:1.6">Found an error in the family data? Share the details below and we will review it.</p>
+
+        <div id="correction-context" style="display:none;background:var(--goldl);border:1px solid var(--gold2);padding:11px 15px;margin-bottom:20px;font-size:0.85rem;color:var(--ink)">
+          <strong>Regarding:</strong> <span id="correction-person-display"></span>
+        </div>
+
+        <form id="correction-form" onsubmit="submitCorrection(event)">
+          <input type="hidden" id="cf-person-uid"/>
+          <input type="hidden" id="cf-person-name-hidden"/>
+
+          <div style="margin-bottom:20px">
+            <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:6px">About You</div>
+            <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700;margin-bottom:12px">
+              Your name <span style="color:var(--red)">*</span>
+              <input id="cf-requester-name" required placeholder="Your full name" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+            </label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex-wrap:wrap">
+              <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                Your father's name
+                <input id="cf-requester-father" placeholder="Optional" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+              </label>
+              <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                Family number (from Index)
+                <input id="cf-family-number" placeholder="e.g. 12" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+              </label>
+            </div>
+          </div>
+
+          <div style="margin-bottom:20px;border-top:1px solid var(--border);padding-top:18px">
+            <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:6px">Correction Details</div>
+            <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;line-height:1.6">Fill in only the fields that need a correction. Leave blank if unchanged. At least one field is required.</p>
+            <div style="display:grid;gap:12px">
+              <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                Correction to: Name
+                <input id="cf-corr-name" placeholder="Corrected name for this person" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+              </label>
+              <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                Correction to: Parents
+                <textarea id="cf-corr-parents" rows="2" placeholder="Corrected father / mother details" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;resize:vertical;color:var(--ink)"></textarea>
+              </label>
+              <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                Correction to: Siblings
+                <textarea id="cf-corr-siblings" rows="2" placeholder="Missing or incorrect siblings" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;resize:vertical;color:var(--ink)"></textarea>
+              </label>
+              <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                Correction to: Spouse
+                <textarea id="cf-corr-spouse" rows="2" placeholder="Corrected spouse information" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;resize:vertical;color:var(--ink)"></textarea>
+              </label>
+              <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                Correction to: Children
+                <textarea id="cf-corr-children" rows="2" placeholder="Missing or incorrect children" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;resize:vertical;color:var(--ink)"></textarea>
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" style="padding:12px 28px;background:var(--green);color:#fff;border:none;font-family:'Lato',sans-serif;font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background 0.2s" onmouseover="this.style.background='#213b2a'" onmouseout="this.style.background='var(--green)'">Submit Correction Request</button>
+        </form>
+        <div id="correction-status" style="display:none;margin-top:14px;padding:12px 16px;font-size:0.85rem;font-weight:700;border-left:3px solid var(--gold)"></div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -598,6 +664,12 @@ async function doEnter() {
   await loadGedcomSources();
   logActivity('login', `Logged in: ${name}`, { visit_count: currentVisitCount });
   loadSearch('');
+  // Handle shareable person link — e.g. #person=<uid>
+  const hashMatch = location.hash.match(/^#person=(.+)$/);
+  if (hashMatch) {
+    const linkedUid = decodeURIComponent(hashMatch[1]);
+    showPerson(linkedUid);
+  }
 }
 
 function getIpHint() {
@@ -898,7 +970,7 @@ function switchTab(name, btn) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   if (btn) btn.classList.add('active');
-  const labels = { search: 'Search', tree: 'Browse Tree', stats: 'Stats', byfile: 'Index', allnames: 'All Names' };
+  const labels = { search: 'Search', tree: 'Browse Tree', stats: 'Stats', byfile: 'Index', allnames: 'All Names', corrections: 'Corrections' };
   logActivity('open_tab', `Opened ${labels[name] || name}`, { tab: name });
   if (name === 'stats') loadStats();
   if (name === 'byfile') loadByFile();
@@ -1287,6 +1359,8 @@ async function renderPersonDetail(uid, el) {
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn-back" onclick="loadSearch('${lastQuery}')">← Back to Results</button>
           <button class="btn-back" style="background:var(--green);color:#fff;border-color:var(--green)" onclick="openPersonInTree('${p.uid}')">🌳 Browse Tree</button>
+          <button class="btn-back" onclick="copyPersonLink('${p.uid}')" title="Copy a shareable link to this person">🔗 Share</button>
+          <button class="btn-back" style="border-color:var(--red);color:var(--red)" onclick="openCorrectionForm('${p.uid}', ${JSON.stringify(p.name || '')})">⚠️ Need Correction</button>
         </div>
       </div>
 
@@ -1654,6 +1728,105 @@ function navigateToGedcomIndex(gedcomId) {
     if (sec) setTimeout(() => sec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
   };
   setTimeout(tryOpen, 80);
+}
+
+function copyPersonLink(uid) {
+  const url = location.origin + location.pathname + '#person=' + encodeURIComponent(uid);
+  navigator.clipboard.writeText(url).then(() => {
+    toast('Link copied to clipboard');
+  }).catch(() => {
+    prompt('Copy this link:', url);
+  });
+}
+
+function openCorrectionForm(uid, name) {
+  // Pre-fill context
+  document.getElementById('cf-person-uid').value = uid || '';
+  document.getElementById('cf-person-name-hidden').value = name || '';
+  const ctx = document.getElementById('correction-context');
+  const disp = document.getElementById('correction-person-display');
+  if (name) {
+    disp.textContent = name;
+    ctx.style.display = 'block';
+  } else {
+    ctx.style.display = 'none';
+  }
+  // Pre-fill requester name from current session
+  const reqField = document.getElementById('cf-requester-name');
+  if (reqField && !reqField.value && currentUser) reqField.value = currentUser;
+  // Switch to corrections tab
+  const btn = document.querySelector('.nav-tab[onclick*="corrections"]');
+  switchTab('corrections', btn);
+  // Reset status message
+  const st = document.getElementById('correction-status');
+  st.style.display = 'none';
+  st.textContent = '';
+  // Reset form fields except context and requester name
+  ['cf-corr-name','cf-corr-parents','cf-corr-siblings','cf-corr-spouse','cf-corr-children',
+   'cf-requester-father','cf-family-number'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function submitCorrection(event) {
+  event.preventDefault();
+  const requesterName = document.getElementById('cf-requester-name').value.trim();
+  if (!requesterName) return;
+
+  const corrName     = document.getElementById('cf-corr-name').value.trim();
+  const corrParents  = document.getElementById('cf-corr-parents').value.trim();
+  const corrSiblings = document.getElementById('cf-corr-siblings').value.trim();
+  const corrSpouse   = document.getElementById('cf-corr-spouse').value.trim();
+  const corrChildren = document.getElementById('cf-corr-children').value.trim();
+
+  if (!corrName && !corrParents && !corrSiblings && !corrSpouse && !corrChildren) {
+    showCorrectionStatus('Please fill in at least one correction field.', true);
+    return;
+  }
+
+  const btn = event.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+
+  const payload = {
+    person_uid:               document.getElementById('cf-person-uid').value || null,
+    person_name:              document.getElementById('cf-person-name-hidden').value || null,
+    requester_name:           requesterName,
+    requester_father_name:    document.getElementById('cf-requester-father').value.trim() || null,
+    requester_family_number:  document.getElementById('cf-family-number').value.trim() || null,
+    correction_name:          corrName || null,
+    correction_parents:       corrParents || null,
+    correction_siblings:      corrSiblings || null,
+    correction_spouse:        corrSpouse || null,
+    correction_children:      corrChildren || null,
+    status: 'new'
+  };
+
+  const { error } = await sb.from('correction_requests').insert(payload);
+  btn.disabled = false;
+  btn.textContent = 'Submit Correction Request';
+
+  if (error) {
+    showCorrectionStatus('Submission failed: ' + error.message, true);
+    return;
+  }
+
+  logActivity('correction_submitted', `Correction submitted by ${requesterName}`, { person_uid: payload.person_uid || '' });
+  showCorrectionStatus('Thank you! Your correction has been submitted and will be reviewed.', false);
+  event.target.reset();
+  document.getElementById('correction-context').style.display = 'none';
+  document.getElementById('cf-person-uid').value = '';
+  document.getElementById('cf-person-name-hidden').value = '';
+}
+
+function showCorrectionStatus(msg, isError) {
+  const el = document.getElementById('correction-status');
+  el.style.display = 'block';
+  el.style.color = isError ? 'var(--red)' : 'var(--green)';
+  el.style.borderLeftColor = isError ? 'var(--red)' : 'var(--gold)';
+  el.textContent = msg;
 }
 
 // ===== STATS =====

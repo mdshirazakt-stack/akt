@@ -283,6 +283,7 @@
     <button class="nav-tab" onclick="switchTab('visitors', this)">Visitors</button>
     <button class="nav-tab" onclick="switchTab('activity', this)">Activity History</button>
     <button class="nav-tab" onclick="switchTab('settings', this)">Import Stats</button>
+    <button class="nav-tab" onclick="switchTab('corrections', this)">📝 Corrections</button>
   </nav>
 
   <main>
@@ -454,6 +455,25 @@
       </div>
     </div>
 
+    <!-- CORRECTIONS PANEL -->
+    <div id="panel-corrections" class="panel">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <h2 style="margin:0">📝 Correction Requests</h2>
+          <button class="btn-sm" onclick="loadCorrections()" style="background:var(--gold);color:#fff;border:none;padding:7px 16px;cursor:pointer;font-size:0.85rem">↻ Refresh</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="corrections-filter-bar">
+          <button onclick="setCorrectionFilter('all',this)" class="corr-filter-btn active" style="padding:5px 12px;border:1px solid var(--border);background:var(--gold);color:#fff;font-size:0.78rem;cursor:pointer">All</button>
+          <button onclick="setCorrectionFilter('new',this)" class="corr-filter-btn" style="padding:5px 12px;border:1px solid var(--border);background:none;font-size:0.78rem;cursor:pointer">New</button>
+          <button onclick="setCorrectionFilter('in_progress',this)" class="corr-filter-btn" style="padding:5px 12px;border:1px solid var(--border);background:none;font-size:0.78rem;cursor:pointer">In Progress</button>
+          <button onclick="setCorrectionFilter('approved',this)" class="corr-filter-btn" style="padding:5px 12px;border:1px solid var(--border);background:none;font-size:0.78rem;cursor:pointer">Approved</button>
+          <button onclick="setCorrectionFilter('disapproved',this)" class="corr-filter-btn" style="padding:5px 12px;border:1px solid var(--border);background:none;font-size:0.78rem;cursor:pointer">Disapproved</button>
+          <button onclick="setCorrectionFilter('completed',this)" class="corr-filter-btn" style="padding:5px 12px;border:1px solid var(--border);background:none;font-size:0.78rem;cursor:pointer">Completed</button>
+        </div>
+        <div id="corrections-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -501,6 +521,7 @@ function switchTab(name, btn) {
   if (name === 'visitors') loadVisitors();
   if (name === 'settings') loadDbStats();
   if (name === 'activity') loadActivity();
+  if (name === 'corrections') loadCorrections();
 }
 
 // ===================== GEDCOM PARSER =====================
@@ -1724,6 +1745,135 @@ function toast(msg, isErr = false) {
   t.textContent = msg; t.className = 'show' + (isErr ? ' err' : '');
   clearTimeout(t._to);
   t._to = setTimeout(() => t.className = '', 3500);
+}
+
+// ===================== CORRECTIONS =====================
+let correctionsData = [];
+let correctionFilter = 'all';
+
+async function loadCorrections() {
+  const container = document.getElementById('corrections-list');
+  container.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+  const { data, error } = await sb.from('correction_requests')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(200);
+  if (error) {
+    container.innerHTML = `<div class="empty" style="color:var(--red)">${error.message}</div>`;
+    return;
+  }
+  correctionsData = data || [];
+  renderCorrections();
+}
+
+function setCorrectionFilter(val, btn) {
+  correctionFilter = val;
+  document.querySelectorAll('.corr-filter-btn').forEach(b => {
+    b.style.background = 'none'; b.style.color = '';
+  });
+  btn.style.background = 'var(--gold)'; btn.style.color = '#fff';
+  renderCorrections();
+}
+
+function renderCorrections() {
+  const container = document.getElementById('corrections-list');
+  const filtered = correctionFilter === 'all'
+    ? correctionsData
+    : correctionsData.filter(r => r.status === correctionFilter);
+
+  if (!filtered.length) {
+    container.innerHTML = '<div class="empty">No correction requests found.</div>';
+    return;
+  }
+
+  const statusColors = { new: '#b45309', in_progress: '#1d4ed8', approved: '#15803d', disapproved: '#991b1b', completed: '#374151' };
+  const statusLabels = { new: 'New', in_progress: 'In Progress', approved: 'Approved', disapproved: 'Disapproved', completed: 'Completed' };
+  const allStatuses = ['new', 'in_progress', 'approved', 'disapproved', 'completed'];
+
+  container.innerHTML = filtered.map(r => {
+    const created = r.created_at ? new Date(r.created_at).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true }) : '';
+    const corrFields = [
+      ['Name', r.correction_name],
+      ['Parents', r.correction_parents],
+      ['Siblings', r.correction_siblings],
+      ['Spouse', r.correction_spouse],
+      ['Children', r.correction_children]
+    ].filter(([,v]) => v);
+    const statusColor = statusColors[r.status] || '#374151';
+    const statusLabel = statusLabels[r.status] || r.status;
+
+    return `
+    <div style="border:1px solid var(--border);background:#fff;padding:18px;margin-bottom:14px" data-corr-id="${r.id}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        <div>
+          <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)">${created}</span>
+          <div style="font-size:1rem;font-weight:700;margin-top:3px;color:var(--text)">
+            ${escHtml(r.person_name || '(person not specified)')}
+            ${r.person_uid ? `<span style="font-size:0.72rem;color:var(--muted);font-weight:400;margin-left:6px">${escHtml(r.person_uid)}</span>` : ''}
+          </div>
+        </div>
+        <span style="padding:4px 10px;background:${statusColor};color:#fff;font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase">${statusLabel}</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;background:var(--bg);padding:12px;border:1px solid var(--border)">
+        <div><span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Submitted by</span><div style="font-size:0.88rem;font-weight:700;margin-top:2px">${escHtml(r.requester_name)}</div></div>
+        ${r.requester_father_name ? `<div><span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Father's name</span><div style="font-size:0.88rem;margin-top:2px">${escHtml(r.requester_father_name)}</div></div>` : ''}
+        ${r.requester_family_number ? `<div><span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Family number</span><div style="font-size:0.88rem;margin-top:2px">${escHtml(r.requester_family_number)}</div></div>` : ''}
+      </div>
+
+      ${corrFields.length ? `
+      <div style="margin-bottom:12px">
+        <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--gold);margin-bottom:8px">Corrections Requested</div>
+        <div style="display:grid;gap:6px">
+          ${corrFields.map(([label, val]) => `
+            <div style="background:var(--bg);border:1px solid var(--border);padding:8px 12px">
+              <span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">${label}</span>
+              <div style="font-size:0.88rem;margin-top:3px;white-space:pre-wrap">${escHtml(val)}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>` : ''}
+
+      <div style="margin-bottom:12px">
+        <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:5px">Admin Notes</div>
+        <textarea rows="2" style="width:100%;padding:8px 10px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:0.85rem;resize:vertical" placeholder="Internal notes…" onchange="saveCorrectionNotes('${r.id}', this.value)">${escHtml(r.admin_notes || '')}</textarea>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${allStatuses.map(s => `
+          <button onclick="setCorrectionStatus('${r.id}', '${s}', this)"
+            style="padding:5px 12px;border:1px solid ${r.status === s ? statusColors[s] : 'var(--border)'};background:${r.status === s ? statusColors[s] : 'none'};color:${r.status === s ? '#fff' : ''};font-size:0.75rem;cursor:pointer;font-family:inherit">
+            ${statusLabels[s]}
+          </button>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function setCorrectionStatus(id, status, btn) {
+  const { error } = await sb.from('correction_requests')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) { toast(error.message, true); return; }
+  const rec = correctionsData.find(r => r.id === id);
+  if (rec) rec.status = status;
+  toast('Status updated to: ' + status);
+  renderCorrections();
+}
+
+async function saveCorrectionNotes(id, notes) {
+  const { error } = await sb.from('correction_requests')
+    .update({ admin_notes: notes, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) toast(error.message, true);
+  else {
+    const rec = correctionsData.find(r => r.id === id);
+    if (rec) rec.admin_notes = notes;
+  }
+}
+
+function escHtml(v) {
+  return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 </script>
 </body>

@@ -564,15 +564,22 @@
 
           <div style="margin-bottom:20px;background:var(--goldl);border:1px solid var(--gold2);padding:16px 18px">
             <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;border-bottom:1px solid var(--gold2);padding-bottom:6px">Profile Being Corrected</div>
-            <div style="display:grid;gap:12px">
+            <p style="font-size:0.78rem;color:var(--muted);margin-bottom:12px;margin-top:-4px">Auto-filled when raised from a profile. These fields are read-only.</p>
+            <div style="display:grid;gap:10px">
               <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
                 Person name
-                <input id="cf-person-name" placeholder="Name of the person this correction is about" style="padding:10px 12px;border:1px solid var(--gold2);background:#fff;font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+                <input id="cf-person-name" readonly placeholder="—" style="padding:10px 12px;border:1px solid var(--gold2);background:#f5f0e8;font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink);cursor:default"/>
               </label>
-              <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
-                Profile link
-                <input id="cf-profile-link" type="url" placeholder="Auto-filled when opened from a profile — or paste a link" style="padding:10px 12px;border:1px solid var(--gold2);background:#fff;font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:#2563eb"/>
-              </label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                  Index number (source file)
+                  <input id="cf-gedcom-source" readonly placeholder="—" style="padding:10px 12px;border:1px solid var(--gold2);background:#f5f0e8;font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink);cursor:default"/>
+                </label>
+                <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                  Profile link
+                  <input id="cf-profile-link" readonly placeholder="—" style="padding:10px 12px;border:1px solid var(--gold2);background:#f5f0e8;font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:#2563eb;cursor:default;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"/>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -1904,11 +1911,19 @@ function openCorrectionForm() {
   // Pre-fill hidden uid
   document.getElementById('cf-person-uid').value = uid || '';
 
-  // Pre-fill visible person name (editable)
+  // Pre-fill visible person name (readonly)
   const nameField = document.getElementById('cf-person-name');
   if (nameField) nameField.value = name || '';
 
-  // Pre-fill profile link (editable)
+  // Pre-fill gedcom source label (readonly)
+  const gedcomField = document.getElementById('cf-gedcom-source');
+  if (gedcomField) {
+    const gedcomId = lastPersonDetail ? lastPersonDetail.gedcomId : null;
+    const srcUpload = gedcomId ? gedcomUploads.find(u => u.id === gedcomId) : null;
+    gedcomField.value = srcUpload ? srcUpload.filename.replace(/\.ged$/i, '') : '';
+  }
+
+  // Pre-fill profile link (readonly)
   const linkField = document.getElementById('cf-profile-link');
   if (linkField) {
     linkField.value = uid
@@ -1962,6 +1977,7 @@ async function submitCorrection(event) {
   const payload = {
     person_uid:               document.getElementById('cf-person-uid').value || null,
     person_name:              document.getElementById('cf-person-name').value.trim() || null,
+    gedcom_source:            document.getElementById('cf-gedcom-source').value.trim() || null,
     profile_link:             document.getElementById('cf-profile-link').value.trim() || null,
     requester_name:           requesterName,
     requester_mobile:         document.getElementById('cf-requester-mobile').value.trim() || null,

@@ -452,7 +452,7 @@
     <button class="nav-tab" onclick="switchTab('stats', this)">📊 Stats</button>
     <button class="nav-tab" onclick="switchTab('byfile', this)">📋 Index</button>
     <button class="nav-tab" onclick="switchTab('allnames', this)">🔤 All Names</button>
-    <button class="nav-tab" onclick="switchTab('corrections', this)">📝 Corrections</button>
+    <button class="nav-tab" onclick="switchTab('corrections', this)">✏️ Correct · Add Family</button>
     <button class="nav-tab" onclick="switchTab('suggestions', this)">💡 Suggestions</button>
     <button class="nav-tab" onclick="switchTab('findsomeone', this)">🔍 Find Someone</button>
   </nav>
@@ -553,16 +553,28 @@
     <!-- CORRECTIONS PANEL -->
     <div id="panel-corrections" class="panel">
       <div style="padding:24px 28px;max-width:720px">
-        <h2 style="font-family:'Amiri',serif;font-size:1.6rem;color:var(--ink);margin-bottom:4px">📝 Request a Correction</h2>
-        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:10px;line-height:1.6">Found an error in the family data? Share the details below and we will review it.</p>
-        <div style="background:var(--goldl);border-left:3px solid var(--gold2);padding:10px 14px;margin-bottom:22px;font-size:0.82rem;color:var(--ink);line-height:1.65">
-          <strong>Want to add a new branch or family?</strong> You can also use this form for that. In the correction fields, describe the new family and mention the existing person or index number where it should be connected.
+
+        <!-- Mode toggle -->
+        <div style="display:flex;margin-bottom:20px;border:1px solid var(--border);overflow:hidden">
+          <button id="mode-btn-correction" onclick="switchSubmissionMode('correction')"
+            style="flex:1;padding:11px 16px;border:none;font-family:'Lato',sans-serif;font-weight:700;font-size:0.82rem;cursor:pointer;background:var(--green);color:#fff;transition:background 0.15s">
+            ✏️ Raise a Correction
+          </button>
+          <button id="mode-btn-family" onclick="switchSubmissionMode('new_family')"
+            style="flex:1;padding:11px 16px;border:none;border-left:1px solid var(--border);font-family:'Lato',sans-serif;font-weight:700;font-size:0.82rem;cursor:pointer;background:var(--surface);color:var(--muted);transition:background 0.15s">
+            🏠 New Family Submission
+          </button>
         </div>
+
+        <h2 id="cf-form-title" style="font-family:'Amiri',serif;font-size:1.6rem;color:var(--ink);margin-bottom:4px">✏️ Request a Correction</h2>
+        <p id="cf-form-subtitle" style="font-size:0.85rem;color:var(--muted);margin-bottom:22px;line-height:1.6">Found an error in the family data? Share the details below and we will review it.</p>
 
         <form id="correction-form" onsubmit="submitCorrection(event)">
           <input type="hidden" id="cf-person-uid"/>
+          <input type="hidden" id="cf-submission-type" value="correction"/>
 
-          <div style="margin-bottom:20px;background:var(--goldl);border:1px solid var(--gold2);padding:16px 18px">
+          <!-- Golden profile section — shown for corrections, hidden for new family -->
+          <div id="correction-profile-section" style="margin-bottom:20px;background:var(--goldl);border:1px solid var(--gold2);padding:16px 18px">
             <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;border-bottom:1px solid var(--gold2);padding-bottom:6px">Profile Being Corrected</div>
             <p style="font-size:0.78rem;color:var(--muted);margin-bottom:12px;margin-top:-4px">Auto-filled when raised from a profile. These fields are read-only.</p>
             <div style="display:grid;gap:10px">
@@ -608,27 +620,27 @@
           </div>
 
           <div style="margin-bottom:20px;border-top:1px solid var(--border);padding-top:18px">
-            <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:6px">Correction Details</div>
-            <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;line-height:1.6">Fill in only the fields that need a correction. Leave blank if unchanged. At least one field is required.</p>
+            <div id="cf-details-heading" style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:6px">Correction Details</div>
+            <p id="cf-details-hint" style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;line-height:1.6">Fill in only the fields that need a correction. Leave blank if unchanged. At least one field is required.</p>
             <div style="display:grid;gap:12px">
               <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
-                Correction to: Name
+                <span id="cf-lbl-name">Correction to: Name</span>
                 <input id="cf-corr-name" placeholder="Corrected name for this person" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
               </label>
               <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
-                Correction to: Parents
+                <span id="cf-lbl-parents">Correction to: Parents</span>
                 <textarea id="cf-corr-parents" rows="2" placeholder="Corrected father / mother details" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;resize:vertical;color:var(--ink)"></textarea>
               </label>
               <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
-                Correction to: Siblings
+                <span id="cf-lbl-siblings">Correction to: Siblings</span>
                 <textarea id="cf-corr-siblings" rows="2" placeholder="Missing or incorrect siblings" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;resize:vertical;color:var(--ink)"></textarea>
               </label>
               <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
-                Correction to: Spouse
+                <span id="cf-lbl-spouse">Correction to: Spouse</span>
                 <textarea id="cf-corr-spouse" rows="2" placeholder="Corrected spouse information" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;resize:vertical;color:var(--ink)"></textarea>
               </label>
               <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
-                Correction to: Children
+                <span id="cf-lbl-children">Correction to: Children</span>
                 <textarea id="cf-corr-children" rows="2" placeholder="Missing or incorrect children" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;resize:vertical;color:var(--ink)"></textarea>
               </label>
             </div>
@@ -636,12 +648,12 @@
 
           <div style="border-top:1px solid var(--border);padding-top:18px;margin-top:4px">
             <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
-              Additional remarks
+              <span id="cf-lbl-remarks">Additional remarks</span>
               <textarea id="cf-remarks" rows="3" placeholder="Any other context, instructions, or notes for the team…" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;resize:vertical;color:var(--ink)"></textarea>
             </label>
           </div>
 
-          <button type="submit" style="padding:12px 28px;background:var(--green);color:#fff;border:none;font-family:'Lato',sans-serif;font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background 0.2s;margin-top:18px" onmouseover="this.style.background='#213b2a'" onmouseout="this.style.background='var(--green)'">Submit Correction Request</button>
+          <button id="cf-submit-btn" type="submit" style="padding:12px 28px;background:var(--green);color:#fff;border:none;font-family:'Lato',sans-serif;font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background 0.2s;margin-top:18px" onmouseover="this.style.background='#213b2a'" onmouseout="this.style.background='var(--green)'">Submit Correction Request</button>
         </form>
         <div id="correction-status" style="display:none;margin-top:14px;padding:12px 16px;font-size:0.85rem;font-weight:700;border-left:3px solid var(--gold)"></div>
       </div>
@@ -1904,6 +1916,95 @@ function copyShareUrl() {
   });
 }
 
+const CF_MODES = {
+  correction: {
+    title:       '✏️ Request a Correction',
+    subtitle:    'Found an error in the family data? Share the details below and we will review it.',
+    heading:     'Correction Details',
+    hint:        'Fill in only the fields that need a correction. Leave blank if unchanged. At least one field is required.',
+    name:        'Correction to: Name',
+    namePh:      'Corrected name for this person',
+    parents:     'Correction to: Parents',
+    parentsPh:   'Corrected father / mother details',
+    siblings:    'Correction to: Siblings',
+    siblingsPh:  'Missing or incorrect siblings',
+    spouse:      'Correction to: Spouse',
+    spousePh:    'Corrected spouse information',
+    children:    'Correction to: Children',
+    childrenPh:  'Missing or incorrect children',
+    remarks:     'Additional remarks',
+    remarksPh:   'Any other context, instructions, or notes for the team…',
+    submit:      'Submit Correction Request',
+  },
+  new_family: {
+    title:       '🏠 New Family Submission',
+    subtitle:    'Submitting a family not yet in the archive? Describe the family below. Mention the nearest known person or index number they connect to if you know it.',
+    heading:     'Family Details',
+    hint:        'Share as much or as little as you know. Every detail helps us place the family correctly.',
+    name:        'Family head / Patriarch name',
+    namePh:      'Name of the head of this family',
+    parents:     'Parents / Grandparents',
+    parentsPh:   'Known parents or grandparents of the family head',
+    siblings:    'Siblings / Brothers & Sisters',
+    siblingsPh:  'Known siblings in this family',
+    spouse:      'Spouse / Wife',
+    spousePh:    'Spouse name and details',
+    children:    'Children / Descendants',
+    childrenPh:  'Known children or descendants',
+    remarks:     'Connection point & additional notes',
+    remarksPh:   'Which existing person or index number does this family connect to? Any other details…',
+    submit:      'Submit New Family',
+  }
+};
+
+function switchSubmissionMode(mode) {
+  const m = CF_MODES[mode];
+  if (!m) return;
+
+  // Update hidden type
+  document.getElementById('cf-submission-type').value = mode;
+
+  // Toggle buttons
+  const btnCorr   = document.getElementById('mode-btn-correction');
+  const btnFamily = document.getElementById('mode-btn-family');
+  if (mode === 'correction') {
+    btnCorr.style.background   = 'var(--green)';
+    btnCorr.style.color        = '#fff';
+    btnFamily.style.background = 'var(--surface)';
+    btnFamily.style.color      = 'var(--muted)';
+  } else {
+    btnFamily.style.background = 'var(--green)';
+    btnFamily.style.color      = '#fff';
+    btnCorr.style.background   = 'var(--surface)';
+    btnCorr.style.color        = 'var(--muted)';
+  }
+
+  // Show/hide golden profile section (only relevant for corrections)
+  document.getElementById('correction-profile-section').style.display =
+    mode === 'correction' ? '' : 'none';
+
+  // Update text
+  document.getElementById('cf-form-title').textContent      = m.title;
+  document.getElementById('cf-form-subtitle').textContent   = m.subtitle;
+  document.getElementById('cf-details-heading').textContent = m.heading;
+  document.getElementById('cf-details-hint').textContent    = m.hint;
+  document.getElementById('cf-lbl-name').textContent        = m.name;
+  document.getElementById('cf-lbl-parents').textContent     = m.parents;
+  document.getElementById('cf-lbl-siblings').textContent    = m.siblings;
+  document.getElementById('cf-lbl-spouse').textContent      = m.spouse;
+  document.getElementById('cf-lbl-children').textContent    = m.children;
+  document.getElementById('cf-lbl-remarks').textContent     = m.remarks;
+  document.getElementById('cf-submit-btn').textContent      = m.submit;
+
+  // Update placeholders
+  document.getElementById('cf-corr-name').placeholder     = m.namePh;
+  document.getElementById('cf-corr-parents').placeholder  = m.parentsPh;
+  document.getElementById('cf-corr-siblings').placeholder = m.siblingsPh;
+  document.getElementById('cf-corr-spouse').placeholder   = m.spousePh;
+  document.getElementById('cf-corr-children').placeholder = m.childrenPh;
+  document.getElementById('cf-remarks').placeholder       = m.remarksPh;
+}
+
 function openCorrectionForm() {
   const uid  = lastPersonDetail ? lastPersonDetail.uid  : '';
   const name = lastPersonDetail ? lastPersonDetail.name : '';
@@ -1975,6 +2076,7 @@ async function submitCorrection(event) {
   btn.textContent = 'Submitting…';
 
   const payload = {
+    submission_type:          document.getElementById('cf-submission-type').value || 'correction',
     person_uid:               document.getElementById('cf-person-uid').value || null,
     person_name:              document.getElementById('cf-person-name').value.trim() || null,
     gedcom_source:            document.getElementById('cf-gedcom-source').value.trim() || null,
@@ -2002,9 +2104,10 @@ async function submitCorrection(event) {
   }
 
   logActivity('correction_submitted', `Correction submitted by ${requesterName}`, { person_uid: payload.person_uid || '' });
-  showCorrectionStatus('Thank you! Your correction has been submitted and will be reviewed.', false);
+  showCorrectionStatus('Thank you! Your submission has been received and will be reviewed.', false);
   event.target.reset();
   document.getElementById('cf-person-uid').value = '';
+  switchSubmissionMode('correction');
 }
 
 function showCorrectionStatus(msg, isError) {

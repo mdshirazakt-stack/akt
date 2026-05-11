@@ -284,6 +284,8 @@
     <button class="nav-tab" onclick="switchTab('activity', this)">Activity History</button>
     <button class="nav-tab" onclick="switchTab('settings', this)">Import Stats</button>
     <button class="nav-tab" onclick="switchTab('corrections', this)">📝 Corrections</button>
+    <button class="nav-tab" onclick="switchTab('suggestions', this)">💡 Suggestions</button>
+    <button class="nav-tab" onclick="switchTab('findrequests', this)">🔍 Find Requests</button>
   </nav>
 
   <main>
@@ -474,6 +476,42 @@
       </div>
     </div>
 
+    <!-- SUGGESTIONS PANEL -->
+    <div id="panel-suggestions" class="panel">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <h2 style="margin:0">💡 Suggestions</h2>
+          <button class="btn-sm" onclick="loadSuggestions()" style="background:var(--gold);color:#fff;border:none;padding:7px 16px;cursor:pointer;font-size:0.85rem">↻ Refresh</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+          <button onclick="setSuggestionFilter('all',this)" class="sugg-filter-btn active" style="padding:5px 12px;border:1px solid var(--border);background:var(--gold);color:#fff;font-size:0.78rem;cursor:pointer">All</button>
+          <button onclick="setSuggestionFilter('new',this)" class="sugg-filter-btn" style="padding:5px 12px;border:1px solid var(--border);background:none;font-size:0.78rem;cursor:pointer">New</button>
+          <button onclick="setSuggestionFilter('reviewed',this)" class="sugg-filter-btn" style="padding:5px 12px;border:1px solid var(--border);background:none;font-size:0.78rem;cursor:pointer">Reviewed</button>
+          <button onclick="setSuggestionFilter('implemented',this)" class="sugg-filter-btn" style="padding:5px 12px;border:1px solid var(--border);background:none;font-size:0.78rem;cursor:pointer">Implemented</button>
+          <button onclick="setSuggestionFilter('declined',this)" class="sugg-filter-btn" style="padding:5px 12px;border:1px solid var(--border);background:none;font-size:0.78rem;cursor:pointer">Declined</button>
+        </div>
+        <div id="suggestions-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- FIND REQUESTS PANEL -->
+    <div id="panel-findrequests" class="panel">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <h2 style="margin:0">🔍 Find Requests</h2>
+          <button class="btn-sm" onclick="loadFindRequests()" style="background:var(--gold);color:#fff;border:none;padding:7px 16px;cursor:pointer;font-size:0.85rem">↻ Refresh</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+          <button onclick="setFindRequestFilter('all',this)" class="find-filter-btn active" style="padding:5px 12px;border:1px solid var(--border);background:var(--gold);color:#fff;font-size:0.78rem;cursor:pointer">All</button>
+          <button onclick="setFindRequestFilter('new',this)" class="find-filter-btn" style="padding:5px 12px;border:1px solid var(--border);background:none;font-size:0.78rem;cursor:pointer">New</button>
+          <button onclick="setFindRequestFilter('in_progress',this)" class="find-filter-btn" style="padding:5px 12px;border:1px solid var(--border);background:none;font-size:0.78rem;cursor:pointer">In Progress</button>
+          <button onclick="setFindRequestFilter('resolved',this)" class="find-filter-btn" style="padding:5px 12px;border:1px solid var(--border);background:none;font-size:0.78rem;cursor:pointer">Resolved</button>
+          <button onclick="setFindRequestFilter('closed',this)" class="find-filter-btn" style="padding:5px 12px;border:1px solid var(--border);background:none;font-size:0.78rem;cursor:pointer">Closed</button>
+        </div>
+        <div id="findrequests-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -522,6 +560,8 @@ function switchTab(name, btn) {
   if (name === 'settings') loadDbStats();
   if (name === 'activity') loadActivity();
   if (name === 'corrections') loadCorrections();
+  if (name === 'suggestions') loadSuggestions();
+  if (name === 'findrequests') loadFindRequests();
 }
 
 // ===================== GEDCOM PARSER =====================
@@ -1797,7 +1837,8 @@ function renderCorrections() {
       ['Parents', r.correction_parents],
       ['Siblings', r.correction_siblings],
       ['Spouse', r.correction_spouse],
-      ['Children', r.correction_children]
+      ['Children', r.correction_children],
+      ['Remarks', r.remarks]
     ].filter(([,v]) => v);
     const statusColor = statusColors[r.status] || '#374151';
     const statusLabel = statusLabels[r.status] || r.status;
@@ -1874,6 +1915,177 @@ async function saveCorrectionNotes(id, notes) {
 
 function escHtml(v) {
   return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ===================== SUGGESTIONS =====================
+let suggestionsData = [];
+let suggestionFilter = 'all';
+
+async function loadSuggestions() {
+  const container = document.getElementById('suggestions-list');
+  container.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+  const { data, error } = await sb.from('suggestions')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) { container.innerHTML = `<div class="empty" style="color:var(--red)">${error.message}</div>`; return; }
+  suggestionsData = data || [];
+  renderSuggestions();
+}
+
+function setSuggestionFilter(val, btn) {
+  suggestionFilter = val;
+  document.querySelectorAll('.sugg-filter-btn').forEach(b => {
+    b.style.background = 'none'; b.style.color = ''; b.style.borderColor = 'var(--border)';
+  });
+  btn.style.background = 'var(--gold)'; btn.style.color = '#fff';
+  renderSuggestions();
+}
+
+function renderSuggestions() {
+  const container = document.getElementById('suggestions-list');
+  const filtered = suggestionFilter === 'all' ? suggestionsData : suggestionsData.filter(r => r.status === suggestionFilter);
+  if (!filtered.length) { container.innerHTML = '<div class="empty">No suggestions found.</div>'; return; }
+
+  const statusColors = { new: '#b8860b', reviewed: '#2563eb', implemented: '#166534', declined: '#dc2626' };
+  const statusLabels = { new: 'New', reviewed: 'Reviewed', implemented: 'Implemented', declined: 'Declined' };
+  const allStatuses = ['new', 'reviewed', 'implemented', 'declined'];
+
+  container.innerHTML = filtered.map(r => {
+    const date = r.created_at ? new Date(r.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+    return `
+    <div style="border:1px solid var(--border);padding:16px;margin-bottom:12px;background:var(--bg)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap">
+        <div>
+          <span style="font-weight:700;font-size:0.9rem">${escHtml(r.requester_name)}</span>
+          ${r.mobile ? `<span style="margin-left:10px;font-size:0.8rem;color:var(--muted)">${escHtml(r.mobile)}</span>` : ''}
+          ${r.family_reference ? `<span style="margin-left:10px;font-size:0.8rem;color:var(--muted)">📋 ${escHtml(r.family_reference)}</span>` : ''}
+        </div>
+        <span style="font-size:0.72rem;color:var(--muted)">${date}</span>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);padding:10px 12px;margin-bottom:12px;font-size:0.88rem;white-space:pre-wrap;line-height:1.6">${escHtml(r.suggestion)}</div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:5px">Admin Notes</div>
+        <textarea rows="2" style="width:100%;padding:8px 10px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:0.85rem;resize:vertical" placeholder="Internal notes…" onchange="saveSuggestionNotes('${r.id}', this.value)">${escHtml(r.admin_notes || '')}</textarea>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${allStatuses.map(s => `
+          <button onclick="setSuggestionStatus('${r.id}', '${s}', this)"
+            style="padding:5px 12px;border:1px solid ${r.status === s ? statusColors[s] : 'var(--border)'};background:${r.status === s ? statusColors[s] : 'none'};color:${r.status === s ? '#fff' : ''};font-size:0.75rem;cursor:pointer;font-family:inherit">
+            ${statusLabels[s]}
+          </button>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function setSuggestionStatus(id, status, btn) {
+  const { error } = await sb.from('suggestions')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) { toast(error.message, true); return; }
+  const rec = suggestionsData.find(r => r.id === id);
+  if (rec) rec.status = status;
+  toast('Status updated to: ' + status);
+  renderSuggestions();
+}
+
+async function saveSuggestionNotes(id, notes) {
+  const { error } = await sb.from('suggestions')
+    .update({ admin_notes: notes, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) toast(error.message, true);
+  else { const rec = suggestionsData.find(r => r.id === id); if (rec) rec.admin_notes = notes; }
+}
+
+// ===================== FIND REQUESTS =====================
+let findRequestsData = [];
+let findRequestFilter = 'all';
+
+async function loadFindRequests() {
+  const container = document.getElementById('findrequests-list');
+  container.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+  const { data, error } = await sb.from('find_requests')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) { container.innerHTML = `<div class="empty" style="color:var(--red)">${error.message}</div>`; return; }
+  findRequestsData = data || [];
+  renderFindRequests();
+}
+
+function setFindRequestFilter(val, btn) {
+  findRequestFilter = val;
+  document.querySelectorAll('.find-filter-btn').forEach(b => {
+    b.style.background = 'none'; b.style.color = ''; b.style.borderColor = 'var(--border)';
+  });
+  btn.style.background = 'var(--gold)'; btn.style.color = '#fff';
+  renderFindRequests();
+}
+
+function renderFindRequests() {
+  const container = document.getElementById('findrequests-list');
+  const filtered = findRequestFilter === 'all' ? findRequestsData : findRequestsData.filter(r => r.status === findRequestFilter);
+  if (!filtered.length) { container.innerHTML = '<div class="empty">No find requests found.</div>'; return; }
+
+  const statusColors = { new: '#b8860b', in_progress: '#2563eb', resolved: '#166534', closed: '#6b7280' };
+  const statusLabels = { new: 'New', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed' };
+  const allStatuses = ['new', 'in_progress', 'resolved', 'closed'];
+
+  container.innerHTML = filtered.map(r => {
+    const date = r.created_at ? new Date(r.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+    const detailFields = [
+      ['Person name', r.person_name], ['Father\'s name', r.father_name],
+      ['Current location', r.current_location], ['Root / ancestral place', r.root_place],
+      ['Index number', r.index_number], ['Known relative', r.known_relative]
+    ].filter(([, v]) => v);
+
+    return `
+    <div style="border:1px solid var(--border);padding:16px;margin-bottom:12px;background:var(--bg)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap">
+        <div>
+          <span style="font-weight:700;font-size:0.9rem">${escHtml(r.requester_name)}</span>
+          ${r.mobile ? `<span style="margin-left:10px;font-size:0.8rem;color:var(--muted)">${escHtml(r.mobile)}</span>` : ''}
+        </div>
+        <span style="font-size:0.72rem;color:var(--muted)">${date}</span>
+      </div>
+      ${detailFields.length ? `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;background:var(--surface);padding:12px;border:1px solid var(--border)">
+        ${detailFields.map(([label, val]) => `
+          <div><span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">${label}</span>
+          <div style="font-size:0.88rem;margin-top:2px">${escHtml(val)}</div></div>
+        `).join('')}
+      </div>` : ''}
+      <div style="margin-bottom:12px">
+        <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:5px">Admin Notes</div>
+        <textarea rows="2" style="width:100%;padding:8px 10px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:0.85rem;resize:vertical" placeholder="Internal notes, matched person uid, etc…" onchange="saveFindRequestNotes('${r.id}', this.value)">${escHtml(r.admin_notes || '')}</textarea>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${allStatuses.map(s => `
+          <button onclick="setFindRequestStatus('${r.id}', '${s}', this)"
+            style="padding:5px 12px;border:1px solid ${r.status === s ? statusColors[s] : 'var(--border)'};background:${r.status === s ? statusColors[s] : 'none'};color:${r.status === s ? '#fff' : ''};font-size:0.75rem;cursor:pointer;font-family:inherit">
+            ${statusLabels[s]}
+          </button>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function setFindRequestStatus(id, status, btn) {
+  const { error } = await sb.from('find_requests')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) { toast(error.message, true); return; }
+  const rec = findRequestsData.find(r => r.id === id);
+  if (rec) rec.status = status;
+  toast('Status updated to: ' + status);
+  renderFindRequests();
+}
+
+async function saveFindRequestNotes(id, notes) {
+  const { error } = await sb.from('find_requests')
+    .update({ admin_notes: notes, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) toast(error.message, true);
+  else { const rec = findRequestsData.find(r => r.id === id); if (rec) rec.admin_notes = notes; }
 }
 </script>
 </body>

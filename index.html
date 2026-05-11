@@ -453,6 +453,8 @@
     <button class="nav-tab" onclick="switchTab('byfile', this)">📋 Index</button>
     <button class="nav-tab" onclick="switchTab('allnames', this)">🔤 All Names</button>
     <button class="nav-tab" onclick="switchTab('corrections', this)">📝 Corrections</button>
+    <button class="nav-tab" onclick="switchTab('suggestions', this)">💡 Suggestions</button>
+    <button class="nav-tab" onclick="switchTab('findsomeone', this)">🔍 Find Someone</button>
   </nav>
 
   <main>
@@ -552,7 +554,10 @@
     <div id="panel-corrections" class="panel">
       <div style="padding:24px 28px;max-width:720px">
         <h2 style="font-family:'Amiri',serif;font-size:1.6rem;color:var(--ink);margin-bottom:4px">📝 Request a Correction</h2>
-        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:22px;line-height:1.6">Found an error in the family data? Share the details below and we will review it.</p>
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:10px;line-height:1.6">Found an error in the family data? Share the details below and we will review it.</p>
+        <div style="background:var(--goldl);border-left:3px solid var(--gold2);padding:10px 14px;margin-bottom:22px;font-size:0.82rem;color:var(--ink);line-height:1.65">
+          <strong>Want to add a new branch or family?</strong> You can also use this form for that. In the correction fields, describe the new family and mention the existing person or index number where it should be connected.
+        </div>
 
         <div id="correction-context" style="display:none;background:var(--goldl);border:1px solid var(--gold2);padding:11px 15px;margin-bottom:20px;font-size:0.85rem;color:var(--ink)">
           <strong>Regarding:</strong> <span id="correction-person-display"></span>
@@ -607,9 +612,113 @@
             </div>
           </div>
 
-          <button type="submit" style="padding:12px 28px;background:var(--green);color:#fff;border:none;font-family:'Lato',sans-serif;font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background 0.2s" onmouseover="this.style.background='#213b2a'" onmouseout="this.style.background='var(--green)'">Submit Correction Request</button>
+          <div style="border-top:1px solid var(--border);padding-top:18px;margin-top:4px">
+            <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+              Additional remarks
+              <textarea id="cf-remarks" rows="3" placeholder="Any other context, instructions, or notes for the team…" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;resize:vertical;color:var(--ink)"></textarea>
+            </label>
+          </div>
+
+          <button type="submit" style="padding:12px 28px;background:var(--green);color:#fff;border:none;font-family:'Lato',sans-serif;font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background 0.2s;margin-top:18px" onmouseover="this.style.background='#213b2a'" onmouseout="this.style.background='var(--green)'">Submit Correction Request</button>
         </form>
         <div id="correction-status" style="display:none;margin-top:14px;padding:12px 16px;font-size:0.85rem;font-weight:700;border-left:3px solid var(--gold)"></div>
+      </div>
+    </div>
+
+    <!-- SUGGESTIONS PANEL -->
+    <div id="panel-suggestions" class="panel">
+      <div style="padding:24px 28px;max-width:720px">
+        <h2 style="font-family:'Amiri',serif;font-size:1.6rem;color:var(--ink);margin-bottom:4px">💡 Share a Suggestion</h2>
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:22px;line-height:1.6">Have an idea for improving the archive, the platform, or community efforts? We'd love to hear from you.</p>
+        <form id="suggestions-form" onsubmit="submitSuggestion(event)">
+          <div style="margin-bottom:20px">
+            <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:6px">About You</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+              <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                Your name <span style="color:var(--red)">*</span>
+                <input id="sg-name" required placeholder="Your full name" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+              </label>
+              <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                Mobile number
+                <input id="sg-mobile" type="tel" placeholder="Optional" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+              </label>
+            </div>
+            <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+              Your family reference (if any)
+              <input id="sg-family" placeholder="e.g. Index number, known person in the archive…" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+            </label>
+          </div>
+          <div style="border-top:1px solid var(--border);padding-top:18px;margin-bottom:20px">
+            <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:6px">Your Suggestion</div>
+            <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+              Suggestion <span style="color:var(--red)">*</span>
+              <textarea id="sg-suggestion" required rows="5" placeholder="Tell us your suggestion in as much detail as you'd like…" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;resize:vertical;color:var(--ink)"></textarea>
+            </label>
+          </div>
+          <button type="submit" style="padding:12px 28px;background:var(--green);color:#fff;border:none;font-family:'Lato',sans-serif;font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background 0.2s" onmouseover="this.style.background='#213b2a'" onmouseout="this.style.background='var(--green)'">Submit Suggestion</button>
+        </form>
+        <div id="suggestion-status" style="display:none;margin-top:14px;padding:12px 16px;font-size:0.85rem;font-weight:700;border-left:3px solid var(--gold)"></div>
+      </div>
+    </div>
+
+    <!-- FIND SOMEONE PANEL -->
+    <div id="panel-findsomeone" class="panel">
+      <div style="padding:24px 28px;max-width:720px">
+        <h2 style="font-family:'Amiri',serif;font-size:1.6rem;color:var(--ink);margin-bottom:4px">🔍 Help Me Find Someone</h2>
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:22px;line-height:1.6">Couldn't find the person you were looking for? Submit what you know and we'll try to help.</p>
+        <form id="findsomeone-form" onsubmit="submitFindRequest(event)">
+          <div style="margin-bottom:20px">
+            <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:6px">About You</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                Your name <span style="color:var(--red)">*</span>
+                <input id="fs-name" required placeholder="Your full name" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+              </label>
+              <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                Mobile number
+                <input id="fs-mobile" type="tel" placeholder="So we can reach you" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+              </label>
+            </div>
+          </div>
+          <div style="border-top:1px solid var(--border);padding-top:18px;margin-bottom:20px">
+            <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:6px">About the Person You're Looking For</div>
+            <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;line-height:1.6">Fill in as much or as little as you know — every detail helps.</p>
+            <div style="display:grid;gap:12px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                  Expected person name
+                  <input id="fs-person-name" placeholder="Name you know or expect" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+                </label>
+                <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                  Father's name
+                  <input id="fs-father-name" placeholder="If known" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+                </label>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                  Current location
+                  <input id="fs-current-location" placeholder="City / country they may live in" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+                </label>
+                <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                  Root / ancestral place
+                  <input id="fs-root-place" placeholder="Village, town, region of origin" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+                </label>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                  Expected index number
+                  <input id="fs-index-number" placeholder="If you have a guess" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+                </label>
+                <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                  Any known relative
+                  <input id="fs-known-relative" placeholder="Name of a relative in the archive" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+                </label>
+              </div>
+            </div>
+          </div>
+          <button type="submit" style="padding:12px 28px;background:var(--green);color:#fff;border:none;font-family:'Lato',sans-serif;font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background 0.2s" onmouseover="this.style.background='#213b2a'" onmouseout="this.style.background='var(--green)'">Submit Find Request</button>
+        </form>
+        <div id="findsomeone-status" style="display:none;margin-top:14px;padding:12px 16px;font-size:0.85rem;font-weight:700;border-left:3px solid var(--gold)"></div>
       </div>
     </div>
 
@@ -986,7 +1095,7 @@ function switchTab(name, btn) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   if (btn) btn.classList.add('active');
-  const labels = { search: 'Search', tree: 'Browse Tree', stats: 'Stats', byfile: 'Index', allnames: 'All Names', corrections: 'Corrections' };
+  const labels = { search: 'Search', tree: 'Browse Tree', stats: 'Stats', byfile: 'Index', allnames: 'All Names', corrections: 'Corrections', suggestions: 'Suggestions', findsomeone: 'Find Someone' };
   logActivity('open_tab', `Opened ${labels[name] || name}`, { tab: name });
   if (name === 'stats') loadStats();
   if (name === 'byfile') loadByFile();
@@ -1837,6 +1946,7 @@ async function submitCorrection(event) {
     correction_siblings:      corrSiblings || null,
     correction_spouse:        corrSpouse || null,
     correction_children:      corrChildren || null,
+    remarks:                  document.getElementById('cf-remarks').value.trim() || null,
     status: 'new'
   };
 
@@ -1863,6 +1973,87 @@ function showCorrectionStatus(msg, isError) {
   el.style.color = isError ? 'var(--red)' : 'var(--green)';
   el.style.borderLeftColor = isError ? 'var(--red)' : 'var(--gold)';
   el.textContent = msg;
+}
+
+// ===== SUGGESTIONS =====
+async function submitSuggestion(event) {
+  event.preventDefault();
+  const name = document.getElementById('sg-name').value.trim();
+  if (!name) return;
+
+  const suggestion = document.getElementById('sg-suggestion').value.trim();
+  if (!suggestion) return;
+
+  const btn = event.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+
+  const payload = {
+    requester_name:   name,
+    mobile:           document.getElementById('sg-mobile').value.trim() || null,
+    family_reference: document.getElementById('sg-family').value.trim() || null,
+    suggestion:       suggestion,
+    status:           'new'
+  };
+
+  const { error } = await sb.from('suggestions').insert(payload);
+  btn.disabled = false;
+  btn.textContent = 'Submit Suggestion';
+
+  const statusEl = document.getElementById('suggestion-status');
+  statusEl.style.display = 'block';
+  if (error) {
+    statusEl.style.color = 'var(--red)';
+    statusEl.style.borderLeftColor = 'var(--red)';
+    statusEl.textContent = 'Submission failed: ' + error.message;
+  } else {
+    statusEl.style.color = 'var(--green)';
+    statusEl.style.borderLeftColor = 'var(--gold)';
+    statusEl.textContent = 'Thank you! Your suggestion has been submitted.';
+    logActivity('suggestion_submitted', `Suggestion by ${name}`, {});
+    event.target.reset();
+  }
+}
+
+// ===== FIND SOMEONE =====
+async function submitFindRequest(event) {
+  event.preventDefault();
+  const name = document.getElementById('fs-name').value.trim();
+  if (!name) return;
+
+  const btn = event.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+
+  const payload = {
+    requester_name:   name,
+    mobile:           document.getElementById('fs-mobile').value.trim() || null,
+    person_name:      document.getElementById('fs-person-name').value.trim() || null,
+    father_name:      document.getElementById('fs-father-name').value.trim() || null,
+    current_location: document.getElementById('fs-current-location').value.trim() || null,
+    root_place:       document.getElementById('fs-root-place').value.trim() || null,
+    index_number:     document.getElementById('fs-index-number').value.trim() || null,
+    known_relative:   document.getElementById('fs-known-relative').value.trim() || null,
+    status:           'new'
+  };
+
+  const { error } = await sb.from('find_requests').insert(payload);
+  btn.disabled = false;
+  btn.textContent = 'Submit Find Request';
+
+  const statusEl = document.getElementById('findsomeone-status');
+  statusEl.style.display = 'block';
+  if (error) {
+    statusEl.style.color = 'var(--red)';
+    statusEl.style.borderLeftColor = 'var(--red)';
+    statusEl.textContent = 'Submission failed: ' + error.message;
+  } else {
+    statusEl.style.color = 'var(--green)';
+    statusEl.style.borderLeftColor = 'var(--gold)';
+    statusEl.textContent = 'Thank you! We\'ll look into it and get back to you if we find a match.';
+    logActivity('find_request_submitted', `Find request by ${name}`, { person_name: payload.person_name || '' });
+    event.target.reset();
+  }
 }
 
 // ===== STATS =====

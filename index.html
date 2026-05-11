@@ -2006,6 +2006,9 @@ function switchSubmissionMode(mode) {
 }
 
 function openCorrectionForm() {
+  // Always force correction mode regardless of what user last selected
+  switchSubmissionMode('correction');
+
   const uid  = lastPersonDetail ? lastPersonDetail.uid  : '';
   const name = lastPersonDetail ? lastPersonDetail.name : '';
 

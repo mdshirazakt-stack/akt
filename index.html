@@ -559,13 +559,22 @@
           <strong>Want to add a new branch or family?</strong> You can also use this form for that. In the correction fields, describe the new family and mention the existing person or index number where it should be connected.
         </div>
 
-        <div id="correction-context" style="display:none;background:var(--goldl);border:1px solid var(--gold2);padding:11px 15px;margin-bottom:20px;font-size:0.85rem;color:var(--ink)">
-          <strong>Regarding:</strong> <span id="correction-person-display"></span>
-        </div>
-
         <form id="correction-form" onsubmit="submitCorrection(event)">
           <input type="hidden" id="cf-person-uid"/>
-          <input type="hidden" id="cf-person-name-hidden"/>
+
+          <div style="margin-bottom:20px;background:var(--goldl);border:1px solid var(--gold2);padding:16px 18px">
+            <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;border-bottom:1px solid var(--gold2);padding-bottom:6px">Profile Being Corrected</div>
+            <div style="display:grid;gap:12px">
+              <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                Person name
+                <input id="cf-person-name" placeholder="Name of the person this correction is about" style="padding:10px 12px;border:1px solid var(--gold2);background:#fff;font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
+              </label>
+              <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
+                Profile link
+                <input id="cf-profile-link" type="url" placeholder="Auto-filled when opened from a profile — or paste a link" style="padding:10px 12px;border:1px solid var(--gold2);background:#fff;font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:#2563eb"/>
+              </label>
+            </div>
+          </div>
 
           <div style="margin-bottom:20px">
             <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:6px">About You</div>
@@ -1891,33 +1900,42 @@ function copyShareUrl() {
 function openCorrectionForm() {
   const uid  = lastPersonDetail ? lastPersonDetail.uid  : '';
   const name = lastPersonDetail ? lastPersonDetail.name : '';
-  // Pre-fill context
+
+  // Pre-fill hidden uid
   document.getElementById('cf-person-uid').value = uid || '';
-  document.getElementById('cf-person-name-hidden').value = name || '';
-  const ctx = document.getElementById('correction-context');
-  const disp = document.getElementById('correction-person-display');
-  if (name) {
-    disp.textContent = name;
-    ctx.style.display = 'block';
-  } else {
-    ctx.style.display = 'none';
+
+  // Pre-fill visible person name (editable)
+  const nameField = document.getElementById('cf-person-name');
+  if (nameField) nameField.value = name || '';
+
+  // Pre-fill profile link (editable)
+  const linkField = document.getElementById('cf-profile-link');
+  if (linkField) {
+    linkField.value = uid
+      ? (window.location.origin + window.location.pathname + '#person=' + encodeURIComponent(uid))
+      : '';
   }
+
   // Pre-fill requester name from current session
   const reqField = document.getElementById('cf-requester-name');
   if (reqField && !reqField.value && currentUser) reqField.value = currentUser;
+
   // Switch to corrections tab
   const btn = document.querySelector('.nav-tab[onclick*="corrections"]');
   switchTab('corrections', btn);
+
   // Reset status message
   const st = document.getElementById('correction-status');
   st.style.display = 'none';
   st.textContent = '';
-  // Reset form fields except context and requester name
+
+  // Reset correction detail fields
   ['cf-corr-name','cf-corr-parents','cf-corr-siblings','cf-corr-spouse','cf-corr-children',
-   'cf-requester-mobile','cf-requester-father','cf-family-number'].forEach(id => {
+   'cf-requester-mobile','cf-requester-father','cf-family-number','cf-remarks'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1943,7 +1961,8 @@ async function submitCorrection(event) {
 
   const payload = {
     person_uid:               document.getElementById('cf-person-uid').value || null,
-    person_name:              document.getElementById('cf-person-name-hidden').value || null,
+    person_name:              document.getElementById('cf-person-name').value.trim() || null,
+    profile_link:             document.getElementById('cf-profile-link').value.trim() || null,
     requester_name:           requesterName,
     requester_mobile:         document.getElementById('cf-requester-mobile').value.trim() || null,
     requester_father_name:    document.getElementById('cf-requester-father').value.trim() || null,
@@ -1969,9 +1988,7 @@ async function submitCorrection(event) {
   logActivity('correction_submitted', `Correction submitted by ${requesterName}`, { person_uid: payload.person_uid || '' });
   showCorrectionStatus('Thank you! Your correction has been submitted and will be reviewed.', false);
   event.target.reset();
-  document.getElementById('correction-context').style.display = 'none';
   document.getElementById('cf-person-uid').value = '';
-  document.getElementById('cf-person-name-hidden').value = '';
 }
 
 function showCorrectionStatus(msg, isError) {

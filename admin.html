@@ -1844,52 +1844,76 @@ function renderCorrections() {
     const statusLabel = statusLabels[r.status] || r.status;
 
     return `
-    <div style="border:1px solid var(--border);background:#fff;padding:18px;margin-bottom:14px" data-corr-id="${r.id}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-        <div>
-          <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)">${created}</span>
-          <div style="font-size:1rem;font-weight:700;margin-top:3px;color:var(--text)">
-            ${escHtml(r.person_name || '(person not specified)')}
-            ${r.person_uid ? `<span style="font-size:0.72rem;color:var(--muted);font-weight:400;margin-left:6px">${escHtml(r.person_uid)}</span>` : ''}
+    <div style="border:1px solid var(--border);background:#fff;margin-bottom:10px" data-corr-id="${r.id}">
+
+      <!-- Accordion header — always visible -->
+      <div onclick="toggleCorrectionCard('${r.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer;user-select:none;gap:10px" id="corr-hdr-${r.id}">
+        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+          <span id="corr-chevron-${r.id}" style="font-size:0.75rem;color:var(--muted);transition:transform 0.2s;flex-shrink:0">▶</span>
+          <div style="min-width:0">
+            <div style="font-size:0.95rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              ${escHtml(r.person_name || '(person not specified)')}
+            </div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:2px">${created} · by ${escHtml(r.requester_name)}</div>
           </div>
         </div>
-        <span style="padding:4px 10px;background:${statusColor};color:#fff;font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase">${statusLabel}</span>
+        <span style="flex-shrink:0;padding:3px 9px;background:${statusColor};color:#fff;font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase">${statusLabel}</span>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;background:var(--bg);padding:12px;border:1px solid var(--border)">
-        <div><span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Submitted by</span><div style="font-size:0.88rem;font-weight:700;margin-top:2px">${escHtml(r.requester_name)}</div></div>
-        ${r.requester_mobile ? `<div><span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Mobile</span><div style="font-size:0.88rem;margin-top:2px">${escHtml(r.requester_mobile)}</div></div>` : ''}
-        ${r.requester_father_name ? `<div><span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Father's name</span><div style="font-size:0.88rem;margin-top:2px">${escHtml(r.requester_father_name)}</div></div>` : ''}
-        ${r.requester_family_number ? `<div><span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Family number</span><div style="font-size:0.88rem;margin-top:2px">${escHtml(r.requester_family_number)}</div></div>` : ''}
-      </div>
+      <!-- Accordion body — collapsed by default -->
+      <div id="corr-body-${r.id}" style="display:none;border-top:1px solid var(--border);padding:16px">
 
-      ${corrFields.length ? `
-      <div style="margin-bottom:12px">
-        <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--gold);margin-bottom:8px">Corrections Requested</div>
-        <div style="display:grid;gap:6px">
-          ${corrFields.map(([label, val]) => `
-            <div style="background:var(--bg);border:1px solid var(--border);padding:8px 12px">
-              <span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">${label}</span>
-              <div style="font-size:0.88rem;margin-top:3px;white-space:pre-wrap">${escHtml(val)}</div>
-            </div>
-          `).join('')}
+        ${r.profile_link ? `
+        <div style="margin-bottom:12px;padding:9px 12px;background:var(--bg);border:1px solid var(--border);font-size:0.83rem">
+          <span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Profile link</span>
+          <div style="margin-top:3px"><a href="${escHtml(r.profile_link)}" target="_blank" style="color:#2563eb;text-decoration:underline;word-break:break-all">${escHtml(r.profile_link)}</a></div>
+        </div>` : ''}
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;background:var(--bg);padding:12px;border:1px solid var(--border)">
+          <div><span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Submitted by</span><div style="font-size:0.88rem;font-weight:700;margin-top:2px">${escHtml(r.requester_name)}</div></div>
+          ${r.requester_mobile ? `<div><span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Mobile</span><div style="font-size:0.88rem;margin-top:2px">${escHtml(r.requester_mobile)}</div></div>` : ''}
+          ${r.person_uid ? `<div><span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Person UID</span><div style="font-size:0.78rem;margin-top:2px;font-family:monospace;color:var(--muted)">${escHtml(r.person_uid)}</div></div>` : ''}
+          ${r.requester_father_name ? `<div><span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Father's name</span><div style="font-size:0.88rem;margin-top:2px">${escHtml(r.requester_father_name)}</div></div>` : ''}
+          ${r.requester_family_number ? `<div><span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Family number</span><div style="font-size:0.88rem;margin-top:2px">${escHtml(r.requester_family_number)}</div></div>` : ''}
         </div>
-      </div>` : ''}
 
-      <div style="margin-bottom:12px">
-        <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:5px">Admin Notes</div>
-        <textarea rows="2" style="width:100%;padding:8px 10px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:0.85rem;resize:vertical" placeholder="Internal notes…" onchange="saveCorrectionNotes('${r.id}', this.value)">${escHtml(r.admin_notes || '')}</textarea>
-      </div>
+        ${corrFields.length ? `
+        <div style="margin-bottom:12px">
+          <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--gold);margin-bottom:8px">Corrections Requested</div>
+          <div style="display:grid;gap:6px">
+            ${corrFields.map(([label, val]) => `
+              <div style="background:var(--bg);border:1px solid var(--border);padding:8px 12px">
+                <span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">${label}</span>
+                <div style="font-size:0.88rem;margin-top:3px;white-space:pre-wrap">${escHtml(val)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>` : ''}
 
-      <div style="display:flex;flex-wrap:wrap;gap:6px">
-        ${allStatuses.map(s => `
-          <button onclick="setCorrectionStatus('${r.id}', '${s}', this)"
-            style="padding:5px 12px;border:1px solid ${r.status === s ? statusColors[s] : 'var(--border)'};background:${r.status === s ? statusColors[s] : 'none'};color:${r.status === s ? '#fff' : ''};font-size:0.75rem;cursor:pointer;font-family:inherit">
-            ${statusLabels[s]}
-          </button>`).join('')}
+        <div style="margin-bottom:12px">
+          <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:5px">Admin Notes</div>
+          <textarea rows="2" style="width:100%;padding:8px 10px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:0.85rem;resize:vertical" placeholder="Internal notes…" onchange="saveCorrectionNotes('${r.id}', this.value)">${escHtml(r.admin_notes || '')}</textarea>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${allStatuses.map(s => `
+            <button onclick="setCorrectionStatus('${r.id}', '${s}', this)"
+              style="padding:5px 12px;border:1px solid ${r.status === s ? statusColors[s] : 'var(--border)'};background:${r.status === s ? statusColors[s] : 'none'};color:${r.status === s ? '#fff' : ''};font-size:0.75rem;cursor:pointer;font-family:inherit">
+              ${statusLabels[s]}
+            </button>`).join('')}
+        </div>
+
       </div>
     </div>`;
   }).join('');
+}
+
+function toggleCorrectionCard(id) {
+  const body = document.getElementById('corr-body-' + id);
+  const chevron = document.getElementById('corr-chevron-' + id);
+  const open = body.style.display === 'none' || body.style.display === '';
+  body.style.display = open ? 'block' : 'none';
+  chevron.style.transform = open ? 'rotate(90deg)' : '';
 }
 
 async function setCorrectionStatus(id, status, btn) {

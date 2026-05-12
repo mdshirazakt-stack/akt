@@ -630,8 +630,8 @@
           <!-- Golden profile section — shown for corrections, hidden for new family -->
           <div id="correction-profile-section" style="margin-bottom:20px;background:var(--goldl);border:1px solid var(--gold2);padding:16px 18px">
             <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;border-bottom:1px solid var(--gold2);padding-bottom:6px">Profile Being Corrected</div>
-            <div id="cf-no-person-warning" style="display:none;background:#fef2f2;border:1px solid #fca5a5;padding:12px 14px;margin-bottom:12px;font-size:0.85rem;color:#991b1b;line-height:1.5">
-              ⚠️ <strong>No profile selected.</strong><br>Please search and open a person's profile first, then click ✏️ <strong>Raise Corrections</strong>.
+            <div id="cf-no-person-warning" style="display:none;background:#fffbeb;border:1px solid var(--gold2);padding:12px 14px;margin-bottom:12px;font-size:0.83rem;color:#7a5c1e;line-height:1.6">
+              💡 For faster processing, open the person's profile page first and raise the correction from there — it helps us identify the right record immediately. Corrections submitted without a profile link may take longer to review.
             </div>
             <p id="cf-profile-hint" style="font-size:0.78rem;color:var(--muted);margin-bottom:12px;margin-top:-4px">Auto-filled when raised from a profile. These fields are read-only.</p>
             <div style="display:grid;gap:10px">
@@ -2130,17 +2130,12 @@ function switchSubmissionMode(mode) {
 }
 
 function updateCorrectionWarning() {
-  const uid        = document.getElementById('cf-person-uid').value;
-  const warning    = document.getElementById('cf-no-person-warning');
-  const hint       = document.getElementById('cf-profile-hint');
-  const submitBtn  = document.getElementById('cf-submit-btn');
-  const noPerson   = !uid;
+  const uid     = document.getElementById('cf-person-uid').value;
+  const warning = document.getElementById('cf-no-person-warning');
+  const hint    = document.getElementById('cf-profile-hint');
 
-  warning.style.display   = noPerson ? '' : 'none';
-  hint.style.display      = noPerson ? 'none' : '';
-  submitBtn.disabled      = noPerson;
-  submitBtn.style.opacity = noPerson ? '0.4' : '1';
-  submitBtn.style.cursor  = noPerson ? 'not-allowed' : 'pointer';
+  warning.style.display = uid ? 'none' : '';
+  hint.style.display    = uid ? '' : 'none';
 }
 
 function openCorrectionForm() {

@@ -1856,7 +1856,7 @@ function renderCorrections() {
           <span id="corr-chevron-${r.id}" style="font-size:0.75rem;color:var(--muted);transition:transform 0.2s;flex-shrink:0">▶</span>
           <div style="min-width:0">
             <div style="font-size:0.95rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-              ${escHtml(r.person_name || '(person not specified)')}
+              ${escHtml(r.person_name || (isNewFamily ? '(new family request)' : '(person not specified)'))}
             </div>
             <div style="font-size:0.72rem;color:var(--muted);margin-top:2px">${created} · by ${escHtml(r.requester_name)}</div>
           </div>

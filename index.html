@@ -591,7 +591,10 @@
           <!-- Golden profile section — shown for corrections, hidden for new family -->
           <div id="correction-profile-section" style="margin-bottom:20px;background:var(--goldl);border:1px solid var(--gold2);padding:16px 18px">
             <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;border-bottom:1px solid var(--gold2);padding-bottom:6px">Profile Being Corrected</div>
-            <p style="font-size:0.78rem;color:var(--muted);margin-bottom:12px;margin-top:-4px">Auto-filled when raised from a profile. These fields are read-only.</p>
+            <div id="cf-no-person-warning" style="display:none;background:#fef2f2;border:1px solid #fca5a5;padding:12px 14px;margin-bottom:12px;font-size:0.85rem;color:#991b1b;line-height:1.5">
+              ⚠️ <strong>No profile selected.</strong><br>Please search and open a person's profile first, then click ✏️ <strong>Raise Corrections</strong>.
+            </div>
+            <p id="cf-profile-hint" style="font-size:0.78rem;color:var(--muted);margin-bottom:12px;margin-top:-4px">Auto-filled when raised from a profile. These fields are read-only.</p>
             <div style="display:grid;gap:10px">
               <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
                 Person name
@@ -2018,6 +2021,23 @@ function switchSubmissionMode(mode) {
   document.getElementById('cf-corr-spouse').placeholder   = m.spousePh;
   document.getElementById('cf-corr-children').placeholder = m.childrenPh;
   document.getElementById('cf-remarks').placeholder       = m.remarksPh;
+
+  // When switching to correction mode, check if a person is linked
+  if (mode === 'correction') updateCorrectionWarning();
+}
+
+function updateCorrectionWarning() {
+  const uid        = document.getElementById('cf-person-uid').value;
+  const warning    = document.getElementById('cf-no-person-warning');
+  const hint       = document.getElementById('cf-profile-hint');
+  const submitBtn  = document.getElementById('cf-submit-btn');
+  const noPerson   = !uid;
+
+  warning.style.display   = noPerson ? '' : 'none';
+  hint.style.display      = noPerson ? 'none' : '';
+  submitBtn.disabled      = noPerson;
+  submitBtn.style.opacity = noPerson ? '0.4' : '1';
+  submitBtn.style.cursor  = noPerson ? 'not-allowed' : 'pointer';
 }
 
 function openCorrectionForm() {
@@ -2071,6 +2091,9 @@ function openCorrectionForm() {
   });
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Show/hide warning based on whether a person is linked
+  updateCorrectionWarning();
 }
 
 async function submitCorrection(event) {

@@ -542,6 +542,7 @@ async function renderPerson(uid, el) {
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <a class="btn-back" style="background:var(--green);color:#fff;border-color:var(--green)"
              href="index.html?tree=${encodeURIComponent(p.uid)}">🌳 Browse Tree</a>
+          <button class="btn-back" onclick="shareProfile()" title="Copy link to this profile" id="share-btn">📤 Share</button>
           <button class="btn-back" style="border-color:var(--red);color:var(--red)"
                   onclick="openCorrectionForm()">✏️ Raise Corrections</button>
         </div>
@@ -641,6 +642,26 @@ async function renderPerson(uid, el) {
       details: { person_uid: p.uid, source_id: p.gedcom_id || '' }
     }).then(() => {});
   }
+}
+
+// ===== SHARE =====
+function shareProfile() {
+  const url = window.location.href;
+  const btn = document.getElementById('share-btn');
+  navigator.clipboard.writeText(url).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    btn.style.borderColor = 'var(--green)';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => {
+      btn.textContent = orig;
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }, 2000);
+  }).catch(() => {
+    // Fallback for older browsers
+    prompt('Copy this link:', url);
+  });
 }
 
 // ===== CORRECTION FORM =====

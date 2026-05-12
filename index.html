@@ -841,11 +841,12 @@ async function doEnter() {
   await loadGedcomSources();
   logActivity('login', `Logged in: ${name}`, { visit_count: currentVisitCount });
   loadSearch('');
-  // Handle shareable person link — e.g. #person=<uid>
+  // Handle legacy shareable person link — e.g. #person=<uid>
+  // Redirect to dedicated person page
   const hashMatch = location.hash.match(/^#person=(.+)$/);
   if (hashMatch) {
     const linkedUid = decodeURIComponent(hashMatch[1]);
-    showPerson(linkedUid);
+    window.location.href = 'person.html?uid=' + encodeURIComponent(linkedUid);
   }
 }
 
@@ -1427,10 +1428,8 @@ async function showPersonInElement(uid, el) {
   await renderPersonDetail(uid, el);
 }
 
-async function showPerson(uid) {
-  const el = document.getElementById('search-results');
-  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-  await renderPersonDetail(uid, el);
+function showPerson(uid) {
+  window.location.href = 'person.html?uid=' + encodeURIComponent(uid);
 }
 
 async function renderPersonDetail(uid, el) {

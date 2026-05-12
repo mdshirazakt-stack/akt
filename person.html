@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Profile — Apno Ki Talash</title>
+<link rel="icon" type="image/png" href="apnonkitalash-icon-light.png"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #faf7f2;
+    --surface: #ffffff;
+    --border: #e0d8cc;
+    --ink: #2a2318;
+    --muted: #7a6e5e;
+    --gold: #9a6f2f;
+    --gold2: #c9a84c;
+    --goldl: #f5ead5;
+    --red: #8b2e2e;
+    --green: #2e6e4a;
+    --accent: #5c3d11;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: 'Lato', sans-serif; min-height: 100vh; }
+
+  /* ===== AUTH GATE ===== */
+  #auth-gate {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 38px;
+    background:
+      radial-gradient(circle at 18% 18%, rgba(201,168,76,0.20), transparent 30%),
+      linear-gradient(135deg, #fbf7ef 0%, #efe5d4 50%, #dfe8d8 100%);
+    position: relative; overflow: hidden;
+  }
+  #auth-gate::before {
+    content: ''; position: absolute; inset: 0;
+    background: url('apnonkitalash-logo-favicon.png') center/cover no-repeat;
+    opacity: 0.16; filter: saturate(0.9);
+  }
+  #auth-gate::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(250,247,242,0.82) 0%, rgba(250,247,242,0.58) 48%, rgba(46,74,48,0.72) 100%);
+  }
+  .auth-shell {
+    position: relative; z-index: 1; width: min(480px, 100%);
+  }
+  .auth-box {
+    background: rgba(255,255,255,0.88); border: 1px solid rgba(201,168,76,0.42);
+    border-top: 3px solid var(--gold2);
+    padding: 40px 36px; width: 100%; text-align: center;
+    box-shadow: 0 20px 60px rgba(46,74,48,0.18);
+    backdrop-filter: blur(10px);
+  }
+  .auth-icon {
+    width: 72px; height: 72px; margin: 0 auto 14px; overflow: hidden;
+    border: 1px solid rgba(201,168,76,0.38); box-shadow: 0 12px 28px rgba(92,61,17,0.12);
+    background: #f8f1e5;
+  }
+  .auth-icon img { width: 100%; height: 100%; object-fit: cover; }
+  .auth-box .urdu { font-family: 'Amiri', serif; font-size: 2rem; color: #264532; direction: rtl; line-height: 1.2; margin-bottom: 4px; }
+  .auth-box .eng { font-size: 0.72rem; color: var(--gold); letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 24px; font-weight: 700; }
+  .auth-box .prompt { font-size: 0.88rem; color: #5f5547; margin-bottom: 18px; line-height: 1.65; }
+  .auth-box input {
+    width: 100%; padding: 14px 16px; background: rgba(250,247,242,0.9);
+    border: 1px solid #d2c5b3; color: var(--ink);
+    font-size: 1rem; font-family: 'Lato', sans-serif;
+    outline: none; transition: border 0.2s; margin-bottom: 14px;
+    text-align: center;
+  }
+  .auth-box input:focus { border-color: var(--gold2); box-shadow: 0 0 0 3px rgba(201,168,76,0.13); }
+  .auth-box input::placeholder { color: #aaa; }
+  .btn-enter {
+    width: 100%; padding: 14px; background: #2f4d37; color: #fff9ef;
+    border: none; font-family: 'Lato', sans-serif; font-weight: 700;
+    font-size: 0.85rem; letter-spacing: 0.12em; text-transform: uppercase;
+    cursor: pointer; transition: background 0.2s;
+  }
+  .btn-enter:hover { background: #213b2a; }
+  .auth-err { color: #c0392b; font-size: 0.82rem; margin-top: 12px; display: none; }
+
+  /* ===== MAIN APP ===== */
+  #app { display: none; }
+
+  header {
+    background:
+      linear-gradient(135deg, rgba(74,103,65,0.97) 0%, rgba(61,92,58,0.97) 50%, rgba(46,74,48,0.98) 100%),
+      url('apnonkitalash-logo-favicon.png') center/cover no-repeat;
+    color: #f0ede6;
+    padding: 0 32px; display: flex; align-items: center;
+    justify-content: space-between; height: 64px;
+    border-bottom: 2px solid var(--gold2);
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  }
+  .logo { display: flex; align-items: center; gap: 14px; text-decoration: none; }
+  .header-mark {
+    width: 42px; height: 42px; overflow: hidden; flex: 0 0 42px;
+    border: 1px solid rgba(201,168,76,0.55); background: rgba(250,247,242,0.92);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+  }
+  .header-mark img { width: 100%; height: 100%; object-fit: cover; }
+  .logo-urdu { font-family: 'Amiri', serif; font-size: 1.5rem; color: var(--gold2); direction: rtl; }
+  .logo-eng { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: #c5d9b8; }
+  .huser { font-size: 0.82rem; color: #c5d9b8; }
+  .huser span { color: var(--gold2); }
+
+  main { padding: 28px 32px; max-width: 860px; margin: 0 auto; }
+
+  /* PERSON DETAIL */
+  .person-detail {
+    background: var(--surface); border: 1px solid var(--border);
+    border-top: 3px solid var(--gold2); padding: 28px;
+  }
+  .detail-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .detail-header h2 { font-family: 'Amiri', serif; font-size: 1.8rem; color: var(--ink); }
+  .detail-header .meta { color: var(--muted); font-size: 0.82rem; margin-top: 4px; }
+  .btn-back { padding: 8px 18px; border: 1px solid var(--border); background: none; font-family: 'Lato', sans-serif; font-size: 0.8rem; color: var(--muted); cursor: pointer; transition: all 0.2s; text-decoration: none; display: inline-block; }
+  .btn-back:hover { border-color: var(--gold); color: var(--gold); }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media(max-width:600px){ .detail-grid { grid-template-columns: 1fr; } }
+  .detail-field { padding: 12px 14px; background: var(--bg); border: 1px solid var(--border); }
+  .detail-field .key { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .detail-field .val { font-size: 0.9rem; color: var(--ink); }
+  .section-h { font-family: 'Amiri', serif; font-size: 1.1rem; color: var(--gold); margin-bottom: 12px; margin-top: 20px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .family-card { background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--gold2); padding: 14px; margin-bottom: 10px; }
+  .family-card .fc-title { font-weight: 700; font-size: 0.87rem; margin-bottom: 6px; }
+  .family-card .fc-detail { font-size: 0.8rem; color: var(--muted); }
+  .children-list { list-style: none; padding: 0; }
+  .children-list li { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.87rem; cursor: pointer; }
+  .children-list li:hover { color: var(--gold); }
+  .fc-children { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+  .fc-children-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 4px; }
+  .badge { display: inline-block; padding: 2px 7px; font-size: 0.68rem; border-radius: 2px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+  .badge-M { background: #dbeafe; color: #1e40af; }
+  .badge-F { background: #fce7f3; color: #9d174d; }
+  .badge-deceased { background: #f1f5f9; color: #64748b; }
+  .person-link { font-weight: 700; color: var(--ink); cursor: pointer; text-decoration: none; }
+  .person-link:hover { color: var(--gold); text-decoration: underline; }
+
+  /* CORRECTION FORM */
+  #correction-section {
+    margin-top: 24px; background: var(--surface);
+    border: 1px solid var(--border); border-top: 3px solid var(--red);
+    padding: 24px 28px;
+  }
+  #correction-section h3 {
+    font-family: 'Amiri', serif; font-size: 1.2rem; color: var(--red);
+    margin-bottom: 18px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .form-section-label {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--gold);
+    margin-bottom: 14px; border-bottom: 1px solid var(--border);
+    padding-bottom: 6px; margin-top: 20px;
+  }
+  .form-section-label:first-child { margin-top: 0; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  @media(max-width:600px){ .form-grid { grid-template-columns: 1fr; } }
+  .form-field { display: grid; gap: 5px; font-size: 0.82rem; color: var(--muted); font-weight: 700; }
+  .form-field input, .form-field textarea {
+    padding: 10px 12px; border: 1px solid var(--border);
+    background: var(--surface); font-family: 'Lato', sans-serif;
+    font-size: 0.9rem; outline: none; color: var(--ink);
+    transition: border 0.2s;
+  }
+  .form-field input:focus, .form-field textarea:focus { border-color: var(--gold2); }
+  .form-field input[readonly], .form-field input[readonly]:focus {
+    background: #f5f0e8; border-color: var(--gold2); cursor: default;
+  }
+  .form-field textarea { resize: vertical; }
+  .golden-section {
+    background: var(--goldl); border: 1px solid var(--gold2);
+    padding: 16px 18px; margin-bottom: 20px;
+  }
+  .golden-label {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--gold);
+    margin-bottom: 12px; border-bottom: 1px solid var(--gold2); padding-bottom: 6px;
+  }
+  .submit-btn {
+    padding: 12px 28px; background: var(--green); color: #fff;
+    border: none; font-family: 'Lato', sans-serif; font-weight: 700;
+    font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer; transition: background 0.2s; margin-top: 18px;
+  }
+  .submit-btn:hover { background: #213b2a; }
+  .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .empty-state { padding: 48px; text-align: center; color: var(--muted); font-size: 0.9rem; }
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media(max-width:640px){
+    header { padding: 0 16px; }
+    main { padding: 16px; }
+    .person-detail { padding: 18px; }
+    #correction-section { padding: 16px 18px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== AUTH GATE ===== -->
+<div id="auth-gate">
+  <div class="auth-shell">
+    <div class="auth-box">
+      <div class="auth-icon">
+        <img src="apnonkitalash-logo-favicon.png" alt="Logo"/>
+      </div>
+      <div class="urdu">اپنوں کی تلاش</div>
+      <div class="eng">Apno Ki Talash</div>
+      <p class="prompt">Enter your name to view this profile</p>
+      <input id="visitor-name" type="text" placeholder="Your name" autocomplete="name"
+             onkeydown="if(event.key==='Enter') doEnter()"/>
+      <button class="btn-enter" onclick="doEnter()">Enter</button>
+      <div id="auth-err" class="auth-err">Please enter your name to continue.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="app">
+  <header>
+    <a class="logo" href="index.html">
+      <div class="header-mark"><img src="apnonkitalash-logo-favicon.png" alt="Logo"/></div>
+      <div>
+        <div class="logo-urdu">اپنوں کی تلاش</div>
+        <div class="logo-eng">Apno Ki Talash</div>
+      </div>
+    </a>
+    <div class="huser">Viewing as <span id="user-display"></span></div>
+  </header>
+
+  <main>
+    <div id="person-container">
+      <div class="empty-state"><span class="spinner"></span> Loading profile…</div>
+    </div>
+
+    <!-- Correction form — hidden until "Raise Corrections" is clicked -->
+    <div id="correction-section" style="display:none">
+      <h3>✏️ Raise a Correction</h3>
+
+      <form id="correction-form" onsubmit="submitCorrection(event)">
+        <input type="hidden" id="cf-person-uid"/>
+        <input type="hidden" id="cf-submission-type" value="correction"/>
+
+        <!-- Golden: person being corrected (always pre-filled on this page) -->
+        <div class="golden-section">
+          <div class="golden-label">Profile Being Corrected</div>
+          <div style="display:grid;gap:10px">
+            <label class="form-field">
+              Person name
+              <input id="cf-person-name" readonly placeholder="—"/>
+            </label>
+            <div class="form-grid">
+              <label class="form-field">
+                Index number (source file)
+                <input id="cf-gedcom-source" readonly placeholder="—"/>
+              </label>
+              <label class="form-field">
+                Profile link
+                <input id="cf-profile-link" readonly placeholder="—"
+                       style="color:#2563eb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"/>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- About you -->
+        <div class="form-section-label">About You</div>
+        <div class="form-grid">
+          <label class="form-field">
+            Your name <span style="color:var(--red)">*</span>
+            <input id="cf-requester-name" required placeholder="Your full name" autocomplete="name"/>
+          </label>
+          <label class="form-field">
+            Your mobile <span style="color:var(--red)">*</span>
+            <input id="cf-requester-mobile" required type="tel" placeholder="Mobile number"/>
+          </label>
+        </div>
+        <div class="form-grid">
+          <label class="form-field">
+            Your father's name
+            <input id="cf-requester-father" placeholder="Optional"/>
+          </label>
+          <label class="form-field">
+            Family number (from Index)
+            <input id="cf-family-number" placeholder="e.g. 12"/>
+          </label>
+        </div>
+
+        <!-- Correction details -->
+        <div class="form-section-label" style="margin-top:20px">Correction Details</div>
+        <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;line-height:1.6">Fill in only the fields that need a correction. Leave blank if unchanged.</p>
+        <div style="display:grid;gap:12px">
+          <label class="form-field">
+            Correction to: Name
+            <input id="cf-corr-name" placeholder="Corrected name for this person"/>
+          </label>
+          <label class="form-field">
+            Correction to: Parents
+            <textarea id="cf-corr-parents" rows="2" placeholder="Corrected father / mother details"></textarea>
+          </label>
+          <label class="form-field">
+            Correction to: Siblings
+            <textarea id="cf-corr-siblings" rows="2" placeholder="Missing or incorrect siblings"></textarea>
+          </label>
+          <label class="form-field">
+            Correction to: Spouse
+            <textarea id="cf-corr-spouse" rows="2" placeholder="Corrected spouse information"></textarea>
+          </label>
+          <label class="form-field">
+            Correction to: Children
+            <textarea id="cf-corr-children" rows="2" placeholder="Missing or incorrect children"></textarea>
+          </label>
+        </div>
+
+        <!-- Remarks -->
+        <div style="border-top:1px solid var(--border);padding-top:18px;margin-top:18px">
+          <label class="form-field">
+            Additional remarks
+            <textarea id="cf-remarks" rows="3" placeholder="Any other context, instructions, or notes for the team…"></textarea>
+          </label>
+        </div>
+
+        <button id="cf-submit-btn" class="submit-btn" type="submit">Submit Correction Request</button>
+      </form>
+      <div id="correction-status" style="display:none;margin-top:14px;padding:12px 16px;font-size:0.85rem;font-weight:700;border-left:3px solid var(--gold)"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://fusairoeiabmqvsbxhfi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1c2Fpcm9laWFibXF2c2J4aGZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MTUwNTgsImV4cCI6MjA5MzQ5MTA1OH0.uTVlBn4iDFZzAeD2i4Bzt4fXVxGequ2W9LIxugBIKsA';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let gedcomUploads = [];
+let currentPerson = null; // cached person data
+
+// ===== AUTH =====
+async function doEnter() {
+  const name = document.getElementById('visitor-name').value.trim();
+  if (!name) {
+    document.getElementById('auth-err').style.display = 'block';
+    return;
+  }
+
+  const { data: existing } = await sb.from('visitors').select('*').ilike('name_entered', name).maybeSingle();
+  if (existing?.is_blocked) {
+    document.getElementById('auth-err').textContent = 'Access denied. Please contact the administrator.';
+    document.getElementById('auth-err').style.display = 'block';
+    return;
+  }
+
+  const visitCount = existing ? (existing.visit_count || 0) + 1 : 1;
+  if (existing) {
+    await sb.from('visitors').update({ last_seen: new Date().toISOString(), visit_count: visitCount }).eq('id', existing.id);
+  } else {
+    await sb.from('visitors').insert({ name_entered: name, visit_count: 1 });
+  }
+
+  currentUser = name;
+  document.getElementById('user-display').textContent = name;
+  document.getElementById('auth-gate').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  // Pre-fill requester name in correction form
+  document.getElementById('cf-requester-name').value = name;
+
+  await loadGedcomSources();
+  await loadPerson();
+}
+
+// ===== GEDCOM SOURCES =====
+async function loadGedcomSources() {
+  const { data } = await sb.from('gedcom_uploads').select('id,filename,people_count');
+  gedcomUploads = (data || []).map(u => ({
+    id: u.id,
+    filename: u.filename || '',
+    count: u.people_count || 0
+  }));
+}
+
+// ===== LOAD PERSON FROM URL =====
+async function loadPerson() {
+  const params = new URLSearchParams(location.search);
+  const uid = params.get('uid');
+  const container = document.getElementById('person-container');
+
+  if (!uid) {
+    container.innerHTML = `<div class="empty-state">No person specified. <a href="index.html" style="color:var(--gold)">Go back to search</a>.</div>`;
+    return;
+  }
+
+  await renderPerson(uid, container);
+}
+
+// ===== NAVIGATE TO ANOTHER PERSON =====
+function goPerson(uid) {
+  window.location.href = 'person.html?uid=' + encodeURIComponent(uid);
+}
+
+// ===== RENDER PERSON DETAIL =====
+async function renderPerson(uid, el) {
+  el.innerHTML = `<div class="empty-state"><span class="spinner"></span> Loading…</div>`;
+
+  const { data: p } = await sb.from('people').select('*').eq('uid', uid).single();
+  if (!p) {
+    el.innerHTML = `<div class="empty-state">Person not found. <a href="index.html" style="color:var(--gold)">Go back to search</a>.</div>`;
+    return;
+  }
+
+  currentPerson = p;
+
+  // Update page title
+  document.title = (p.name || 'Profile') + ' — Apno Ki Talash';
+
+  // Source GEDCOM label
+  const srcUpload = gedcomUploads.find(u => u.id === p.gedcom_id);
+  const srcLabel  = srcUpload ? srcUpload.filename.replace(/\.ged$/i, '') : '';
+
+  // Families as spouse
+  const { data: famsAsSpouse } = await sb.from('families')
+    .select('*')
+    .or(`husband_uid.eq.${uid},wife_uid.eq.${uid}`);
+
+  // Family as child
+  const { data: famsAsChild } = await sb.from('family_members')
+    .select('family_uid, role')
+    .eq('person_uid', uid)
+    .eq('role', 'child');
+
+  // Parent family
+  let parentFamily = null;
+  if (famsAsChild && famsAsChild.length > 0) {
+    const { data: pf } = await sb.from('families').select('*').eq('uid', famsAsChild[0].family_uid).single();
+    parentFamily = pf;
+  }
+
+  // Siblings
+  let siblings = [];
+  if (parentFamily) {
+    const { data: sibMembers } = await sb.from('family_members')
+      .select('person_uid, birth_order')
+      .eq('family_uid', parentFamily.uid)
+      .eq('role', 'child')
+      .order('birth_order');
+    if (sibMembers && sibMembers.length > 1) {
+      const sibUids = sibMembers.map(m => m.person_uid).filter(u => u !== uid);
+      if (sibUids.length) {
+        const { data: sibPeople } = await sb.from('people').select('uid,name,sex').in('uid', sibUids);
+        // Preserve birth_order from sibMembers
+        const orderMap = {};
+        sibMembers.forEach(m => orderMap[m.person_uid] = m.birth_order);
+        siblings = (sibPeople || []).sort((a, b) => (orderMap[a.uid] || 99) - (orderMap[b.uid] || 99));
+      }
+    }
+  }
+
+  // Spouse UIDs
+  const spouseUids = [];
+  (famsAsSpouse || []).forEach(f => {
+    if (f.husband_uid && f.husband_uid !== uid) spouseUids.push(f.husband_uid);
+    if (f.wife_uid   && f.wife_uid   !== uid) spouseUids.push(f.wife_uid);
+  });
+  let spouseMap = {};
+  if (spouseUids.length) {
+    const { data: spouses } = await sb.from('people').select('uid,name').in('uid', spouseUids);
+    (spouses || []).forEach(s => spouseMap[s.uid] = s.name);
+  }
+
+  // Children
+  const famUids = (famsAsSpouse || []).map(f => f.uid);
+  let childrenMap = {};
+  const familyChildMap = {};
+  if (famUids.length) {
+    const { data: allMembers } = await sb.from('family_members')
+      .select('family_uid,person_uid,birth_order')
+      .in('family_uid', famUids)
+      .eq('role', 'child')
+      .order('birth_order');
+    if (allMembers && allMembers.length) {
+      const childUids = allMembers.map(m => m.person_uid);
+      const { data: childPeople } = await sb.from('people').select('uid,name,sex,death_flag').in('uid', childUids);
+      (childPeople || []).forEach(c => { childrenMap[c.uid] = c; });
+      allMembers.forEach(m => {
+        if (!familyChildMap[m.family_uid]) familyChildMap[m.family_uid] = [];
+        if (childrenMap[m.person_uid]) familyChildMap[m.family_uid].push(childrenMap[m.person_uid]);
+      });
+    }
+  }
+
+  // Parent names
+  let fatherName = '—', motherName = '—';
+  if (parentFamily) {
+    if (parentFamily.husband_uid) {
+      const { data: dad } = await sb.from('people').select('uid,name').eq('uid', parentFamily.husband_uid).single();
+      if (dad) fatherName = `<a class="person-link" href="person.html?uid=${encodeURIComponent(dad.uid)}">${escHtml(dad.name)}</a>`;
+    }
+    if (parentFamily.wife_uid) {
+      const { data: mum } = await sb.from('people').select('uid,name').eq('uid', parentFamily.wife_uid).single();
+      if (mum) motherName = `<a class="person-link" href="person.html?uid=${encodeURIComponent(mum.uid)}">${escHtml(mum.name)}</a>`;
+    }
+  }
+
+  const spouseFamilies = (famsAsSpouse || []).map(f => {
+    const spouseUid  = f.husband_uid === uid ? f.wife_uid : f.husband_uid;
+    const spouseName = spouseMap[spouseUid] || '(unknown)';
+    const children   = familyChildMap[f.uid] || [];
+    return { f, spouseUid, spouseName, children };
+  });
+
+  const allChildren = Object.values(childrenMap);
+
+  el.innerHTML = `
+    <div style="margin-bottom:16px">
+      <a class="btn-back" href="index.html">← Back to Search</a>
+    </div>
+    <div class="person-detail">
+      <div class="detail-header">
+        <div>
+          <h2>${escHtml(p.name || '(unnamed)')}</h2>
+          <div class="meta">
+            ${p.sex ? `<span class="badge badge-${p.sex}">${p.sex === 'M' ? '♂ Male' : '♀ Female'}</span>` : ''}
+            ${p.death_flag ? `&nbsp;<span class="badge badge-deceased">Deceased</span>` : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-back" style="border-color:var(--red);color:var(--red)"
+                  onclick="openCorrectionForm()">✏️ Raise Corrections</button>
+        </div>
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-field"><div class="key">Given Name</div><div class="val">${escHtml(p.given_name || p.name || '—')}</div></div>
+        ${p.birth_place  ? `<div class="detail-field"><div class="key">Birth Place</div><div class="val">${escHtml(p.birth_place)}</div></div>` : ''}
+        ${p.root_place   ? `<div class="detail-field"><div class="key">Root Place</div><div class="val">${escHtml(p.root_place)}</div></div>` : ''}
+        ${p.current_place? `<div class="detail-field"><div class="key">Current Place</div><div class="val">${escHtml(p.current_place)}</div></div>` : ''}
+        ${p.birth_date   ? `<div class="detail-field"><div class="key">Birth Date</div><div class="val">${escHtml(p.birth_date)}</div></div>` : ''}
+        ${p.death_date   ? `<div class="detail-field"><div class="key">Death Date</div><div class="val">${escHtml(p.death_date)}</div></div>` : ''}
+        ${p.death_place  ? `<div class="detail-field"><div class="key">Death Place</div><div class="val">${escHtml(p.death_place)}</div></div>` : ''}
+        ${p.occupation   ? `<div class="detail-field"><div class="key">Occupation</div><div class="val">${escHtml(p.occupation)}</div></div>` : ''}
+        <div class="detail-field"><div class="key">Father</div><div class="val">${fatherName}</div></div>
+        <div class="detail-field"><div class="key">Mother</div><div class="val">${motherName}</div></div>
+      </div>
+
+      ${siblings.length ? `
+        <div class="section-h">Siblings (${siblings.length})</div>
+        <ul class="children-list">
+          ${siblings.map(s => `
+            <li onclick="goPerson('${s.uid}')">
+              ${s.sex ? `<span class="badge badge-${s.sex}">${s.sex}</span>&nbsp;` : ''}
+              ${escHtml(s.name || '(unnamed)')}
+            </li>
+          `).join('')}
+        </ul>
+      ` : ''}
+
+      ${spouseFamilies.length ? `
+        <div class="section-h">Marriage(s)</div>
+        ${spouseFamilies.map(({ f, spouseUid, spouseName, children }, idx) => `
+          <div class="family-card">
+            <div class="fc-title">
+              ${spouseFamilies.length > 1 ? `<span style="font-size:0.75rem;color:var(--muted);margin-right:6px">Marriage ${idx+1}</span>` : ''}
+              Spouse: ${spouseUid
+                ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(spouseUid)}">${escHtml(spouseName)}</a>`
+                : `<span style="color:var(--muted)">${escHtml(spouseName)}</span>`}
+              ${f.marr_status ? `<span class="badge" style="margin-left:8px">${escHtml(f.marr_status)}</span>` : ''}
+            </div>
+            ${f.marr_date || f.marr_place ? `
+            <div class="fc-detail">
+              ${f.marr_date  ? `📅 ${escHtml(f.marr_date)}`  : ''}
+              ${f.marr_place ? `&nbsp;📍 ${escHtml(f.marr_place)}` : ''}
+            </div>` : ''}
+            ${children.length ? `
+            <div class="fc-children">
+              <div class="fc-children-label">Children (${children.length})</div>
+              <ul class="children-list">
+                ${children.map(c => `
+                  <li onclick="goPerson('${c.uid}')">
+                    ${c.sex ? `<span class="badge badge-${c.sex}">${c.sex}</span>&nbsp;` : ''}
+                    ${escHtml(c.name || '(unnamed)')}
+                    ${c.death_flag ? `<span style="font-size:0.7rem;color:var(--muted)"> ✝</span>` : ''}
+                  </li>
+                `).join('')}
+              </ul>
+            </div>` : ''}
+          </div>
+        `).join('')}
+      ` : ''}
+
+      ${!spouseFamilies.length && allChildren.length ? `
+        <div class="section-h">Children (${allChildren.length})</div>
+        <ul class="children-list">
+          ${allChildren.map(c => `
+            <li onclick="goPerson('${c.uid}')">
+              ${c.sex ? `<span class="badge badge-${c.sex}">${c.sex}</span>&nbsp;` : ''}
+              ${escHtml(c.name || '(unnamed)')}
+            </li>
+          `).join('')}
+        </ul>
+      ` : ''}
+
+      ${srcLabel ? `
+        <div style="margin-top:22px;padding-top:12px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--muted)">
+          📁 Source: <strong>${escHtml(srcLabel)}</strong>
+        </div>
+      ` : ''}
+    </div>
+  `;
+
+  // Pre-fill correction form hidden fields
+  document.getElementById('cf-person-uid').value    = p.uid;
+  document.getElementById('cf-person-name').value   = p.name || '';
+  document.getElementById('cf-gedcom-source').value = srcLabel;
+  document.getElementById('cf-profile-link').value  =
+    window.location.origin + '/person.html?uid=' + encodeURIComponent(p.uid);
+
+  // Log the view
+  if (currentUser) {
+    sb.from('activity_logs').insert({
+      visitor_name: currentUser,
+      action: 'view_person',
+      target: `Viewed: ${p.name || '(unnamed)'}`,
+      details: { person_uid: p.uid, source_id: p.gedcom_id || '' }
+    }).then(() => {});
+  }
+}
+
+// ===== CORRECTION FORM =====
+function openCorrectionForm() {
+  const section = document.getElementById('correction-section');
+  section.style.display = 'block';
+  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function submitCorrection(event) {
+  event.preventDefault();
+  const requesterName = document.getElementById('cf-requester-name').value.trim();
+  if (!requesterName) return;
+
+  const corrName     = document.getElementById('cf-corr-name').value.trim();
+  const corrParents  = document.getElementById('cf-corr-parents').value.trim();
+  const corrSiblings = document.getElementById('cf-corr-siblings').value.trim();
+  const corrSpouse   = document.getElementById('cf-corr-spouse').value.trim();
+  const corrChildren = document.getElementById('cf-corr-children').value.trim();
+
+  if (!corrName && !corrParents && !corrSiblings && !corrSpouse && !corrChildren) {
+    showStatus('Please fill in at least one correction field.', true);
+    return;
+  }
+
+  const btn = document.getElementById('cf-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+
+  const payload = {
+    submission_type:         'correction',
+    person_uid:              document.getElementById('cf-person-uid').value || null,
+    person_name:             document.getElementById('cf-person-name').value.trim() || null,
+    gedcom_source:           document.getElementById('cf-gedcom-source').value.trim() || null,
+    profile_link:            document.getElementById('cf-profile-link').value.trim() || null,
+    requester_name:          requesterName,
+    requester_mobile:        document.getElementById('cf-requester-mobile').value.trim() || null,
+    requester_father_name:   document.getElementById('cf-requester-father').value.trim() || null,
+    requester_family_number: document.getElementById('cf-family-number').value.trim() || null,
+    correction_name:         corrName     || null,
+    correction_parents:      corrParents  || null,
+    correction_siblings:     corrSiblings || null,
+    correction_spouse:       corrSpouse   || null,
+    correction_children:     corrChildren || null,
+    remarks:                 document.getElementById('cf-remarks').value.trim() || null,
+    status: 'new'
+  };
+
+  const { error } = await sb.from('correction_requests').insert(payload);
+  btn.disabled = false;
+  btn.textContent = 'Submit Correction Request';
+
+  if (error) {
+    showStatus('Submission failed: ' + error.message, true);
+    return;
+  }
+
+  showStatus('Thank you! Your correction has been received and will be reviewed.', false);
+  // Reset detail fields only, keep person/requester pre-fills
+  ['cf-corr-name','cf-corr-parents','cf-corr-siblings','cf-corr-spouse',
+   'cf-corr-children','cf-requester-mobile','cf-requester-father',
+   'cf-family-number','cf-remarks'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+
+function showStatus(msg, isError) {
+  const el = document.getElementById('correction-status');
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.borderColor = isError ? 'var(--red)' : 'var(--green)';
+  el.style.color = isError ? 'var(--red)' : 'var(--green)';
+  el.style.background = isError ? '#fef2f2' : '#f0faf4';
+}
+
+// ===== UTILS =====
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ===== KEYBOARD SUPPORT =====
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('auth-gate').style.display !== 'none') {
+    doEnter();
+  }
+});
+</script>
+</body>
+</html>

@@ -834,6 +834,11 @@ async function doEnter() {
     currentVisitCount = 1;
   }
 
+  sessionStorage.setItem('akt_visitor', name);
+  await startApp(name);
+}
+
+async function startApp(name) {
   currentUser = name;
   document.getElementById('user-display').textContent = name;
   document.getElementById('auth-gate').style.display = 'none';
@@ -842,13 +847,18 @@ async function doEnter() {
   logActivity('login', `Logged in: ${name}`, { visit_count: currentVisitCount });
   loadSearch('');
   // Handle legacy shareable person link — e.g. #person=<uid>
-  // Redirect to dedicated person page
   const hashMatch = location.hash.match(/^#person=(.+)$/);
   if (hashMatch) {
     const linkedUid = decodeURIComponent(hashMatch[1]);
     window.location.href = 'person.html?uid=' + encodeURIComponent(linkedUid);
   }
 }
+
+// Auto-login if session exists
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = sessionStorage.getItem('akt_visitor');
+  if (saved) startApp(saved);
+});
 
 function getIpHint() {
   // Basic browser fingerprint (not exact IP)

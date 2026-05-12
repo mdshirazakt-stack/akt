@@ -362,6 +362,11 @@ async function doEnter() {
     await sb.from('visitors').insert({ name_entered: name, visit_count: 1 });
   }
 
+  sessionStorage.setItem('akt_visitor', name);
+  await startApp(name);
+}
+
+async function startApp(name) {
   currentUser = name;
   document.getElementById('user-display').textContent = name;
   document.getElementById('auth-gate').style.display = 'none';
@@ -373,6 +378,14 @@ async function doEnter() {
   await loadGedcomSources();
   await loadPerson();
 }
+
+// Auto-login if session exists
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = sessionStorage.getItem('akt_visitor');
+  if (saved) {
+    startApp(saved);
+  }
+});
 
 // ===== GEDCOM SOURCES =====
 async function loadGedcomSources() {

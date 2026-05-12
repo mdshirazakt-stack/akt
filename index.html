@@ -135,17 +135,30 @@
   .huser span { color: var(--gold2); }
 
   nav {
-    background: var(--surface); border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; padding: 0 32px; gap: 4px;
+    display: flex; align-items: stretch;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 18px rgba(0,0,0,0.07);
+    margin: 14px 32px 0;
+    padding: 0 6px;
+    gap: 0;
     overflow-x: auto;
+    scrollbar-width: none;
   }
+  nav::-webkit-scrollbar { display: none; }
   .nav-tab {
-    padding: 16px 20px; font-size: 0.82rem; letter-spacing: 0.08em;
-    text-transform: uppercase; cursor: pointer; color: var(--muted);
-    border-bottom: 2px solid transparent; transition: all 0.2s;
-    background: none; border-top: none; border-left: none; border-right: none;
-    font-family: 'Lato', sans-serif; white-space: nowrap;
+    display: flex; align-items: center; gap: 7px;
+    padding: 13px 17px;
+    font-size: 0.875rem; font-weight: 600;
+    letter-spacing: 0; text-transform: none;
+    cursor: pointer; color: var(--muted);
+    border: none; border-bottom: 3px solid transparent;
+    background: none; font-family: 'Lato', sans-serif;
+    white-space: nowrap; transition: color 0.18s, border-color 0.18s;
+    border-radius: 0;
   }
+  .tab-icon { font-size: 1.15rem; line-height: 1; }
+  .tab-label { line-height: 1; }
   .nav-tab:hover { color: var(--ink); }
   .nav-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
 
@@ -384,7 +397,9 @@
   @media(max-width: 600px) {
     header { padding: 0 16px; }
     main { padding: 16px; }
-    nav { padding: 0 12px; }
+    nav { margin: 10px 12px 0; padding: 0 4px; border-radius: 12px; }
+    .nav-tab { padding: 11px 12px; font-size: 0.8rem; gap: 5px; }
+    .tab-icon { font-size: 1rem; }
     #auth-gate { padding: 18px; align-items: stretch; }
     .auth-shell { grid-template-columns: 1fr; gap: 14px; align-content: center; }
     .auth-story { text-align: center; padding: 0; }
@@ -447,14 +462,14 @@
   </header>
 
   <nav>
-    <button class="nav-tab active" onclick="switchTab('search', this)">🔍 Search</button>
-    <button class="nav-tab" onclick="switchTab('tree', this)">🌳 Browse Tree</button>
-    <button class="nav-tab" onclick="switchTab('stats', this)">📊 Stats</button>
-    <button class="nav-tab" onclick="switchTab('byfile', this)">📋 Index</button>
-    <button class="nav-tab" onclick="switchTab('allnames', this)">🔤 All Names</button>
-    <button class="nav-tab" onclick="switchTab('corrections', this)">✏️ Correct · Add Family</button>
-    <button class="nav-tab" onclick="switchTab('suggestions', this)">💡 Suggestions</button>
-    <button class="nav-tab" onclick="switchTab('findsomeone', this)">🔍 Find Someone</button>
+    <button class="nav-tab active" onclick="switchTab('search', this)"><span class="tab-icon">🔍</span><span class="tab-label">Search</span></button>
+    <button class="nav-tab" onclick="switchTab('tree', this)"><span class="tab-icon">🌳</span><span class="tab-label">Browse Tree</span></button>
+    <button class="nav-tab" onclick="switchTab('stats', this)"><span class="tab-icon">📊</span><span class="tab-label">Stats</span></button>
+    <button class="nav-tab" onclick="switchTab('byfile', this)"><span class="tab-icon">📋</span><span class="tab-label">Index</span></button>
+    <button class="nav-tab" onclick="switchTab('allnames', this)"><span class="tab-icon">🔤</span><span class="tab-label">All Names</span></button>
+    <button class="nav-tab" onclick="switchTab('corrections', this)"><span class="tab-icon">✏️</span><span class="tab-label">Correct · Add Family</span></button>
+    <button class="nav-tab" onclick="switchTab('suggestions', this)"><span class="tab-icon">💡</span><span class="tab-label">Suggestions</span></button>
+    <button class="nav-tab" onclick="switchTab('findsomeone', this)"><span class="tab-icon">🔍</span><span class="tab-label">Find Someone</span></button>
   </nav>
 
   <main>

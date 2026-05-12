@@ -846,11 +846,29 @@ async function startApp(name) {
   await loadGedcomSources();
   logActivity('login', `Logged in: ${name}`, { visit_count: currentVisitCount });
   loadSearch('');
+
+  const params = new URLSearchParams(location.search);
+
   // Handle legacy shareable person link — e.g. #person=<uid>
   const hashMatch = location.hash.match(/^#person=(.+)$/);
   if (hashMatch) {
-    const linkedUid = decodeURIComponent(hashMatch[1]);
-    window.location.href = 'person.html?uid=' + encodeURIComponent(linkedUid);
+    window.location.href = 'person.html?uid=' + encodeURIComponent(decodeURIComponent(hashMatch[1]));
+    return;
+  }
+
+  // Handle ?byfile=<gedcom_id> — navigate to Index tab and open that file
+  const byfileId = params.get('byfile');
+  if (byfileId) {
+    const btn = document.querySelector('.nav-tab[onclick*="byfile"]');
+    switchTab('byfile', btn);
+    const tryOpen = () => {
+      const hdr = document.getElementById('ged-hdr-' + byfileId);
+      if (!hdr) { setTimeout(tryOpen, 100); return; }
+      if (!hdr.classList.contains('open')) toggleGed(byfileId);
+      const sec = document.getElementById('ged-sec-' + byfileId);
+      if (sec) setTimeout(() => sec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
+    };
+    setTimeout(tryOpen, 80);
   }
 }
 

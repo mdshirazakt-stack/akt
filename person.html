@@ -617,7 +617,7 @@ async function renderPerson(uid, el) {
 
       ${srcLabel ? `
         <div style="margin-top:22px;padding-top:12px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--muted)">
-          📁 Source: <strong>${escHtml(srcLabel)}</strong>
+          📁 Source: <a href="index.html?byfile=${encodeURIComponent(p.gedcom_id)}" style="font-size:0.78rem;color:#2563eb;text-decoration:underline;cursor:pointer">${escHtml(srcLabel)}</a>
         </div>
       ` : ''}
     </div>

@@ -854,11 +854,11 @@ async function startApp(name) {
   }
 }
 
-// Auto-login if session exists
-window.addEventListener('DOMContentLoaded', () => {
+// Auto-login if session exists — runs directly since script is at bottom of body
+(function() {
   const saved = sessionStorage.getItem('akt_visitor');
   if (saved) startApp(saved);
-});
+})();
 
 function getIpHint() {
   // Basic browser fingerprint (not exact IP)

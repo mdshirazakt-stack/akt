@@ -379,13 +379,11 @@ async function startApp(name) {
   await loadPerson();
 }
 
-// Auto-login if session exists
-window.addEventListener('DOMContentLoaded', () => {
+// Auto-login if session exists — runs directly since script is at bottom of body
+(function() {
   const saved = sessionStorage.getItem('akt_visitor');
-  if (saved) {
-    startApp(saved);
-  }
-});
+  if (saved) startApp(saved);
+})();
 
 // ===== GEDCOM SOURCES =====
 async function loadGedcomSources() {

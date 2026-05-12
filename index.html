@@ -207,6 +207,15 @@
   .place-chip:hover { background: #d4ebc4; border-color: #6a9a50; color: #2a4a22; }
   .place-chip.active { background: #4a7040; border-color: #3a5830; color: #fff; }
   .place-chip .chip-count { font-size: 0.68rem; opacity: 0.75; }
+  .place-chip-more {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border: 1px dashed #b8d4a0; background: transparent;
+    font-family: 'Lato', sans-serif; font-size: 0.78rem; color: var(--muted);
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .place-chip-more:hover { border-color: #6a9a50; color: #3a6030; background: #f0f7eb; }
+  #place-chips-overflow { display: none; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  #place-chips-overflow.open { display: flex; }
 
   /* SOURCE FILTER DROPDOWN */
   .source-filter-row {
@@ -225,6 +234,22 @@
   tr:hover td { background: #fdf9f2; }
   .person-name { font-weight: 700; color: var(--ink); cursor: pointer; }
   .person-name:hover { color: var(--gold); text-decoration: underline; }
+
+  /* MOBILE TABLE → CARDS */
+  @media(max-width:640px) {
+    .people-table thead { display: none; }
+    .people-table, .people-table tbody, .people-table tr, .people-table td { display: block; width: 100%; }
+    .people-table tr { border: 1px solid var(--border); background: var(--surface); margin-bottom: 8px; border-left: 3px solid var(--gold2); }
+    .people-table tr:hover td { background: var(--surface); }
+    .people-table td { padding: 6px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: baseline; gap: 8px; font-size: 0.84rem; }
+    .people-table td:last-child { border-bottom: none; }
+    .people-table td::before { content: attr(data-label); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; flex-shrink: 0; min-width: 62px; }
+    .people-table td[data-label="Name"] { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .people-table td[data-label="Name"]::before { display: none; }
+    .people-table td[data-label="Name"] .person-name { font-size: 0.95rem; }
+    .people-table td[data-label="Deceased"],
+    .people-table td[data-label="Status"] { display: none; }
+  }
   .badge { display: inline-block; padding: 2px 7px; font-size: 0.68rem; border-radius: 2px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
   .badge-M { background: #dbeafe; color: #1e40af; }
   .badge-F { background: #fce7f3; color: #9d174d; }
@@ -395,11 +420,23 @@
   #toast.show { transform: translateY(0); opacity: 1; }
 
   @media(max-width: 600px) {
-    header { padding: 0 16px; }
-    main { padding: 16px; }
-    nav { margin: 10px 12px 0; padding: 0 4px; border-radius: 12px; }
-    .nav-tab { padding: 11px 12px; font-size: 0.8rem; gap: 5px; }
-    .tab-icon { font-size: 1rem; }
+    header { padding: 0 14px; height: 56px; }
+    .logo-eng { display: none; }
+    main { padding: 12px 14px; }
+    nav { margin: 8px 10px 0; padding: 0 2px; border-radius: 10px; }
+    .nav-tab { padding: 10px 11px; font-size: 0.8rem; gap: 4px; }
+    .tab-icon { font-size: 1.05rem; }
+    .tab-label { display: none; }
+    .nav-tab.active .tab-label { display: inline; font-size: 0.75rem; }
+    .filter-row { gap: 6px; margin-bottom: 14px; }
+    .filter-btn { padding: 6px 12px; font-size: 0.76rem; }
+    .source-filter-row { flex-direction: column; align-items: stretch; gap: 6px; }
+    .source-label { margin-bottom: 0; }
+    #source-select { max-width: 100% !important; }
+    .stats-bar { gap: 8px; margin-bottom: 18px; }
+    .stat-card { padding: 12px 14px; min-width: 80px; }
+    .stat-card .num { font-size: 1.4rem; }
+    .stat-card .lbl { font-size: 0.62rem; }
     #auth-gate { padding: 18px; align-items: stretch; }
     .auth-shell { grid-template-columns: 1fr; gap: 14px; align-content: center; }
     .auth-story { text-align: center; padding: 0; }
@@ -490,7 +527,7 @@
       <!-- PLACE QUICK-FILTERS -->
       <div id="place-filter-row" style="display:none;margin-bottom:10px">
         <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">📍 Filter by Place</div>
-        <div id="place-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        <div id="place-chips" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
       </div>
       <div class="source-filter-row" id="source-filter-row" style="display:none">
         <span class="source-label">📁 Source File:</span>
@@ -1099,19 +1136,44 @@ function buildPlaceChips(uploads) {
   const allChip = document.createElement('button');
   allChip.className = 'place-chip active';
   allChip.id = 'place-chip-all';
-  allChip.innerHTML = `🗺 All Places`;
+  allChip.innerHTML = `🗺 All`;
   allChip.onclick = () => setPlaceFilter(null, allChip);
   container.appendChild(allChip);
 
-  sorted.forEach(([place, info]) => {
+  const TOP_N = 4;
+  const visible = sorted.slice(0, TOP_N);
+  const overflow = sorted.slice(TOP_N);
+
+  function makeChip(place, info) {
     const chip = document.createElement('button');
     chip.className = 'place-chip';
     chip.dataset.placeIds = JSON.stringify(info.ids);
     chip.innerHTML = `📍 ${place} <span class="chip-count">(${info.count.toLocaleString()})</span>`;
     chip.title = `${info.ids.length} file${info.ids.length > 1 ? 's' : ''} for ${place}`;
     chip.onclick = () => setPlaceFilter(info.ids, chip);
-    container.appendChild(chip);
-  });
+    return chip;
+  }
+
+  visible.forEach(([place, info]) => container.appendChild(makeChip(place, info)));
+
+  if (overflow.length) {
+    // Overflow container
+    const overflowDiv = document.createElement('div');
+    overflowDiv.id = 'place-chips-overflow';
+    overflow.forEach(([place, info]) => overflowDiv.appendChild(makeChip(place, info)));
+    container.appendChild(overflowDiv);
+
+    // Toggle button
+    const moreBtn = document.createElement('button');
+    moreBtn.className = 'place-chip-more';
+    moreBtn.id = 'place-chips-more-btn';
+    moreBtn.innerHTML = `+ ${overflow.length} more ▾`;
+    moreBtn.onclick = () => {
+      const open = overflowDiv.classList.toggle('open');
+      moreBtn.innerHTML = open ? `▴ less` : `+ ${overflow.length} more ▾`;
+    };
+    container.appendChild(moreBtn);
+  }
 
   document.getElementById('place-filter-row').style.display = 'block';
 }
@@ -1414,7 +1476,7 @@ async function loadSearch(q) {
   el.innerHTML = `
     <div class="result-count">${count.toLocaleString()} people found${q ? ` for "<strong>${q}</strong>"` : ''}${filterDesc}${fuzzyNote}</div>
     <div style="overflow-x:auto">
-    <table>
+    <table class="people-table">
       <thead><tr>
         <th>Name</th><th>Sex</th><th>Birth Place</th><th>Deceased</th><th>Status</th><th>Source</th>
       </tr></thead>
@@ -1423,12 +1485,12 @@ async function loadSearch(q) {
         const displayName = highlightName(p.name || '(unnamed)', rawTokens);
         return `
         <tr>
-          <td><span class="person-name" onclick="showPerson('${p.uid}')">${displayName}</span></td>
-          <td>${p.sex ? `<span class="badge badge-${p.sex}">${p.sex === 'M' ? '♂ M' : '♀ F'}</span>` : '-'}</td>
-          <td>${p.birth_place || '-'}</td>
-          <td>${p.death_flag ? '✓' : '-'}</td>
-          <td>${p.marr_status ? `<span class="badge badge-${p.marr_status}">${p.marr_status}</span>` : '-'}</td>
-          <td>${src ? `<span class="source-tag" title="${p.gedcom_id}">${src}</span>` : '-'}</td>
+          <td data-label="Name"><span class="person-name" onclick="showPerson('${p.uid}')">${displayName}</span></td>
+          <td data-label="Sex">${p.sex ? `<span class="badge badge-${p.sex}">${p.sex === 'M' ? '♂ M' : '♀ F'}</span>` : '-'}</td>
+          <td data-label="Birth Place">${p.birth_place || '-'}</td>
+          <td data-label="Deceased">${p.death_flag ? '✓' : '-'}</td>
+          <td data-label="Status">${p.marr_status ? `<span class="badge badge-${p.marr_status}">${p.marr_status}</span>` : '-'}</td>
+          <td data-label="Source">${src ? `<span class="source-tag" title="${p.gedcom_id}">${src}</span>` : '-'}</td>
         </tr>`;
       }).join('')}</tbody>
     </table>

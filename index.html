@@ -1525,7 +1525,11 @@ function goPage(p) { searchPage = p; loadSearch(lastQuery); window.scrollTo(0,0)
 // ===== PERSON DETAIL =====
 async function showPersonInElement(uid, el) {
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-  await renderPersonDetail(uid, el);
+  try {
+    await renderPersonDetail(uid, el);
+  } catch(err) {
+    el.innerHTML = `<div class="empty-state" style="color:var(--red)">Could not load profile: ${err.message}</div>`;
+  }
 }
 
 function showPerson(uid) {
@@ -2766,12 +2770,13 @@ window.addEventListener('scroll', function() {
 });
 
 // ===================== ALL NAMES POPUP =====================
-let popupList    = [];   // current ordered list of people being browsed
-let popupIndex   = 0;   // index into popupList
+let popupList       = [];   // current ordered list of people being browsed
+let popupIndex      = 0;    // index into popupList
+let popupCurrentUid = null; // fallback uid when list is empty
 
 function showPersonPopup(uid, list) {
-  // list = ordered array of {uid, name} from the current alpha section or full allnamesData
-  popupList  = list  || allnamesData;
+  popupCurrentUid = uid;
+  popupList  = (list && list.length) ? list : [];
   popupIndex = popupList.findIndex(p => p.uid === uid);
   if (popupIndex < 0) popupIndex = 0;
 
@@ -2802,18 +2807,20 @@ function navigatePopup(dir) {
 }
 
 async function loadPopupPerson() {
-  const uid = popupList[popupIndex]?.uid;
+  // Use list item uid if available, fall back to the directly passed uid
+  const uid = popupList[popupIndex]?.uid || popupCurrentUid;
   if (!uid) return;
 
   // Update nav counter + buttons
-  const counter  = document.getElementById('popup-counter');
-  const prevBtn  = document.getElementById('popup-prev');
-  const nextBtn  = document.getElementById('popup-next');
-  counter.textContent  = (popupIndex + 1) + ' / ' + popupList.length;
-  prevBtn.disabled = popupIndex === 0;
-  prevBtn.style.opacity = popupIndex === 0 ? '0.35' : '1';
-  nextBtn.disabled = popupIndex === popupList.length - 1;
-  nextBtn.style.opacity = popupIndex === popupList.length - 1 ? '0.35' : '1';
+  const counter = document.getElementById('popup-counter');
+  const prevBtn = document.getElementById('popup-prev');
+  const nextBtn = document.getElementById('popup-next');
+  const hasList = popupList.length > 1;
+  counter.textContent   = hasList ? `${popupIndex + 1} / ${popupList.length}` : '';
+  prevBtn.disabled      = !hasList || popupIndex === 0;
+  prevBtn.style.opacity = prevBtn.disabled ? '0.35' : '1';
+  nextBtn.disabled      = !hasList || popupIndex === popupList.length - 1;
+  nextBtn.style.opacity = nextBtn.disabled ? '0.35' : '1';
 
   // Scroll popup back to top
   document.getElementById('person-popup').scrollTop = 0;

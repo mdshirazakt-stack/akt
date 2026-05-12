@@ -907,6 +907,14 @@ async function startApp(name) {
     };
     setTimeout(tryOpen, 80);
   }
+
+  // Handle ?tree=<uid> — navigate to Tree tab and load that person's tree
+  const treeUid = params.get('tree');
+  if (treeUid) {
+    const btn = document.querySelector('.nav-tab[onclick*="tree"]');
+    switchTab('tree', btn);
+    setTimeout(() => loadTree(treeUid), 80);
+  }
 }
 
 // Auto-login if session exists — runs directly since script is at bottom of body

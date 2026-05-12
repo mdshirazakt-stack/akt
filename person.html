@@ -540,6 +540,8 @@ async function renderPerson(uid, el) {
           </div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <a class="btn-back" style="background:var(--green);color:#fff;border-color:var(--green)"
+             href="index.html?tree=${encodeURIComponent(p.uid)}">🌳 Browse Tree</a>
           <button class="btn-back" style="border-color:var(--red);color:var(--red)"
                   onclick="openCorrectionForm()">✏️ Raise Corrections</button>
         </div>

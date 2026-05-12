@@ -2492,6 +2492,8 @@ async function toggleGed(id) {
   renderGedBody(id, data);
 }
 
+let byfilePeopleList = []; // people in the currently visible byfile section
+
 function renderGedBody(id, people, filterQ) {
   const body = document.getElementById('ged-body-' + id);
   const q = (filterQ || '').toLowerCase().trim();
@@ -2499,6 +2501,9 @@ function renderGedBody(id, people, filterQ) {
   const filtered = q
     ? people.filter(p => (p.name || '').toLowerCase().includes(q))
     : people;
+
+  // Store for popup prev/next navigation
+  byfilePeopleList = filtered;
 
   if (!filtered.length) {
     body.innerHTML = `<div class="ged-body-loading" style="color:var(--muted)">${q ? 'No matches for "' + filterQ + '"' : 'No people found.'}</div>`;
@@ -2835,8 +2840,8 @@ async function loadPopupPerson() {
 
 // ===================== REWRITE showPersonFromByfile =====================
 function showPersonFromByfile(uid) {
-  // Build ordered list from full allnames data (respects current sort)
-  showPersonPopup(uid, allnamesData.length ? allnamesData : null);
+  // Use the current byfile section's people list for prev/next navigation
+  showPersonPopup(uid, byfilePeopleList.length ? byfilePeopleList : null);
 }
 
 </script>

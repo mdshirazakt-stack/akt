@@ -196,6 +196,98 @@
   }
   .filter-btn.active, .filter-btn:hover { border-color: var(--gold); color: var(--gold); background: var(--goldl); }
 
+  .search-tools {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .filter-open-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 16px; border: 1px solid var(--gold2); background: var(--surface);
+    color: var(--gold); font-family: 'Lato', sans-serif; font-size: 0.82rem;
+    font-weight: 700; cursor: pointer; transition: all 0.18s;
+  }
+  .filter-open-btn:hover { background: var(--goldl); border-color: var(--gold); color: var(--accent); }
+  .filter-summary { font-size: 0.82rem; color: var(--muted); }
+  .active-filter-pills {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    margin: 0 0 18px;
+  }
+  .active-filter-pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid var(--border); background: var(--surface);
+    padding: 7px 10px; color: var(--ink); font-size: 0.78rem;
+  }
+  .active-filter-pill button {
+    border: none; background: none; color: var(--gold); cursor: pointer;
+    font-size: 0.9rem; line-height: 1; padding: 0;
+  }
+  .active-filter-clear {
+    border: none; background: none; color: var(--gold); cursor: pointer;
+    font-size: 0.78rem; font-family: 'Lato', sans-serif; padding: 7px 4px;
+  }
+
+  .filter-drawer-backdrop {
+    position: fixed; inset: 0; background: rgba(42,35,24,0.34);
+    z-index: 9000; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .filter-drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+  .filter-drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(760px, calc(100vw - 28px));
+    background: var(--surface); border-left: 1px solid var(--border);
+    box-shadow: -18px 0 50px rgba(42,35,24,0.18); z-index: 9001;
+    transform: translateX(105%); transition: transform 0.24s ease;
+    display: flex; flex-direction: column;
+  }
+  .filter-drawer.open { transform: translateX(0); }
+  .filter-drawer-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 22px; border-bottom: 1px solid var(--border);
+  }
+  .filter-drawer-title { font-family: 'Amiri', serif; color: var(--ink); font-size: 1.5rem; line-height: 1; }
+  .filter-drawer-close {
+    border: none; background: none; color: var(--muted); cursor: pointer;
+    font-size: 1.5rem; line-height: 1; padding: 4px;
+  }
+  .filter-drawer-body {
+    flex: 1; overflow: auto; display: grid; grid-template-columns: 170px 1fr;
+    min-height: 0;
+  }
+  .filter-tabs {
+    border-right: 1px solid var(--border); background: #fbf8f1; padding: 14px 0;
+  }
+  .filter-tab {
+    width: 100%; border: none; background: transparent; text-align: left;
+    padding: 12px 18px; color: var(--ink); font-family: 'Lato', sans-serif;
+    font-size: 0.86rem; cursor: pointer; border-left: 3px solid transparent;
+  }
+  .filter-tab.active { background: var(--goldl); border-left-color: var(--gold2); color: var(--accent); font-weight: 700; }
+  .filter-pane { display: none; padding: 18px 22px 26px; }
+  .filter-pane.active { display: block; }
+  .filter-pane h3 { font-size: 0.92rem; color: var(--ink); margin-bottom: 10px; }
+  .filter-pane-help { color: var(--muted); font-size: 0.78rem; line-height: 1.55; margin-bottom: 14px; }
+  .filter-search {
+    width: 100%; border: 1px solid var(--border); background: var(--bg);
+    padding: 10px 12px; font-family: 'Lato', sans-serif; color: var(--ink);
+    outline: none; margin-bottom: 12px;
+  }
+  .filter-option-list { display: grid; gap: 8px; }
+  .filter-option {
+    display: flex; align-items: center; gap: 10px; color: var(--ink);
+    font-size: 0.84rem; line-height: 1.35;
+  }
+  .filter-option input { width: 18px; height: 18px; accent-color: var(--gold); flex: 0 0 18px; }
+  .filter-option-count { margin-left: auto; color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+  .filter-drawer-foot {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    border-top: 1px solid var(--border); padding: 16px 22px; background: var(--surface);
+  }
+  .filter-reset-btn, .filter-apply-btn {
+    padding: 11px 20px; font-family: 'Lato', sans-serif; font-weight: 700;
+    cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+  }
+  .filter-apply-btn { background: var(--gold); border-color: var(--gold); color: #fff; min-width: 160px; }
+  .filter-reset-btn:hover { border-color: var(--red); color: var(--red); }
+
   /* PLACE CHIPS */
   .place-chip {
     display: inline-flex; align-items: center; gap: 5px;
@@ -232,6 +324,7 @@
   th { background: var(--goldl); color: var(--accent); text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.1em; padding: 11px 14px; text-align: left; border-bottom: 2px solid var(--gold2); }
   td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.87rem; vertical-align: top; }
   tr:hover td { background: #fdf9f2; }
+  .people-table tr { cursor: pointer; }
   .person-name { font-weight: 700; color: var(--ink); cursor: pointer; }
   .person-name:hover { color: var(--gold); text-decoration: underline; }
 
@@ -239,16 +332,18 @@
   @media(max-width:640px) {
     .people-table thead { display: none; }
     .people-table, .people-table tbody, .people-table tr, .people-table td { display: block; width: 100%; }
-    .people-table tr { border: 1px solid var(--border); background: var(--surface); margin-bottom: 8px; border-left: 3px solid var(--gold2); }
+    .people-table tr { border: 1px solid var(--border); background: var(--surface); margin-bottom: 10px; border-left: 3px solid var(--gold2); position: relative; padding: 2px 28px 2px 0; box-shadow: 0 1px 6px rgba(42,35,24,0.04); }
+    .people-table tr::after { content: '›'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 1.35rem; }
     .people-table tr:hover td { background: var(--surface); }
     .people-table td { padding: 6px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: baseline; gap: 8px; font-size: 0.84rem; }
     .people-table td:last-child { border-bottom: none; }
     .people-table td::before { content: attr(data-label); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; flex-shrink: 0; min-width: 62px; }
     .people-table td[data-label="Name"] { padding: 10px 12px; border-bottom: 1px solid var(--border); }
     .people-table td[data-label="Name"]::before { display: none; }
-    .people-table td[data-label="Name"] .person-name { font-size: 0.95rem; }
+    .people-table td[data-label="Name"] .person-name { font-size: 0.95rem; display: block; padding-right: 8px; }
     .people-table td[data-label="Deceased"],
     .people-table td[data-label="Status"] { display: none; }
+    .source-tag { max-width: 100%; margin-left: 0; }
   }
   .badge { display: inline-block; padding: 2px 7px; font-size: 0.68rem; border-radius: 2px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
   .badge-M { background: #dbeafe; color: #1e40af; }
@@ -344,7 +439,7 @@
   .tree-connector { text-align: center; color: var(--border); font-size: 1.2rem; line-height: 1; margin: 2px 0; }
 
   @media print {
-    #auth-gate, header, nav, .search-wrap, .filter-row, #tree-search-results, button, .btn-back, .pagination { display: none !important; }
+    #auth-gate, header, nav, .search-wrap, .filter-row, .search-tools, .active-filter-pills, .filter-drawer, .filter-drawer-backdrop, #tree-search-results, button, .btn-back, .pagination { display: none !important; }
     body { background: white; }
     .gen-tree { overflow: visible; }
     .tree-box { page-break-inside: avoid; }
@@ -430,6 +525,28 @@
     .nav-tab.active .tab-label { display: inline; font-size: 0.75rem; }
     .filter-row { gap: 6px; margin-bottom: 14px; }
     .filter-btn { padding: 6px 12px; font-size: 0.76rem; }
+    .search-tools { gap: 8px; margin-bottom: 12px; }
+    .filter-open-btn { padding: 8px 12px; flex: 1; justify-content: center; }
+    .filter-summary { font-size: 0.78rem; }
+    .active-filter-pills { gap: 6px; margin-bottom: 14px; }
+    .active-filter-pill { padding: 6px 9px; font-size: 0.74rem; }
+    .filter-drawer {
+      top: auto; left: 0; right: 0; bottom: 0; width: 100%;
+      max-height: 88vh; border-left: none; border-top: 1px solid var(--border);
+      transform: translateY(105%); border-radius: 18px 18px 0 0;
+    }
+    .filter-drawer.open { transform: translateY(0); }
+    .filter-drawer-head { padding: 16px 18px; }
+    .filter-drawer-head::before {
+      content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+      width: 42px; height: 4px; border-radius: 999px; background: #d8d0c3;
+    }
+    .filter-drawer-body { display: block; }
+    .filter-tabs { display: none; }
+    .filter-pane { display: block; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+    .filter-pane h3 { display: flex; justify-content: space-between; align-items: center; }
+    .filter-drawer-foot { padding: 14px 18px; position: sticky; bottom: 0; }
+    .filter-reset-btn, .filter-apply-btn { flex: 1; padding: 11px 12px; }
     .source-filter-row { flex-direction: column; align-items: stretch; gap: 6px; }
     .source-label { margin-bottom: 0; }
     #source-select { max-width: 100% !important; }
@@ -526,21 +643,55 @@
         <button class="filter-btn" onclick="setFilter('deceased',this)">Deceased</button>
       </div>
 
-      <!-- PLACE QUICK-FILTERS -->
-      <div id="place-filter-row" style="display:none;margin-bottom:10px">
-        <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">📍 Filter by Place</div>
-        <div id="place-chips" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
+      <div class="search-tools">
+        <button class="filter-open-btn" type="button" onclick="openFilterDrawer()">
+          <span>▽</span>
+          <span id="filter-button-label">Filters</span>
+        </button>
+        <div class="filter-summary" id="filter-result-summary"></div>
       </div>
-      <div class="source-filter-row" id="source-filter-row" style="display:none">
-        <span class="source-label">📁 Source File:</span>
-        <div style="position:relative;flex:1;max-width:480px">
-          <select id="source-select" onchange="setSourceFilterDropdown(this)" style="width:100%;padding:7px 32px 7px 10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'Lato',sans-serif;font-size:0.82rem;cursor:pointer;appearance:none;outline:none;transition:border 0.2s">
-            <option value="">All Files</option>
-          </select>
-          <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted);font-size:0.7rem">▼</span>
+      <div class="active-filter-pills" id="active-filter-pills"></div>
+
+      <div id="filter-drawer-backdrop" class="filter-drawer-backdrop" onclick="closeFilterDrawer()"></div>
+      <aside id="filter-drawer" class="filter-drawer" aria-hidden="true">
+        <div class="filter-drawer-head">
+          <div class="filter-drawer-title">Filters</div>
+          <button class="filter-drawer-close" type="button" onclick="closeFilterDrawer()" aria-label="Close filters">×</button>
         </div>
-        <span id="source-count-label" style="font-size:0.75rem;color:var(--muted);white-space:nowrap"></span>
-      </div>
+        <div class="filter-drawer-body">
+          <div class="filter-tabs" aria-label="Filter sections">
+            <button class="filter-tab active" type="button" onclick="showFilterPane('locations', this)">Locations</button>
+            <button class="filter-tab" type="button" onclick="showFilterPane('sources', this)">Source Files</button>
+            <button class="filter-tab" type="button" onclick="showFilterPane('status', this)">Gender & Status</button>
+          </div>
+          <section class="filter-pane active" id="filter-pane-locations">
+            <h3>Locations</h3>
+            <p class="filter-pane-help">Choose one or more location groups extracted from source GEDCOM filenames.</p>
+            <input class="filter-search" id="location-filter-search" placeholder="Search locations..." oninput="renderLocationOptions()"/>
+            <div class="filter-option-list" id="location-options"></div>
+          </section>
+          <section class="filter-pane" id="filter-pane-sources">
+            <h3>Source Files</h3>
+            <p class="filter-pane-help">Choose one or more GEDCOM source files. Leave All Files selected to search the full archive.</p>
+            <input class="filter-search" id="source-filter-search" placeholder="Search source files..." oninput="renderSourceOptions()"/>
+            <div class="filter-option-list" id="source-options"></div>
+          </section>
+          <section class="filter-pane" id="filter-pane-status">
+            <h3>Gender & Status</h3>
+            <p class="filter-pane-help">These mirror the quick filters above.</p>
+            <div class="filter-option-list">
+              <label class="filter-option"><input type="radio" name="drawer-status-filter" value="all" checked onchange="setFilterFromDrawer(this.value)"/> All</label>
+              <label class="filter-option"><input type="radio" name="drawer-status-filter" value="M" onchange="setFilterFromDrawer(this.value)"/> Male</label>
+              <label class="filter-option"><input type="radio" name="drawer-status-filter" value="F" onchange="setFilterFromDrawer(this.value)"/> Female</label>
+              <label class="filter-option"><input type="radio" name="drawer-status-filter" value="deceased" onchange="setFilterFromDrawer(this.value)"/> Deceased</label>
+            </div>
+          </section>
+        </div>
+        <div class="filter-drawer-foot">
+          <button class="filter-reset-btn" type="button" onclick="resetAllFilters()">Reset all</button>
+          <button class="filter-apply-btn" type="button" onclick="applyDrawerFilters()">Apply Filters</button>
+        </div>
+      </aside>
       <div id="search-results">
         <div class="loading"><div class="spinner"></div></div>
       </div>
@@ -844,12 +995,20 @@ let activityLogDisabled = false;
 let locationHintPromise = null;
 let searchFilter = 'all';
 let sourceFilter = null; // gedcom_id UUID or null = all
+let selectedSourceIds = new Set();
+let selectedLocationNames = new Set();
+let selectedLocationSourceIds = new Set();
+let draftSourceIds = new Set();
+let draftLocationNames = new Set();
+let draftSearchFilter = 'all';
 let gedcomUploads = []; // [{id, filename, shortname}]
+let locationFilters = [];
 let searchPage = 0;
 const PAGE_SIZE = 50;
 let searchTotal = 0;
 let lastQuery = '';
 let searchTimer = null;
+let searchRequestSeq = 0;
 let lastPersonDetail = null; // set whenever a person detail is rendered
 
 // ===== AUTH =====
@@ -884,7 +1043,6 @@ async function startApp(name) {
   document.getElementById('app').style.display = 'block';
   await loadGedcomSources();
   logActivity('login', `Logged in: ${name}`, { visit_count: currentVisitCount });
-  loadSearch('');
 
   const params = new URLSearchParams(location.search);
 
@@ -900,9 +1058,14 @@ async function startApp(name) {
   if (byfileId) {
     const btn = document.querySelector('.nav-tab[onclick*="byfile"]');
     switchTab('byfile', btn);
+    let attempts = 0;
     const tryOpen = () => {
       const hdr = document.getElementById('ged-hdr-' + byfileId);
-      if (!hdr) { setTimeout(tryOpen, 100); return; }
+      if (!hdr) {
+        attempts += 1;
+        if (attempts < 40) setTimeout(tryOpen, 100);
+        return;
+      }
       if (!hdr.classList.contains('open')) toggleGed(byfileId);
       const sec = document.getElementById('ged-sec-' + byfileId);
       if (sec) setTimeout(() => sec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
@@ -916,7 +1079,10 @@ async function startApp(name) {
     const btn = document.querySelector('.nav-tab[onclick*="tree"]');
     switchTab('tree', btn);
     setTimeout(() => loadTree(treeUid), 80);
+    return;
   }
+
+  loadSearch('');
 }
 
 // Auto-login if session exists — runs directly since script is at bottom of body
@@ -1001,20 +1167,11 @@ async function loadGedcomSources() {
     .map(u => ({ id: u.id, filename: u.filename, count: u.people_count || 0 }))
     .sort(compareGedcomFiles);
 
-  // ── Populate source dropdown ──
-  const sel = document.getElementById('source-select');
-  sel.innerHTML = `<option value="">All Files (${gedcomUploads.reduce((s,u)=>s+u.count,0).toLocaleString()} people)</option>`;
-  gedcomUploads.forEach(u => {
-    const opt = document.createElement('option');
-    opt.value = u.id;
-    opt.textContent = u.filename.replace(/\.ged$/i, '') + `  (${u.count.toLocaleString()})`;
-    opt.title = u.filename;
-    sel.appendChild(opt);
-  });
-  document.getElementById('source-filter-row').style.display = 'flex';
+  renderSourceOptions();
 
-  // ── Extract places and build chips ──
+  // ── Extract places and build drawer options ──
   buildPlaceChips(gedcomUploads);
+  updateActiveFilterPills();
 }
 
 function gedcomFileNumbers(filename) {
@@ -1134,112 +1291,271 @@ function buildPlaceChips(uploads) {
     });
   });
 
-  if (!placeMap.size) return;
-
-  // Sort by people count descending
-  const sorted = [...placeMap.entries()].sort((a, b) => b[1].count - a[1].count);
-
-  const container = document.getElementById('place-chips');
-  container.innerHTML = '';
-
-  // "All places" reset chip
-  const allChip = document.createElement('button');
-  allChip.className = 'place-chip active';
-  allChip.id = 'place-chip-all';
-  allChip.innerHTML = `🗺 All`;
-  allChip.onclick = () => setPlaceFilter(null, allChip);
-  container.appendChild(allChip);
-
-  const TOP_N = 4;
-  const visible = sorted.slice(0, TOP_N);
-  const overflow = sorted.slice(TOP_N);
-
-  function makeChip(place, info) {
-    const chip = document.createElement('button');
-    chip.className = 'place-chip';
-    chip.dataset.placeIds = JSON.stringify(info.ids);
-    chip.innerHTML = `📍 ${place} <span class="chip-count">(${info.count.toLocaleString()})</span>`;
-    chip.title = `${info.ids.length} file${info.ids.length > 1 ? 's' : ''} for ${place}`;
-    chip.onclick = () => setPlaceFilter(info.ids, chip);
-    return chip;
-  }
-
-  visible.forEach(([place, info]) => container.appendChild(makeChip(place, info)));
-
-  if (overflow.length) {
-    // Overflow container
-    const overflowDiv = document.createElement('div');
-    overflowDiv.id = 'place-chips-overflow';
-    overflow.forEach(([place, info]) => overflowDiv.appendChild(makeChip(place, info)));
-    container.appendChild(overflowDiv);
-
-    // Toggle button
-    const moreBtn = document.createElement('button');
-    moreBtn.className = 'place-chip-more';
-    moreBtn.id = 'place-chips-more-btn';
-    moreBtn.innerHTML = `+ ${overflow.length} more ▾`;
-    moreBtn.onclick = () => {
-      const open = overflowDiv.classList.toggle('open');
-      moreBtn.innerHTML = open ? `▴ less` : `+ ${overflow.length} more ▾`;
-    };
-    container.appendChild(moreBtn);
-  }
-
-  document.getElementById('place-filter-row').style.display = 'block';
+  locationFilters = [...placeMap.entries()]
+    .map(([name, info]) => ({ name, ids: [...new Set(info.ids)], count: info.count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  renderLocationOptions();
 }
 
 // Active place filter: array of gedcom IDs, or null = all
 let placeFilterIds = null;
 
-function setPlaceFilter(ids, chip) {
-  placeFilterIds = ids;
-
-  // Update chip active states
-  document.querySelectorAll('.place-chip').forEach(c => c.classList.remove('active'));
-  chip.classList.add('active');
-
-  // If a place is selected, also reset the source dropdown to "All"
-  // (place filter overrides source filter for these IDs)
-  if (ids) {
-    sourceFilter = null;
-    const sel = document.getElementById('source-select');
-    if (sel) sel.value = '';
-    document.getElementById('source-count-label').textContent =
-      `${ids.length} file${ids.length > 1 ? 's' : ''} selected`;
-  } else {
-    document.getElementById('source-count-label').textContent = '';
-  }
-
+function setSourceFilter(id) {
+  sourceFilter = id || null;
+  selectedSourceIds = id ? new Set([id]) : new Set();
+  draftSourceIds = new Set(selectedSourceIds);
   searchPage = 0;
-  // Switch to search tab
+  syncLegacyFilterIds();
+  updateActiveFilterPills();
+  loadSearch(document.getElementById('search-input').value.trim());
+}
+
+function renderSourceOptions() {
+  const container = document.getElementById('source-options');
+  if (!container) return;
+  const q = (document.getElementById('source-filter-search')?.value || '').toLowerCase().trim();
+  const total = gedcomUploads.reduce((s, u) => s + u.count, 0);
+  const rows = gedcomUploads.filter(u => !q || cleanGedcomTitle(u.filename).toLowerCase().includes(q));
+  container.innerHTML = `
+    <label class="filter-option">
+      <input type="checkbox" ${draftSourceIds.size ? '' : 'checked'} onchange="toggleAllSources(this.checked)"/>
+      <span>All Files</span>
+      <span class="filter-option-count">${total.toLocaleString()}</span>
+    </label>
+    ${rows.map(u => `
+      <label class="filter-option">
+        <input type="checkbox" value="${escapeHtml(u.id)}" ${draftSourceIds.has(u.id) ? 'checked' : ''} onchange="toggleSourceSelection('${escapeJs(u.id)}', this.checked)"/>
+        <span title="${escapeHtml(u.filename)}">${escapeHtml(cleanGedcomTitle(u.filename))}</span>
+        <span class="filter-option-count">${Number(u.count || 0).toLocaleString()}</span>
+      </label>
+    `).join('')}
+  `;
+}
+
+function renderLocationOptions() {
+  const container = document.getElementById('location-options');
+  if (!container) return;
+  const q = (document.getElementById('location-filter-search')?.value || '').toLowerCase().trim();
+  const rows = locationFilters.filter(p => !q || p.name.toLowerCase().includes(q));
+  container.innerHTML = `
+    <label class="filter-option">
+      <input type="checkbox" ${draftLocationNames.size ? '' : 'checked'} onchange="toggleAllLocations(this.checked)"/>
+      <span>All Locations</span>
+    </label>
+    ${rows.map(p => `
+      <label class="filter-option">
+        <input type="checkbox" value="${escapeHtml(p.name)}" ${draftLocationNames.has(p.name) ? 'checked' : ''} onchange="toggleLocationSelection('${escapeJs(p.name)}', this.checked)"/>
+        <span>${escapeHtml(p.name)}</span>
+        <span class="filter-option-count">${Number(p.count || 0).toLocaleString()}</span>
+      </label>
+    `).join('')}
+  `;
+}
+
+function toggleAllSources(checked) {
+  if (checked) draftSourceIds.clear();
+  renderSourceOptions();
+}
+
+function toggleSourceSelection(id, checked) {
+  if (checked) draftSourceIds.add(id);
+  else draftSourceIds.delete(id);
+  renderSourceOptions();
+}
+
+function toggleAllLocations(checked) {
+  if (checked) {
+    draftLocationNames.clear();
+  }
+  renderLocationOptions();
+}
+
+function toggleLocationSelection(name, checked) {
+  if (checked) draftLocationNames.add(name);
+  else draftLocationNames.delete(name);
+  renderLocationOptions();
+}
+
+function rebuildSelectedLocationSourceIds() {
+  selectedLocationSourceIds = new Set();
+  locationFilters.forEach(place => {
+    if (!selectedLocationNames.has(place.name)) return;
+    place.ids.forEach(id => selectedLocationSourceIds.add(id));
+  });
+}
+
+function selectedGedcomIds() {
+  const hasSources = selectedSourceIds.size > 0;
+  const hasLocations = selectedLocationSourceIds.size > 0;
+  if (hasSources && hasLocations) {
+    return [...selectedSourceIds].filter(id => selectedLocationSourceIds.has(id));
+  }
+  if (hasSources) return [...selectedSourceIds];
+  if (hasLocations) return [...selectedLocationSourceIds];
+  return null;
+}
+
+function syncLegacyFilterIds() {
+  const ids = selectedGedcomIds();
+  placeFilterIds = selectedLocationSourceIds.size ? [...selectedLocationSourceIds] : null;
+  sourceFilter = selectedSourceIds.size === 1 ? [...selectedSourceIds][0] : null;
+  return ids;
+}
+
+function openFilterDrawer() {
+  draftSourceIds = new Set(selectedSourceIds);
+  draftLocationNames = new Set(selectedLocationNames);
+  draftSearchFilter = searchFilter;
+  renderSourceOptions();
+  renderLocationOptions();
+  renderDrawerStatusOptions();
+  document.getElementById('filter-drawer-backdrop').classList.add('open');
+  const drawer = document.getElementById('filter-drawer');
+  drawer.classList.add('open');
+  drawer.setAttribute('aria-hidden', 'false');
+}
+
+function closeFilterDrawer() {
+  document.getElementById('filter-drawer-backdrop').classList.remove('open');
+  const drawer = document.getElementById('filter-drawer');
+  drawer.classList.remove('open');
+  drawer.setAttribute('aria-hidden', 'true');
+}
+
+function showFilterPane(name, btn) {
+  document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+  document.querySelectorAll('.filter-pane').forEach(pane => pane.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const pane = document.getElementById('filter-pane-' + name);
+  if (pane) pane.classList.add('active');
+}
+
+function applyDrawerFilters() {
+  selectedSourceIds = new Set(draftSourceIds);
+  selectedLocationNames = new Set(draftLocationNames);
+  rebuildSelectedLocationSourceIds();
+  setFilterValue(draftSearchFilter);
+  searchPage = 0;
+  syncLegacyFilterIds();
+  updateActiveFilterPills();
+  closeFilterDrawer();
   switchTab('search', document.querySelector('.nav-tab[onclick*="search"]'));
   loadSearch(document.getElementById('search-input').value.trim());
 }
 
-function setSourceFilterDropdown(sel) {
-  sourceFilter = sel.value || null;
-  placeFilterIds = null; // clear place filter when source is manually chosen
-  // Reset place chips
-  document.querySelectorAll('.place-chip').forEach(c => c.classList.remove('active'));
-  const allChip = document.getElementById('place-chip-all');
-  if (allChip) allChip.classList.add('active');
-  const label = document.getElementById('source-count-label');
-  if (sourceFilter) {
-    const u = gedcomUploads.find(u => u.id === sourceFilter);
-    label.textContent = u ? `${u.count.toLocaleString()} people in this file` : '';
-  } else {
-    label.textContent = '';
-  }
+function resetAllFilters() {
+  selectedSourceIds.clear();
+  selectedLocationNames.clear();
+  selectedLocationSourceIds.clear();
+  draftSourceIds.clear();
+  draftLocationNames.clear();
+  draftSearchFilter = 'all';
+  setFilterValue('all');
   searchPage = 0;
+  syncLegacyFilterIds();
+  renderSourceOptions();
+  renderLocationOptions();
+  updateActiveFilterPills();
   loadSearch(document.getElementById('search-input').value.trim());
 }
 
-function setSourceFilter(id) {
-  sourceFilter = id;
-  const sel = document.getElementById('source-select');
-  if (sel) sel.value = id || '';
+function updateActiveFilterPills() {
+  const container = document.getElementById('active-filter-pills');
+  const buttonLabel = document.getElementById('filter-button-label');
+  const summary = document.getElementById('filter-result-summary');
+  if (!container) return;
+  const pills = [];
+  selectedLocationNames.forEach(name => pills.push({ type: 'location', key: name, label: name }));
+  selectedSourceIds.forEach(id => {
+    const source = gedcomUploads.find(u => u.id === id);
+    pills.push({ type: 'source', key: id, label: source ? cleanGedcomTitle(source.filename) : 'Source file' });
+  });
+  if (searchFilter !== 'all') pills.push({ type: 'status', key: searchFilter, label: filterLabel(searchFilter) });
+
+  container.innerHTML = pills.map(p => `
+    <span class="active-filter-pill">${escapeHtml(p.label)} <button type="button" onclick="removeFilterPill('${p.type}','${escapeJs(p.key)}')" aria-label="Remove ${escapeHtml(p.label)}">×</button></span>
+  `).join('') + (pills.length ? '<button class="active-filter-clear" type="button" onclick="resetAllFilters()">Clear all</button>' : '');
+
+  const count = pills.length;
+  if (buttonLabel) buttonLabel.textContent = count ? `Filters (${count})` : 'Filters';
+  if (summary) {
+    const gedcomIds = selectedGedcomIds();
+    if (gedcomIds && !gedcomIds.length) summary.textContent = 'No source files match the selected filters';
+    else if (gedcomIds) summary.textContent = `${gedcomIds.length} source file${gedcomIds.length === 1 ? '' : 's'} selected`;
+    else summary.textContent = '';
+  }
+}
+
+function removeFilterPill(type, key) {
+  if (type === 'location') {
+    selectedLocationNames.delete(key);
+    rebuildSelectedLocationSourceIds();
+  } else if (type === 'source') {
+    selectedSourceIds.delete(key);
+  } else if (type === 'status') {
+    setFilterValue('all');
+  }
   searchPage = 0;
+  syncLegacyFilterIds();
+  renderSourceOptions();
+  renderLocationOptions();
+  updateActiveFilterPills();
   loadSearch(document.getElementById('search-input').value.trim());
+}
+
+function setFilterFromDrawer(value) {
+  draftSearchFilter = value || 'all';
+  renderDrawerStatusOptions();
+}
+
+function setFilterValue(value) {
+  searchFilter = value || 'all';
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    const text = btn.textContent.trim().toLowerCase();
+    const active =
+      (searchFilter === 'all' && text === 'all') ||
+      (searchFilter === 'M' && text === 'male') ||
+      (searchFilter === 'F' && text === 'female') ||
+      (searchFilter === 'deceased' && text === 'deceased');
+    btn.classList.toggle('active', active);
+  });
+  document.querySelectorAll('input[name="drawer-status-filter"]').forEach(input => {
+    input.checked = input.value === searchFilter;
+  });
+}
+
+function renderDrawerStatusOptions() {
+  document.querySelectorAll('input[name="drawer-status-filter"]').forEach(input => {
+    input.checked = input.value === draftSearchFilter;
+  });
+}
+
+function filterLabel(value) {
+  return { all: 'All', M: 'Male', F: 'Female', deceased: 'Deceased' }[value] || value;
+}
+
+function cleanGedcomTitle(filename) {
+  return String(filename || '')
+    .replace(/\.ged$/i, '')
+    .replace(/[_]+/g, ' ')
+    .trim();
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function escapeJs(value) {
+  return String(value || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r');
 }
 
 // ===== TABS =====
@@ -1257,10 +1573,10 @@ function switchTab(name, btn) {
 
 // ===== SEARCH =====
 function setFilter(f, btn) {
-  searchFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  setFilterValue(f);
+  if (btn) btn.classList.add('active');
   searchPage = 0;
+  updateActiveFilterPills();
   loadSearch(document.getElementById('search-input').value.trim());
 }
 
@@ -1383,11 +1699,14 @@ function highlightName(name, tokens) {
 
 async function loadSearch(q) {
   lastQuery = q;
+  const requestSeq = ++searchRequestSeq;
   const el = document.getElementById('search-results');
+  if (!el) return;
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
   const baseSelect = 'uid,name,given_name,surname,sex,birth_place,death_flag,marr_status,gedcom_id';
 
+  try {
   // Split query into meaningful tokens (ignore short words, trim)
   const rawTokens = q ? q.trim().split(/\s+/).filter(t => t.length >= 2) : [];
 
@@ -1399,12 +1718,25 @@ async function loadSearch(q) {
     if (searchFilter === 'M') query = query.eq('sex', 'M');
     else if (searchFilter === 'F') query = query.eq('sex', 'F');
     else if (searchFilter === 'deceased') query = query.eq('death_flag', true);
-    if (placeFilterIds)  query = query.in('gedcom_id', placeFilterIds);
-    else if (sourceFilter) query = query.eq('gedcom_id', sourceFilter);
-    query = query.order('name').range(searchPage * PAGE_SIZE, (searchPage + 1) * PAGE_SIZE - 1);
-    const res = await query;
-    data = res.data || [];
-    count = res.count || 0;
+    const gedcomIds = selectedGedcomIds();
+    if (gedcomIds) {
+      if (!gedcomIds.length) {
+        data = [];
+        count = 0;
+        query = null;
+      } else {
+        query = query.in('gedcom_id', gedcomIds);
+      }
+    }
+    if (!query) {
+      // no matching source files after combined filters
+    } else {
+      query = query.order('name').range(searchPage * PAGE_SIZE, (searchPage + 1) * PAGE_SIZE - 1);
+      const res = await query;
+      if (requestSeq !== searchRequestSeq) return;
+      data = res.data || [];
+      count = res.count || 0;
+    }
 
   } else {
     // ── FUZZY MULTI-TOKEN SEARCH ──
@@ -1434,7 +1766,15 @@ async function loadSearch(q) {
     if (searchFilter === 'M') query = query.eq('sex', 'M');
     else if (searchFilter === 'F') query = query.eq('sex', 'F');
     else if (searchFilter === 'deceased') query = query.eq('death_flag', true);
-    if (sourceFilter) query = query.eq('gedcom_id', sourceFilter);
+    const gedcomIds = selectedGedcomIds();
+    if (gedcomIds) {
+      if (!gedcomIds.length) {
+        count = 0;
+        data = [];
+      } else {
+        query = query.in('gedcom_id', gedcomIds);
+      }
+    }
 
     // Apply OR across all fuzzy patterns
     // Supabase allows .or('cond1,cond2,...') — but has URL length limits
@@ -1448,9 +1788,12 @@ async function loadSearch(q) {
       if (searchFilter === 'M') q2 = q2.eq('sex', 'M');
       else if (searchFilter === 'F') q2 = q2.eq('sex', 'F');
       else if (searchFilter === 'deceased') q2 = q2.eq('death_flag', true);
-      if (placeFilterIds)  q2 = q2.in('gedcom_id', placeFilterIds);
-      else if (sourceFilter) q2 = q2.eq('gedcom_id', sourceFilter);
+      if (gedcomIds) {
+        if (!gedcomIds.length) continue;
+        q2 = q2.in('gedcom_id', gedcomIds);
+      }
       const { data: chunk_data } = await q2;
+      if (requestSeq !== searchRequestSeq) return;
       (chunk_data || []).forEach(row => { if (!allResults.has(row.uid)) allResults.set(row.uid, row); });
     }
 
@@ -1467,24 +1810,24 @@ async function loadSearch(q) {
   }
 
   // ── RENDER ───────────────────────────────────────────────────────
+  if (requestSeq !== searchRequestSeq) return;
   const srcMap = {};
   gedcomUploads.forEach(u => srcMap[u.id] = u.filename.replace(/\.ged$/i,''));
-  const activeSource = sourceFilter ? gedcomUploads.find(u => u.id === sourceFilter) : null;
-  const activePlaceChip = placeFilterIds ? document.querySelector('.place-chip.active:not(#place-chip-all)') : null;
-  const filterDesc = activePlaceChip
-    ? ` in <em>📍 ${activePlaceChip.textContent.replace(/\(.*\)/, '').trim()}</em>`
-    : activeSource ? ` in <em>${activeSource.filename.replace(/\.ged$/i,'')}</em>` : '';
+  const appliedFilters = [];
+  if (selectedLocationNames.size) appliedFilters.push(`${selectedLocationNames.size} location${selectedLocationNames.size === 1 ? '' : 's'}`);
+  if (selectedSourceIds.size) appliedFilters.push(`${selectedSourceIds.size} source file${selectedSourceIds.size === 1 ? '' : 's'}`);
+  const filterDesc = appliedFilters.length ? ` in <em>${appliedFilters.join(' + ')}</em>` : '';
   const fuzzyNote = rawTokens.length ? `<span style="font-size:0.75rem;color:var(--muted);margin-left:8px">✦ fuzzy + variant matching active</span>` : '';
 
   if (!data.length) {
-    el.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>No results found for "<strong>${q}</strong>".<br><span style="font-size:0.82rem;color:var(--muted)">Try fewer words, or check the spelling — fuzzy matching is already active.</span></p></div>`;
+    el.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>No results found${q ? ` for "<strong>${escapeHtml(q)}</strong>"` : ''}.<br><span style="font-size:0.82rem;color:var(--muted)">Try fewer words, clear a filter, or check the spelling.</span></p></div>`;
     if (q) logActivity('search', `Searched people: ${q}`, { query: q, result_count: 0 });
     return;
   }
 
   const pages = Math.ceil(count / PAGE_SIZE);
   el.innerHTML = `
-    <div class="result-count">${count.toLocaleString()} people found${q ? ` for "<strong>${q}</strong>"` : ''}${filterDesc}${fuzzyNote}</div>
+    <div class="result-count">${count.toLocaleString()} people found${q ? ` for "<strong>${escapeHtml(q)}</strong>"` : ''}${filterDesc}${fuzzyNote}</div>
     <div style="overflow-x:auto">
     <table class="people-table">
       <thead><tr>
@@ -1494,8 +1837,8 @@ async function loadSearch(q) {
         const src = srcMap[p.gedcom_id] || '';
         const displayName = highlightName(p.name || '(unnamed)', rawTokens);
         return `
-        <tr>
-          <td data-label="Name"><span class="person-name" onclick="showPerson('${p.uid}')">${displayName}</span></td>
+        <tr onclick="showPerson('${escapeJs(p.uid)}')">
+          <td data-label="Name"><span class="person-name">${displayName}</span></td>
           <td data-label="Sex">${p.sex ? `<span class="badge badge-${p.sex}">${p.sex === 'M' ? '♂ M' : '♀ F'}</span>` : '-'}</td>
           <td data-label="Birth Place">${p.birth_place || '-'}</td>
           <td data-label="Deceased">${p.death_flag ? '✓' : '-'}</td>
@@ -1508,6 +1851,11 @@ async function loadSearch(q) {
     ${pages > 1 ? `<div class="pagination">${buildPagination(pages)}</div>` : ''}
   `;
   if (q) logActivity('search', `Searched people: ${q}`, { query: q, result_count: count, page: searchPage + 1 });
+  } catch (err) {
+    if (requestSeq !== searchRequestSeq) return;
+    console.error('Search failed', err);
+    el.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>Search could not load right now.<br><span style="font-size:0.82rem;color:var(--muted)">Please try again in a moment.</span></p></div>`;
+  }
 }
 
 function buildPagination(pages) {
@@ -2004,9 +2352,14 @@ function navigateToGedcomIndex(gedcomId) {
   const btn = document.querySelector('.nav-tab[onclick*="byfile"]');
   switchTab('byfile', btn);
   // Wait for the skeleton to render, then open and scroll to the file
+  let attempts = 0;
   const tryOpen = () => {
     const hdr = document.getElementById('ged-hdr-' + gedcomId);
-    if (!hdr) { setTimeout(tryOpen, 100); return; }
+    if (!hdr) {
+      attempts += 1;
+      if (attempts < 40) setTimeout(tryOpen, 100);
+      return;
+    }
     if (!hdr.classList.contains('open')) toggleGed(gedcomId);
     const sec = document.getElementById('ged-sec-' + gedcomId);
     if (sec) setTimeout(() => sec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
@@ -2831,12 +3184,6 @@ async function loadPopupPerson() {
 
   // Reuse showPerson but render into popup body instead of search panel
   await showPersonInElement(uid, body);
-}
-
-// ===================== REWRITE showPersonFromByfile =====================
-function showPersonFromByfile(uid) {
-  // Use the current byfile section's people list for prev/next navigation
-  showPersonPopup(uid, byfilePeopleList.length ? byfilePeopleList : null);
 }
 
 </script>

@@ -859,14 +859,10 @@
                 <input id="cf-requester-mobile" required type="tel" placeholder="Mobile number" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
               </label>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex-wrap:wrap">
+            <div style="display:grid;grid-template-columns:1fr;gap:12px;flex-wrap:wrap">
               <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
                 Your father's name
                 <input id="cf-requester-father" placeholder="Optional" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
-              </label>
-              <label style="display:grid;gap:5px;font-size:0.82rem;color:var(--muted);font-weight:700">
-                Family number (from Index)
-                <input id="cf-family-number" placeholder="e.g. 12" style="padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-family:'Lato',sans-serif;font-size:0.9rem;outline:none;color:var(--ink)"/>
               </label>
             </div>
           </div>
@@ -2594,7 +2590,7 @@ function openCorrectionForm() {
 
   // Reset correction detail fields
   ['cf-corr-name','cf-corr-parents','cf-corr-siblings','cf-corr-spouse','cf-corr-children',
-   'cf-requester-mobile','cf-requester-father','cf-family-number','cf-remarks'].forEach(id => {
+   'cf-requester-mobile','cf-requester-father','cf-remarks'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -2634,7 +2630,7 @@ async function submitCorrection(event) {
     requester_name:           requesterName,
     requester_mobile:         document.getElementById('cf-requester-mobile').value.trim() || null,
     requester_father_name:    document.getElementById('cf-requester-father').value.trim() || null,
-    requester_family_number:  document.getElementById('cf-family-number').value.trim() || null,
+    requester_family_number:  null,
     correction_name:          corrName || null,
     correction_parents:       corrParents || null,
     correction_siblings:      corrSiblings || null,

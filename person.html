@@ -279,45 +279,31 @@
             <input id="cf-requester-mobile" required type="tel" placeholder="Mobile number"/>
           </label>
         </div>
-        <div class="form-grid">
-          <label class="form-field">
-            Your father's name
-            <input id="cf-requester-father" placeholder="Optional"/>
-          </label>
-          <label class="form-field">
-            Family number (from Index)
-            <input id="cf-family-number" placeholder="e.g. 12"/>
-          </label>
-        </div>
+	        <div class="form-grid">
+	          <label class="form-field">
+	            Your father's name
+	            <input id="cf-requester-father" placeholder="Optional"/>
+	          </label>
+	        </div>
 
-        <!-- Correction details -->
-        <div class="form-section-label" style="margin-top:20px">Correction Details</div>
-        <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;line-height:1.6">Fill in only the fields that need a correction. Leave blank if unchanged.</p>
-        <div style="display:grid;gap:12px">
-          <label class="form-field">
-            Correction to: Name
-            <input id="cf-corr-name" placeholder="Corrected name for this person"/>
-          </label>
-          <div class="form-grid">
-            <label class="form-field">
-              Birth date
-              <input id="cf-corr-birth-date" placeholder="YYYY, YYYY-MM, or YYYY-MM-DD"/>
-            </label>
-            <label class="form-field">
-              Death date
-              <input id="cf-corr-death-date" placeholder="YYYY, YYYY-MM, or YYYY-MM-DD"/>
-            </label>
-          </div>
-          <div class="form-grid">
-            <label class="form-field">
-              Mobile number
-              <input id="cf-corr-mobile" type="tel" placeholder="Mobile number to display after approval"/>
-            </label>
-            <label class="form-field">
-              Birth order
+	        <!-- Correction details -->
+	        <div class="form-section-label" style="margin-top:20px">Harmless Profile Updates</div>
+	        <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;line-height:1.6">These updates can be reviewed and applied to the public profile without changing GEDCOM family links. Leave blank if unchanged.</p>
+	        <div style="display:grid;gap:12px">
+	          <label class="form-field">
+	            Correction to: Name
+	            <input id="cf-corr-name" placeholder="Corrected name for this person"/>
+	          </label>
+	          <div class="form-grid">
+	            <label class="form-field">
+	              Date of birth
+	              <input id="cf-corr-birth-date" placeholder="Any format, e.g. 17 Jan, 2015-04-18, or 2025"/>
+	            </label>
+	            <label class="form-field">
+	              Birth order
               <select id="cf-corr-birth-order">
                 <option value="">No change</option>
-                <option value="Eldest">Eldest among siblings</option>
+                <option value="First">First</option>
                 <option value="2">2</option>
                 <option value="3">3</option>
                 <option value="4">4</option>
@@ -337,31 +323,54 @@
                 <option value="18">18</option>
                 <option value="19">19</option>
                 <option value="20">20</option>
-                <option value="Youngest">Youngest in the family</option>
-              </select>
-            </label>
-          </div>
-          <label class="form-field" style="display:flex;align-items:center;gap:8px;color:var(--ink);font-weight:700">
-            <input id="cf-corr-deceased" type="checkbox" style="width:18px;height:18px;accent-color:var(--gold)"/>
-            Mark this person as deceased
-          </label>
-          <div class="form-grid">
-            <label class="form-field">
-              Root location
-              <input id="cf-corr-root-location" placeholder="Ancestral / root location"/>
+                <option value="Last">Last</option>
+	              </select>
+	            </label>
+	          </div>
+	          <div class="form-grid">
+	            <label class="form-field">
+	              Root Place
+              <input id="cf-corr-root-location" placeholder="Ancestral / root place"/>
             </label>
             <label class="form-field">
-              Birth location
+              Place of Birth
               <input id="cf-corr-birth-location" placeholder="Birth village, town, or city"/>
             </label>
           </div>
           <label class="form-field">
-            Current location
-            <input id="cf-corr-current-location" placeholder="Current village, town, or city"/>
-          </label>
-          <label class="form-field">
-            Correction to: Parents
-            <textarea id="cf-corr-parents" rows="2" placeholder="Corrected father / mother details"></textarea>
+	            Current location
+	            <input id="cf-corr-current-location" placeholder="Current village, town, or city"/>
+	          </label>
+	          <label class="form-field">
+	            Mobile number
+	            <input id="cf-corr-mobile" type="tel" placeholder="Mobile number to display after approval"/>
+	          </label>
+	        </div>
+
+	        <div class="form-section-label" style="margin-top:20px">Death Information</div>
+	        <label class="form-field" style="display:flex;align-items:center;gap:8px;color:var(--ink);font-weight:700;margin-bottom:12px">
+	          <input id="cf-corr-deceased" type="checkbox" style="width:18px;height:18px;accent-color:var(--gold)" onchange="toggleDeathFields()"/>
+	          Mark this person as deceased
+	        </label>
+	        <div id="death-fields" style="display:none;gap:12px">
+	          <div class="form-grid">
+	            <label class="form-field">
+	              Date of death
+	              <input id="cf-corr-death-date" placeholder="Any format, e.g. 17 Jan, 2015-04-18, or 2025"/>
+	            </label>
+	            <label class="form-field">
+	              Place of death
+	              <input id="cf-corr-death-location" placeholder="Village, town, city, or country"/>
+	            </label>
+	          </div>
+	        </div>
+
+	        <div class="form-section-label" style="margin-top:20px">Relationship or Family Corrections</div>
+	        <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;line-height:1.6">These notes do not directly add or remove relatives yet. Admins will review them before any family-link changes are considered.</p>
+	        <div style="display:grid;gap:12px">
+	          <label class="form-field">
+	            Correction to: Parents
+	            <textarea id="cf-corr-parents" rows="2" placeholder="Corrected father / mother details"></textarea>
           </label>
           <label class="form-field">
             Correction to: Siblings
@@ -495,6 +504,7 @@ async function renderPerson(uid, el) {
   const displayName = firstText(profileOverlay?.corrected_name, p.name, '(unnamed)');
   const displayBirthDate = firstText(profileOverlay?.birth_date_text, p.birth_date);
   const displayDeathDate = firstText(profileOverlay?.death_date_text, p.death_date);
+  const displayDeathLocation = firstText(profileOverlay?.death_location, p.death_place);
   const displayBirthPlace = firstText(profileOverlay?.birth_location, p.birth_place);
   const displayRootLocation = firstText(profileOverlay?.root_location, p.root_place);
   const displayCurrentLocation = firstText(profileOverlay?.current_location, p.current_place);
@@ -627,14 +637,14 @@ async function renderPerson(uid, el) {
 
       <div class="detail-grid">
         <div class="detail-field"><div class="key">Given Name</div><div class="val">${escHtml(displayName || p.given_name || '—')}</div></div>
-        ${displayBirthPlace    ? `<div class="detail-field"><div class="key">Birth Place</div><div class="val">${escHtml(displayBirthPlace)}</div></div>` : ''}
-        ${displayRootLocation  ? `<div class="detail-field"><div class="key">Root Location</div><div class="val">${escHtml(displayRootLocation)}</div></div>` : ''}
+        ${displayBirthPlace    ? `<div class="detail-field"><div class="key">Place of Birth</div><div class="val">${escHtml(displayBirthPlace)}</div></div>` : ''}
+        ${displayRootLocation  ? `<div class="detail-field"><div class="key">Root Place</div><div class="val">${escHtml(displayRootLocation)}</div></div>` : ''}
         ${displayCurrentLocation ? `<div class="detail-field"><div class="key">Current Location</div><div class="val">${escHtml(displayCurrentLocation)}</div></div>` : ''}
         ${displayBirthDate     ? `<div class="detail-field"><div class="key">Birth Date</div><div class="val">${escHtml(displayBirthDate)}</div></div>` : ''}
         ${displayDeathDate     ? `<div class="detail-field"><div class="key">Death Date</div><div class="val">${escHtml(displayDeathDate)}</div></div>` : ''}
         ${displayMobile        ? `<div class="detail-field"><div class="key">Mobile</div><div class="val">${escHtml(displayMobile)}</div></div>` : ''}
         ${displayBirthOrder    ? `<div class="detail-field"><div class="key">Birth Order</div><div class="val">${escHtml(displayBirthOrder)}</div></div>` : ''}
-        ${p.death_place  ? `<div class="detail-field"><div class="key">Death Place</div><div class="val">${escHtml(p.death_place)}</div></div>` : ''}
+        ${displayDeathLocation ? `<div class="detail-field"><div class="key">Death Place</div><div class="val">${escHtml(displayDeathLocation)}</div></div>` : ''}
         ${p.occupation   ? `<div class="detail-field"><div class="key">Occupation</div><div class="val">${escHtml(p.occupation)}</div></div>` : ''}
         <div class="detail-field"><div class="key">Father</div><div class="val">${fatherName}</div></div>
         <div class="detail-field"><div class="key">Mother</div><div class="val">${motherName}</div></div>
@@ -747,7 +757,21 @@ function shareProfile() {
 function openCorrectionForm() {
   const section = document.getElementById('correction-section');
   section.style.display = 'block';
+  toggleDeathFields();
   section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function toggleDeathFields() {
+  const checked = document.getElementById('cf-corr-deceased')?.checked;
+  const deathFields = document.getElementById('death-fields');
+  if (!deathFields) return;
+  deathFields.style.display = checked ? 'grid' : 'none';
+  if (!checked) {
+    const deathDate = document.getElementById('cf-corr-death-date');
+    const deathLocation = document.getElementById('cf-corr-death-location');
+    if (deathDate) deathDate.value = '';
+    if (deathLocation) deathLocation.value = '';
+  }
 }
 
 async function submitCorrection(event) {
@@ -761,26 +785,19 @@ async function submitCorrection(event) {
   const corrSpouse   = document.getElementById('cf-corr-spouse').value.trim();
   const corrChildren = document.getElementById('cf-corr-children').value.trim();
   const corrBirthDate = document.getElementById('cf-corr-birth-date').value.trim();
-  const corrDeathDate = document.getElementById('cf-corr-death-date').value.trim();
   const corrMobile = document.getElementById('cf-corr-mobile').value.trim();
   const corrRootLocation = document.getElementById('cf-corr-root-location').value.trim();
   const corrBirthLocation = document.getElementById('cf-corr-birth-location').value.trim();
   const corrCurrentLocation = document.getElementById('cf-corr-current-location').value.trim();
   const corrBirthOrder = document.getElementById('cf-corr-birth-order').value;
   const corrIsDeceased = document.getElementById('cf-corr-deceased').checked;
-
-  if (corrBirthDate && !isFlexibleDate(corrBirthDate)) {
-    showStatus('Birth date must be YYYY, YYYY-MM, or YYYY-MM-DD.', true);
-    return;
-  }
-  if (corrDeathDate && !isFlexibleDate(corrDeathDate)) {
-    showStatus('Death date must be YYYY, YYYY-MM, or YYYY-MM-DD.', true);
-    return;
-  }
+  const corrDeathDate = corrIsDeceased ? document.getElementById('cf-corr-death-date').value.trim() : '';
+  const corrDeathLocation = corrIsDeceased ? document.getElementById('cf-corr-death-location').value.trim() : '';
 
   if (!corrName && !corrParents && !corrSiblings && !corrSpouse && !corrChildren &&
       !corrBirthDate && !corrDeathDate && !corrMobile && !corrRootLocation &&
-      !corrBirthLocation && !corrCurrentLocation && !corrBirthOrder && !corrIsDeceased) {
+      !corrBirthLocation && !corrCurrentLocation && !corrBirthOrder && !corrIsDeceased &&
+      !corrDeathLocation) {
     showStatus('Please fill in at least one correction field.', true);
     return;
   }
@@ -798,7 +815,7 @@ async function submitCorrection(event) {
     requester_name:          requesterName,
     requester_mobile:        document.getElementById('cf-requester-mobile').value.trim() || null,
     requester_father_name:   document.getElementById('cf-requester-father').value.trim() || null,
-    requester_family_number: document.getElementById('cf-family-number').value.trim() || null,
+    requester_family_number: null,
     correction_name:         corrName     || null,
     correction_parents:      corrParents  || null,
     correction_siblings:     corrSiblings || null,
@@ -807,6 +824,7 @@ async function submitCorrection(event) {
     correction_is_deceased:  corrIsDeceased || null,
     correction_birth_date:   corrBirthDate || null,
     correction_death_date:   corrDeathDate || null,
+    correction_death_location: corrDeathLocation || null,
     correction_mobile:       corrMobile || null,
     correction_root_location: corrRootLocation || null,
     correction_birth_location: corrBirthLocation || null,
@@ -829,13 +847,14 @@ async function submitCorrection(event) {
   // Reset detail fields only, keep person/requester pre-fills
   ['cf-corr-name','cf-corr-parents','cf-corr-siblings','cf-corr-spouse',
    'cf-corr-children','cf-corr-birth-date','cf-corr-death-date','cf-corr-mobile',
-   'cf-corr-root-location','cf-corr-birth-location','cf-corr-current-location',
-   'cf-corr-birth-order','cf-requester-mobile','cf-requester-father',
-   'cf-family-number','cf-remarks'].forEach(id => {
+   'cf-corr-death-location','cf-corr-root-location','cf-corr-birth-location',
+   'cf-corr-current-location','cf-corr-birth-order','cf-requester-mobile',
+   'cf-requester-father','cf-remarks'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
   document.getElementById('cf-corr-deceased').checked = false;
+  toggleDeathFields();
 }
 
 function showStatus(msg, isError) {
@@ -862,10 +881,6 @@ function firstText(...values) {
     if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
   }
   return '';
-}
-
-function isFlexibleDate(value) {
-  return /^\d{4}(-\d{2}){0,2}$/.test(String(value || '').trim());
 }
 
 // ===== KEYBOARD SUPPORT =====

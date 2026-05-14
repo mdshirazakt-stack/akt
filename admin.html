@@ -1837,9 +1837,10 @@ function renderCorrections() {
 	      ['Mark deceased', r.correction_is_deceased ? 'Yes' : ''],
 	      ['Birth date', r.correction_birth_date],
 	      ['Death date', r.correction_death_date],
+	      ['Death location', r.correction_death_location],
 	      ['Mobile', r.correction_mobile],
-	      ['Root location', r.correction_root_location],
-	      ['Birth location', r.correction_birth_location],
+	      ['Root Place', r.correction_root_location],
+	      ['Place of Birth', r.correction_birth_location],
 	      ['Current location', r.correction_current_location],
 	      ['Birth order', r.correction_birth_order],
 	      ['Parents', r.correction_parents],
@@ -1956,7 +1957,8 @@ async function applyProfileOverride(id, btn) {
   }
 
   const hasSafeFields = rec.correction_name || rec.correction_is_deceased ||
-    rec.correction_birth_date || rec.correction_death_date || rec.correction_mobile ||
+    rec.correction_birth_date || rec.correction_death_date || rec.correction_death_location ||
+    rec.correction_mobile ||
     rec.correction_root_location || rec.correction_birth_location ||
     rec.correction_current_location || rec.correction_birth_order;
 
@@ -1994,6 +1996,7 @@ async function applyProfileOverride(id, btn) {
   if (rec.correction_is_deceased) payload.is_deceased = true;
   if (rec.correction_birth_date) payload.birth_date_text = rec.correction_birth_date;
   if (rec.correction_death_date) payload.death_date_text = rec.correction_death_date;
+  if (rec.correction_death_location) payload.death_location = rec.correction_death_location;
   if (rec.correction_mobile) payload.mobile_number = rec.correction_mobile;
   if (rec.correction_root_location) payload.root_location = rec.correction_root_location;
   if (rec.correction_birth_location) payload.birth_location = rec.correction_birth_location;

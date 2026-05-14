@@ -206,6 +206,10 @@
     color: var(--gold); font-family: 'Lato', sans-serif; font-size: 0.82rem;
     font-weight: 700; cursor: pointer; transition: all 0.18s;
   }
+  .filter-open-icon {
+    width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent;
+    border-top: 8px solid currentColor; flex: 0 0 auto;
+  }
   .filter-open-btn:hover { background: var(--goldl); border-color: var(--gold); color: var(--accent); }
   .filter-summary { font-size: 0.82rem; color: var(--muted); }
   .active-filter-pills {
@@ -269,7 +273,10 @@
     border: none; background: transparent; padding: 0; color: var(--ink);
     font: inherit; text-align: left; cursor: default;
   }
-  .filter-pane-chevron { display: none; color: var(--gold); font-size: 0.85rem; }
+  .filter-pane-chevron {
+    display: none; width: 9px; height: 9px; border-right: 2px solid var(--gold);
+    border-bottom: 2px solid var(--gold); transform: rotate(-45deg);
+  }
   .filter-pane-help { color: var(--muted); font-size: 0.78rem; line-height: 1.55; margin-bottom: 14px; }
   .filter-search {
     width: 100%; border: 1px solid var(--border); background: var(--bg);
@@ -553,7 +560,7 @@
     .filter-pane h3 { margin: 0; }
     .filter-pane-toggle { cursor: pointer; padding: 16px 18px; }
     .filter-pane-chevron { display: inline-block; transition: transform 0.18s; }
-    .filter-pane.mobile-open .filter-pane-chevron { transform: rotate(90deg); }
+    .filter-pane.mobile-open .filter-pane-chevron { transform: rotate(45deg); }
     .filter-pane-content { display: none; padding: 0 18px 18px; }
     .filter-pane.mobile-open .filter-pane-content { display: block; }
     .filter-drawer-foot { padding: 14px 18px; position: sticky; bottom: 0; }
@@ -649,7 +656,7 @@
       </div>
       <div class="search-tools">
         <button class="filter-open-btn" type="button" onclick="openFilterDrawer()">
-          <span>▽</span>
+          <span class="filter-open-icon" aria-hidden="true"></span>
           <span id="filter-button-label">Filter Search Results</span>
         </button>
         <div class="filter-summary" id="filter-result-summary"></div>
@@ -669,7 +676,7 @@
             <button class="filter-tab" type="button" onclick="showFilterPane('sources', this)">Source Families</button>
           </div>
           <section class="filter-pane active" id="filter-pane-status">
-            <h3><button class="filter-pane-toggle" type="button" onclick="toggleFilterPaneMobile('status')"><span>Gender & Status</span><span class="filter-pane-chevron">▶</span></button></h3>
+            <h3><button class="filter-pane-toggle" type="button" onclick="toggleFilterPaneMobile('status')"><span>Gender & Status</span><span class="filter-pane-chevron" aria-hidden="true"></span></button></h3>
             <div class="filter-pane-content">
               <p class="filter-pane-help">Filter by gender or deceased status.</p>
               <div class="filter-option-list">
@@ -681,7 +688,7 @@
             </div>
           </section>
           <section class="filter-pane" id="filter-pane-locations">
-            <h3><button class="filter-pane-toggle" type="button" onclick="toggleFilterPaneMobile('locations')"><span>Locations</span><span class="filter-pane-chevron">▶</span></button></h3>
+            <h3><button class="filter-pane-toggle" type="button" onclick="toggleFilterPaneMobile('locations')"><span>Locations</span><span class="filter-pane-chevron" aria-hidden="true"></span></button></h3>
             <div class="filter-pane-content">
               <p class="filter-pane-help">Choose one or more location groups extracted from source GEDCOM filenames.</p>
               <input class="filter-search" id="location-filter-search" placeholder="Search locations..." oninput="renderLocationOptions()"/>
@@ -689,7 +696,7 @@
             </div>
           </section>
           <section class="filter-pane" id="filter-pane-sources">
-            <h3><button class="filter-pane-toggle" type="button" onclick="toggleFilterPaneMobile('sources')"><span>Source Families</span><span class="filter-pane-chevron">▶</span></button></h3>
+            <h3><button class="filter-pane-toggle" type="button" onclick="toggleFilterPaneMobile('sources')"><span>Source Families</span><span class="filter-pane-chevron" aria-hidden="true"></span></button></h3>
             <div class="filter-pane-content">
               <p class="filter-pane-help">Choose one or more GEDCOM source families. Leave All Families selected to search the full archive.</p>
               <input class="filter-search" id="source-filter-search" placeholder="Search source families..." oninput="renderSourceOptions()"/>

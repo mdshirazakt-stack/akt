@@ -370,12 +370,19 @@
     }
     .people-table td[data-label="Name"] { padding: 13px 14px 8px; border-bottom: 1px solid var(--border); }
     .people-table td[data-label="Name"]::before { display: none; }
-    .people-table td[data-label="Name"] .person-name { font-size: 1rem; line-height: 1.35; display: block; padding-right: 8px; }
-    .people-table td[data-label="Sex"] { padding-top: 9px; }
+    .people-table td[data-label="Name"] .person-name {
+      font-size: 1rem; line-height: 1.35; display: block; padding-right: 8px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .people-table td[data-label="Birth Place"] { padding-top: 9px; }
     .people-table td[data-label="Source"] { padding-bottom: 12px; }
+    .people-table td[data-label="Sex"],
     .people-table td[data-label="Deceased"],
     .people-table td[data-label="Status"] { display: none; }
-    .source-tag { max-width: 100%; margin-left: 0; }
+    .source-tag {
+      max-width: 100%; margin-left: 0; font-size: 0.78rem; font-weight: 600;
+      white-space: normal; line-height: 1.35;
+    }
     .badge { border-radius: 3px; }
   }
   .badge { display: inline-block; padding: 2px 7px; font-size: 0.68rem; border-radius: 2px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -1766,7 +1773,9 @@ async function loadSearch(q) {
       .not('name', 'ilike', '[%')
       .not('name', 'ilike', ',%')
       .not('name', 'ilike', ';%')
-      .not('name', 'ilike', '-%');
+      .not('name', 'ilike', '-%')
+      .not('name', 'ilike', '1%son%')
+      .not('name', 'ilike', '1%daughter%');
     if (searchFilter === 'M') query = query.eq('sex', 'M');
     else if (searchFilter === 'F') query = query.eq('sex', 'F');
     else if (searchFilter === 'deceased') query = query.eq('death_flag', true);
@@ -1883,7 +1892,7 @@ async function loadSearch(q) {
     <div style="overflow-x:auto">
     <table class="people-table">
       <thead><tr>
-        <th>Name</th><th>Sex</th><th>Birth Place</th><th>Deceased</th><th>Status</th><th>Source</th>
+        <th>Name</th><th>Birth Place</th><th>Source</th>
       </tr></thead>
       <tbody>${data.map(p => {
         const src = srcMap[p.gedcom_id] || '';
@@ -1891,10 +1900,7 @@ async function loadSearch(q) {
         return `
         <tr onclick="showPerson('${escapeJs(p.uid)}')">
           <td data-label="Name"><span class="person-name">${displayName}</span></td>
-          <td data-label="Sex">${p.sex ? `<span class="badge badge-${p.sex}">${p.sex === 'M' ? '♂ M' : '♀ F'}</span>` : '-'}</td>
           <td data-label="Birth Place">${p.birth_place || '-'}</td>
-          <td data-label="Deceased">${p.death_flag ? '✓' : '-'}</td>
-          <td data-label="Status">${p.marr_status ? `<span class="badge badge-${p.marr_status}">${p.marr_status}</span>` : '-'}</td>
           <td data-label="Source">${src ? `<span class="source-tag" title="${p.gedcom_id}">${src}</span>` : '-'}</td>
         </tr>`;
       }).join('')}</tbody>

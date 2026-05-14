@@ -343,20 +343,40 @@
 
   /* MOBILE TABLE → CARDS */
   @media(max-width:640px) {
+    .result-count { margin: 18px 0 12px; font-size: 0.9rem; }
     .people-table thead { display: none; }
     .people-table, .people-table tbody, .people-table tr, .people-table td { display: block; width: 100%; }
-    .people-table tr { border: 1px solid var(--border); background: var(--surface); margin-bottom: 10px; border-left: 3px solid var(--gold2); position: relative; padding: 2px 28px 2px 0; box-shadow: 0 1px 6px rgba(42,35,24,0.04); }
-    .people-table tr::after { content: '›'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 1.35rem; }
+    .people-table { background: transparent; }
+    .people-table tbody { display: grid; gap: 10px; }
+    .people-table tr {
+      border: 1px solid var(--border); background: var(--surface); margin-bottom: 0;
+      border-left: 3px solid var(--gold2); position: relative; padding: 0 34px 0 0;
+      box-shadow: 0 2px 10px rgba(42,35,24,0.05);
+    }
+    .people-table tr::after {
+      content: ''; position: absolute; right: 14px; top: 50%; width: 9px; height: 9px;
+      border-right: 2px solid var(--gold2); border-bottom: 2px solid var(--gold2);
+      transform: translateY(-50%) rotate(-45deg);
+    }
     .people-table tr:hover td { background: var(--surface); }
-    .people-table td { padding: 6px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: baseline; gap: 8px; font-size: 0.84rem; }
+    .people-table td {
+      padding: 5px 14px; border-bottom: none; display: flex; align-items: baseline;
+      gap: 8px; font-size: 0.84rem; color: var(--text);
+    }
     .people-table td:last-child { border-bottom: none; }
-    .people-table td::before { content: attr(data-label); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; flex-shrink: 0; min-width: 62px; }
-    .people-table td[data-label="Name"] { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .people-table td::before {
+      content: attr(data-label); font-size: 0.58rem; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--muted); font-weight: 700; flex-shrink: 0; min-width: 72px;
+    }
+    .people-table td[data-label="Name"] { padding: 13px 14px 8px; border-bottom: 1px solid var(--border); }
     .people-table td[data-label="Name"]::before { display: none; }
-    .people-table td[data-label="Name"] .person-name { font-size: 0.95rem; display: block; padding-right: 8px; }
+    .people-table td[data-label="Name"] .person-name { font-size: 1rem; line-height: 1.35; display: block; padding-right: 8px; }
+    .people-table td[data-label="Sex"] { padding-top: 9px; }
+    .people-table td[data-label="Source"] { padding-bottom: 12px; }
     .people-table td[data-label="Deceased"],
     .people-table td[data-label="Status"] { display: none; }
     .source-tag { max-width: 100%; margin-left: 0; }
+    .badge { border-radius: 3px; }
   }
   .badge { display: inline-block; padding: 2px 7px; font-size: 0.68rem; border-radius: 2px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
   .badge-M { background: #dbeafe; color: #1e40af; }
@@ -1743,7 +1763,10 @@ async function loadSearch(q) {
       .not('name', 'is', null)
       .neq('name', '')
       .not('name', 'ilike', '(%')
-      .not('name', 'ilike', '[%');
+      .not('name', 'ilike', '[%')
+      .not('name', 'ilike', ',%')
+      .not('name', 'ilike', ';%')
+      .not('name', 'ilike', '-%');
     if (searchFilter === 'M') query = query.eq('sex', 'M');
     else if (searchFilter === 'F') query = query.eq('sex', 'F');
     else if (searchFilter === 'deceased') query = query.eq('death_flag', true);

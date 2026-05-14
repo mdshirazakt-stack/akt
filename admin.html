@@ -1832,11 +1832,19 @@ function renderCorrections() {
 
   container.innerHTML = filtered.map(r => {
     const created = r.created_at ? new Date(r.created_at).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true }) : '';
-    const corrFields = [
-      ['Name', r.correction_name],
-      ['Parents', r.correction_parents],
-      ['Siblings', r.correction_siblings],
-      ['Spouse', r.correction_spouse],
+	    const corrFields = [
+	      ['Name', r.correction_name],
+	      ['Mark deceased', r.correction_is_deceased ? 'Yes' : ''],
+	      ['Birth date', r.correction_birth_date],
+	      ['Death date', r.correction_death_date],
+	      ['Mobile', r.correction_mobile],
+	      ['Root location', r.correction_root_location],
+	      ['Birth location', r.correction_birth_location],
+	      ['Current location', r.correction_current_location],
+	      ['Birth order', r.correction_birth_order],
+	      ['Parents', r.correction_parents],
+	      ['Siblings', r.correction_siblings],
+	      ['Spouse', r.correction_spouse],
       ['Children', r.correction_children],
       ['Remarks', r.remarks]
     ].filter(([,v]) => v);
@@ -1903,9 +1911,14 @@ function renderCorrections() {
           <textarea rows="2" style="width:100%;padding:8px 10px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:0.85rem;resize:vertical" placeholder="Internal notes…" onchange="saveCorrectionNotes('${r.id}', this.value)">${escHtml(r.admin_notes || '')}</textarea>
         </div>
 
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${allStatuses.map(s => `
-            <button onclick="setCorrectionStatus('${r.id}', '${s}', this)"
+	        <div style="display:flex;flex-wrap:wrap;gap:6px">
+	          ${!isNewFamily && r.person_uid ? `
+	            <button onclick="applyProfileOverride('${r.id}', this)"
+	              style="padding:5px 12px;border:1px solid var(--green);background:${r.applied_to_profile ? 'var(--green)' : 'none'};color:${r.applied_to_profile ? '#fff' : 'var(--green)'};font-size:0.75rem;cursor:pointer;font-family:inherit">
+	              ${r.applied_to_profile ? 'Applied to Profile' : 'Apply Safe Fields'}
+	            </button>` : ''}
+	          ${allStatuses.map(s => `
+	            <button onclick="setCorrectionStatus('${r.id}', '${s}', this)"
               style="padding:5px 12px;border:1px solid ${r.status === s ? statusColors[s] : 'var(--border)'};background:${r.status === s ? statusColors[s] : 'none'};color:${r.status === s ? '#fff' : ''};font-size:0.75rem;cursor:pointer;font-family:inherit">
               ${statusLabels[s]}
             </button>`).join('')}
@@ -1932,6 +1945,88 @@ async function setCorrectionStatus(id, status, btn) {
   const rec = correctionsData.find(r => r.id === id);
   if (rec) rec.status = status;
   toast('Status updated to: ' + status);
+  renderCorrections();
+}
+
+async function applyProfileOverride(id, btn) {
+  const rec = correctionsData.find(r => r.id === id);
+  if (!rec || !rec.person_uid) {
+    toast('No linked person profile for this request.', true);
+    return;
+  }
+
+  const hasSafeFields = rec.correction_name || rec.correction_is_deceased ||
+    rec.correction_birth_date || rec.correction_death_date || rec.correction_mobile ||
+    rec.correction_root_location || rec.correction_birth_location ||
+    rec.correction_current_location || rec.correction_birth_order;
+
+  if (!hasSafeFields) {
+    toast('No safe profile fields to apply.', true);
+    return;
+  }
+
+  const originalText = btn ? btn.textContent : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Applying...';
+  }
+
+  const { data: existing, error: readError } = await sb.from('person_profile_overrides')
+    .select('*')
+    .eq('person_uid', rec.person_uid)
+    .maybeSingle();
+  if (readError) {
+    if (btn) { btn.disabled = false; btn.textContent = originalText; }
+    toast('Profile overlay table missing or unreadable. Run supabase_profile_overrides.sql first.', true);
+    return;
+  }
+
+  const payload = {
+    ...(existing || {}),
+    person_uid: rec.person_uid,
+    source_request_id: rec.id,
+    approved_by: 'admin',
+    approved_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  if (rec.correction_name) payload.corrected_name = rec.correction_name;
+  if (rec.correction_is_deceased) payload.is_deceased = true;
+  if (rec.correction_birth_date) payload.birth_date_text = rec.correction_birth_date;
+  if (rec.correction_death_date) payload.death_date_text = rec.correction_death_date;
+  if (rec.correction_mobile) payload.mobile_number = rec.correction_mobile;
+  if (rec.correction_root_location) payload.root_location = rec.correction_root_location;
+  if (rec.correction_birth_location) payload.birth_location = rec.correction_birth_location;
+  if (rec.correction_current_location) payload.current_location = rec.correction_current_location;
+  if (rec.correction_birth_order) payload.birth_order_text = rec.correction_birth_order;
+
+  const { error: upsertError } = await sb.from('person_profile_overrides')
+    .upsert(payload, { onConflict: 'person_uid' });
+  if (upsertError) {
+    if (btn) { btn.disabled = false; btn.textContent = originalText; }
+    toast(upsertError.message, true);
+    return;
+  }
+
+  const { error: requestError } = await sb.from('correction_requests')
+    .update({
+      applied_to_profile: true,
+      applied_at: new Date().toISOString(),
+      status: rec.status === 'new' ? 'approved' : rec.status,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id);
+
+  if (requestError) {
+    if (btn) { btn.disabled = false; btn.textContent = originalText; }
+    toast(requestError.message, true);
+    return;
+  }
+
+  rec.applied_to_profile = true;
+  rec.applied_at = new Date().toISOString();
+  if (rec.status === 'new') rec.status = 'approved';
+  toast('Safe fields applied to profile overlay.');
   renderCorrections();
 }
 

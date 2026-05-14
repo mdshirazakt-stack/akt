@@ -158,13 +158,13 @@
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
   @media(max-width:600px){ .form-grid { grid-template-columns: 1fr; } }
   .form-field { display: grid; gap: 5px; font-size: 0.82rem; color: var(--muted); font-weight: 700; }
-  .form-field input, .form-field textarea {
+  .form-field input, .form-field textarea, .form-field select {
     padding: 10px 12px; border: 1px solid var(--border);
     background: var(--surface); font-family: 'Lato', sans-serif;
     font-size: 0.9rem; outline: none; color: var(--ink);
     transition: border 0.2s;
   }
-  .form-field input:focus, .form-field textarea:focus { border-color: var(--gold2); }
+  .form-field input:focus, .form-field textarea:focus, .form-field select:focus { border-color: var(--gold2); }
   .form-field input[readonly], .form-field input[readonly]:focus {
     background: #f5f0e8; border-color: var(--gold2); cursor: default;
   }
@@ -298,6 +298,67 @@
             Correction to: Name
             <input id="cf-corr-name" placeholder="Corrected name for this person"/>
           </label>
+          <div class="form-grid">
+            <label class="form-field">
+              Birth date
+              <input id="cf-corr-birth-date" placeholder="YYYY, YYYY-MM, or YYYY-MM-DD"/>
+            </label>
+            <label class="form-field">
+              Death date
+              <input id="cf-corr-death-date" placeholder="YYYY, YYYY-MM, or YYYY-MM-DD"/>
+            </label>
+          </div>
+          <div class="form-grid">
+            <label class="form-field">
+              Mobile number
+              <input id="cf-corr-mobile" type="tel" placeholder="Mobile number to display after approval"/>
+            </label>
+            <label class="form-field">
+              Birth order
+              <select id="cf-corr-birth-order">
+                <option value="">No change</option>
+                <option value="Eldest">Eldest among siblings</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+                <option value="13">13</option>
+                <option value="14">14</option>
+                <option value="15">15</option>
+                <option value="16">16</option>
+                <option value="17">17</option>
+                <option value="18">18</option>
+                <option value="19">19</option>
+                <option value="20">20</option>
+                <option value="Youngest">Youngest in the family</option>
+              </select>
+            </label>
+          </div>
+          <label class="form-field" style="display:flex;align-items:center;gap:8px;color:var(--ink);font-weight:700">
+            <input id="cf-corr-deceased" type="checkbox" style="width:18px;height:18px;accent-color:var(--gold)"/>
+            Mark this person as deceased
+          </label>
+          <div class="form-grid">
+            <label class="form-field">
+              Root location
+              <input id="cf-corr-root-location" placeholder="Ancestral / root location"/>
+            </label>
+            <label class="form-field">
+              Birth location
+              <input id="cf-corr-birth-location" placeholder="Birth village, town, or city"/>
+            </label>
+          </div>
+          <label class="form-field">
+            Current location
+            <input id="cf-corr-current-location" placeholder="Current village, town, or city"/>
+          </label>
           <label class="form-field">
             Correction to: Parents
             <textarea id="cf-corr-parents" rows="2" placeholder="Corrected father / mother details"></textarea>
@@ -426,8 +487,23 @@ async function renderPerson(uid, el) {
 
   currentPerson = p;
 
+  const { data: overlay, error: overlayError } = await sb.from('person_profile_overrides')
+    .select('*')
+    .eq('person_uid', uid)
+    .maybeSingle();
+  const profileOverlay = overlayError ? null : overlay;
+  const displayName = firstText(profileOverlay?.corrected_name, p.name, '(unnamed)');
+  const displayBirthDate = firstText(profileOverlay?.birth_date_text, p.birth_date);
+  const displayDeathDate = firstText(profileOverlay?.death_date_text, p.death_date);
+  const displayBirthPlace = firstText(profileOverlay?.birth_location, p.birth_place);
+  const displayRootLocation = firstText(profileOverlay?.root_location, p.root_place);
+  const displayCurrentLocation = firstText(profileOverlay?.current_location, p.current_place);
+  const displayMobile = firstText(profileOverlay?.mobile_number);
+  const displayBirthOrder = firstText(profileOverlay?.birth_order_text);
+  const displayDeceased = profileOverlay?.is_deceased === true || p.death_flag === true;
+
   // Update page title
-  document.title = (p.name || 'Profile') + ' — Apno Ki Talash';
+  document.title = displayName + ' — Apno Ki Talash';
 
   // Source GEDCOM label
   const srcUpload = gedcomUploads.find(u => u.id === p.gedcom_id);
@@ -533,11 +609,12 @@ async function renderPerson(uid, el) {
     <div class="person-detail">
       <div class="detail-header">
         <div>
-          <h2>${escHtml(p.name || '(unnamed)')}</h2>
-          <div class="meta">
-            ${p.sex ? `<span class="badge badge-${p.sex}">${p.sex === 'M' ? '♂ Male' : '♀ Female'}</span>` : ''}
-            ${p.death_flag ? `&nbsp;<span class="badge badge-deceased">Deceased</span>` : ''}
-          </div>
+              <h2>${escHtml(displayName)}</h2>
+              <div class="meta">
+                ${p.sex ? `<span class="badge badge-${p.sex}">${p.sex === 'M' ? '♂ Male' : '♀ Female'}</span>` : ''}
+                ${displayDeceased ? `&nbsp;<span class="badge badge-deceased">Deceased</span>` : ''}
+                ${profileOverlay ? `&nbsp;<span class="badge" style="background:#fef3c7;color:#92400e">Community updated</span>` : ''}
+              </div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <a class="btn-back" style="background:var(--green);color:#fff;border-color:var(--green)"
@@ -549,12 +626,14 @@ async function renderPerson(uid, el) {
       </div>
 
       <div class="detail-grid">
-        <div class="detail-field"><div class="key">Given Name</div><div class="val">${escHtml(p.given_name || p.name || '—')}</div></div>
-        ${p.birth_place  ? `<div class="detail-field"><div class="key">Birth Place</div><div class="val">${escHtml(p.birth_place)}</div></div>` : ''}
-        ${p.root_place   ? `<div class="detail-field"><div class="key">Root Place</div><div class="val">${escHtml(p.root_place)}</div></div>` : ''}
-        ${p.current_place? `<div class="detail-field"><div class="key">Current Place</div><div class="val">${escHtml(p.current_place)}</div></div>` : ''}
-        ${p.birth_date   ? `<div class="detail-field"><div class="key">Birth Date</div><div class="val">${escHtml(p.birth_date)}</div></div>` : ''}
-        ${p.death_date   ? `<div class="detail-field"><div class="key">Death Date</div><div class="val">${escHtml(p.death_date)}</div></div>` : ''}
+        <div class="detail-field"><div class="key">Given Name</div><div class="val">${escHtml(displayName || p.given_name || '—')}</div></div>
+        ${displayBirthPlace    ? `<div class="detail-field"><div class="key">Birth Place</div><div class="val">${escHtml(displayBirthPlace)}</div></div>` : ''}
+        ${displayRootLocation  ? `<div class="detail-field"><div class="key">Root Location</div><div class="val">${escHtml(displayRootLocation)}</div></div>` : ''}
+        ${displayCurrentLocation ? `<div class="detail-field"><div class="key">Current Location</div><div class="val">${escHtml(displayCurrentLocation)}</div></div>` : ''}
+        ${displayBirthDate     ? `<div class="detail-field"><div class="key">Birth Date</div><div class="val">${escHtml(displayBirthDate)}</div></div>` : ''}
+        ${displayDeathDate     ? `<div class="detail-field"><div class="key">Death Date</div><div class="val">${escHtml(displayDeathDate)}</div></div>` : ''}
+        ${displayMobile        ? `<div class="detail-field"><div class="key">Mobile</div><div class="val">${escHtml(displayMobile)}</div></div>` : ''}
+        ${displayBirthOrder    ? `<div class="detail-field"><div class="key">Birth Order</div><div class="val">${escHtml(displayBirthOrder)}</div></div>` : ''}
         ${p.death_place  ? `<div class="detail-field"><div class="key">Death Place</div><div class="val">${escHtml(p.death_place)}</div></div>` : ''}
         ${p.occupation   ? `<div class="detail-field"><div class="key">Occupation</div><div class="val">${escHtml(p.occupation)}</div></div>` : ''}
         <div class="detail-field"><div class="key">Father</div><div class="val">${fatherName}</div></div>
@@ -681,8 +760,27 @@ async function submitCorrection(event) {
   const corrSiblings = document.getElementById('cf-corr-siblings').value.trim();
   const corrSpouse   = document.getElementById('cf-corr-spouse').value.trim();
   const corrChildren = document.getElementById('cf-corr-children').value.trim();
+  const corrBirthDate = document.getElementById('cf-corr-birth-date').value.trim();
+  const corrDeathDate = document.getElementById('cf-corr-death-date').value.trim();
+  const corrMobile = document.getElementById('cf-corr-mobile').value.trim();
+  const corrRootLocation = document.getElementById('cf-corr-root-location').value.trim();
+  const corrBirthLocation = document.getElementById('cf-corr-birth-location').value.trim();
+  const corrCurrentLocation = document.getElementById('cf-corr-current-location').value.trim();
+  const corrBirthOrder = document.getElementById('cf-corr-birth-order').value;
+  const corrIsDeceased = document.getElementById('cf-corr-deceased').checked;
 
-  if (!corrName && !corrParents && !corrSiblings && !corrSpouse && !corrChildren) {
+  if (corrBirthDate && !isFlexibleDate(corrBirthDate)) {
+    showStatus('Birth date must be YYYY, YYYY-MM, or YYYY-MM-DD.', true);
+    return;
+  }
+  if (corrDeathDate && !isFlexibleDate(corrDeathDate)) {
+    showStatus('Death date must be YYYY, YYYY-MM, or YYYY-MM-DD.', true);
+    return;
+  }
+
+  if (!corrName && !corrParents && !corrSiblings && !corrSpouse && !corrChildren &&
+      !corrBirthDate && !corrDeathDate && !corrMobile && !corrRootLocation &&
+      !corrBirthLocation && !corrCurrentLocation && !corrBirthOrder && !corrIsDeceased) {
     showStatus('Please fill in at least one correction field.', true);
     return;
   }
@@ -706,6 +804,14 @@ async function submitCorrection(event) {
     correction_siblings:     corrSiblings || null,
     correction_spouse:       corrSpouse   || null,
     correction_children:     corrChildren || null,
+    correction_is_deceased:  corrIsDeceased || null,
+    correction_birth_date:   corrBirthDate || null,
+    correction_death_date:   corrDeathDate || null,
+    correction_mobile:       corrMobile || null,
+    correction_root_location: corrRootLocation || null,
+    correction_birth_location: corrBirthLocation || null,
+    correction_current_location: corrCurrentLocation || null,
+    correction_birth_order:  corrBirthOrder || null,
     remarks:                 document.getElementById('cf-remarks').value.trim() || null,
     status: 'new'
   };
@@ -722,11 +828,14 @@ async function submitCorrection(event) {
   showStatus('Thank you! Your correction has been received and will be reviewed.', false);
   // Reset detail fields only, keep person/requester pre-fills
   ['cf-corr-name','cf-corr-parents','cf-corr-siblings','cf-corr-spouse',
-   'cf-corr-children','cf-requester-mobile','cf-requester-father',
+   'cf-corr-children','cf-corr-birth-date','cf-corr-death-date','cf-corr-mobile',
+   'cf-corr-root-location','cf-corr-birth-location','cf-corr-current-location',
+   'cf-corr-birth-order','cf-requester-mobile','cf-requester-father',
    'cf-family-number','cf-remarks'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  document.getElementById('cf-corr-deceased').checked = false;
 }
 
 function showStatus(msg, isError) {
@@ -746,6 +855,17 @@ function escHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function firstText(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
+  }
+  return '';
+}
+
+function isFlexibleDate(value) {
+  return /^\d{4}(-\d{2}){0,2}$/.test(String(value || '').trim());
 }
 
 // ===== KEYBOARD SUPPORT =====

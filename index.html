@@ -264,6 +264,12 @@
   .filter-pane { display: none; padding: 18px 22px 26px; }
   .filter-pane.active { display: block; }
   .filter-pane h3 { font-size: 0.92rem; color: var(--ink); margin-bottom: 10px; }
+  .filter-pane-toggle {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    border: none; background: transparent; padding: 0; color: var(--ink);
+    font: inherit; text-align: left; cursor: default;
+  }
+  .filter-pane-chevron { display: none; color: var(--gold); font-size: 0.85rem; }
   .filter-pane-help { color: var(--muted); font-size: 0.78rem; line-height: 1.55; margin-bottom: 14px; }
   .filter-search {
     width: 100%; border: 1px solid var(--border); background: var(--bg);
@@ -543,8 +549,13 @@
     }
     .filter-drawer-body { display: block; }
     .filter-tabs { display: none; }
-    .filter-pane { display: block; padding: 16px 18px; border-bottom: 1px solid var(--border); }
-    .filter-pane h3 { display: flex; justify-content: space-between; align-items: center; }
+    .filter-pane { display: block; padding: 0; border-bottom: 1px solid var(--border); }
+    .filter-pane h3 { margin: 0; }
+    .filter-pane-toggle { cursor: pointer; padding: 16px 18px; }
+    .filter-pane-chevron { display: inline-block; transition: transform 0.18s; }
+    .filter-pane.mobile-open .filter-pane-chevron { transform: rotate(90deg); }
+    .filter-pane-content { display: none; padding: 0 18px 18px; }
+    .filter-pane.mobile-open .filter-pane-content { display: block; }
     .filter-drawer-foot { padding: 14px 18px; position: sticky; bottom: 0; }
     .filter-reset-btn, .filter-apply-btn { flex: 1; padding: 11px 12px; }
     .source-filter-row { flex-direction: column; align-items: stretch; gap: 6px; }
@@ -636,17 +647,10 @@
         <span class="icon">🔍</span>
         <input type="text" id="search-input" placeholder="Search by name…" oninput="onSearch()"/>
       </div>
-      <div class="filter-row">
-        <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
-        <button class="filter-btn" onclick="setFilter('M',this)">Male</button>
-        <button class="filter-btn" onclick="setFilter('F',this)">Female</button>
-        <button class="filter-btn" onclick="setFilter('deceased',this)">Deceased</button>
-      </div>
-
       <div class="search-tools">
         <button class="filter-open-btn" type="button" onclick="openFilterDrawer()">
           <span>▽</span>
-          <span id="filter-button-label">Filters</span>
+          <span id="filter-button-label">Filter Search Results</span>
         </button>
         <div class="filter-summary" id="filter-result-summary"></div>
       </div>
@@ -655,35 +659,41 @@
       <div id="filter-drawer-backdrop" class="filter-drawer-backdrop" onclick="closeFilterDrawer()"></div>
       <aside id="filter-drawer" class="filter-drawer" aria-hidden="true">
         <div class="filter-drawer-head">
-          <div class="filter-drawer-title">Filters</div>
+          <div class="filter-drawer-title">Filter Search Results</div>
           <button class="filter-drawer-close" type="button" onclick="closeFilterDrawer()" aria-label="Close filters">×</button>
         </div>
         <div class="filter-drawer-body">
           <div class="filter-tabs" aria-label="Filter sections">
-            <button class="filter-tab active" type="button" onclick="showFilterPane('locations', this)">Locations</button>
-            <button class="filter-tab" type="button" onclick="showFilterPane('sources', this)">Source Files</button>
-            <button class="filter-tab" type="button" onclick="showFilterPane('status', this)">Gender & Status</button>
+            <button class="filter-tab active" type="button" onclick="showFilterPane('status', this)">Gender & Status</button>
+            <button class="filter-tab" type="button" onclick="showFilterPane('locations', this)">Locations</button>
+            <button class="filter-tab" type="button" onclick="showFilterPane('sources', this)">Source Families</button>
           </div>
-          <section class="filter-pane active" id="filter-pane-locations">
-            <h3>Locations</h3>
-            <p class="filter-pane-help">Choose one or more location groups extracted from source GEDCOM filenames.</p>
-            <input class="filter-search" id="location-filter-search" placeholder="Search locations..." oninput="renderLocationOptions()"/>
-            <div class="filter-option-list" id="location-options"></div>
+          <section class="filter-pane active" id="filter-pane-status">
+            <h3><button class="filter-pane-toggle" type="button" onclick="toggleFilterPaneMobile('status')"><span>Gender & Status</span><span class="filter-pane-chevron">▶</span></button></h3>
+            <div class="filter-pane-content">
+              <p class="filter-pane-help">Filter by gender or deceased status.</p>
+              <div class="filter-option-list">
+                <label class="filter-option"><input type="radio" name="drawer-status-filter" value="all" checked onchange="setFilterFromDrawer(this.value)"/> All</label>
+                <label class="filter-option"><input type="radio" name="drawer-status-filter" value="M" onchange="setFilterFromDrawer(this.value)"/> Male</label>
+                <label class="filter-option"><input type="radio" name="drawer-status-filter" value="F" onchange="setFilterFromDrawer(this.value)"/> Female</label>
+                <label class="filter-option"><input type="radio" name="drawer-status-filter" value="deceased" onchange="setFilterFromDrawer(this.value)"/> Deceased</label>
+              </div>
+            </div>
+          </section>
+          <section class="filter-pane" id="filter-pane-locations">
+            <h3><button class="filter-pane-toggle" type="button" onclick="toggleFilterPaneMobile('locations')"><span>Locations</span><span class="filter-pane-chevron">▶</span></button></h3>
+            <div class="filter-pane-content">
+              <p class="filter-pane-help">Choose one or more location groups extracted from source GEDCOM filenames.</p>
+              <input class="filter-search" id="location-filter-search" placeholder="Search locations..." oninput="renderLocationOptions()"/>
+              <div class="filter-option-list" id="location-options"></div>
+            </div>
           </section>
           <section class="filter-pane" id="filter-pane-sources">
-            <h3>Source Files</h3>
-            <p class="filter-pane-help">Choose one or more GEDCOM source files. Leave All Files selected to search the full archive.</p>
-            <input class="filter-search" id="source-filter-search" placeholder="Search source files..." oninput="renderSourceOptions()"/>
-            <div class="filter-option-list" id="source-options"></div>
-          </section>
-          <section class="filter-pane" id="filter-pane-status">
-            <h3>Gender & Status</h3>
-            <p class="filter-pane-help">These mirror the quick filters above.</p>
-            <div class="filter-option-list">
-              <label class="filter-option"><input type="radio" name="drawer-status-filter" value="all" checked onchange="setFilterFromDrawer(this.value)"/> All</label>
-              <label class="filter-option"><input type="radio" name="drawer-status-filter" value="M" onchange="setFilterFromDrawer(this.value)"/> Male</label>
-              <label class="filter-option"><input type="radio" name="drawer-status-filter" value="F" onchange="setFilterFromDrawer(this.value)"/> Female</label>
-              <label class="filter-option"><input type="radio" name="drawer-status-filter" value="deceased" onchange="setFilterFromDrawer(this.value)"/> Deceased</label>
+            <h3><button class="filter-pane-toggle" type="button" onclick="toggleFilterPaneMobile('sources')"><span>Source Families</span><span class="filter-pane-chevron">▶</span></button></h3>
+            <div class="filter-pane-content">
+              <p class="filter-pane-help">Choose one or more GEDCOM source families. Leave All Families selected to search the full archive.</p>
+              <input class="filter-search" id="source-filter-search" placeholder="Search source families..." oninput="renderSourceOptions()"/>
+              <div class="filter-option-list" id="source-options"></div>
             </div>
           </section>
         </div>
@@ -1319,7 +1329,7 @@ function renderSourceOptions() {
   container.innerHTML = `
     <label class="filter-option">
       <input type="checkbox" ${draftSourceIds.size ? '' : 'checked'} onchange="toggleAllSources(this.checked)"/>
-      <span>All Files</span>
+      <span>All Families</span>
       <span class="filter-option-count">${total.toLocaleString()}</span>
     </label>
     ${rows.map(u => `
@@ -1406,6 +1416,8 @@ function openFilterDrawer() {
   draftSourceIds = new Set(selectedSourceIds);
   draftLocationNames = new Set(selectedLocationNames);
   draftSearchFilter = searchFilter;
+  document.querySelectorAll('.filter-pane').forEach(pane => pane.classList.remove('mobile-open'));
+  showFilterPane('status', document.querySelector('.filter-tab[onclick*="status"]'));
   renderSourceOptions();
   renderLocationOptions();
   renderDrawerStatusOptions();
@@ -1428,6 +1440,11 @@ function showFilterPane(name, btn) {
   if (btn) btn.classList.add('active');
   const pane = document.getElementById('filter-pane-' + name);
   if (pane) pane.classList.add('active');
+}
+
+function toggleFilterPaneMobile(name) {
+  const pane = document.getElementById('filter-pane-' + name);
+  if (pane) pane.classList.toggle('mobile-open');
 }
 
 function applyDrawerFilters() {
@@ -1477,11 +1494,11 @@ function updateActiveFilterPills() {
   `).join('') + (pills.length ? '<button class="active-filter-clear" type="button" onclick="resetAllFilters()">Clear all</button>' : '');
 
   const count = pills.length;
-  if (buttonLabel) buttonLabel.textContent = count ? `Filters (${count})` : 'Filters';
+  if (buttonLabel) buttonLabel.textContent = count ? `Filter Search Results (${count})` : 'Filter Search Results';
   if (summary) {
     const gedcomIds = selectedGedcomIds();
-    if (gedcomIds && !gedcomIds.length) summary.textContent = 'No source files match the selected filters';
-    else if (gedcomIds) summary.textContent = `${gedcomIds.length} source file${gedcomIds.length === 1 ? '' : 's'} selected`;
+    if (gedcomIds && !gedcomIds.length) summary.textContent = 'No source families match the selected filters';
+    else if (gedcomIds) summary.textContent = `${gedcomIds.length} source ${gedcomIds.length === 1 ? 'family' : 'families'} selected`;
     else summary.textContent = '';
   }
 }
@@ -1715,6 +1732,11 @@ async function loadSearch(q) {
   if (!rawTokens.length) {
     // No query — just apply filters and paginate
     let query = sb.from('people').select(baseSelect, { count: 'exact' });
+    query = query
+      .not('name', 'is', null)
+      .neq('name', '')
+      .not('name', 'ilike', '(%')
+      .not('name', 'ilike', '[%');
     if (searchFilter === 'M') query = query.eq('sex', 'M');
     else if (searchFilter === 'F') query = query.eq('sex', 'F');
     else if (searchFilter === 'deceased') query = query.eq('death_flag', true);
@@ -1729,7 +1751,7 @@ async function loadSearch(q) {
       }
     }
     if (!query) {
-      // no matching source files after combined filters
+      // no matching source families after combined filters
     } else {
       query = query.order('name').range(searchPage * PAGE_SIZE, (searchPage + 1) * PAGE_SIZE - 1);
       const res = await query;
@@ -1815,7 +1837,7 @@ async function loadSearch(q) {
   gedcomUploads.forEach(u => srcMap[u.id] = u.filename.replace(/\.ged$/i,''));
   const appliedFilters = [];
   if (selectedLocationNames.size) appliedFilters.push(`${selectedLocationNames.size} location${selectedLocationNames.size === 1 ? '' : 's'}`);
-  if (selectedSourceIds.size) appliedFilters.push(`${selectedSourceIds.size} source file${selectedSourceIds.size === 1 ? '' : 's'}`);
+  if (selectedSourceIds.size) appliedFilters.push(`${selectedSourceIds.size} source ${selectedSourceIds.size === 1 ? 'family' : 'families'}`);
   const filterDesc = appliedFilters.length ? ` in <em>${appliedFilters.join(' + ')}</em>` : '';
   const fuzzyNote = rawTokens.length ? `<span style="font-size:0.75rem;color:var(--muted);margin-left:8px">✦ fuzzy + variant matching active</span>` : '';
 

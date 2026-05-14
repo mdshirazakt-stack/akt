@@ -1,12 +1,147 @@
 # Apnon Ki Talash / Iraqi Biradari Project Handoff
 
-Last updated: 2026-05-09
+Last updated: 2026-05-15
 
 ## Project Overview
 
 This project has been split into two separate repositories and domains.
 
 The split is intentional. The genealogy engine must remain isolated from the public heritage/content website so future CMS/admin work does not risk breaking Shijra functionality.
+
+## Current AKT Status As Of 2026-05-15
+
+Active repo:
+
+```text
+/Users/shiraz/apnonkitalash/akt
+```
+
+Active domain:
+
+```text
+https://apnonkitalash.com/
+```
+
+Current git state at handoff:
+
+```text
+Branch: main
+Working tree before this handoff edit: clean
+Pending handoff-only change: PROJECT_HANDOFF.md
+Latest commit: 8891d5a Refine profile correction workflow
+```
+
+Recent major AKT work completed:
+
+- Mobile search UX has been redesigned and pushed.
+- Mobile filters now open as a compact sheet with collapsed filter sections.
+- "Filter" was renamed to "Filter Search Results".
+- "Source Files" was renamed to "Source Families".
+- Quick filters below the search bar were removed.
+- Mobile result cards were simplified to show clickable names, birth place, and source family only.
+- Default blank results avoid awkward unnamed/bracket-leading records and generic "1 son / 1 daughter" style records, while those records remain searchable.
+- Print tree no longer prints the large search/index result list.
+- Admin visitors/activity tracking was enriched with IST timestamps, visit counts, device/timezone, and location hints.
+- Admin visitor table got sortable columns and cleaner mobile-unfriendly metadata was removed.
+- GEDCOM duplicate protection was changed to a filename warning instead of person-level duplicate blocking.
+- Profile correction workflow was introduced on `person.html`.
+- Admin can review correction requests and apply harmless profile fields into a separate overlay table.
+- GEDCOM data remains intact; community-approved edits are stored separately in `person_profile_overrides`.
+
+Profile correction overlay currently supports these harmless fields:
+
+- corrected name
+- deceased flag
+- date of birth as free text
+- date of death as free text
+- place of death
+- mobile number
+- root place
+- place of birth
+- current location
+- birth order (`First`, `2` through `20`, `Last`)
+
+Relationship/family modification requests are collected as review notes only for now:
+
+- parents
+- siblings
+- spouse
+- children
+
+They do not directly modify the family graph yet.
+
+Supabase profile overlay SQL has already been run by Shiraz in the AKT Supabase project. The active schema additions are:
+
+```sql
+public.person_profile_overrides
+public.correction_requests correction_* columns
+```
+
+The overlay is intentionally separate from GEDCOM source tables so future GEDCOM imports do not overwrite community-approved profile corrections.
+
+## Open Item For Tomorrow: GEDCOM Notes
+
+GEDCOM no. 202 was checked at:
+
+```text
+/Users/shiraz/Downloads/202-Shiraz-familyof-Rasra.ged
+```
+
+Finding:
+
+```text
+The file contains 100 NOTE fields.
+```
+
+Examples include:
+
+```text
+1 NOTE Blue Star Finishers<br>Mobile - 9415051970
+1 NOTE Mohammad Shiraz Anwar is a seasoned Product & Program Leadership executive...
+2 CONC continuation lines...
+```
+
+Current parser status:
+
+- `admin.html` currently ignores GEDCOM `NOTE`, `CONC`, and `CONT` tags.
+- Existing uploaded people rows therefore do not show notes yet.
+- Reuploading GEDCOM 202 is not desired.
+
+Potential no-reupload backfill file provided by Shiraz:
+
+```text
+/Users/shiraz/Downloads/import_notes.sql
+```
+
+This file is useful because it:
+
+- adds `public.people.notes`
+- updates 100 people from GEDCOM 202 using `raw_gedcom_id`
+
+Important safety issue:
+
+The SQL should not be run as-is because `raw_gedcom_id` values such as `@I1@` can exist in multiple GEDCOM uploads. The safer version must scope every update to GEDCOM 202's upload row, for example:
+
+```sql
+UPDATE public.people
+SET notes = '...'
+WHERE raw_gedcom_id = '@I2288@'
+  AND gedcom_id = (
+    SELECT id
+    FROM public.gedcom_uploads
+    WHERE filename = '202-Shiraz-familyof-Rasra.ged'
+    ORDER BY uploaded_at DESC
+    LIMIT 1
+  );
+```
+
+Recommended next steps for notes:
+
+1. Convert `/Users/shiraz/Downloads/import_notes.sql` into a scoped, safer SQL file.
+2. Ask Shiraz to run that scoped SQL in the AKT Supabase project.
+3. Update `person.html` to display `p.notes` in a dedicated "Notes" section.
+4. Update both GEDCOM parser paths in `admin.html` so future uploads preserve `NOTE`, `CONC`, and `CONT`.
+5. Keep notes separate from community correction overlay unless we later decide to support admin-edited notes.
 
 ## Repository 1: `akt`
 
@@ -493,4 +628,3 @@ http://localhost:8001/videos/
 http://localhost:8001/contact/
 http://localhost:8001/admin/
 ```
-

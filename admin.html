@@ -232,6 +232,20 @@
   .activity-action { color: var(--muted); flex: 1; }
   .activity-badge { display: inline-block; padding: 1px 7px; font-size: 0.68rem; border-radius: 2px; font-weight: 700; text-transform: uppercase; background: #eaf0f8; color: #5a8ab0; }
 
+  /* FORUM MODERATION */
+  .forum-admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+  .forum-admin-item { border: 1px solid var(--border); background: var(--bg); padding: 15px; margin-bottom: 12px; }
+  .forum-admin-title { font-weight: 700; font-size: 0.98rem; color: var(--text); line-height: 1.35; }
+  .forum-admin-meta { color: var(--muted); font-size: 0.76rem; margin-top: 4px; line-height: 1.5; }
+  .forum-admin-body { background: var(--surface); border: 1px solid var(--border); padding: 10px 12px; margin-top: 10px; white-space: pre-wrap; line-height: 1.55; font-size: 0.86rem; }
+  .forum-admin-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+  .forum-admin-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .forum-admin-tab {
+    padding: 6px 13px; border: 1px solid var(--border); background: var(--surface);
+    font-family: 'Lato', sans-serif; color: var(--muted); cursor: pointer; font-size: 0.78rem;
+  }
+  .forum-admin-tab.active { background: var(--gold); color: #fff; border-color: var(--gold); }
+
   /* TOAST */
   #toast {
     position: fixed; bottom: 24px; right: 24px;
@@ -286,6 +300,7 @@
     <button class="nav-tab" onclick="switchTab('corrections', this)">📝 Corrections</button>
     <button class="nav-tab" onclick="switchTab('suggestions', this)">💡 Suggestions</button>
     <button class="nav-tab" onclick="switchTab('findrequests', this)">🔍 Find Requests</button>
+    <button class="nav-tab" onclick="switchTab('forum', this)">💬 Forum</button>
   </nav>
 
   <main>
@@ -512,6 +527,23 @@
       </div>
     </div>
 
+    <!-- FORUM MODERATION PANEL -->
+    <div id="panel-forum" class="panel">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <h2 style="margin:0">💬 Forum Moderation</h2>
+          <button class="btn-sm" onclick="loadForumAdmin()" style="background:var(--gold);color:#fff;border:none;padding:7px 16px;cursor:pointer;font-size:0.85rem">↻ Refresh</button>
+        </div>
+        <div class="forum-admin-tabs">
+          <button class="forum-admin-tab active" onclick="setForumAdminView('threads', this)">Pending Threads</button>
+          <button class="forum-admin-tab" onclick="setForumAdminView('posts', this)">Pending Replies</button>
+          <button class="forum-admin-tab" onclick="setForumAdminView('published', this)">Published Threads</button>
+          <button class="forum-admin-tab" onclick="setForumAdminView('flags', this)">Reports</button>
+        </div>
+        <div id="forum-admin-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -527,6 +559,10 @@ let parsedData = null; // { people, families, familyMembers, filename }
 let dupDecisions = {}; // uid -> 'overwrite' | 'skip'
 let allVisitors = [];
 let visitorSort = { key: 'last_seen', dir: 'desc' };
+let forumAdminView = 'threads';
+let forumAdminThreads = [];
+let forumAdminPosts = [];
+let forumAdminFlags = [];
 
 // ===================== AUTH =====================
 async function doLogin() {
@@ -562,6 +598,7 @@ function switchTab(name, btn) {
   if (name === 'corrections') loadCorrections();
   if (name === 'suggestions') loadSuggestions();
   if (name === 'findrequests') loadFindRequests();
+  if (name === 'forum') loadForumAdmin();
 }
 
 // ===================== GEDCOM PARSER =====================
@@ -2217,6 +2254,171 @@ async function saveFindRequestNotes(id, notes) {
     .eq('id', id);
   if (error) toast(error.message, true);
   else { const rec = findRequestsData.find(r => r.id === id); if (rec) rec.admin_notes = notes; }
+}
+
+// ===================== FORUM MODERATION =====================
+function setForumAdminView(view, btn) {
+  forumAdminView = view;
+  document.querySelectorAll('.forum-admin-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  loadForumAdmin();
+}
+
+async function loadForumAdmin() {
+  const container = document.getElementById('forum-admin-list');
+  container.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+  try {
+    if (forumAdminView === 'threads') {
+      const { data, error } = await sb.from('forum_threads')
+        .select('*, forum_categories(title)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      forumAdminThreads = data || [];
+      renderForumAdminThreads(forumAdminThreads, 'pending');
+    } else if (forumAdminView === 'published') {
+      const { data, error } = await sb.from('forum_threads')
+        .select('*, forum_categories(title)')
+        .in('status', ['published', 'locked'])
+        .order('updated_at', { ascending: false })
+        .limit(80);
+      if (error) throw error;
+      forumAdminThreads = data || [];
+      renderForumAdminThreads(forumAdminThreads, 'published');
+    } else if (forumAdminView === 'posts') {
+      const { data, error } = await sb.from('forum_posts')
+        .select('*, forum_threads(title)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      forumAdminPosts = data || [];
+      renderForumAdminPosts();
+    } else if (forumAdminView === 'flags') {
+      const { data, error } = await sb.from('forum_flags')
+        .select('*')
+        .eq('status', 'new')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      forumAdminFlags = data || [];
+      renderForumAdminFlags();
+    }
+  } catch (err) {
+    container.innerHTML = `<div class="empty" style="color:var(--red)">Forum tables are not ready. Run <code>supabase_forum.sql</code> in Supabase.<br>${escapeHtml(err.message || '')}</div>`;
+  }
+}
+
+function renderForumAdminThreads(rows, mode) {
+  const container = document.getElementById('forum-admin-list');
+  if (!rows.length) {
+    container.innerHTML = `<div class="empty">No ${mode === 'pending' ? 'pending' : 'published'} threads found.</div>`;
+    return;
+  }
+  container.innerHTML = rows.map(t => `
+    <div class="forum-admin-item">
+      <div class="forum-admin-title">${escapeHtml(t.title)}</div>
+      <div class="forum-admin-meta">
+        ${escapeHtml(t.forum_categories?.title || 'Category')} · ${escapeHtml(t.author_name)} · ${formatIST(t.created_at)}
+        ${t.author_mobile ? ` · ${escapeHtml(t.author_mobile)}` : ''}
+        · ${escapeHtml(t.status)}
+      </div>
+      <div class="forum-admin-body">${escapeHtml(t.body)}</div>
+      <div class="forum-admin-actions">
+        ${t.status === 'pending' ? `<button class="btn-green" onclick="setForumThreadStatus('${t.id}', 'published')">Publish</button>` : ''}
+        ${t.status === 'published' ? `<button class="btn-outline" onclick="setForumThreadStatus('${t.id}', 'locked')">Lock</button>` : ''}
+        ${t.status === 'locked' ? `<button class="btn-green" onclick="setForumThreadStatus('${t.id}', 'published')">Unlock</button>` : ''}
+        ${t.status !== 'hidden' ? `<button class="btn-red" onclick="setForumThreadStatus('${t.id}', 'hidden')">Hide</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderForumAdminPosts() {
+  const container = document.getElementById('forum-admin-list');
+  if (!forumAdminPosts.length) {
+    container.innerHTML = '<div class="empty">No pending replies found.</div>';
+    return;
+  }
+  container.innerHTML = forumAdminPosts.map(p => `
+    <div class="forum-admin-item">
+      <div class="forum-admin-title">Reply to: ${escapeHtml(p.forum_threads?.title || 'Discussion')}</div>
+      <div class="forum-admin-meta">
+        ${escapeHtml(p.author_name)} · ${formatIST(p.created_at)}
+        ${p.author_mobile ? ` · ${escapeHtml(p.author_mobile)}` : ''}
+      </div>
+      <div class="forum-admin-body">${escapeHtml(p.body)}</div>
+      <div class="forum-admin-actions">
+        <button class="btn-green" onclick="setForumPostStatus('${p.id}', 'published')">Publish</button>
+        <button class="btn-red" onclick="setForumPostStatus('${p.id}', 'hidden')">Hide</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderForumAdminFlags() {
+  const container = document.getElementById('forum-admin-list');
+  if (!forumAdminFlags.length) {
+    container.innerHTML = '<div class="empty">No new reports found.</div>';
+    return;
+  }
+  container.innerHTML = forumAdminFlags.map(f => `
+    <div class="forum-admin-item">
+      <div class="forum-admin-title">Reported content</div>
+      <div class="forum-admin-meta">
+        Reporter: ${escapeHtml(f.reporter_name)} · ${formatIST(f.created_at)}
+        ${f.thread_id ? ` · Thread ${escapeHtml(f.thread_id)}` : ''}
+        ${f.post_id ? ` · Reply ${escapeHtml(f.post_id)}` : ''}
+      </div>
+      <div class="forum-admin-body">${escapeHtml(f.reason)}</div>
+      <div class="forum-admin-actions">
+        <button class="btn-green" onclick="setForumFlagStatus('${f.id}', 'reviewed')">Mark Reviewed</button>
+        <button class="btn-outline" onclick="setForumFlagStatus('${f.id}', 'dismissed')">Dismiss</button>
+        ${f.thread_id ? `<button class="btn-red" onclick="setForumThreadStatus('${f.thread_id}', 'hidden')">Hide Thread</button>` : ''}
+        ${f.post_id ? `<button class="btn-red" onclick="setForumPostStatus('${f.post_id}', 'hidden')">Hide Reply</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function setForumThreadStatus(id, status) {
+  const { error } = await sb.from('forum_threads')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) { toast(error.message, true); return; }
+  toast('Thread updated: ' + status);
+  loadForumAdmin();
+}
+
+async function setForumPostStatus(id, status) {
+  const post = forumAdminPosts.find(p => p.id === id);
+  const { error } = await sb.from('forum_posts')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) { toast(error.message, true); return; }
+
+  if (status === 'published' && post?.thread_id) {
+    const { data: thread } = await sb.from('forum_threads')
+      .select('reply_count')
+      .eq('id', post.thread_id)
+      .maybeSingle();
+    await sb.from('forum_threads')
+      .update({
+        reply_count: Number(thread?.reply_count || 0) + 1,
+        last_reply_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', post.thread_id);
+  }
+  toast('Reply updated: ' + status);
+  loadForumAdmin();
+}
+
+async function setForumFlagStatus(id, status) {
+  const { error } = await sb.from('forum_flags')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) { toast(error.message, true); return; }
+  toast('Report updated: ' + status);
+  loadForumAdmin();
 }
 </script>
 </body>

@@ -1265,6 +1265,7 @@ async function doEnter() {
 
   sessionStorage.setItem('akt_visitor_name', name);
   sessionStorage.setItem('akt_visitor_mobile', mobile);
+  sessionStorage.setItem('akt_access_granted', '1');
   await startApp(name);
 }
 
@@ -1340,6 +1341,7 @@ async function startApp(name) {
 function doLogout() {
   sessionStorage.removeItem('akt_visitor_name');
   sessionStorage.removeItem('akt_visitor_mobile');
+  sessionStorage.removeItem('akt_access_granted');
   currentUser = null;
   currentVisitCount = 0;
   accessRequestMode = false;
@@ -1355,10 +1357,15 @@ function doLogout() {
   document.getElementById('visitor-name').focus();
 }
 
-// Prefill recent visitor details, but do not bypass approval checks.
+// Resume only within an already-approved browser session.
 (function() {
   const savedName = sessionStorage.getItem('akt_visitor_name');
   const savedMobile = sessionStorage.getItem('akt_visitor_mobile');
+  const accessGranted = sessionStorage.getItem('akt_access_granted') === '1';
+  if (accessGranted && savedName) {
+    startApp(savedName);
+    return;
+  }
   if (savedName) document.getElementById('visitor-name').value = savedName;
   if (savedMobile) document.getElementById('visitor-mobile').value = savedMobile;
 })();

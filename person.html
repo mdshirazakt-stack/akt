@@ -432,7 +432,8 @@ async function doEnter() {
     await sb.from('visitors').insert({ name_entered: name, visit_count: 1 });
   }
 
-  sessionStorage.setItem('akt_visitor', name);
+  sessionStorage.setItem('akt_visitor_name', name);
+  sessionStorage.setItem('akt_access_granted', '1');
   await startApp(name);
 }
 
@@ -451,8 +452,9 @@ async function startApp(name) {
 
 // Auto-login if session exists — runs directly since script is at bottom of body
 (function() {
-  const saved = sessionStorage.getItem('akt_visitor');
-  if (saved) startApp(saved);
+  const saved = sessionStorage.getItem('akt_visitor_name') || sessionStorage.getItem('akt_visitor');
+  const accessGranted = sessionStorage.getItem('akt_access_granted') === '1' || !!sessionStorage.getItem('akt_visitor');
+  if (saved && accessGranted) startApp(saved);
 })();
 
 // ===== GEDCOM SOURCES =====

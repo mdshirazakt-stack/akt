@@ -719,7 +719,6 @@
       <div id="access-request-fields" class="auth-request-fields">
         <input type="tel" id="visitor-mobile" placeholder="Mobile number" maxlength="30"/>
         <input type="text" id="visitor-family-reference" placeholder="Root place / family reference" maxlength="180"/>
-        <textarea id="visitor-access-reason" placeholder="Purpose of visit" maxlength="500"></textarea>
       </div>
       <button class="btn-enter" id="access-submit-btn" onclick="doEnter()">Enter Site</button>
       <div class="auth-err" id="auth-err">Please enter your name to continue.</div>
@@ -1189,7 +1188,6 @@ async function doEnter() {
   const name = document.getElementById('visitor-name').value.trim();
   const mobile = normalizeMobile(document.getElementById('visitor-mobile').value);
   const familyReference = document.getElementById('visitor-family-reference').value.trim();
-  const accessReason = document.getElementById('visitor-access-reason').value.trim();
   const err = document.getElementById('auth-err');
   err.style.display = 'none';
   err.style.color = '#c0392b';
@@ -1225,19 +1223,16 @@ async function doEnter() {
     };
     if (mobile) updatePayload.mobile = mobile;
     if (familyReference) updatePayload.family_reference = familyReference;
-    if (accessReason) updatePayload.access_reason = accessReason;
     await sb.from('visitors').update(updatePayload).eq('id', existing.id);
   } else if (existing && status === 'pending') {
-    if (!mobile || !familyReference || !accessReason) {
-      revealAccessRequestFields('Your access request is pending admin review. You may add or update your mobile, family reference, and purpose here.');
-      showAccessMessage('Your access request is pending admin review. You can add mobile, family reference, and purpose here if anything is missing.', false);
+    if (!mobile || !familyReference) {
+      revealAccessRequestFields('Your access request is pending admin review. You may add or update your mobile and family reference here.');
       return;
     }
     await sb.from('visitors').update({
       name_entered: name,
       mobile,
       family_reference: familyReference,
-      access_reason: accessReason,
       ip_hint: getIpHint(),
       updated_at: new Date().toISOString()
     }).eq('id', existing.id);
@@ -1247,16 +1242,14 @@ async function doEnter() {
     showAccessMessage('Access is not available for this request. Please contact the administrator if this looks incorrect.', true);
     return;
   } else {
-    if (!mobile || !familyReference || !accessReason) {
-      revealAccessRequestFields('We could not find an approved visitor with this name. Please share these details to request access.');
-      showAccessMessage('We could not find an approved visitor with this name. Please fill the access request details below.', false);
+    if (!mobile || !familyReference) {
+      revealAccessRequestFields('We could not find an approved visitor with this name. Please share your mobile and family reference to request access.');
       return;
     }
     const { error: insertError } = await sb.from('visitors').insert({
       name_entered: name,
       mobile,
       family_reference: familyReference,
-      access_reason: accessReason,
       access_status: 'pending',
       visit_count: 0,
       ip_hint: getIpHint()
@@ -1280,6 +1273,7 @@ function revealAccessRequestFields(note) {
   document.getElementById('access-request-fields').classList.add('open');
   document.getElementById('access-submit-btn').textContent = 'Submit Access Request';
   document.getElementById('auth-note').textContent = note || 'Please share these details for admin review.';
+  document.getElementById('auth-err').style.display = 'none';
   document.getElementById('visitor-mobile').focus();
 }
 
@@ -1358,7 +1352,6 @@ function doLogout() {
   document.getElementById('visitor-name').value = '';
   document.getElementById('visitor-mobile').value = '';
   document.getElementById('visitor-family-reference').value = '';
-  document.getElementById('visitor-access-reason').value = '';
   document.getElementById('visitor-name').focus();
 }
 

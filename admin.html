@@ -410,7 +410,6 @@
               <th class="sortable" onclick="sortVisitorsBy('name_entered')">Name Entered <span class="sort-indicator" id="sort-name_entered"></span></th>
               <th class="sortable" onclick="sortVisitorsBy('visit_count')">Total Visits <span class="sort-indicator" id="sort-visit_count"></span></th>
               <th>Mobile / Reference</th>
-              <th>Purpose</th>
               <th class="sortable" onclick="sortVisitorsBy('last_seen')">Last Seen (IST) <span class="sort-indicator" id="sort-last_seen"></span></th>
               <th class="sortable" onclick="sortVisitorsBy('status')">Status <span class="sort-indicator" id="sort-status"></span></th>
               <th>Actions</th>
@@ -1208,7 +1207,7 @@ async function deleteUpload(id, name) {
 // ===================== VISITORS =====================
 async function loadVisitors() {
   const tbody = document.getElementById('visitors-tbody');
-  tbody.innerHTML = '<tr><td colspan="7" class="empty"><span class="spinner"></span> Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="6" class="empty"><span class="spinner"></span> Loading…</td></tr>';
   const { data } = await sb.from('visitors').select('*').order('last_seen', { ascending: false });
   allVisitors = data || [];
   renderVisitors(allVisitors);
@@ -1216,7 +1215,7 @@ async function loadVisitors() {
 
 function renderVisitors(visitors) {
   const tbody = document.getElementById('visitors-tbody');
-  if (!visitors.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No visitors yet.</td></tr>'; return; }
+  if (!visitors.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No visitors yet.</td></tr>'; return; }
   updateVisitorSortIndicators();
   const sortedVisitors = sortVisitorRows(visitors);
   tbody.innerHTML = sortedVisitors.map(v => {
@@ -1239,7 +1238,6 @@ function renderVisitors(visitors) {
         ${v.family_reference ? `${escapeHtml(v.family_reference)}<br>` : ''}
         ${formatVisitorTimezone(v.ip_hint)}
       </td>
-      <td style="font-size:0.78rem;max-width:220px">${escapeHtml(v.access_reason || '')}</td>
       <td>${formatIST(v.last_seen, false)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(v.last_seen)}</span></td>
       <td><span class="badge" style="${statusStyles[status] || statusStyles.pending}">${escapeHtml(status)}</span></td>
       <td style="min-width:190px">

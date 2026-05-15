@@ -1226,7 +1226,7 @@ async function doEnter() {
     await sb.from('visitors').update(updatePayload).eq('id', existing.id);
   } else if (existing && status === 'pending') {
     if (!mobile || !familyReference) {
-      revealAccessRequestFields('Your access request is pending admin review. You may add or update your mobile and family reference here.');
+      revealAccessRequestFields('Your request is still pending admin review.');
       return;
     }
     await sb.from('visitors').update({
@@ -1236,10 +1236,10 @@ async function doEnter() {
       ip_hint: getIpHint(),
       updated_at: new Date().toISOString()
     }).eq('id', existing.id);
-    showAccessMessage('Your access request is already pending admin review. Please check back after approval.', false);
+    showAccessMessage('Your request is still pending admin review.', false);
     return;
   } else if (existing && (status === 'rejected' || status === 'blocked')) {
-    showAccessMessage('Access is not available for this request. Please contact the administrator if this looks incorrect.', true);
+    showAccessMessage('Your access request has not been approved. Please contact the administrator if this looks incorrect.', true);
     return;
   } else {
     if (!mobile || !familyReference) {

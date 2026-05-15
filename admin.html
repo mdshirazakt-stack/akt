@@ -1244,6 +1244,7 @@ function renderVisitors(visitors) {
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${status !== 'approved' ? `<button class="btn-sm" onclick="approveVisitor('${v.id}')" style="border-color:var(--green);color:var(--green)">Approve</button>` : ''}
           ${status !== 'rejected' && status !== 'blocked' ? `<button class="btn-sm" onclick="rejectVisitor('${v.id}')">Reject</button>` : ''}
+          ${status === 'approved' ? `<button class="btn-sm" onclick="copyApprovalMessage('${v.id}')">Copy Message</button>` : ''}
           ${status === 'blocked'
             ? `<button class="btn-sm" onclick="unblockVisitor('${v.id}')">Unblock</button>`
             : `<button class="btn-sm btn-danger" onclick="blockVisitor('${v.id}')">Block</button>`
@@ -1328,6 +1329,25 @@ async function approveVisitor(id) {
   }).eq('id', id);
   toast('Access approved');
   loadVisitors();
+}
+
+async function copyApprovalMessage(id) {
+  const visitor = allVisitors.find(v => v.id === id);
+  if (!visitor) { toast('Visitor not found', true); return; }
+  const name = visitor.name_entered || 'there';
+  const message = `Assalamu Alaikum ${name}, your Apno Ki Talash access request has been approved. You can now visit https://apnonkitalash.com and enter using your approved name: ${name}`;
+  try {
+    await navigator.clipboard.writeText(message);
+    toast('Approval message copied');
+  } catch (err) {
+    const box = document.createElement('textarea');
+    box.value = message;
+    document.body.appendChild(box);
+    box.select();
+    document.execCommand('copy');
+    document.body.removeChild(box);
+    toast('Approval message copied');
+  }
 }
 
 async function rejectVisitor(id) {

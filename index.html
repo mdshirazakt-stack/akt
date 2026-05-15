@@ -708,7 +708,7 @@
       <textarea id="visitor-access-reason" placeholder="Purpose of visit" maxlength="500"></textarea>
       <button class="btn-enter" onclick="doEnter()">Request / Enter Archive</button>
       <div class="auth-err" id="auth-err">Please enter your name to continue.</div>
-      <div class="auth-note">Approved visitors can enter immediately. New access requests are sent to admin review.</div>
+      <div class="auth-note">Approved visitors can enter with their approved name. New access requests need the remaining details for admin review.</div>
     </div>
   </div>
 </div>
@@ -1175,24 +1175,27 @@ async function doEnter() {
   err.style.display = 'none';
   err.style.color = '#c0392b';
 
-  if (!name || !mobile || !familyReference || !accessReason) {
-    err.textContent = 'Please share your name, mobile number, family reference, and purpose of visit.';
+  if (!name) {
+    err.textContent = 'Please enter your approved name to continue.';
     err.style.display = 'block';
     return;
   }
 
-  const { data: mobileRows, error: mobileLookupError } = await sb.from('visitors')
-    .select('*')
-    .eq('mobile', mobile)
-    .order('last_seen', { ascending: false })
-    .limit(5);
-  if (mobileLookupError) {
-    err.textContent = 'Could not verify access right now. Please try again shortly.';
-    err.style.display = 'block';
-    return;
+  let existing = null;
+  if (mobile) {
+    const { data: mobileRows, error: mobileLookupError } = await sb.from('visitors')
+      .select('*')
+      .eq('mobile', mobile)
+      .order('last_seen', { ascending: false })
+      .limit(5);
+    if (mobileLookupError) {
+      err.textContent = 'Could not verify access right now. Please try again shortly.';
+      err.style.display = 'block';
+      return;
+    }
+    existing = (mobileRows || []).find(v => normalizeMobile(v.mobile) === mobile) || null;
   }
 
-  let existing = (mobileRows || []).find(v => normalizeMobile(v.mobile) === mobile) || null;
   if (!existing) {
     const { data: nameRows, error: nameLookupError } = await sb.from('visitors')
       .select('*')
@@ -1204,23 +1207,28 @@ async function doEnter() {
       err.style.display = 'block';
       return;
     }
-    existing = (nameRows || []).find(v => !v.mobile && String(v.name_entered || '').toLowerCase() === name.toLowerCase()) || null;
+    existing = (nameRows || []).find(v => String(v.name_entered || '').toLowerCase() === name.toLowerCase()) || null;
   }
   const status = existing?.is_blocked ? 'blocked' : (existing?.access_status || 'pending');
 
   if (existing && status === 'approved') {
     currentVisitCount = (existing.visit_count || 0) + 1;
-    await sb.from('visitors').update({
+    const updatePayload = {
       name_entered: name,
-      mobile,
-      family_reference: familyReference,
-      access_reason: accessReason,
       last_seen: new Date().toISOString(),
       visit_count: currentVisitCount,
       ip_hint: getIpHint(),
       updated_at: new Date().toISOString()
-    }).eq('id', existing.id);
+    };
+    if (mobile) updatePayload.mobile = mobile;
+    if (familyReference) updatePayload.family_reference = familyReference;
+    if (accessReason) updatePayload.access_reason = accessReason;
+    await sb.from('visitors').update(updatePayload).eq('id', existing.id);
   } else if (existing && status === 'pending') {
+    if (!mobile || !familyReference || !accessReason) {
+      showAccessMessage('Your access request is pending admin review. You can add mobile, family reference, and purpose here if anything is missing.', false);
+      return;
+    }
     await sb.from('visitors').update({
       name_entered: name,
       mobile,
@@ -1235,6 +1243,11 @@ async function doEnter() {
     showAccessMessage('Access is not available for this request. Please contact the administrator if this looks incorrect.', true);
     return;
   } else {
+    if (!mobile || !familyReference || !accessReason) {
+      err.textContent = 'New access requests need mobile number, family reference, and purpose of visit.';
+      err.style.display = 'block';
+      return;
+    }
     const { error: insertError } = await sb.from('visitors').insert({
       name_entered: name,
       mobile,

@@ -89,15 +89,18 @@
   .auth-box .urdu { font-family: 'Amiri', serif; font-size: 2.3rem; color: #264532; direction: rtl; line-height: 1.2; margin-bottom: 4px; }
   .auth-box .eng { font-size: 0.72rem; color: var(--gold); letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 30px; font-weight: 700; }
   .auth-box .prompt { font-size: 0.88rem; color: #5f5547; margin-bottom: 20px; line-height: 1.65; }
-  .auth-box input {
+  .auth-box input, .auth-box textarea {
     width: 100%; padding: 14px 16px; background: rgba(250,247,242,0.9);
     border: 1px solid #d2c5b3; color: var(--ink);
     font-size: 1rem; font-family: 'Lato', sans-serif;
     outline: none; transition: border 0.2s; margin-bottom: 14px;
     text-align: center;
   }
-  .auth-box input:focus { border-color: var(--gold2); box-shadow: 0 0 0 3px rgba(201,168,76,0.13); }
-  .auth-box input::placeholder { color: #9ab88a; }
+  .auth-box textarea { min-height: 76px; resize: vertical; line-height: 1.5; text-align: left; }
+  .auth-box input:focus, .auth-box textarea:focus { border-color: var(--gold2); box-shadow: 0 0 0 3px rgba(201,168,76,0.13); }
+  .auth-box input::placeholder, .auth-box textarea::placeholder { color: #9ab88a; }
+  .auth-fields { display: grid; gap: 0; }
+  .auth-fields.two { grid-template-columns: 1fr 1fr; gap: 10px; }
   .btn-enter {
     width: 100%; padding: 14px; background: #2f4d37; color: #fff9ef;
     border: none; font-family: 'Lato', sans-serif; font-weight: 700;
@@ -667,6 +670,7 @@
     .auth-mini-stats { justify-content: center; margin-top: 10px; }
     .auth-mini-stats span { font-size: 0.66rem; padding: 7px 9px; }
     .auth-box { padding: 24px 20px; }
+    .auth-fields.two { grid-template-columns: 1fr; gap: 0; }
     .auth-box .urdu { font-size: 2rem; }
     .auth-icon { width: 58px; height: 58px; margin-bottom: 10px; }
     .header-mark { width: 36px; height: 36px; flex-basis: 36px; }
@@ -695,11 +699,16 @@
       <div class="auth-icon"><img src="apnonkitalash-icon-light.png" alt="Apno Ki Talash icon"/></div>
       <div class="urdu">اپنوں کی تلاش</div>
       <div class="eng">Apno Ki Talash</div>
-      <p class="prompt">This is a private family tree archive.<br>Please enter your name to continue.</p>
-      <input type="text" id="visitor-name" placeholder="Your full name" maxlength="100" onkeydown="if(event.key==='Enter')doEnter()"/>
-      <button class="btn-enter" onclick="doEnter()">Enter Archive</button>
+      <p class="prompt">This is a private family tree archive.<br>Access is approved for known community members.</p>
+      <div class="auth-fields two">
+        <input type="text" id="visitor-name" placeholder="Your full name" maxlength="100"/>
+        <input type="tel" id="visitor-mobile" placeholder="Mobile number" maxlength="30"/>
+      </div>
+      <input type="text" id="visitor-family-reference" placeholder="Root place / family reference" maxlength="180"/>
+      <textarea id="visitor-access-reason" placeholder="Purpose of visit" maxlength="500"></textarea>
+      <button class="btn-enter" onclick="doEnter()">Request / Enter Archive</button>
       <div class="auth-err" id="auth-err">Please enter your name to continue.</div>
-      <div class="auth-note">Your name will be recorded for access tracking purposes.</div>
+      <div class="auth-note">Approved visitors can enter immediately. New access requests are sent to admin review.</div>
     </div>
   </div>
 </div>
@@ -1159,26 +1168,105 @@ let forumSelectedThread = null;
 // ===== AUTH =====
 async function doEnter() {
   const name = document.getElementById('visitor-name').value.trim();
-  if (!name) { document.getElementById('auth-err').style.display = 'block'; return; }
+  const mobile = normalizeMobile(document.getElementById('visitor-mobile').value);
+  const familyReference = document.getElementById('visitor-family-reference').value.trim();
+  const accessReason = document.getElementById('visitor-access-reason').value.trim();
+  const err = document.getElementById('auth-err');
+  err.style.display = 'none';
+  err.style.color = '#c0392b';
 
-  // Check if blocked
-  const { data: existing } = await sb.from('visitors').select('*').ilike('name_entered', name).maybeSingle();
-  if (existing?.is_blocked) {
-    document.getElementById('auth-err').textContent = 'Access denied. Please contact the administrator.';
-    document.getElementById('auth-err').style.display = 'block'; return;
+  if (!name || !mobile || !familyReference || !accessReason) {
+    err.textContent = 'Please share your name, mobile number, family reference, and purpose of visit.';
+    err.style.display = 'block';
+    return;
   }
 
-  // Upsert visitor
-  if (existing) {
+  const { data: mobileRows, error: mobileLookupError } = await sb.from('visitors')
+    .select('*')
+    .eq('mobile', mobile)
+    .order('last_seen', { ascending: false })
+    .limit(5);
+  if (mobileLookupError) {
+    err.textContent = 'Could not verify access right now. Please try again shortly.';
+    err.style.display = 'block';
+    return;
+  }
+
+  let existing = (mobileRows || []).find(v => normalizeMobile(v.mobile) === mobile) || null;
+  if (!existing) {
+    const { data: nameRows, error: nameLookupError } = await sb.from('visitors')
+      .select('*')
+      .ilike('name_entered', name)
+      .order('last_seen', { ascending: false })
+      .limit(5);
+    if (nameLookupError) {
+      err.textContent = 'Could not verify access right now. Please try again shortly.';
+      err.style.display = 'block';
+      return;
+    }
+    existing = (nameRows || []).find(v => !v.mobile && String(v.name_entered || '').toLowerCase() === name.toLowerCase()) || null;
+  }
+  const status = existing?.is_blocked ? 'blocked' : (existing?.access_status || 'pending');
+
+  if (existing && status === 'approved') {
     currentVisitCount = (existing.visit_count || 0) + 1;
-    await sb.from('visitors').update({ last_seen: new Date().toISOString(), visit_count: currentVisitCount, ip_hint: getIpHint() }).eq('id', existing.id);
+    await sb.from('visitors').update({
+      name_entered: name,
+      mobile,
+      family_reference: familyReference,
+      access_reason: accessReason,
+      last_seen: new Date().toISOString(),
+      visit_count: currentVisitCount,
+      ip_hint: getIpHint(),
+      updated_at: new Date().toISOString()
+    }).eq('id', existing.id);
+  } else if (existing && status === 'pending') {
+    await sb.from('visitors').update({
+      name_entered: name,
+      mobile,
+      family_reference: familyReference,
+      access_reason: accessReason,
+      ip_hint: getIpHint(),
+      updated_at: new Date().toISOString()
+    }).eq('id', existing.id);
+    showAccessMessage('Your access request is already pending admin review. Please check back after approval.', false);
+    return;
+  } else if (existing && (status === 'rejected' || status === 'blocked')) {
+    showAccessMessage('Access is not available for this request. Please contact the administrator if this looks incorrect.', true);
+    return;
   } else {
-    await sb.from('visitors').insert({ name_entered: name, visit_count: 1, ip_hint: getIpHint() });
-    currentVisitCount = 1;
+    const { error: insertError } = await sb.from('visitors').insert({
+      name_entered: name,
+      mobile,
+      family_reference: familyReference,
+      access_reason: accessReason,
+      access_status: 'pending',
+      visit_count: 0,
+      ip_hint: getIpHint()
+    });
+    if (insertError) {
+      err.textContent = 'Could not submit access request. Please try again shortly.';
+      err.style.display = 'block';
+      return;
+    }
+    showAccessMessage('Your access request has been submitted for admin review. Once approved, you can enter with the same name and mobile number.', false);
+    return;
   }
 
-  sessionStorage.setItem('akt_visitor', name);
+  sessionStorage.setItem('akt_visitor_name', name);
+  sessionStorage.setItem('akt_visitor_mobile', mobile);
   await startApp(name);
+}
+
+function normalizeMobile(value) {
+  return String(value || '').replace(/\D/g, '').trim();
+}
+
+function showAccessMessage(message, isError) {
+  const err = document.getElementById('auth-err');
+  err.textContent = message;
+  err.style.color = isError ? '#c0392b' : '#2e6e4a';
+  err.style.display = 'block';
 }
 
 async function startApp(name) {
@@ -1230,10 +1318,12 @@ async function startApp(name) {
   loadSearch('');
 }
 
-// Auto-login if session exists — runs directly since script is at bottom of body
+// Prefill recent visitor details, but do not bypass approval checks.
 (function() {
-  const saved = sessionStorage.getItem('akt_visitor');
-  if (saved) startApp(saved);
+  const savedName = sessionStorage.getItem('akt_visitor_name');
+  const savedMobile = sessionStorage.getItem('akt_visitor_mobile');
+  if (savedName) document.getElementById('visitor-name').value = savedName;
+  if (savedMobile) document.getElementById('visitor-mobile').value = savedMobile;
 })();
 
 function getIpHint() {

@@ -101,6 +101,8 @@
   .auth-box input::placeholder, .auth-box textarea::placeholder { color: #9ab88a; }
   .auth-fields { display: grid; gap: 0; }
   .auth-fields.two { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .auth-request-fields { display: none; }
+  .auth-request-fields.open { display: block; }
   .btn-enter {
     width: 100%; padding: 14px; background: #2f4d37; color: #fff9ef;
     border: none; font-family: 'Lato', sans-serif; font-weight: 700;
@@ -711,15 +713,17 @@
       <div class="urdu">اپنوں کی تلاش</div>
       <div class="eng">Apno Ki Talash</div>
       <p class="prompt">This is a private family tree archive.<br>Access is approved for known community members.</p>
-      <div class="auth-fields two">
+      <div class="auth-fields">
         <input type="text" id="visitor-name" placeholder="Your full name" maxlength="100"/>
-        <input type="tel" id="visitor-mobile" placeholder="Mobile number" maxlength="30"/>
       </div>
-      <input type="text" id="visitor-family-reference" placeholder="Root place / family reference" maxlength="180"/>
-      <textarea id="visitor-access-reason" placeholder="Purpose of visit" maxlength="500"></textarea>
-      <button class="btn-enter" onclick="doEnter()">Request / Enter Archive</button>
+      <div id="access-request-fields" class="auth-request-fields">
+        <input type="tel" id="visitor-mobile" placeholder="Mobile number" maxlength="30"/>
+        <input type="text" id="visitor-family-reference" placeholder="Root place / family reference" maxlength="180"/>
+        <textarea id="visitor-access-reason" placeholder="Purpose of visit" maxlength="500"></textarea>
+      </div>
+      <button class="btn-enter" id="access-submit-btn" onclick="doEnter()">Enter Site</button>
       <div class="auth-err" id="auth-err">Please enter your name to continue.</div>
-      <div class="auth-note">Approved visitors can enter with their approved name. New access requests need the remaining details for admin review.</div>
+      <div class="auth-note" id="auth-note">Enter your approved name. If you are new, we will ask for a few details for admin review.</div>
     </div>
   </div>
 </div>
@@ -1178,6 +1182,7 @@ let lastPersonDetail = null; // set whenever a person detail is rendered
 let forumCategories = [];
 let forumSelectedCategoryId = null;
 let forumSelectedThread = null;
+let accessRequestMode = false;
 
 // ===== AUTH =====
 async function doEnter() {
@@ -1190,39 +1195,23 @@ async function doEnter() {
   err.style.color = '#c0392b';
 
   if (!name) {
-    err.textContent = 'Please enter your approved name to continue.';
+    err.textContent = 'Please enter your name to continue.';
     err.style.display = 'block';
     return;
   }
 
   let existing = null;
-  if (mobile) {
-    const { data: mobileRows, error: mobileLookupError } = await sb.from('visitors')
-      .select('*')
-      .eq('mobile', mobile)
-      .order('last_seen', { ascending: false })
-      .limit(5);
-    if (mobileLookupError) {
-      err.textContent = 'Could not verify access right now. Please try again shortly.';
-      err.style.display = 'block';
-      return;
-    }
-    existing = (mobileRows || []).find(v => normalizeMobile(v.mobile) === mobile) || null;
+  const { data: nameRows, error: nameLookupError } = await sb.from('visitors')
+    .select('*')
+    .ilike('name_entered', name)
+    .order('last_seen', { ascending: false })
+    .limit(5);
+  if (nameLookupError) {
+    err.textContent = 'Could not verify access right now. Please try again shortly.';
+    err.style.display = 'block';
+    return;
   }
-
-  if (!existing) {
-    const { data: nameRows, error: nameLookupError } = await sb.from('visitors')
-      .select('*')
-      .ilike('name_entered', name)
-      .order('last_seen', { ascending: false })
-      .limit(5);
-    if (nameLookupError) {
-      err.textContent = 'Could not verify access right now. Please try again shortly.';
-      err.style.display = 'block';
-      return;
-    }
-    existing = (nameRows || []).find(v => String(v.name_entered || '').toLowerCase() === name.toLowerCase()) || null;
-  }
+  existing = (nameRows || []).find(v => String(v.name_entered || '').toLowerCase() === name.toLowerCase()) || null;
   const status = existing?.is_blocked ? 'blocked' : (existing?.access_status || 'pending');
 
   if (existing && status === 'approved') {
@@ -1240,6 +1229,7 @@ async function doEnter() {
     await sb.from('visitors').update(updatePayload).eq('id', existing.id);
   } else if (existing && status === 'pending') {
     if (!mobile || !familyReference || !accessReason) {
+      revealAccessRequestFields('Your access request is pending admin review. You may add or update your mobile, family reference, and purpose here.');
       showAccessMessage('Your access request is pending admin review. You can add mobile, family reference, and purpose here if anything is missing.', false);
       return;
     }
@@ -1258,8 +1248,8 @@ async function doEnter() {
     return;
   } else {
     if (!mobile || !familyReference || !accessReason) {
-      err.textContent = 'New access requests need mobile number, family reference, and purpose of visit.';
-      err.style.display = 'block';
+      revealAccessRequestFields('We could not find an approved visitor with this name. Please share these details to request access.');
+      showAccessMessage('We could not find an approved visitor with this name. Please fill the access request details below.', false);
       return;
     }
     const { error: insertError } = await sb.from('visitors').insert({
@@ -1283,6 +1273,14 @@ async function doEnter() {
   sessionStorage.setItem('akt_visitor_name', name);
   sessionStorage.setItem('akt_visitor_mobile', mobile);
   await startApp(name);
+}
+
+function revealAccessRequestFields(note) {
+  accessRequestMode = true;
+  document.getElementById('access-request-fields').classList.add('open');
+  document.getElementById('access-submit-btn').textContent = 'Submit Access Request';
+  document.getElementById('auth-note').textContent = note || 'Please share these details for admin review.';
+  document.getElementById('visitor-mobile').focus();
 }
 
 function normalizeMobile(value) {
@@ -1350,9 +1348,13 @@ function doLogout() {
   sessionStorage.removeItem('akt_visitor_mobile');
   currentUser = null;
   currentVisitCount = 0;
+  accessRequestMode = false;
   document.getElementById('app').style.display = 'none';
   document.getElementById('auth-gate').style.display = 'flex';
   document.getElementById('auth-err').style.display = 'none';
+  document.getElementById('access-request-fields').classList.remove('open');
+  document.getElementById('access-submit-btn').textContent = 'Enter Site';
+  document.getElementById('auth-note').textContent = 'Enter your approved name. If you are new, we will ask for a few details for admin review.';
   document.getElementById('visitor-name').value = '';
   document.getElementById('visitor-mobile').value = '';
   document.getElementById('visitor-family-reference').value = '';

@@ -34,6 +34,7 @@ Latest commit: 8891d5a Refine profile correction workflow
 Recent major AKT work completed:
 
 - Public `index.html` now shows an under-development holding page.
+- Public `forum.html` is linked from the holding page so visitors can use a lighter community discussion space while the archive remains private.
 - The working genealogy app has been moved to `archive.html` for continued background development.
 - Mobile search UX has been redesigned and pushed.
 - Mobile filters now open as a compact sheet with collapsed filter sections.
@@ -166,6 +167,7 @@ Expected root contents:
 ```text
 CNAME
 index.html          public under-development holding page
+forum.html          public community forum
 archive.html        working genealogy explorer
 admin.html
 allnames.json
@@ -175,6 +177,7 @@ legacy-code/
 Important notes:
 
 - `index.html` is the public holding page while the site is under development.
+- `forum.html` is a public discussion forum using the existing `forum_*` Supabase tables.
 - `archive.html` is the Shijra genealogy explorer used for background development.
 - `admin.html` is the Shijra admin/import/export utility.
 - `allnames.json` must stay beside `archive.html`, because the explorer uses:

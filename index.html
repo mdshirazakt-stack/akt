@@ -91,6 +91,33 @@
     font-weight: 700;
     font-size: 0.9rem;
   }
+  .actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 28px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 13px 20px;
+    border: 1px solid var(--gold);
+    background: var(--green);
+    color: #fff;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+    font-size: 0.78rem;
+  }
+  .btn.secondary {
+    background: transparent;
+    color: var(--ink);
+    border-color: var(--border);
+  }
 </style>
 </head>
 <body>
@@ -104,6 +131,9 @@
       This family heritage platform is currently being prepared and reviewed.
       We will announce once it is publicly available.
     </p>
+    <div class="actions">
+      <a class="btn" href="forum.html">Community Forum</a>
+    </div>
     <div class="note">Thank you for your patience.</div>
   </main>
 </body>

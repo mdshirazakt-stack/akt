@@ -1,6 +1,6 @@
 # Apnon Ki Talash / Iraqi Biradari Project Handoff
 
-Last updated: 2026-05-15
+Last updated: 2026-05-16
 
 ## Project Overview
 
@@ -33,6 +33,8 @@ Latest commit: 8891d5a Refine profile correction workflow
 
 Recent major AKT work completed:
 
+- Public `index.html` now shows an under-development holding page.
+- The working genealogy app has been moved to `archive.html` for continued background development.
 - Mobile search UX has been redesigned and pushed.
 - Mobile filters now open as a compact sheet with collapsed filter sections.
 - "Filter" was renamed to "Filter Search Results".
@@ -163,7 +165,8 @@ Expected root contents:
 
 ```text
 CNAME
-index.html
+index.html          public under-development holding page
+archive.html        working genealogy explorer
 admin.html
 allnames.json
 legacy-code/
@@ -171,9 +174,10 @@ legacy-code/
 
 Important notes:
 
-- `index.html` is the Shijra genealogy explorer.
+- `index.html` is the public holding page while the site is under development.
+- `archive.html` is the Shijra genealogy explorer used for background development.
 - `admin.html` is the Shijra admin/import/export utility.
-- `allnames.json` must stay beside `index.html`, because the explorer uses:
+- `allnames.json` must stay beside `archive.html`, because the explorer uses:
 
 ```js
 fetch('allnames.json')

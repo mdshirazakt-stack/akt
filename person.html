@@ -222,7 +222,7 @@
 <!-- ===== MAIN APP ===== -->
 <div id="app">
   <header>
-    <a class="logo" href="index.html">
+    <a class="logo" href="archive.html">
       <div class="header-mark"><img src="apnonkitalash-logo-favicon.png" alt="Logo"/></div>
       <div>
         <div class="logo-urdu">اپنوں کی تلاش</div>
@@ -414,23 +414,40 @@ let currentPerson = null; // cached person data
 async function doEnter() {
   const name = document.getElementById('visitor-name').value.trim();
   if (!name) {
-    document.getElementById('auth-err').style.display = 'block';
+    const err = document.getElementById('auth-err');
+    err.textContent = 'Please enter your approved name to continue.';
+    err.style.display = 'block';
     return;
   }
 
-  const { data: existing } = await sb.from('visitors').select('*').ilike('name_entered', name).maybeSingle();
-  if (existing?.is_blocked) {
-    document.getElementById('auth-err').textContent = 'Access denied. Please contact the administrator.';
-    document.getElementById('auth-err').style.display = 'block';
+  const { data: rows, error } = await sb.from('visitors')
+    .select('*')
+    .ilike('name_entered', name)
+    .order('last_seen', { ascending: false })
+    .limit(5);
+  const existing = (rows || []).find(v => String(v.name_entered || '').toLowerCase() === name.toLowerCase());
+  const status = existing?.is_blocked ? 'blocked' : (existing?.access_status || '');
+  if (error || !existing) {
+    const err = document.getElementById('auth-err');
+    err.textContent = 'We could not find an approved visitor with this name. Please request access from the main site.';
+    err.style.display = 'block';
+    return;
+  }
+  if (status === 'pending') {
+    const err = document.getElementById('auth-err');
+    err.textContent = 'Your request is still pending admin review.';
+    err.style.display = 'block';
+    return;
+  }
+  if (status !== 'approved') {
+    const err = document.getElementById('auth-err');
+    err.textContent = 'Your access request has not been approved. Please contact the administrator if this looks incorrect.';
+    err.style.display = 'block';
     return;
   }
 
-  const visitCount = existing ? (existing.visit_count || 0) + 1 : 1;
-  if (existing) {
-    await sb.from('visitors').update({ last_seen: new Date().toISOString(), visit_count: visitCount }).eq('id', existing.id);
-  } else {
-    await sb.from('visitors').insert({ name_entered: name, visit_count: 1 });
-  }
+  const visitCount = (existing.visit_count || 0) + 1;
+  await sb.from('visitors').update({ last_seen: new Date().toISOString(), visit_count: visitCount }).eq('id', existing.id);
 
   sessionStorage.setItem('akt_visitor_name', name);
   sessionStorage.setItem('akt_access_granted', '1');
@@ -474,7 +491,7 @@ async function loadPerson() {
   const container = document.getElementById('person-container');
 
   if (!uid) {
-    container.innerHTML = `<div class="empty-state">No person specified. <a href="index.html" style="color:var(--gold)">Go back to search</a>.</div>`;
+    container.innerHTML = `<div class="empty-state">No person specified. <a href="archive.html" style="color:var(--gold)">Go back to search</a>.</div>`;
     return;
   }
 
@@ -492,7 +509,7 @@ async function renderPerson(uid, el) {
 
   const { data: p } = await sb.from('people').select('*').eq('uid', uid).single();
   if (!p) {
-    el.innerHTML = `<div class="empty-state">Person not found. <a href="index.html" style="color:var(--gold)">Go back to search</a>.</div>`;
+    el.innerHTML = `<div class="empty-state">Person not found. <a href="archive.html" style="color:var(--gold)">Go back to search</a>.</div>`;
     return;
   }
 
@@ -616,7 +633,7 @@ async function renderPerson(uid, el) {
 
   el.innerHTML = `
     <div style="margin-bottom:16px">
-      <a class="btn-back" href="index.html">← Back to Search</a>
+      <a class="btn-back" href="archive.html">← Back to Search</a>
     </div>
     <div class="person-detail">
       <div class="detail-header">
@@ -630,7 +647,7 @@ async function renderPerson(uid, el) {
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <a class="btn-back" style="background:var(--green);color:#fff;border-color:var(--green)"
-             href="index.html?tree=${encodeURIComponent(p.uid)}">🌳 Browse Tree</a>
+             href="archive.html?tree=${encodeURIComponent(p.uid)}">🌳 Browse Tree</a>
           <button class="btn-back" onclick="shareProfile()" title="Copy link to this profile" id="share-btn">📤 Share</button>
           <button class="btn-back" style="border-color:var(--red);color:var(--red)"
                   onclick="openCorrectionForm()">✏️ Raise Corrections</button>
@@ -711,7 +728,7 @@ async function renderPerson(uid, el) {
 
       ${srcLabel ? `
         <div style="margin-top:22px;padding-top:12px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--muted)">
-          📁 Source: <a href="index.html?byfile=${encodeURIComponent(p.gedcom_id)}" style="font-size:0.78rem;color:#2563eb;text-decoration:underline;cursor:pointer">${escHtml(srcLabel)}</a>
+          📁 Source: <a href="archive.html?byfile=${encodeURIComponent(p.gedcom_id)}" style="font-size:0.78rem;color:#2563eb;text-decoration:underline;cursor:pointer">${escHtml(srcLabel)}</a>
         </div>
       ` : ''}
     </div>

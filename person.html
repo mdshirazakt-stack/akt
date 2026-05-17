@@ -675,20 +675,6 @@ async function renderPerson(uid, el) {
         <div class="detail-field"><div class="key">Mother</div><div class="val">${motherName}</div></div>
       </div>
 
-      ${(sourceNote || communityNote) ? `
-        <div class="section-h">Notes</div>
-        <div class="family-card">
-          ${sourceNote ? `
-            <div class="fc-title">Source Notes</div>
-            <div class="fc-detail" style="white-space:normal;line-height:1.7">${formatNoteText(sourceNote)}</div>
-          ` : ''}
-          ${communityNote ? `
-            <div class="fc-title" style="${sourceNote ? 'margin-top:14px' : ''}">Community Notes</div>
-            <div class="fc-detail" style="white-space:normal;line-height:1.7">${formatNoteText(communityNote)}</div>
-          ` : ''}
-        </div>
-      ` : ''}
-
       ${siblings.length ? `
         <div class="section-h">Siblings (${siblings.length})</div>
         <ul class="children-list">
@@ -744,6 +730,20 @@ async function renderPerson(uid, el) {
             </li>
           `).join('')}
         </ul>
+      ` : ''}
+
+      ${(sourceNote || communityNote) ? `
+        <div class="section-h">Notes</div>
+        <div class="family-card">
+          ${sourceNote ? `
+            <div class="fc-title">Source Notes</div>
+            <div class="fc-detail" style="white-space:normal;line-height:1.7">${formatNoteText(sourceNote)}</div>
+          ` : ''}
+          ${communityNote ? `
+            <div class="fc-title" style="${sourceNote ? 'margin-top:14px' : ''}">Community Notes</div>
+            <div class="fc-detail" style="white-space:normal;line-height:1.7">${formatNoteText(communityNote)}</div>
+          ` : ''}
+        </div>
       ` : ''}
 
       ${srcLabel ? `

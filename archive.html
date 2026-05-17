@@ -2567,20 +2567,6 @@ async function renderPersonDetail(uid, el) {
         <div class="detail-field"><div class="key">Mother</div><div class="val">${motherName}</div></div>
       </div>
 
-      ${(sourceNote || communityNote) ? `
-        <div class="section-h">Notes</div>
-        <div class="family-card">
-          ${sourceNote ? `
-            <div class="fc-title">Source Notes</div>
-            <div class="fc-detail" style="white-space:normal;line-height:1.7">${formatNoteText(sourceNote)}</div>
-          ` : ''}
-          ${communityNote ? `
-            <div class="fc-title" style="${sourceNote ? 'margin-top:14px' : ''}">Community Notes</div>
-            <div class="fc-detail" style="white-space:normal;line-height:1.7">${formatNoteText(communityNote)}</div>
-          ` : ''}
-        </div>
-      ` : ''}
-
       ${spouseFamilies.length ? `
         <div class="section-h">Marriage(s)</div>
         ${spouseFamilies.map(({ f, spouseUid, spouseName, children }, idx) => `
@@ -2624,6 +2610,20 @@ async function renderPersonDetail(uid, el) {
             </li>
           `).join('')}
         </ul>
+      ` : ''}
+
+      ${(sourceNote || communityNote) ? `
+        <div class="section-h">Notes</div>
+        <div class="family-card">
+          ${sourceNote ? `
+            <div class="fc-title">Source Notes</div>
+            <div class="fc-detail" style="white-space:normal;line-height:1.7">${formatNoteText(sourceNote)}</div>
+          ` : ''}
+          ${communityNote ? `
+            <div class="fc-title" style="${sourceNote ? 'margin-top:14px' : ''}">Community Notes</div>
+            <div class="fc-detail" style="white-space:normal;line-height:1.7">${formatNoteText(communityNote)}</div>
+          ` : ''}
+        </div>
       ` : ''}
 
       ${srcLabel ? `<div style="margin-top:22px;padding-top:12px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--muted)">📁 Source: <span style="font-size:0.78rem;color:#2563eb;text-decoration:underline;cursor:pointer" onclick="navigateToGedcomIndex('${p.gedcom_id}')">${srcLabel}</span></div>` : ''}

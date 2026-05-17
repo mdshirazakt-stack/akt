@@ -106,8 +106,8 @@ Examples include:
 
 Current parser status:
 
-- `admin.html` currently ignores GEDCOM `NOTE`, `CONC`, and `CONT` tags.
-- Existing uploaded people rows therefore do not show notes yet.
+- `admin.html` now parses GEDCOM `NOTE`, `CONC`, and `CONT` tags into `people.notes` for future uploads.
+- Existing uploaded people rows can show notes after a no-reupload SQL backfill.
 - Reuploading GEDCOM 202 is not desired.
 
 Potential no-reupload backfill file provided by Shiraz:
@@ -116,35 +116,27 @@ Potential no-reupload backfill file provided by Shiraz:
 /Users/shiraz/Downloads/import_notes.sql
 ```
 
-This file is useful because it:
+This file was useful because it:
 
 - adds `public.people.notes`
 - updates 100 people from GEDCOM 202 using `raw_gedcom_id`
 
-Important safety issue:
+Important safety handling:
 
-The SQL should not be run as-is because `raw_gedcom_id` values such as `@I1@` can exist in multiple GEDCOM uploads. The safer version must scope every update to GEDCOM 202's upload row, for example:
+A scoped import file has been generated in the repo:
 
-```sql
-UPDATE public.people
-SET notes = '...'
-WHERE raw_gedcom_id = '@I2288@'
-  AND gedcom_id = (
-    SELECT id
-    FROM public.gedcom_uploads
-    WHERE filename = '202-Shiraz-familyof-Rasra.ged'
-    ORDER BY uploaded_at DESC
-    LIMIT 1
-  );
+```text
+supabase_import_202_notes.sql
 ```
+
+It scopes every update to the latest uploaded `202-Shiraz-familyof-Rasra.ged`, because `raw_gedcom_id` values such as `@I1@` can exist in multiple GEDCOM uploads.
 
 Recommended next steps for notes:
 
-1. Convert `/Users/shiraz/Downloads/import_notes.sql` into a scoped, safer SQL file.
-2. Ask Shiraz to run that scoped SQL in the AKT Supabase project.
-3. Update `person.html` to display `p.notes` in a dedicated "Notes" section.
-4. Update both GEDCOM parser paths in `admin.html` so future uploads preserve `NOTE`, `CONC`, and `CONT`.
-5. Keep notes separate from community correction overlay unless we later decide to support admin-edited notes.
+1. Ask Shiraz to run `supabase_profile_overrides.sql` first if the new note columns are not yet present.
+2. Ask Shiraz to run `supabase_import_202_notes.sql` in the AKT Supabase project.
+3. Verify a known noted profile such as raw GEDCOM `@I1@` or `@I6@`.
+4. Keep source notes in `people.notes`; keep approved community notes in `person_profile_overrides.profile_note`.
 
 ## Repository 1: `akt`
 

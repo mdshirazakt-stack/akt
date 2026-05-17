@@ -860,6 +860,22 @@ function handleFile(file) {
   reader.readAsText(file, 'UTF-8');
 }
 
+function gedcomLineValue(rawLine) {
+  const m = String(rawLine || '').match(/^\d+\s+(?:@[^@]+@\s+)?[A-Z_0-9]+(.*)$/);
+  if (!m) return '';
+  return (m[1] || '').replace(/^ /, '');
+}
+
+function appendGedcomNote(person, value, mode) {
+  if (!person || !value) return;
+  if (mode === 'CONC') {
+    person.notes = (person.notes || '') + value;
+    return;
+  }
+  const prefix = person.notes ? '\n' : '';
+  person.notes = (person.notes || '') + prefix + (mode === 'CONT' ? value.trimStart() : value.trim());
+}
+
 function parseGedcom(text, filename) {
   const prog = document.getElementById('parse-progress');
   const fill = document.getElementById('parse-fill');
@@ -881,7 +897,8 @@ function parseGedcom(text, filename) {
       const p = Math.round(i / lines.length * 100);
       fill.style.width = p + '%'; pct.textContent = p + '%';
     }
-    const line = lines[i].trim();
+    const rawLine = lines[i];
+    const line = rawLine.trim();
     if (!line) continue;
 
     const m = line.match(/^(\d+)\s+(@[^@]+@)?\s*([A-Z_]+)(.*)$/);
@@ -892,7 +909,7 @@ function parseGedcom(text, filename) {
     if (level === 0) {
       subRecord = null;
       if (tag === 'INDI') {
-        cur = { raw_gedcom_id: xref, uid: '', name: '', given_name: '', surname: '', sex: '', birth_date: '', birth_place: '', death_flag: false, death_date: '', death_place: '', occupation: '', contact_address: '', marr_status: '', fams: [], famc: [] };
+        cur = { raw_gedcom_id: xref, uid: '', name: '', given_name: '', surname: '', sex: '', birth_date: '', birth_place: '', death_flag: false, death_date: '', death_place: '', occupation: '', contact_address: '', marr_status: '', notes: '', fams: [], famc: [] };
         curType = 'INDI'; people[xref] = cur;
       } else if (tag === 'FAM') {
         cur = { raw_gedcom_id: xref, uid: '', husband_raw: '', wife_raw: '', marr_date: '', marr_place: '', marr_status: '', children_raw: [] };
@@ -913,6 +930,7 @@ function parseGedcom(text, filename) {
         else if (tag === 'FAMS') cur.fams.push(val);
         else if (tag === 'FAMC') cur.famc.push(val);
         else if (tag === 'OCCU') cur.occupation = val;
+        else if (tag === 'NOTE') appendGedcomNote(cur, gedcomLineValue(rawLine), 'NOTE');
       } else if (level === 2) {
         if (subRecord === 'NAME') {
           if (tag === 'GIVN') cur.given_name = val;
@@ -927,6 +945,9 @@ function parseGedcom(text, filename) {
           subRecord = 'FACT_CONTACT';
         } else if (subRecord === 'ADDR') {
           cur.contact_address = val;
+        } else if (subRecord === 'NOTE') {
+          if (tag === 'CONC') appendGedcomNote(cur, gedcomLineValue(rawLine), 'CONC');
+          else if (tag === 'CONT') appendGedcomNote(cur, gedcomLineValue(rawLine), 'CONT');
         }
       }
     }
@@ -1713,7 +1734,8 @@ function parseGedcomSync(text, filename) {
   let cur = null, curType = null, subRecord = null;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+    const rawLine = lines[i];
+    const line = rawLine.trim();
     if (!line) continue;
     const m = line.match(/^(\d+)\s+(@[^@]+@)?\s*([A-Z_]+)(.*)$/);
     if (!m) continue;
@@ -1723,7 +1745,7 @@ function parseGedcomSync(text, filename) {
     if (level === 0) {
       subRecord = null;
       if (tag === 'INDI') {
-        cur = { raw_gedcom_id: xref, uid: '', name: '', given_name: '', surname: '', sex: '', birth_date: '', birth_place: '', death_flag: false, death_date: '', death_place: '', occupation: '', contact_address: '', marr_status: '', fams: [], famc: [] };
+        cur = { raw_gedcom_id: xref, uid: '', name: '', given_name: '', surname: '', sex: '', birth_date: '', birth_place: '', death_flag: false, death_date: '', death_place: '', occupation: '', contact_address: '', marr_status: '', notes: '', fams: [], famc: [] };
         curType = 'INDI'; people[xref] = cur;
       } else if (tag === 'FAM') {
         cur = { raw_gedcom_id: xref, uid: '', husband_raw: '', wife_raw: '', marr_date: '', marr_place: '', marr_status: '', children_raw: [] };
@@ -1743,6 +1765,7 @@ function parseGedcomSync(text, filename) {
         else if (tag === 'FAMS') cur.fams.push(val);
         else if (tag === 'FAMC') cur.famc.push(val);
         else if (tag === 'OCCU') cur.occupation = val;
+        else if (tag === 'NOTE') appendGedcomNote(cur, gedcomLineValue(rawLine), 'NOTE');
       } else if (level === 2) {
         if (subRecord === 'NAME') {
           if (tag === 'GIVN') cur.given_name = val;
@@ -1755,6 +1778,9 @@ function parseGedcomSync(text, filename) {
           else if (tag === 'PLAC') cur.death_place = val;
         } else if (subRecord === 'ADDR') {
           cur.contact_address = val;
+        } else if (subRecord === 'NOTE') {
+          if (tag === 'CONC') appendGedcomNote(cur, gedcomLineValue(rawLine), 'CONC');
+          else if (tag === 'CONT') appendGedcomNote(cur, gedcomLineValue(rawLine), 'CONT');
         }
       }
     }
@@ -1854,7 +1880,7 @@ async function pushParsedData(parsed, onProgress) {
       surname: p.surname, sex: p.sex, birth_date: p.birth_date, birth_place: p.birth_place,
       death_flag: p.death_flag, death_date: p.death_date, death_place: p.death_place,
       occupation: p.occupation, contact_address: p.contact_address, marr_status: p.marr_status,
-      raw_gedcom_id: p.raw_gedcom_id, updated_at: new Date().toISOString()
+      notes: p.notes || null, raw_gedcom_id: p.raw_gedcom_id, updated_at: new Date().toISOString()
     }));
     const { error } = await sb.from('people').upsert(batch, { onConflict: 'uid' });
     if (error) console.warn('People batch error:', error.message);
@@ -1947,6 +1973,7 @@ function renderCorrections() {
 	      ['Place of Birth', r.correction_birth_location],
 	      ['Current location', r.correction_current_location],
 	      ['Birth order', r.correction_birth_order],
+	      ['Profile note', r.correction_profile_note],
 	      ['Parents', r.correction_parents],
 	      ['Siblings', r.correction_siblings],
 	      ['Spouse', r.correction_spouse],
@@ -2064,7 +2091,7 @@ async function applyProfileOverride(id, btn) {
     rec.correction_birth_date || rec.correction_death_date || rec.correction_death_location ||
     rec.correction_mobile ||
     rec.correction_root_location || rec.correction_birth_location ||
-    rec.correction_current_location || rec.correction_birth_order;
+    rec.correction_current_location || rec.correction_birth_order || rec.correction_profile_note;
 
   if (!hasSafeFields) {
     toast('No safe profile fields to apply.', true);
@@ -2106,6 +2133,7 @@ async function applyProfileOverride(id, btn) {
   if (rec.correction_birth_location) payload.birth_location = rec.correction_birth_location;
   if (rec.correction_current_location) payload.current_location = rec.correction_current_location;
   if (rec.correction_birth_order) payload.birth_order_text = rec.correction_birth_order;
+  if (rec.correction_profile_note) payload.profile_note = rec.correction_profile_note;
 
   const { error: upsertError } = await sb.from('person_profile_overrides')
     .upsert(payload, { onConflict: 'person_uid' });

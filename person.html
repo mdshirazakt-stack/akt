@@ -345,6 +345,10 @@
 	            Mobile number
 	            <input id="cf-corr-mobile" type="tel" placeholder="Mobile number to display after approval"/>
 	          </label>
+	          <label class="form-field">
+	            Profile note
+	            <textarea id="cf-corr-profile-note" rows="4" maxlength="1024" placeholder="A short public note about this person, up to 1024 characters"></textarea>
+	          </label>
 	        </div>
 
 	        <div class="form-section-label" style="margin-top:20px">Death Information</div>
@@ -529,6 +533,8 @@ async function renderPerson(uid, el) {
   const displayCurrentLocation = firstText(profileOverlay?.current_location, p.current_place);
   const displayMobile = firstText(profileOverlay?.mobile_number);
   const displayBirthOrder = firstText(profileOverlay?.birth_order_text);
+  const sourceNote = firstText(p.notes);
+  const communityNote = firstText(profileOverlay?.profile_note);
   const displayDeceased = profileOverlay?.is_deceased === true || p.death_flag === true;
 
   // Update page title
@@ -668,6 +674,20 @@ async function renderPerson(uid, el) {
         <div class="detail-field"><div class="key">Father</div><div class="val">${fatherName}</div></div>
         <div class="detail-field"><div class="key">Mother</div><div class="val">${motherName}</div></div>
       </div>
+
+      ${(sourceNote || communityNote) ? `
+        <div class="section-h">Notes</div>
+        <div class="family-card">
+          ${sourceNote ? `
+            <div class="fc-title">Source Notes</div>
+            <div class="fc-detail" style="white-space:normal;line-height:1.7">${formatNoteText(sourceNote)}</div>
+          ` : ''}
+          ${communityNote ? `
+            <div class="fc-title" style="${sourceNote ? 'margin-top:14px' : ''}">Community Notes</div>
+            <div class="fc-detail" style="white-space:normal;line-height:1.7">${formatNoteText(communityNote)}</div>
+          ` : ''}
+        </div>
+      ` : ''}
 
       ${siblings.length ? `
         <div class="section-h">Siblings (${siblings.length})</div>
@@ -809,6 +829,7 @@ async function submitCorrection(event) {
   const corrBirthLocation = document.getElementById('cf-corr-birth-location').value.trim();
   const corrCurrentLocation = document.getElementById('cf-corr-current-location').value.trim();
   const corrBirthOrder = document.getElementById('cf-corr-birth-order').value;
+  const corrProfileNote = document.getElementById('cf-corr-profile-note').value.trim();
   const corrIsDeceased = document.getElementById('cf-corr-deceased').checked;
   const corrDeathDate = corrIsDeceased ? document.getElementById('cf-corr-death-date').value.trim() : '';
   const corrDeathLocation = corrIsDeceased ? document.getElementById('cf-corr-death-location').value.trim() : '';
@@ -816,7 +837,7 @@ async function submitCorrection(event) {
   if (!corrName && !corrParents && !corrSiblings && !corrSpouse && !corrChildren &&
       !corrBirthDate && !corrDeathDate && !corrMobile && !corrRootLocation &&
       !corrBirthLocation && !corrCurrentLocation && !corrBirthOrder && !corrIsDeceased &&
-      !corrDeathLocation) {
+      !corrDeathLocation && !corrProfileNote) {
     showStatus('Please fill in at least one correction field.', true);
     return;
   }
@@ -849,6 +870,7 @@ async function submitCorrection(event) {
     correction_birth_location: corrBirthLocation || null,
     correction_current_location: corrCurrentLocation || null,
     correction_birth_order:  corrBirthOrder || null,
+    correction_profile_note: corrProfileNote || null,
     remarks:                 document.getElementById('cf-remarks').value.trim() || null,
     status: 'new'
   };
@@ -867,7 +889,7 @@ async function submitCorrection(event) {
   ['cf-corr-name','cf-corr-parents','cf-corr-siblings','cf-corr-spouse',
    'cf-corr-children','cf-corr-birth-date','cf-corr-death-date','cf-corr-mobile',
    'cf-corr-death-location','cf-corr-root-location','cf-corr-birth-location',
-   'cf-corr-current-location','cf-corr-birth-order','cf-requester-mobile',
+   'cf-corr-current-location','cf-corr-birth-order','cf-corr-profile-note','cf-requester-mobile',
    'cf-requester-father','cf-remarks'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
@@ -893,6 +915,11 @@ function escHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function formatNoteText(str) {
+  return escHtml(String(str || '').replace(/<br\s*\/?>/gi, '\n'))
+    .replace(/\n/g, '<br>');
 }
 
 function firstText(...values) {

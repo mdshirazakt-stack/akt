@@ -1836,6 +1836,11 @@ function escapeHtml(value) {
     .replace(/'/g, '&#039;');
 }
 
+function formatNoteText(value) {
+  return escapeHtml(String(value || '').replace(/<br\s*\/?>/gi, '\n'))
+    .replace(/\n/g, '<br>');
+}
+
 function escapeJs(value) {
   return String(value || '')
     .replace(/\\/g, '\\\\')
@@ -2439,6 +2444,13 @@ async function renderPersonDetail(uid, el) {
   if (!p) { el.innerHTML = '<div class="empty-state">Person not found.</div>'; return; }
   logActivity('view_person', `Viewed: ${p.name || '(unnamed)'}`, { person_uid: p.uid, source_id: p.gedcom_id || '' });
 
+  const { data: profileOverlay, error: overlayError } = await sb.from('person_profile_overrides')
+    .select('profile_note')
+    .eq('person_uid', uid)
+    .maybeSingle();
+  const sourceNote = String(p.notes || '').trim();
+  const communityNote = overlayError ? '' : String(profileOverlay?.profile_note || '').trim();
+
   // Source GEDCOM lookup
   const srcUpload = gedcomUploads.find(u => u.id === p.gedcom_id);
   const srcLabel = srcUpload ? srcUpload.filename.replace(/\.ged$/i, '') : '';
@@ -2554,6 +2566,20 @@ async function renderPersonDetail(uid, el) {
         <div class="detail-field"><div class="key">Father</div><div class="val">${fatherName}</div></div>
         <div class="detail-field"><div class="key">Mother</div><div class="val">${motherName}</div></div>
       </div>
+
+      ${(sourceNote || communityNote) ? `
+        <div class="section-h">Notes</div>
+        <div class="family-card">
+          ${sourceNote ? `
+            <div class="fc-title">Source Notes</div>
+            <div class="fc-detail" style="white-space:normal;line-height:1.7">${formatNoteText(sourceNote)}</div>
+          ` : ''}
+          ${communityNote ? `
+            <div class="fc-title" style="${sourceNote ? 'margin-top:14px' : ''}">Community Notes</div>
+            <div class="fc-detail" style="white-space:normal;line-height:1.7">${formatNoteText(communityNote)}</div>
+          ` : ''}
+        </div>
+      ` : ''}
 
       ${spouseFamilies.length ? `
         <div class="section-h">Marriage(s)</div>

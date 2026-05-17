@@ -614,8 +614,8 @@
           </label>
           <div id="relationship-existing-wrap" style="margin-top:12px">
             <label class="form-field">
-              Search person
-              <input id="relationship-search" placeholder="Type at least 2 letters" oninput="searchRelationshipPeople()"/>
+              Search person by name or UID
+              <input id="relationship-search" placeholder="Type a name, or paste a profile UID" oninput="searchRelationshipPeople()"/>
             </label>
             <div id="relationship-search-results" class="relation-search-results" style="display:none"></div>
             <div id="relationship-selected" style="display:none;margin-top:8px;font-size:0.84rem;color:var(--green)"></div>
@@ -1406,25 +1406,44 @@ async function runRelationshipSearch() {
   }
   box.style.display = 'block';
   box.innerHTML = '<div class="relation-search-item">Searching...</div>';
-  const { data, error } = await sb.from('people')
-    .select('uid,name,birth_place,gedcom_id')
-    .ilike('name', `%${q}%`)
-    .neq('uid', currentPerson.uid)
-    .limit(12);
-  if (error) {
-    box.innerHTML = `<div class="relation-search-item" style="color:var(--red)">Run supabase_relationship_mvp.sql first if this keeps failing.</div>`;
-    return;
+
+  let rows = [];
+  const looksLikeUid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q);
+  if (looksLikeUid) {
+    const { data, error } = await sb.from('people')
+      .select('uid,name,birth_place,gedcom_id')
+      .eq('uid', q)
+      .maybeSingle();
+    if (error) {
+      box.innerHTML = `<div class="relation-search-item" style="color:var(--red)">UID lookup failed: ${escHtml(error.message)}</div>`;
+      return;
+    }
+    rows = data && data.uid !== currentPerson.uid ? [data] : [];
+  } else {
+    const { data, error } = await sb.from('people')
+      .select('uid,name,birth_place,gedcom_id')
+      .ilike('name', `%${q}%`)
+      .neq('uid', currentPerson.uid)
+      .limit(12);
+    if (error) {
+      box.innerHTML = `<div class="relation-search-item" style="color:var(--red)">Search failed: ${escHtml(error.message)}</div>`;
+      return;
+    }
+    rows = data || [];
   }
-  if (!data?.length) {
+  if (!rows.length) {
     relationshipSearchRows = [];
-    box.innerHTML = '<div class="relation-search-item">No matching person found.</div>';
+    box.innerHTML = `<div class="relation-search-item">No matching person found${looksLikeUid ? ' for this UID' : ''}.</div>`;
     return;
   }
-  relationshipSearchRows = data;
-  box.innerHTML = data.map((p, idx) => `
+  relationshipSearchRows = rows;
+  box.innerHTML = rows.map((p, idx) => `
     <div class="relation-search-item" onclick="selectRelationshipPerson(${idx}, this)">
       <span>${escHtml(p.name || '(unnamed)')}</span>
-      <small style="color:var(--muted)">${escHtml(p.birth_place || '')}</small>
+      <small style="color:var(--muted);text-align:right">
+        ${escHtml(p.birth_place || '')}
+        <span style="display:block;font-size:0.68rem">${escHtml(p.uid)}</span>
+      </small>
     </div>
   `).join('');
 }

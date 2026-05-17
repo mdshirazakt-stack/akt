@@ -561,6 +561,10 @@
           <input id="identity-display-name" placeholder="Real person display name"/>
           <input id="identity-canonical-uid" placeholder="Canonical profile UID"/>
         </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+          <button class="btn-outline" onclick="previewCanonicalIdentityUid()">Check Canonical UID</button>
+          <span id="identity-canonical-preview" style="font-size:0.82rem;color:var(--muted)"></span>
+        </div>
         <textarea id="identity-notes" placeholder="Why these profiles should be linked" style="margin-top:12px;min-height:70px"></textarea>
         <button class="btn-gold" style="margin-top:12px" onclick="createIdentityGroup()">Create Identity Group</button>
         <div id="identity-groups-list" style="margin-top:18px"><div class="empty"><span class="spinner"></span> Loading…</div></div>
@@ -2513,18 +2517,28 @@ function renderIdentityGroups() {
       ${g.notes ? `<div class="forum-admin-body">${escHtml(g.notes)}</div>` : ''}
       <div class="forum-admin-actions">
         <input id="identity-member-${g.id}" placeholder="Profile UID to add" style="min-width:260px;flex:1"/>
+        <button class="btn-outline" onclick="previewIdentityMember('${g.id}')">Check UID</button>
         <button class="btn-green" onclick="addIdentityMember('${g.id}')">Add Profile</button>
         ${g.status !== 'archived' ? `<button class="btn-red" onclick="setIdentityGroupStatus('${g.id}', 'archived')">Archive</button>` : ''}
         ${g.status !== 'active' ? `<button class="btn-outline" onclick="setIdentityGroupStatus('${g.id}', 'active')">Reactivate</button>` : ''}
       </div>
+      <div id="identity-member-preview-${g.id}" class="forum-admin-meta" style="margin-top:8px"></div>
     </div>
   `).join('');
 }
 
 async function createIdentityGroup() {
+  const canonicalUid = document.getElementById('identity-canonical-uid').value.trim();
+  if (canonicalUid) {
+    const person = await lookupPersonByUid(canonicalUid);
+    if (!person) {
+      toast('Canonical UID was not found in people table.', true);
+      return;
+    }
+  }
   const payload = {
     display_name: document.getElementById('identity-display-name').value.trim(),
-    canonical_person_uid: document.getElementById('identity-canonical-uid').value.trim() || null,
+    canonical_person_uid: canonicalUid || null,
     notes: document.getElementById('identity-notes').value.trim() || null,
     status: 'active',
     created_by: 'admin',
@@ -2553,11 +2567,65 @@ async function createIdentityGroup() {
   await loadIdentityGroups();
 }
 
+async function lookupPersonByUid(uid) {
+  if (!uid) return null;
+  const { data, error } = await sb.from('people')
+    .select('uid,name,birth_place,gedcom_id')
+    .eq('uid', uid)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data;
+}
+
+async function previewCanonicalIdentityUid() {
+  const uid = document.getElementById('identity-canonical-uid').value.trim();
+  const preview = document.getElementById('identity-canonical-preview');
+  if (!uid) {
+    preview.textContent = 'Paste a profile UID first.';
+    preview.style.color = 'var(--red)';
+    return;
+  }
+  const person = await lookupPersonByUid(uid);
+  if (!person) {
+    preview.textContent = 'No person found for this UID.';
+    preview.style.color = 'var(--red)';
+    return;
+  }
+  preview.textContent = `${person.name || '(unnamed)'}${person.birth_place ? ' · ' + person.birth_place : ''}`;
+  preview.style.color = 'var(--green)';
+  const displayName = document.getElementById('identity-display-name');
+  if (!displayName.value.trim() && person.name) displayName.value = person.name;
+}
+
+async function previewIdentityMember(groupId) {
+  const input = document.getElementById('identity-member-' + groupId);
+  const preview = document.getElementById('identity-member-preview-' + groupId);
+  const uid = input.value.trim();
+  if (!uid) {
+    preview.textContent = 'Paste a profile UID first.';
+    preview.style.color = 'var(--red)';
+    return;
+  }
+  const person = await lookupPersonByUid(uid);
+  if (!person) {
+    preview.textContent = 'No person found for this UID.';
+    preview.style.color = 'var(--red)';
+    return;
+  }
+  preview.textContent = `Found: ${person.name || '(unnamed)'}${person.birth_place ? ' · ' + person.birth_place : ''}`;
+  preview.style.color = 'var(--green)';
+}
+
 async function addIdentityMember(groupId) {
   const input = document.getElementById('identity-member-' + groupId);
   const uid = input.value.trim();
   if (!uid) {
     toast('Profile UID is required.', true);
+    return;
+  }
+  const person = await lookupPersonByUid(uid);
+  if (!person) {
+    toast('Profile UID was not found in people table.', true);
     return;
   }
   const { error } = await sb.from('person_identity_members').insert({

@@ -300,6 +300,7 @@
     <button class="nav-tab" onclick="switchTab('corrections', this)">📝 Corrections</button>
     <button class="nav-tab" onclick="switchTab('suggestions', this)">💡 Suggestions</button>
     <button class="nav-tab" onclick="switchTab('findrequests', this)">🔍 Find Requests</button>
+    <button class="nav-tab" onclick="switchTab('familybuilder', this)">👪 Family Builder</button>
     <button class="nav-tab" onclick="switchTab('forum', this)">💬 Forum</button>
   </nav>
 
@@ -526,6 +527,87 @@
       </div>
     </div>
 
+    <!-- FAMILY BUILDER PANEL -->
+    <div id="panel-familybuilder" class="panel">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <h2 style="margin:0">👪 New Family Builder</h2>
+          <button class="btn-sm" onclick="loadFamilyBuilder()" style="background:var(--gold);color:#fff;border:none;padding:7px 16px;cursor:pointer;font-size:0.85rem">↻ Refresh</button>
+        </div>
+        <div class="insight-note">
+          Use this for a family that does not yet exist in any GEDCOM. It stores a structured submission first; later it can be linked, reviewed, or exported without changing source GEDCOM records.
+        </div>
+        <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:16px">
+          <input id="family-root-name" placeholder="Root family / ancestor name"/>
+          <input id="family-root-place" placeholder="Root place"/>
+          <input id="family-submitter-name" placeholder="Submitter name"/>
+          <input id="family-submitter-mobile" placeholder="Submitter mobile"/>
+        </div>
+        <textarea id="family-notes" placeholder="Notes about this submitted family" style="margin-top:12px;min-height:90px"></textarea>
+        <button class="btn-gold" style="margin-top:12px" onclick="createCommunityFamilySubmission()">Create Family Submission</button>
+      </div>
+
+      <div class="card">
+        <h2>Family Submissions</h2>
+        <div id="family-submissions-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Known Duplicate Profiles</h2>
+        <div class="insight-note">
+          Use this to mark profiles from different GEDCOM files as the same real person. This does not merge records yet; it creates a reviewable identity cluster.
+        </div>
+        <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px">
+          <input id="identity-display-name" placeholder="Real person display name"/>
+          <input id="identity-canonical-uid" placeholder="Canonical profile UID"/>
+        </div>
+        <textarea id="identity-notes" placeholder="Why these profiles should be linked" style="margin-top:12px;min-height:70px"></textarea>
+        <button class="btn-gold" style="margin-top:12px" onclick="createIdentityGroup()">Create Identity Group</button>
+        <div id="identity-groups-list" style="margin-top:18px"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+      </div>
+
+      <div class="card" id="family-detail-card" style="display:none">
+        <h2 id="family-detail-title">Selected Family</h2>
+        <div id="family-detail-meta" style="font-size:0.82rem;color:var(--muted);margin-bottom:16px"></div>
+
+        <h3>Add Person</h3>
+        <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+          <input id="family-person-name" placeholder="Person name"/>
+          <select id="family-person-gender">
+            <option value="">Gender unknown</option>
+            <option value="M">Male</option>
+            <option value="F">Female</option>
+          </select>
+          <input id="family-person-birth" placeholder="Birth date / year"/>
+          <input id="family-person-death" placeholder="Death date / year"/>
+          <input id="family-person-birth-place" placeholder="Birth place"/>
+          <input id="family-person-current-place" placeholder="Current place"/>
+        </div>
+        <textarea id="family-person-notes" placeholder="Short notes about this person" style="margin-top:12px;min-height:70px"></textarea>
+        <button class="btn-green" style="margin-top:12px" onclick="createCommunityFamilyPerson()">Add Person</button>
+
+        <h3 style="margin-top:24px">People in This Submission</h3>
+        <div id="family-people-list"><div class="empty">Select a family submission.</div></div>
+
+        <h3 style="margin-top:24px">Add Relationship</h3>
+        <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+          <select id="family-rel-a"></select>
+          <select id="family-rel-type">
+            <option value="father">A is father of B</option>
+            <option value="mother">A is mother of B</option>
+            <option value="spouse">A is spouse of B</option>
+            <option value="son">A is son of B</option>
+            <option value="daughter">A is daughter of B</option>
+            <option value="sibling">A is sibling of B</option>
+          </select>
+          <select id="family-rel-b"></select>
+          <input id="family-rel-notes" placeholder="Relationship notes"/>
+        </div>
+        <button class="btn-gold" style="margin-top:12px" onclick="createCommunityFamilyRelationship()">Add Relationship</button>
+        <div id="family-relationships-list" style="margin-top:16px"></div>
+      </div>
+    </div>
+
     <!-- FORUM MODERATION PANEL -->
     <div id="panel-forum" class="panel">
       <div class="card">
@@ -562,6 +644,11 @@ let forumAdminView = 'threads';
 let forumAdminThreads = [];
 let forumAdminPosts = [];
 let forumAdminFlags = [];
+let familyBuilderSubmissions = [];
+let selectedCommunityFamily = null;
+let selectedCommunityFamilyPeople = [];
+let selectedCommunityFamilyRelationships = [];
+let identityGroups = [];
 
 // ===================== AUTH =====================
 async function doLogin() {
@@ -597,6 +684,7 @@ function switchTab(name, btn) {
   if (name === 'corrections') loadCorrections();
   if (name === 'suggestions') loadSuggestions();
   if (name === 'findrequests') loadFindRequests();
+  if (name === 'familybuilder') loadFamilyBuilder();
   if (name === 'forum') loadForumAdmin();
 }
 
@@ -2178,6 +2266,318 @@ async function saveCorrectionNotes(id, notes) {
 
 function escHtml(v) {
   return String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ===================== FAMILY BUILDER =====================
+async function loadFamilyBuilder() {
+  const container = document.getElementById('family-submissions-list');
+  if (!container) return;
+  container.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+  try {
+    const { data, error } = await sb.from('community_family_submissions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (error) throw error;
+    familyBuilderSubmissions = data || [];
+    renderFamilySubmissions();
+    await loadIdentityGroups();
+    if (selectedCommunityFamily?.id) {
+      const stillExists = familyBuilderSubmissions.find(f => f.id === selectedCommunityFamily.id);
+      if (stillExists) await selectCommunityFamily(stillExists.id, false);
+    }
+  } catch (err) {
+    container.innerHTML = `<div class="empty" style="color:var(--red)">Family builder tables are not ready. Run <code>supabase_relationship_mvp.sql</code> in Supabase.<br>${escHtml(err.message || '')}</div>`;
+  }
+}
+
+function renderFamilySubmissions() {
+  const container = document.getElementById('family-submissions-list');
+  if (!familyBuilderSubmissions.length) {
+    container.innerHTML = '<div class="empty">No new family submissions yet.</div>';
+    return;
+  }
+  container.innerHTML = familyBuilderSubmissions.map(f => `
+    <div class="forum-admin-item">
+      <div class="forum-admin-title">${escHtml(f.root_family_name)}</div>
+      <div class="forum-admin-meta">
+        ${escHtml(f.root_place || 'Root place not set')} · ${escHtml(f.status)}
+        ${f.submitter_name ? ` · ${escHtml(f.submitter_name)}` : ''}
+        ${f.submitter_mobile ? ` · ${escHtml(f.submitter_mobile)}` : ''}
+        · ${formatIST(f.created_at)}
+      </div>
+      ${f.notes ? `<div class="forum-admin-body">${escHtml(f.notes)}</div>` : ''}
+      <div class="forum-admin-actions">
+        <button class="btn-green" onclick="selectCommunityFamily('${f.id}')">Open Builder</button>
+        ${f.status !== 'approved' ? `<button class="btn-outline" onclick="setCommunityFamilyStatus('${f.id}', 'approved')">Approve</button>` : ''}
+        ${f.status !== 'pending_review' ? `<button class="btn-outline" onclick="setCommunityFamilyStatus('${f.id}', 'pending_review')">Mark Pending</button>` : ''}
+        ${f.status !== 'archived' ? `<button class="btn-red" onclick="setCommunityFamilyStatus('${f.id}', 'archived')">Archive</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function createCommunityFamilySubmission() {
+  const payload = {
+    root_family_name: document.getElementById('family-root-name').value.trim(),
+    root_place: document.getElementById('family-root-place').value.trim() || null,
+    submitter_name: document.getElementById('family-submitter-name').value.trim() || null,
+    submitter_mobile: document.getElementById('family-submitter-mobile').value.trim() || null,
+    notes: document.getElementById('family-notes').value.trim() || null,
+    status: 'draft',
+    created_by: 'admin',
+    updated_at: new Date().toISOString()
+  };
+  if (!payload.root_family_name) {
+    toast('Root family / ancestor name is required.', true);
+    return;
+  }
+  const { data, error } = await sb.from('community_family_submissions')
+    .insert(payload)
+    .select()
+    .single();
+  if (error) { toast(error.message, true); return; }
+  ['family-root-name','family-root-place','family-submitter-name','family-submitter-mobile','family-notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  toast('Family submission created.');
+  await loadFamilyBuilder();
+  if (data?.id) selectCommunityFamily(data.id);
+}
+
+async function selectCommunityFamily(id, showToast = true) {
+  selectedCommunityFamily = familyBuilderSubmissions.find(f => f.id === id) || null;
+  if (!selectedCommunityFamily) return;
+  document.getElementById('family-detail-card').style.display = 'block';
+  document.getElementById('family-detail-title').textContent = selectedCommunityFamily.root_family_name;
+  document.getElementById('family-detail-meta').textContent =
+    `${selectedCommunityFamily.root_place || 'Root place not set'} · ${selectedCommunityFamily.status}`;
+  const { data: people, error: peopleError } = await sb.from('community_family_people')
+    .select('*')
+    .eq('submission_id', id)
+    .order('display_order', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (peopleError) { toast(peopleError.message, true); return; }
+  const { data: relationships, error: relError } = await sb.from('community_family_relationships')
+    .select('*')
+    .eq('submission_id', id)
+    .order('created_at', { ascending: true });
+  if (relError) { toast(relError.message, true); return; }
+  selectedCommunityFamilyPeople = people || [];
+  selectedCommunityFamilyRelationships = relationships || [];
+  renderCommunityFamilyPeople();
+  if (showToast) toast('Opened family builder.');
+}
+
+function renderCommunityFamilyPeople() {
+  const list = document.getElementById('family-people-list');
+  const relA = document.getElementById('family-rel-a');
+  const relB = document.getElementById('family-rel-b');
+  if (!selectedCommunityFamilyPeople.length) {
+    list.innerHTML = '<div class="empty">No people added to this family yet.</div>';
+    relA.innerHTML = '<option value="">Add people first</option>';
+    relB.innerHTML = '<option value="">Add people first</option>';
+    renderCommunityFamilyRelationships();
+    return;
+  }
+  list.innerHTML = `
+    <table>
+      <thead><tr><th>Name</th><th>Gender</th><th>Birth</th><th>Place</th><th>Notes</th></tr></thead>
+      <tbody>
+        ${selectedCommunityFamilyPeople.map(p => `
+          <tr>
+            <td><strong>${escHtml(p.name)}</strong></td>
+            <td>${escHtml(p.gender || '-')}</td>
+            <td>${escHtml(p.birth_date || '-')}</td>
+            <td>${escHtml(p.birth_place || p.current_place || '-')}</td>
+            <td>${escHtml(p.notes || '-')}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  const options = selectedCommunityFamilyPeople.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
+  relA.innerHTML = options;
+  relB.innerHTML = options;
+  renderCommunityFamilyRelationships();
+}
+
+async function createCommunityFamilyPerson() {
+  if (!selectedCommunityFamily?.id) {
+    toast('Open a family submission first.', true);
+    return;
+  }
+  const payload = {
+    submission_id: selectedCommunityFamily.id,
+    name: document.getElementById('family-person-name').value.trim(),
+    gender: document.getElementById('family-person-gender').value || null,
+    birth_date: document.getElementById('family-person-birth').value.trim() || null,
+    death_date: document.getElementById('family-person-death').value.trim() || null,
+    birth_place: document.getElementById('family-person-birth-place').value.trim() || null,
+    current_place: document.getElementById('family-person-current-place').value.trim() || null,
+    notes: document.getElementById('family-person-notes').value.trim() || null,
+    display_order: selectedCommunityFamilyPeople.length + 1,
+    updated_at: new Date().toISOString()
+  };
+  if (!payload.name) {
+    toast('Person name is required.', true);
+    return;
+  }
+  const { error } = await sb.from('community_family_people').insert(payload);
+  if (error) { toast(error.message, true); return; }
+  ['family-person-name','family-person-gender','family-person-birth','family-person-death','family-person-birth-place','family-person-current-place','family-person-notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  toast('Person added.');
+  await selectCommunityFamily(selectedCommunityFamily.id, false);
+}
+
+async function createCommunityFamilyRelationship() {
+  if (!selectedCommunityFamily?.id) {
+    toast('Open a family submission first.', true);
+    return;
+  }
+  const payload = {
+    submission_id: selectedCommunityFamily.id,
+    person_a_id: document.getElementById('family-rel-a').value,
+    person_b_id: document.getElementById('family-rel-b').value,
+    relationship_type: document.getElementById('family-rel-type').value,
+    notes: document.getElementById('family-rel-notes').value.trim() || null
+  };
+  if (!payload.person_a_id || !payload.person_b_id || payload.person_a_id === payload.person_b_id) {
+    toast('Choose two different people for the relationship.', true);
+    return;
+  }
+  const { error } = await sb.from('community_family_relationships').insert(payload);
+  if (error) { toast(error.message, true); return; }
+  document.getElementById('family-rel-notes').value = '';
+  toast('Relationship added.');
+  await selectCommunityFamily(selectedCommunityFamily.id, false);
+}
+
+function renderCommunityFamilyRelationships() {
+  const box = document.getElementById('family-relationships-list');
+  if (!selectedCommunityFamilyRelationships.length) {
+    box.innerHTML = '<div class="empty">No relationships added yet.</div>';
+    return;
+  }
+  const nameById = {};
+  selectedCommunityFamilyPeople.forEach(p => { nameById[p.id] = p.name; });
+  box.innerHTML = selectedCommunityFamilyRelationships.map(r => `
+    <div class="forum-admin-item" style="padding:10px 12px">
+      <strong>${escHtml(nameById[r.person_a_id] || 'Person A')}</strong>
+      <span style="color:var(--muted)"> is ${escHtml(r.relationship_type)} of </span>
+      <strong>${escHtml(nameById[r.person_b_id] || 'Person B')}</strong>
+      ${r.notes ? `<div class="forum-admin-meta">${escHtml(r.notes)}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+async function setCommunityFamilyStatus(id, status) {
+  const { error } = await sb.from('community_family_submissions')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) { toast(error.message, true); return; }
+  toast('Family submission updated: ' + status);
+  await loadFamilyBuilder();
+}
+
+async function loadIdentityGroups() {
+  const container = document.getElementById('identity-groups-list');
+  if (!container) return;
+  const { data, error } = await sb.from('person_identity_groups')
+    .select('*, person_identity_members(*)')
+    .order('created_at', { ascending: false })
+    .limit(60);
+  if (error) {
+    container.innerHTML = `<div class="empty" style="color:var(--red)">Identity tables are not ready. Run <code>supabase_relationship_mvp.sql</code>.</div>`;
+    return;
+  }
+  identityGroups = data || [];
+  renderIdentityGroups();
+}
+
+function renderIdentityGroups() {
+  const container = document.getElementById('identity-groups-list');
+  if (!identityGroups.length) {
+    container.innerHTML = '<div class="empty">No duplicate identity groups yet.</div>';
+    return;
+  }
+  container.innerHTML = identityGroups.map(g => `
+    <div class="forum-admin-item">
+      <div class="forum-admin-title">${escHtml(g.display_name)}</div>
+      <div class="forum-admin-meta">
+        Canonical: ${escHtml(g.canonical_person_uid || '-')} · ${escHtml(g.status)}
+        · ${Number(g.person_identity_members?.length || 0)} linked profile(s)
+      </div>
+      ${g.notes ? `<div class="forum-admin-body">${escHtml(g.notes)}</div>` : ''}
+      <div class="forum-admin-actions">
+        <input id="identity-member-${g.id}" placeholder="Profile UID to add" style="min-width:260px;flex:1"/>
+        <button class="btn-green" onclick="addIdentityMember('${g.id}')">Add Profile</button>
+        ${g.status !== 'archived' ? `<button class="btn-red" onclick="setIdentityGroupStatus('${g.id}', 'archived')">Archive</button>` : ''}
+        ${g.status !== 'active' ? `<button class="btn-outline" onclick="setIdentityGroupStatus('${g.id}', 'active')">Reactivate</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function createIdentityGroup() {
+  const payload = {
+    display_name: document.getElementById('identity-display-name').value.trim(),
+    canonical_person_uid: document.getElementById('identity-canonical-uid').value.trim() || null,
+    notes: document.getElementById('identity-notes').value.trim() || null,
+    status: 'active',
+    created_by: 'admin',
+    updated_at: new Date().toISOString()
+  };
+  if (!payload.display_name) {
+    toast('Display name is required.', true);
+    return;
+  }
+  const { data, error } = await sb.from('person_identity_groups')
+    .insert(payload)
+    .select()
+    .single();
+  if (error) { toast(error.message, true); return; }
+  if (payload.canonical_person_uid) {
+    await sb.from('person_identity_members').insert({
+      group_id: data.id,
+      person_uid: payload.canonical_person_uid,
+      source_role: 'canonical_profile'
+    });
+  }
+  ['identity-display-name','identity-canonical-uid','identity-notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  toast('Identity group created.');
+  await loadIdentityGroups();
+}
+
+async function addIdentityMember(groupId) {
+  const input = document.getElementById('identity-member-' + groupId);
+  const uid = input.value.trim();
+  if (!uid) {
+    toast('Profile UID is required.', true);
+    return;
+  }
+  const { error } = await sb.from('person_identity_members').insert({
+    group_id: groupId,
+    person_uid: uid,
+    source_role: 'source_profile'
+  });
+  if (error) { toast(error.message, true); return; }
+  input.value = '';
+  toast('Profile linked to identity group.');
+  await loadIdentityGroups();
+}
+
+async function setIdentityGroupStatus(id, status) {
+  const { error } = await sb.from('person_identity_groups')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) { toast(error.message, true); return; }
+  toast('Identity group updated: ' + status);
+  await loadIdentityGroups();
 }
 
 // ===================== SUGGESTIONS =====================

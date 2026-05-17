@@ -234,8 +234,27 @@
   .relationship-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .relationship-actions button {
     padding: 10px 12px; border: 1px dashed var(--gold2); background: var(--surface);
-    color: var(--accent); font-family: 'Lato', sans-serif; font-weight: 700; cursor: not-allowed;
-    opacity: 0.72;
+    color: var(--accent); font-family: 'Lato', sans-serif; font-weight: 700; cursor: pointer;
+  }
+  .relationship-actions button.active { background: var(--gold); color: #fff; border-style: solid; }
+  .relationship-editor {
+    display: none; margin-top: 14px; border-top: 1px solid var(--border); padding-top: 14px;
+  }
+  .relationship-editor.open { display: block; }
+  .relation-search-results {
+    border: 1px solid var(--border); background: var(--surface); margin-top: 8px; max-height: 170px; overflow: auto;
+  }
+  .relation-search-item {
+    padding: 9px 10px; border-bottom: 1px solid var(--border); cursor: pointer;
+    display: flex; justify-content: space-between; gap: 12px; align-items: center;
+  }
+  .relation-search-item:last-child { border-bottom: 0; }
+  .relation-search-item:hover { background: #fff7e6; }
+  .relation-search-item.selected { background: #fef3c7; border-left: 3px solid var(--gold); }
+  .relation-pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+    font-size: 0.76rem; margin: 3px 6px 3px 0;
   }
 
   .empty-state { padding: 48px; text-align: center; color: var(--muted); font-size: 0.9rem; }
@@ -574,14 +593,54 @@
       <div class="edit-section">
         <div class="edit-section-title">Family Links</div>
         <p style="font-size:0.82rem;color:var(--muted);line-height:1.6;margin-bottom:12px">
-          Relationship editing will come next. Siblings should be added from the parent family view, not directly from this profile.
+          Add cross-GEDCOM relationship links or record a new relative name without changing the original GEDCOM.
         </p>
         <div class="relationship-actions">
-          <button type="button" title="Coming next">Add Father</button>
-          <button type="button" title="Coming next">Add Mother</button>
-          <button type="button" title="Coming next">Add Spouse</button>
-          <button type="button" title="Coming next">Add Son</button>
-          <button type="button" title="Coming next">Add Daughter</button>
+          <button type="button" onclick="startRelationshipEdit('father', this)">Add Father</button>
+          <button type="button" onclick="startRelationshipEdit('mother', this)">Add Mother</button>
+          <button type="button" onclick="startRelationshipEdit('spouse', this)">Add Spouse</button>
+          <button type="button" onclick="startRelationshipEdit('son', this)">Add Son</button>
+          <button type="button" onclick="startRelationshipEdit('daughter', this)">Add Daughter</button>
+          <button type="button" onclick="startRelationshipEdit('sibling', this)">Add Sibling</button>
+        </div>
+        <div id="relationship-editor" class="relationship-editor">
+          <div class="edit-section-title" id="relationship-editor-title" style="margin-top:2px">Add relationship</div>
+          <label class="form-field">
+            Link type
+            <select id="relationship-mode" onchange="toggleRelationshipMode()">
+              <option value="existing_person">Search existing person</option>
+              <option value="new_person">Record new person name</option>
+            </select>
+          </label>
+          <div id="relationship-existing-wrap" style="margin-top:12px">
+            <label class="form-field">
+              Search person
+              <input id="relationship-search" placeholder="Type at least 2 letters" oninput="searchRelationshipPeople()"/>
+            </label>
+            <div id="relationship-search-results" class="relation-search-results" style="display:none"></div>
+            <div id="relationship-selected" style="display:none;margin-top:8px;font-size:0.84rem;color:var(--green)"></div>
+          </div>
+          <div id="relationship-new-wrap" style="display:none;margin-top:12px">
+            <div class="form-grid">
+              <label class="form-field">
+                Name
+                <input id="relationship-new-name" placeholder="New relative name"/>
+              </label>
+              <label class="form-field">
+                Gender
+                <select id="relationship-new-gender">
+                  <option value="">Unknown</option>
+                  <option value="M">Male</option>
+                  <option value="F">Female</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <label class="form-field" style="margin-top:12px">
+            Notes
+            <textarea id="relationship-notes" rows="3" placeholder="Optional context for this relationship"></textarea>
+          </label>
+          <button type="button" class="edit-action-btn primary" style="width:100%;margin-top:12px" onclick="saveRelationshipOverride()">Save Relationship Link</button>
         </div>
       </div>
 
@@ -603,6 +662,9 @@ let currentUser = null;
 let gedcomUploads = [];
 let currentPerson = null; // cached person data
 let currentProfileOverlay = null;
+let selectedRelationshipType = '';
+let selectedRelationshipPerson = null;
+let relationshipSearchRows = [];
 
 // ===== AUTH =====
 async function doEnter() {
@@ -829,6 +891,7 @@ async function renderPerson(uid, el) {
   });
 
   const allChildren = Object.values(childrenMap);
+  const relationshipAdditions = await loadRelationshipAdditions(uid);
 
   el.innerHTML = `
     <div style="margin-bottom:16px">
@@ -927,6 +990,21 @@ async function renderPerson(uid, el) {
         </ul>
       ` : ''}
 
+      ${relationshipAdditions.length ? `
+        <div class="section-h">Community Relationship Additions (${relationshipAdditions.length})</div>
+        <div class="family-card">
+          ${relationshipAdditions.map(rel => `
+            <div style="padding:9px 0;border-bottom:1px solid var(--border)">
+              <span class="relation-pill">${relationshipDisplayLabel(rel)}</span>
+              ${rel.related_person_uid
+                ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(rel.related_person_uid)}">${escHtml(rel.related_display_name || rel.related_name || '(linked person)')}</a>`
+                : `<strong>${escHtml(rel.related_name || '(new person)')}</strong>`}
+              ${rel.notes ? `<div class="fc-detail" style="margin-top:5px;white-space:normal">${escHtml(rel.notes)}</div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
       ${(sourceNote || communityNote) ? `
         <div class="section-h">Notes</div>
         <div class="family-card">
@@ -988,6 +1066,71 @@ function shareProfile() {
 }
 
 // ===== EDIT PROFILE MVP =====
+async function loadRelationshipAdditions(uid) {
+  const { data: outgoing, error: outgoingError } = await sb.from('relationship_overrides')
+    .select('*')
+    .eq('source_person_uid', uid)
+    .eq('status', 'approved')
+    .order('created_at', { ascending: true });
+  const { data: incoming, error: incomingError } = await sb.from('relationship_overrides')
+    .select('*')
+    .eq('related_person_uid', uid)
+    .eq('status', 'approved')
+    .order('created_at', { ascending: true });
+  if (outgoingError && incomingError) return [];
+  const outgoingRows = outgoing || [];
+  const incomingRows = incoming || [];
+  const linkedUids = [
+    ...new Set([
+      ...outgoingRows.map(r => r.related_person_uid).filter(Boolean),
+      ...incomingRows.map(r => r.source_person_uid).filter(Boolean)
+    ])
+  ];
+  const names = {};
+  if (linkedUids.length) {
+    const { data: people } = await sb.from('people').select('uid,name').in('uid', linkedUids);
+    (people || []).forEach(p => { names[p.uid] = p.name; });
+  }
+  return [
+    ...outgoingRows.map(r => ({
+      ...r,
+      direction: 'outgoing',
+      related_display_name: names[r.related_person_uid] || ''
+    })),
+    ...incomingRows.map(r => ({
+      ...r,
+      direction: 'incoming',
+      related_display_name: names[r.source_person_uid] || '',
+      related_person_uid: r.source_person_uid
+    }))
+  ];
+}
+
+function relationshipLabel(type) {
+  const labels = {
+    father: 'Father',
+    mother: 'Mother',
+    spouse: 'Spouse',
+    son: 'Son',
+    daughter: 'Daughter',
+    sibling: 'Sibling'
+  };
+  return labels[type] || 'Relation';
+}
+
+function relationshipDisplayLabel(rel) {
+  if (rel.direction !== 'incoming') return relationshipLabel(rel.relationship_type);
+  const labels = {
+    father: 'Father of',
+    mother: 'Mother of',
+    spouse: 'Spouse of',
+    son: 'Son of',
+    daughter: 'Daughter of',
+    sibling: 'Sibling of'
+  };
+  return labels[rel.relationship_type] || 'Linked with';
+}
+
 function openEditProfile() {
   if (!currentPerson) return;
   const overlay = currentProfileOverlay || {};
@@ -1007,6 +1150,7 @@ function openEditProfile() {
   document.getElementById('edit-alive-status').value = isDeceased ? 'deceased' : 'alive';
   document.getElementById('edit-death-date').value = firstText(overlay.death_date_text, currentPerson.death_date);
   document.getElementById('edit-death-location').value = firstText(overlay.death_location, currentPerson.death_place);
+  resetRelationshipEditor();
   toggleEditDeathFields();
   showEditStatus('', false, true);
   document.getElementById('edit-backdrop').classList.add('open');
@@ -1210,6 +1354,133 @@ function showStatus(msg, isError) {
   el.style.borderColor = isError ? 'var(--red)' : 'var(--green)';
   el.style.color = isError ? 'var(--red)' : 'var(--green)';
   el.style.background = isError ? '#fef2f2' : '#f0faf4';
+}
+
+function startRelationshipEdit(type, btn) {
+  selectedRelationshipType = type;
+  selectedRelationshipPerson = null;
+  document.querySelectorAll('.relationship-actions button').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('relationship-editor-title').textContent = 'Add ' + relationshipLabel(type);
+  document.getElementById('relationship-editor').classList.add('open');
+  document.getElementById('relationship-mode').value = 'existing_person';
+  document.getElementById('relationship-search').value = '';
+  document.getElementById('relationship-new-name').value = '';
+  document.getElementById('relationship-new-gender').value = '';
+  document.getElementById('relationship-notes').value = '';
+  document.getElementById('relationship-search-results').style.display = 'none';
+  document.getElementById('relationship-search-results').innerHTML = '';
+  document.getElementById('relationship-selected').style.display = 'none';
+  toggleRelationshipMode();
+}
+
+function resetRelationshipEditor() {
+  selectedRelationshipType = '';
+  selectedRelationshipPerson = null;
+  document.querySelectorAll('.relationship-actions button').forEach(b => b.classList.remove('active'));
+  const editor = document.getElementById('relationship-editor');
+  if (editor) editor.classList.remove('open');
+}
+
+function toggleRelationshipMode() {
+  const mode = document.getElementById('relationship-mode').value;
+  document.getElementById('relationship-existing-wrap').style.display = mode === 'existing_person' ? 'block' : 'none';
+  document.getElementById('relationship-new-wrap').style.display = mode === 'new_person' ? 'block' : 'none';
+}
+
+let relationshipSearchTimer = null;
+function searchRelationshipPeople() {
+  clearTimeout(relationshipSearchTimer);
+  relationshipSearchTimer = setTimeout(runRelationshipSearch, 250);
+}
+
+async function runRelationshipSearch() {
+  const q = document.getElementById('relationship-search').value.trim();
+  const box = document.getElementById('relationship-search-results');
+  selectedRelationshipPerson = null;
+  document.getElementById('relationship-selected').style.display = 'none';
+  if (q.length < 2) {
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+  box.style.display = 'block';
+  box.innerHTML = '<div class="relation-search-item">Searching...</div>';
+  const { data, error } = await sb.from('people')
+    .select('uid,name,birth_place,gedcom_id')
+    .ilike('name', `%${q}%`)
+    .neq('uid', currentPerson.uid)
+    .limit(12);
+  if (error) {
+    box.innerHTML = `<div class="relation-search-item" style="color:var(--red)">Run supabase_relationship_mvp.sql first if this keeps failing.</div>`;
+    return;
+  }
+  if (!data?.length) {
+    relationshipSearchRows = [];
+    box.innerHTML = '<div class="relation-search-item">No matching person found.</div>';
+    return;
+  }
+  relationshipSearchRows = data;
+  box.innerHTML = data.map((p, idx) => `
+    <div class="relation-search-item" onclick="selectRelationshipPerson(${idx}, this)">
+      <span>${escHtml(p.name || '(unnamed)')}</span>
+      <small style="color:var(--muted)">${escHtml(p.birth_place || '')}</small>
+    </div>
+  `).join('');
+}
+
+function selectRelationshipPerson(index, el) {
+  const person = relationshipSearchRows[index];
+  if (!person) return;
+  selectedRelationshipPerson = { uid: person.uid, name: person.name || '', place: person.birth_place || '' };
+  document.querySelectorAll('.relation-search-item').forEach(item => item.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+  const selected = document.getElementById('relationship-selected');
+  selected.style.display = 'block';
+  selected.innerHTML = `Selected: <strong>${escHtml(selectedRelationshipPerson.name)}</strong>${selectedRelationshipPerson.place ? ` · ${escHtml(selectedRelationshipPerson.place)}` : ''}`;
+}
+
+async function saveRelationshipOverride() {
+  if (!currentPerson || !selectedRelationshipType) {
+    showEditStatus('Choose a relationship type first.', true);
+    return;
+  }
+  const mode = document.getElementById('relationship-mode').value;
+  const notes = cleanValue('relationship-notes');
+  const payload = {
+    source_person_uid: currentPerson.uid,
+    relationship_type: selectedRelationshipType,
+    mode,
+    status: 'approved',
+    source_type: 'community_overlay',
+    notes: notes || null,
+    created_by: currentUser || 'editor',
+    updated_at: new Date().toISOString()
+  };
+  if (mode === 'existing_person') {
+    if (!selectedRelationshipPerson?.uid) {
+      showEditStatus('Search and select an existing person first.', true);
+      return;
+    }
+    payload.related_person_uid = selectedRelationshipPerson.uid;
+    payload.related_name = selectedRelationshipPerson.name || null;
+  } else {
+    const name = cleanValue('relationship-new-name');
+    if (!name) {
+      showEditStatus('Enter the new relative name.', true);
+      return;
+    }
+    payload.related_name = name;
+    payload.related_gender = cleanValue('relationship-new-gender') || null;
+  }
+  const { error } = await sb.from('relationship_overrides').insert(payload);
+  if (error) {
+    showEditStatus('Relationship save failed: ' + error.message, true);
+    return;
+  }
+  showEditStatus('Relationship link saved.', false);
+  resetRelationshipEditor();
+  await renderPerson(currentPerson.uid, document.getElementById('person-container'));
 }
 
 // ===== UTILS =====

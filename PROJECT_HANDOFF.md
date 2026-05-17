@@ -593,6 +593,50 @@ homepage announcements/events/docs/videos sections
 - Keep `apnonkitalash.com` and `iraqibiradari.com` separate.
 - Make small commits after each meaningful step.
 
+## Relationship And New-Family MVP
+
+Latest direction: keep GEDCOM imports intact, then store community edits as overlays that can later be reviewed, exported, or merged deliberately.
+
+New SQL file:
+
+```text
+supabase_relationship_mvp.sql
+```
+
+Run it in the AKT Supabase project:
+
+```text
+https://fusairoeiabmqvsbxhfi.supabase.co
+```
+
+Tables added by the SQL:
+
+```text
+person_identity_groups
+person_identity_members
+relationship_overrides
+community_family_submissions
+community_family_people
+community_family_relationships
+```
+
+Current implementation:
+
+- `person.html` edit drawer now allows relationship overlay links for father, mother, spouse, son, daughter, and sibling.
+- Relationship additions can link to an existing person across GEDCOM files or record a new person name.
+- Approved relationship overlays display on the profile under “Community Relationship Additions”.
+- `admin.html` now has a “Family Builder” tab for brand-new family submissions.
+- Family Builder can create a family submission, add people, and add relationships within that submitted family.
+- Family Builder also includes “Known Duplicate Profiles” to create identity groups and link multiple profile UIDs as the same real person.
+- Role/permission enforcement is intentionally deferred, per current plan.
+
+Next relationship work:
+
+- Show reverse relationship overlays on related profiles.
+- Add review states before relationship overlays become public.
+- Add export logic that can combine GEDCOM data, profile overrides, notes, identity clusters, and relationship overlays.
+- Add a cleaner visual tree/editor for multi-generation submitted families.
+
 ## Quick Commands
 
 Start local server for `akt`:

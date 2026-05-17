@@ -624,7 +624,7 @@ Current implementation:
 
 - `person.html` edit drawer now allows relationship overlay links for father, mother, spouse, son, daughter, and sibling.
 - Relationship additions can link to an existing person across GEDCOM files or record a new person name.
-- Approved relationship overlays display on the profile under “Community Relationship Additions”.
+- Approved relationship overlays display on the profile under “Linked Family Records”.
 - `admin.html` now has a “Family Builder” tab for brand-new family submissions.
 - Family Builder can create a family submission, add people, and add relationships within that submitted family.
 - Family Builder also includes “Known Duplicate Profiles” to create identity groups and link multiple profile UIDs as the same real person.

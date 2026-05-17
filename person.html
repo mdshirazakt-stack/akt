@@ -186,6 +186,57 @@
   }
   .submit-btn:hover { background: #213b2a; }
   .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .edit-backdrop {
+    position: fixed; inset: 0; background: rgba(42,35,24,0.42);
+    z-index: 180; display: none;
+  }
+  .edit-backdrop.open { display: block; }
+  .edit-drawer {
+    position: fixed; top: 0; right: 0; width: min(620px, 100%);
+    height: 100vh; background: var(--surface); border-left: 1px solid var(--border);
+    box-shadow: -18px 0 48px rgba(42,35,24,0.22);
+    transform: translateX(100%); transition: transform 0.22s ease;
+    z-index: 190; display: flex; flex-direction: column;
+  }
+  .edit-drawer.open { transform: translateX(0); }
+  .edit-head {
+    padding: 18px 22px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; gap: 14px; align-items: flex-start;
+    background: var(--bg);
+  }
+  .edit-title { font-family: 'Amiri', serif; font-size: 1.45rem; color: var(--ink); line-height: 1.15; }
+  .edit-subtitle { color: var(--muted); font-size: 0.78rem; margin-top: 3px; line-height: 1.45; }
+  .edit-close {
+    border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+    width: 38px; height: 38px; cursor: pointer; font-size: 1.2rem;
+  }
+  .edit-body { padding: 20px 22px 110px; overflow: auto; }
+  .edit-section {
+    border: 1px solid var(--border); background: var(--bg);
+    padding: 16px; margin-bottom: 16px;
+  }
+  .edit-section-title {
+    color: var(--gold); text-transform: uppercase; letter-spacing: 0.12em;
+    font-size: 0.72rem; font-weight: 700; margin-bottom: 12px;
+  }
+  .edit-actions {
+    position: fixed; right: 0; bottom: 0; width: min(620px, 100%);
+    display: flex; gap: 10px; padding: 14px 22px; background: rgba(255,255,255,0.96);
+    border-top: 1px solid var(--border); z-index: 191;
+  }
+  .edit-action-btn {
+    flex: 1; padding: 12px 18px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--muted); font-family: 'Lato', sans-serif;
+    font-weight: 700; cursor: pointer; letter-spacing: 0.08em; text-transform: uppercase;
+    font-size: 0.76rem;
+  }
+  .edit-action-btn.primary { background: var(--green); color: #fff; border-color: var(--green); }
+  .relationship-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .relationship-actions button {
+    padding: 10px 12px; border: 1px dashed var(--gold2); background: var(--surface);
+    color: var(--accent); font-family: 'Lato', sans-serif; font-weight: 700; cursor: not-allowed;
+    opacity: 0.72;
+  }
 
   .empty-state { padding: 48px; text-align: center; color: var(--muted); font-size: 0.9rem; }
   .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
@@ -196,6 +247,9 @@
     main { padding: 16px; }
     .person-detail { padding: 18px; }
     #correction-section { padding: 16px 18px; }
+    .edit-drawer { width: 100%; }
+    .edit-actions { width: 100%; }
+    .relationship-actions { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -403,6 +457,141 @@
       <div id="correction-status" style="display:none;margin-top:14px;padding:12px 16px;font-size:0.85rem;font-weight:700;border-left:3px solid var(--gold)"></div>
     </div>
   </main>
+
+  <div id="edit-backdrop" class="edit-backdrop" onclick="closeEditProfile()"></div>
+  <aside id="edit-drawer" class="edit-drawer" aria-hidden="true">
+    <div class="edit-head">
+      <div>
+        <div class="edit-title">Edit Profile</div>
+        <div class="edit-subtitle" id="edit-person-label">Profile safe fields only</div>
+      </div>
+      <button class="edit-close" type="button" onclick="closeEditProfile()" aria-label="Close edit panel">×</button>
+    </div>
+    <form id="edit-profile-form" onsubmit="submitProfileEdit(event)" class="edit-body">
+      <div class="edit-section">
+        <div class="edit-section-title">Identity</div>
+        <label class="form-field">
+          Correct name
+          <input id="edit-name" placeholder="Full display name"/>
+        </label>
+        <div class="form-grid" style="margin-top:12px">
+          <label class="form-field">
+            Gender
+            <select id="edit-gender">
+              <option value="">Unknown / unchanged</option>
+              <option value="M">Male</option>
+              <option value="F">Female</option>
+            </select>
+          </label>
+          <label class="form-field">
+            Alive status
+            <select id="edit-alive-status" onchange="toggleEditDeathFields()">
+              <option value="">Unknown / unchanged</option>
+              <option value="alive">Alive</option>
+              <option value="deceased">Deceased</option>
+            </select>
+          </label>
+        </div>
+        <label class="form-field" style="margin-top:12px">
+          Email
+          <input id="edit-email" type="email" placeholder="Email address"/>
+        </label>
+      </div>
+
+      <div class="edit-section">
+        <div class="edit-section-title">Life Details</div>
+        <div class="form-grid">
+          <label class="form-field">
+            Date of birth
+            <input id="edit-birth-date" placeholder="Any format, e.g. 17 Jan, 2015-04-18, or 2025"/>
+          </label>
+          <label class="form-field">
+            Birth order
+            <select id="edit-birth-order">
+              <option value="">Unknown / unchanged</option>
+              <option value="First">First</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+              <option value="11">11</option>
+              <option value="12">12</option>
+              <option value="13">13</option>
+              <option value="14">14</option>
+              <option value="15">15</option>
+              <option value="16">16</option>
+              <option value="17">17</option>
+              <option value="18">18</option>
+              <option value="19">19</option>
+              <option value="20">20</option>
+              <option value="Last">Last</option>
+            </select>
+          </label>
+        </div>
+        <div id="edit-death-fields" class="form-grid" style="display:none;margin-top:12px">
+          <label class="form-field">
+            Date of death
+            <input id="edit-death-date" placeholder="Any format"/>
+          </label>
+          <label class="form-field">
+            Place of death
+            <input id="edit-death-location" placeholder="Village, town, city, or country"/>
+          </label>
+        </div>
+        <div class="form-grid" style="margin-top:12px">
+          <label class="form-field">
+            Root Place
+            <input id="edit-root-location" placeholder="Ancestral / root place"/>
+          </label>
+          <label class="form-field">
+            Place of Birth
+            <input id="edit-birth-location" placeholder="Birth village, town, or city"/>
+          </label>
+        </div>
+        <label class="form-field">
+          Current location
+          <input id="edit-current-location" placeholder="Current village, town, or city"/>
+        </label>
+      </div>
+
+      <div class="edit-section">
+        <div class="edit-section-title">Contact & Notes</div>
+        <label class="form-field">
+          Mobile number
+          <input id="edit-mobile" type="tel" placeholder="Mobile number"/>
+        </label>
+        <label class="form-field" style="margin-top:12px">
+          Profile note
+          <textarea id="edit-profile-note" rows="5" maxlength="1024" placeholder="A short public note about this person, up to 1024 characters"></textarea>
+        </label>
+      </div>
+
+      <div class="edit-section">
+        <div class="edit-section-title">Family Links</div>
+        <p style="font-size:0.82rem;color:var(--muted);line-height:1.6;margin-bottom:12px">
+          Relationship editing will come next. Siblings should be added from the parent family view, not directly from this profile.
+        </p>
+        <div class="relationship-actions">
+          <button type="button" title="Coming next">Add Father</button>
+          <button type="button" title="Coming next">Add Mother</button>
+          <button type="button" title="Coming next">Add Spouse</button>
+          <button type="button" title="Coming next">Add Son</button>
+          <button type="button" title="Coming next">Add Daughter</button>
+        </div>
+      </div>
+
+      <div id="edit-status" style="display:none;margin-bottom:14px;padding:12px 16px;font-size:0.85rem;font-weight:700;border-left:3px solid var(--gold)"></div>
+    </form>
+    <div class="edit-actions">
+      <button class="edit-action-btn" type="button" onclick="closeEditProfile()">Cancel</button>
+      <button id="edit-save-btn" class="edit-action-btn primary" type="submit" form="edit-profile-form">Save Profile</button>
+    </div>
+  </aside>
 </div>
 
 <script>
@@ -413,6 +602,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentUser = null;
 let gedcomUploads = [];
 let currentPerson = null; // cached person data
+let currentProfileOverlay = null;
 
 // ===== AUTH =====
 async function doEnter() {
@@ -524,7 +714,9 @@ async function renderPerson(uid, el) {
     .eq('person_uid', uid)
     .maybeSingle();
   const profileOverlay = overlayError ? null : overlay;
+  currentProfileOverlay = profileOverlay;
   const displayName = firstText(profileOverlay?.corrected_name, p.name, '(unnamed)');
+  const displayGender = firstText(profileOverlay?.corrected_gender, p.sex);
   const displayBirthDate = firstText(profileOverlay?.birth_date_text, p.birth_date);
   const displayDeathDate = firstText(profileOverlay?.death_date_text, p.death_date);
   const displayDeathLocation = firstText(profileOverlay?.death_location, p.death_place);
@@ -533,6 +725,7 @@ async function renderPerson(uid, el) {
   const displayCurrentLocation = firstText(profileOverlay?.current_location, p.current_place);
   const displayMobile = firstText(profileOverlay?.mobile_number);
   const displayBirthOrder = firstText(profileOverlay?.birth_order_text);
+  const displayEmail = firstText(profileOverlay?.email);
   const sourceNote = firstText(p.notes);
   const communityNote = firstText(profileOverlay?.profile_note);
   const displayDeceased = profileOverlay?.is_deceased === true || p.death_flag === true;
@@ -646,7 +839,7 @@ async function renderPerson(uid, el) {
         <div>
               <h2>${escHtml(displayName)}</h2>
               <div class="meta">
-                ${p.sex ? `<span class="badge badge-${p.sex}">${p.sex === 'M' ? '♂ Male' : '♀ Female'}</span>` : ''}
+                ${displayGender ? `<span class="badge badge-${displayGender}">${displayGender === 'M' ? '♂ Male' : '♀ Female'}</span>` : ''}
                 ${displayDeceased ? `&nbsp;<span class="badge badge-deceased">Deceased</span>` : ''}
                 ${profileOverlay ? `&nbsp;<span class="badge" style="background:#fef3c7;color:#92400e">Community updated</span>` : ''}
               </div>
@@ -654,6 +847,7 @@ async function renderPerson(uid, el) {
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <a class="btn-back" style="background:var(--green);color:#fff;border-color:var(--green)"
              href="archive.html?tree=${encodeURIComponent(p.uid)}">🌳 Browse Tree</a>
+          <button class="btn-back" style="border-color:var(--green);color:var(--green)" onclick="openEditProfile()">Edit Profile</button>
           <button class="btn-back" onclick="shareProfile()" title="Copy link to this profile" id="share-btn">📤 Share</button>
           <button class="btn-back" style="border-color:var(--red);color:var(--red)"
                   onclick="openCorrectionForm()">✏️ Raise Corrections</button>
@@ -668,6 +862,7 @@ async function renderPerson(uid, el) {
         ${displayBirthDate     ? `<div class="detail-field"><div class="key">Birth Date</div><div class="val">${escHtml(displayBirthDate)}</div></div>` : ''}
         ${displayDeathDate     ? `<div class="detail-field"><div class="key">Death Date</div><div class="val">${escHtml(displayDeathDate)}</div></div>` : ''}
         ${displayMobile        ? `<div class="detail-field"><div class="key">Mobile</div><div class="val">${escHtml(displayMobile)}</div></div>` : ''}
+        ${displayEmail         ? `<div class="detail-field"><div class="key">Email</div><div class="val">${escHtml(displayEmail)}</div></div>` : ''}
         ${displayBirthOrder    ? `<div class="detail-field"><div class="key">Birth Order</div><div class="val">${escHtml(displayBirthOrder)}</div></div>` : ''}
         ${displayDeathLocation ? `<div class="detail-field"><div class="key">Death Place</div><div class="val">${escHtml(displayDeathLocation)}</div></div>` : ''}
         ${p.occupation   ? `<div class="detail-field"><div class="key">Occupation</div><div class="val">${escHtml(p.occupation)}</div></div>` : ''}
@@ -790,6 +985,116 @@ function shareProfile() {
     // Fallback for older browsers
     prompt('Copy this link:', url);
   });
+}
+
+// ===== EDIT PROFILE MVP =====
+function openEditProfile() {
+  if (!currentPerson) return;
+  const overlay = currentProfileOverlay || {};
+  const displayName = firstText(overlay.corrected_name, currentPerson.name, '');
+  document.getElementById('edit-person-label').textContent = displayName || 'Selected person';
+  document.getElementById('edit-name').value = displayName;
+  document.getElementById('edit-gender').value = firstText(overlay.corrected_gender, currentPerson.sex);
+  document.getElementById('edit-email').value = firstText(overlay.email);
+  document.getElementById('edit-birth-date').value = firstText(overlay.birth_date_text, currentPerson.birth_date);
+  document.getElementById('edit-birth-order').value = firstText(overlay.birth_order_text);
+  document.getElementById('edit-root-location').value = firstText(overlay.root_location, currentPerson.root_place);
+  document.getElementById('edit-birth-location').value = firstText(overlay.birth_location, currentPerson.birth_place);
+  document.getElementById('edit-current-location').value = firstText(overlay.current_location, currentPerson.current_place);
+  document.getElementById('edit-mobile').value = firstText(overlay.mobile_number);
+  document.getElementById('edit-profile-note').value = firstText(overlay.profile_note);
+  const isDeceased = overlay.is_deceased === true || currentPerson.death_flag === true;
+  document.getElementById('edit-alive-status').value = isDeceased ? 'deceased' : 'alive';
+  document.getElementById('edit-death-date').value = firstText(overlay.death_date_text, currentPerson.death_date);
+  document.getElementById('edit-death-location').value = firstText(overlay.death_location, currentPerson.death_place);
+  toggleEditDeathFields();
+  showEditStatus('', false, true);
+  document.getElementById('edit-backdrop').classList.add('open');
+  const drawer = document.getElementById('edit-drawer');
+  drawer.classList.add('open');
+  drawer.setAttribute('aria-hidden', 'false');
+}
+
+function closeEditProfile() {
+  document.getElementById('edit-backdrop').classList.remove('open');
+  const drawer = document.getElementById('edit-drawer');
+  drawer.classList.remove('open');
+  drawer.setAttribute('aria-hidden', 'true');
+}
+
+function toggleEditDeathFields() {
+  const isDeceased = document.getElementById('edit-alive-status')?.value === 'deceased';
+  const fields = document.getElementById('edit-death-fields');
+  if (!fields) return;
+  fields.style.display = isDeceased ? 'grid' : 'none';
+  if (!isDeceased) {
+    document.getElementById('edit-death-date').value = '';
+    document.getElementById('edit-death-location').value = '';
+  }
+}
+
+async function submitProfileEdit(event) {
+  event.preventDefault();
+  if (!currentPerson) return;
+  const btn = document.getElementById('edit-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  const aliveStatus = document.getElementById('edit-alive-status').value;
+  const isDeceased = aliveStatus === 'deceased' ? true : aliveStatus === 'alive' ? false : null;
+  const payload = {
+    ...(currentProfileOverlay || {}),
+    person_uid: currentPerson.uid,
+    corrected_name: cleanValue('edit-name'),
+    corrected_gender: cleanValue('edit-gender'),
+    email: cleanValue('edit-email'),
+    is_deceased: isDeceased,
+    birth_date_text: cleanValue('edit-birth-date'),
+    death_date_text: isDeceased ? cleanValue('edit-death-date') : null,
+    death_location: isDeceased ? cleanValue('edit-death-location') : null,
+    mobile_number: cleanValue('edit-mobile'),
+    root_location: cleanValue('edit-root-location'),
+    birth_location: cleanValue('edit-birth-location'),
+    current_location: cleanValue('edit-current-location'),
+    birth_order_text: cleanValue('edit-birth-order'),
+    profile_note: cleanValue('edit-profile-note'),
+    approved_by: currentUser || 'editor',
+    approved_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  Object.keys(payload).forEach(key => {
+    if (payload[key] === '') payload[key] = null;
+  });
+  const { error } = await sb.from('person_profile_overrides')
+    .upsert(payload, { onConflict: 'person_uid' });
+  btn.disabled = false;
+  btn.textContent = 'Save Profile';
+  if (error) {
+    showEditStatus('Save failed: ' + error.message, true);
+    return;
+  }
+  currentProfileOverlay = payload;
+  showEditStatus('Profile saved.', false);
+  await renderPerson(currentPerson.uid, document.getElementById('person-container'));
+  setTimeout(closeEditProfile, 650);
+}
+
+function cleanValue(id) {
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
+
+function showEditStatus(message, isError, hide) {
+  const el = document.getElementById('edit-status');
+  if (hide || !message) {
+    el.style.display = 'none';
+    el.textContent = '';
+    return;
+  }
+  el.textContent = message;
+  el.style.display = 'block';
+  el.style.borderColor = isError ? 'var(--red)' : 'var(--green)';
+  el.style.color = isError ? 'var(--red)' : 'var(--green)';
+  el.style.background = isError ? '#fef2f2' : '#f0faf4';
 }
 
 // ===== CORRECTION FORM =====

@@ -8,7 +8,9 @@
 create table if not exists public.person_profile_overrides (
   person_uid text primary key,
   corrected_name text,
+  corrected_gender text,
   is_deceased boolean,
+  email text,
   birth_date_text text,
   death_date_text text,
   death_location text,
@@ -26,7 +28,9 @@ create table if not exists public.person_profile_overrides (
 
 alter table public.person_profile_overrides
   add column if not exists corrected_name text,
+  add column if not exists corrected_gender text,
   add column if not exists is_deceased boolean,
+  add column if not exists email text,
   add column if not exists birth_date_text text,
   add column if not exists death_date_text text,
   add column if not exists death_location text,

@@ -35,8 +35,8 @@
   .p-meta { font-size:.82rem; margin-top:5px; color:#111; line-height:1.35; white-space:pre-line; }
   .card-actions { position:absolute; right:5px; top:5px; display:flex; gap:4px; }
   .card-actions button { padding:1px 5px; font-size:.72rem; background:#f8f8f1; }
-  .death-dot { position:absolute; right:8px; bottom:8px; width:9px; height:9px; background:red; }
-  .deceased-mark { color:var(--red); font-weight:900; margin-left:4px; }
+  .deceased-badge { display:inline-block; margin-top:7px; padding:2px 7px; border:1px solid #f4b4ad; background:#fff1f0; color:var(--red); font-size:.72rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+  .deceased-mark { color:var(--red); font-weight:900; margin-left:6px; }
   .connector { width:2px; height:34px; background:#777; margin:0 auto 8px; }
   .spouse-list { text-align:center; margin:6px 0 4px; color:#111; }
   .spouse-list a { color:var(--blue); font-weight:700; text-decoration:none; }
@@ -127,7 +127,7 @@
         <textarea id="edit-notes" maxlength="2500"></textarea>
         <div style="display:flex;gap:8px;margin-top:12px">
           <button class="primary" type="submit">Save</button>
-          <button type="button" onclick="selectPerson(focusUid)">Edit Focus</button>
+          <button type="button" onclick="selectPerson(focusUid)">Edit Main Person</button>
         </div>
       </form>
 
@@ -281,7 +281,7 @@ function personCard(p, cls) {
   const meta = [];
   if (p.birth_date) meta.push('b. ' + p.birth_date);
   if (p.birth_place) meta.push(p.birth_place);
-  if (p.death_flag) meta.push('d. ' + (p.death_date || 'deceased'));
+  if (p.death_flag && p.death_date) meta.push('d. ' + p.death_date);
   return `
     <div class="person-card ${cls === 'focus' ? 'focus' : ''}">
       <div class="card-actions">
@@ -290,7 +290,7 @@ function personCard(p, cls) {
       </div>
       <div class="p-name">${esc(p.name || '(unnamed)')}</div>
       <div class="p-meta">${esc(meta.join('\\n'))}</div>
-      ${p.death_flag ? '<span class="death-dot"></span>' : ''}
+      ${p.death_flag ? '<span class="deceased-badge" title="This person is marked as deceased">† Deceased</span>' : ''}
     </div>
   `;
 }

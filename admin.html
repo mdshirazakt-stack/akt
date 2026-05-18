@@ -296,7 +296,7 @@
     <button class="nav-tab" onclick="switchTab('uploads', this)">Uploads History</button>
     <button class="nav-tab" onclick="switchTab('visitors', this)">Visitors</button>
     <button class="nav-tab" onclick="switchTab('activity', this)">Activity History</button>
-    <button class="nav-tab" onclick="switchTab('changelog', this)">Change Log</button>
+    <button class="nav-tab" onclick="switchTab('changelog', this)">Review & Merge</button>
     <button class="nav-tab" onclick="switchTab('settings', this)">Import Stats</button>
     <button class="nav-tab" onclick="switchTab('corrections', this)">📝 Corrections</button>
     <button class="nav-tab" onclick="switchTab('suggestions', this)">💡 Suggestions</button>
@@ -437,15 +437,15 @@
       </div>
     </div>
 
-    <!-- CHANGE LOG -->
+    <!-- REVIEW & MERGE -->
     <div id="panel-changelog" class="panel">
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-          <h2 style="margin:0">Change Log</h2>
+          <h2 style="margin:0">Review & Merge</h2>
           <button class="btn-sm" onclick="loadChangeLog()" style="background:var(--gold);color:#fff;border:none;padding:7px 16px;cursor:pointer;font-size:0.85rem">↻ Refresh</button>
         </div>
         <div class="insight-note">
-          Shows profile edits, linked family records, and reviewed marriage/child groupings created through the overlay tools.
+          Review profile edits, linked family records, and marriage/child groupings. Mark reviewed family groupings as merged once they are accepted into the canonical family layer used for future GEDCOM export.
         </div>
         <div style="overflow-x:auto;margin-top:16px">
           <table>
@@ -456,9 +456,10 @@
               <th>Profile / Tree</th>
               <th>Details</th>
               <th>Status</th>
+              <th>Merge</th>
             </tr></thead>
             <tbody id="change-log-tbody">
-              <tr><td colspan="6"><div class="empty"><span class="spinner"></span> Loading…</div></td></tr>
+              <tr><td colspan="7"><div class="empty"><span class="spinner"></span> Loading…</div></td></tr>
             </tbody>
           </table>
         </div>
@@ -1624,7 +1625,7 @@ function formatIST(value, includeZone = true) {
 // ===================== CHANGE LOG =====================
 async function loadChangeLog() {
   const tbody = document.getElementById('change-log-tbody');
-  tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><span class="spinner"></span> Loading…</div></td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><span class="spinner"></span> Loading…</div></td></tr>';
   try {
     const [profileRes, relationRes, familyRes] = await Promise.all([
       sb.from('person_profile_overrides').select('*').order('updated_at', { ascending: false }).limit(120),
@@ -1648,7 +1649,7 @@ async function loadChangeLog() {
     const names = await loadPersonNameMap([...uidSet]);
     renderChangeLog(rows, names);
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="6"><div class="empty" style="color:var(--red)">Could not load change log. Make sure overlay tables exist in Supabase.<br>${escapeHtml(err.message || '')}</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty" style="color:var(--red)">Could not load review queue. Make sure overlay tables exist in Supabase and the latest relationship migration has run.<br>${escapeHtml(err.message || '')}</div></td></tr>`;
   }
 }
 
@@ -1701,14 +1702,28 @@ function relationshipOverrideChange(row) {
 
 function familyGroupChange(row) {
   const childCount = Number(row.canonical_family_children?.length || 0);
+  const bits = [
+    `Spouse: ${row.spouse_name || row.spouse_person_uid || 'linked spouse'}`,
+    `${childCount} child${childCount === 1 ? '' : 'ren'} assigned`
+  ];
+  if (row.label) bits.push(row.label);
+  if (row.relationship_status) bits.push(`Status: ${familyRelationshipStatusLabel(row.relationship_status)}`);
+  if (row.marriage_date_text) bits.push(`Married: ${row.marriage_date_text}`);
+  if (row.divorce_date_text) bits.push(`Divorce/separation: ${row.divorce_date_text}`);
+  if (row.merge_notes) bits.push(`Merge note: ${row.merge_notes}`);
   return {
+    id: row.id,
+    source: 'canonical_family_groups',
     time: row.updated_at || row.created_at,
     actor: row.created_by || 'editor',
     type: 'Marriage grouping',
     profileUid: row.primary_person_uid,
     relatedUid: row.spouse_person_uid,
-    details: `Spouse: ${row.spouse_name || row.spouse_person_uid || 'linked spouse'} · ${childCount} child${childCount === 1 ? '' : 'ren'} assigned${row.label ? ' · ' + row.label : ''}`,
-    status: row.status || 'approved'
+    details: bits.join(' · '),
+    status: row.status || 'approved',
+    mergeStatus: row.merge_status || 'reviewed',
+    mergedBy: row.merged_by || '',
+    mergedAt: row.merged_at || ''
   };
 }
 
@@ -1723,10 +1738,20 @@ function relationshipChangeLabel(type) {
   }[type] || 'Relationship';
 }
 
+function familyRelationshipStatusLabel(status) {
+  return {
+    married: 'Married / active',
+    widowed: 'Widowed',
+    divorced: 'Divorced',
+    separated: 'Separated',
+    unknown: 'Unknown'
+  }[status] || status || 'Unknown';
+}
+
 function renderChangeLog(rows, names) {
   const tbody = document.getElementById('change-log-tbody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="6"><div class="empty">No overlay changes found yet.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty">No overlay changes found yet.</div></td></tr>';
     return;
   }
   tbody.innerHTML = rows.map(row => {
@@ -1742,10 +1767,54 @@ function renderChangeLog(rows, names) {
         <td><span class="activity-badge">${escapeHtml(row.type)}</span></td>
         <td>${profileLink}</td>
         <td>${escapeHtml(row.details || '')}${related ? `<br><span style="font-size:0.76rem;color:var(--muted)">Related: ${escapeHtml(related)}</span>` : ''}</td>
-        <td>${escapeHtml(row.status || '')}</td>
+        <td>${escapeHtml(row.status || '')}${row.mergeStatus ? `<br><span style="font-size:0.76rem;color:${row.mergeStatus === 'merged' ? 'var(--green)' : row.mergeStatus === 'conflict' ? 'var(--red)' : 'var(--muted)'}">merge: ${escapeHtml(row.mergeStatus)}</span>` : ''}</td>
+        <td>${renderChangeLogActions(row)}</td>
       </tr>
     `;
   }).join('');
+}
+
+function renderChangeLogActions(row) {
+  if (row.source !== 'canonical_family_groups' || !row.id || row.status === 'archived') return '—';
+  if (row.mergeStatus === 'merged') {
+    return `<div style="font-size:0.76rem;color:var(--green);font-weight:700">Merged${row.mergedAt ? `<br><span style="color:var(--muted);font-weight:400">${formatIST(row.mergedAt, false)}</span>` : ''}</div>
+      <button class="btn-outline" style="margin-top:6px;padding:5px 8px;font-size:0.72rem" onclick="setFamilyGroupMergeStatus('${row.id}', 'reviewed')">Reopen</button>`;
+  }
+  if (row.mergeStatus === 'conflict') {
+    return `<div style="font-size:0.76rem;color:var(--red);font-weight:700">Conflict</div>
+      <button class="btn-green" style="margin-top:6px;padding:5px 8px;font-size:0.72rem" onclick="setFamilyGroupMergeStatus('${row.id}', 'merged')">Mark Merged</button>`;
+  }
+  return `
+    <button class="btn-green" style="padding:5px 8px;font-size:0.72rem" onclick="setFamilyGroupMergeStatus('${row.id}', 'merged')">Mark Merged</button>
+    <button class="btn-outline" style="margin-top:6px;padding:5px 8px;font-size:0.72rem" onclick="setFamilyGroupMergeStatus('${row.id}', 'conflict')">Mark Conflict</button>
+  `;
+}
+
+async function setFamilyGroupMergeStatus(id, mergeStatus) {
+  if (!id) return;
+  const labels = { merged: 'merged into the canonical family layer', conflict: 'marked as conflict', reviewed: 'reopened for review' };
+  const ok = confirm(`Mark this marriage grouping as ${labels[mergeStatus] || mergeStatus}?`);
+  if (!ok) return;
+  const update = {
+    merge_status: mergeStatus,
+    updated_at: new Date().toISOString()
+  };
+  if (mergeStatus === 'merged') {
+    const note = prompt('Optional merge note for future GEDCOM export:', '');
+    update.merged_at = new Date().toISOString();
+    update.merged_by = 'admin';
+    update.merge_notes = note || null;
+  } else if (mergeStatus === 'reviewed') {
+    update.merged_at = null;
+    update.merged_by = null;
+  }
+  const { error } = await sb.from('canonical_family_groups').update(update).eq('id', id);
+  if (error) {
+    toast('Could not update merge status: ' + error.message, true);
+    return;
+  }
+  toast('Merge status updated.');
+  loadChangeLog();
 }
 
 function timeAgo(value) {

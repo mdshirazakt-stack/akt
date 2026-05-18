@@ -95,6 +95,13 @@ create table if not exists public.canonical_family_groups (
   spouse_name text,
   spouse_gender text,
   label text,
+  relationship_status text default 'married',
+  marriage_date_text text,
+  divorce_date_text text,
+  merge_status text default 'reviewed',
+  merged_at timestamptz,
+  merged_by text,
+  merge_notes text,
   status text not null default 'approved'
     check (status in ('draft', 'pending', 'approved', 'rejected', 'archived')),
   notes text,
@@ -103,6 +110,15 @@ create table if not exists public.canonical_family_groups (
   updated_at timestamptz default now(),
   check (spouse_person_uid is not null or spouse_name is not null)
 );
+
+alter table public.canonical_family_groups
+  add column if not exists relationship_status text default 'married',
+  add column if not exists marriage_date_text text,
+  add column if not exists divorce_date_text text,
+  add column if not exists merge_status text default 'reviewed',
+  add column if not exists merged_at timestamptz,
+  add column if not exists merged_by text,
+  add column if not exists merge_notes text;
 
 create table if not exists public.canonical_family_children (
   id uuid primary key default gen_random_uuid(),

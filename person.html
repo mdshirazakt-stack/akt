@@ -699,6 +699,26 @@
           Group label
           <input id="family-group-label" placeholder="Optional, e.g. First marriage"/>
         </label>
+        <div class="form-grid" style="margin-top:12px">
+          <label class="form-field">
+            Relationship status
+            <select id="family-group-relationship-status">
+              <option value="married">Married / active</option>
+              <option value="widowed">Widowed</option>
+              <option value="divorced">Divorced</option>
+              <option value="separated">Separated</option>
+              <option value="unknown">Unknown</option>
+            </select>
+          </label>
+          <label class="form-field">
+            Marriage date
+            <input id="family-group-marriage-date" placeholder="Free text, e.g. 1985 or 17 Jan 1985"/>
+          </label>
+          <label class="form-field">
+            Divorce / separation date
+            <input id="family-group-divorce-date" placeholder="Free text, if applicable"/>
+          </label>
+        </div>
         <div style="margin-top:12px">
           <div class="edit-section-title" style="margin-bottom:6px">Children under this spouse</div>
           <div id="family-group-child-list" class="child-assignment-list">
@@ -962,6 +982,9 @@ async function renderFamilyGroupOverlaySpouse(groupId, el) {
         <div class="detail-field"><div class="key">Name</div><div class="val">${escHtml(group.spouse_name || '—')}</div></div>
         <div class="detail-field"><div class="key">Spouse</div><div class="val">${primary?.uid ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(primary.uid)}">${escHtml(primary.name || '(unnamed)')}</a>` : '—'}</div></div>
         ${group.label ? `<div class="detail-field"><div class="key">Family Group</div><div class="val">${escHtml(group.label)}</div></div>` : ''}
+        ${group.relationship_status ? `<div class="detail-field"><div class="key">Relationship Status</div><div class="val">${escHtml(familyRelationshipStatusLabel(group.relationship_status))}</div></div>` : ''}
+        ${group.marriage_date_text ? `<div class="detail-field"><div class="key">Marriage Date</div><div class="val">${escHtml(group.marriage_date_text)}</div></div>` : ''}
+        ${group.divorce_date_text ? `<div class="detail-field"><div class="key">Divorce / Separation Date</div><div class="val">${escHtml(group.divorce_date_text)}</div></div>` : ''}
       </div>
       ${children.length ? `
         <div class="section-h">Children (${children.length})</div>
@@ -1244,13 +1267,19 @@ async function renderPerson(uid, el) {
                   ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(group.spouse_person_uid)}">${escHtml(group.spouse_display_name || group.spouse_name || '(linked spouse)')}</a>`
                   : `<a class="person-link" href="person.html?family_group=${encodeURIComponent(group.id)}">${escHtml(group.spouse_name || '(spouse)')}</a>`}
                 <span class="badge" style="margin-left:8px;background:#fef3c7;color:#92400e">Reviewed grouping</span>
+                ${group.merge_status === 'merged' ? `<span class="badge" style="margin-left:6px;background:#dcfce7;color:#166534">Merged</span>` : ''}
+                ${group.merge_status === 'conflict' ? `<span class="badge" style="margin-left:6px;background:#fee2e2;color:#991b1b">Conflict</span>` : ''}
               </div>
               <button class="mini-danger-btn" type="button" onclick="archiveCanonicalFamilyGroup('${group.id}')">Undo</button>
             </div>
-            ${group.label || group.notes ? `
+            ${group.label || group.relationship_status || group.marriage_date_text || group.divorce_date_text || group.notes ? `
               <div class="fc-detail" style="white-space:normal">
                 ${group.label ? escHtml(group.label) : ''}
-                ${group.label && group.notes ? '<br>' : ''}
+                ${group.label && (group.relationship_status || group.marriage_date_text || group.divorce_date_text || group.notes) ? '<br>' : ''}
+                ${group.relationship_status ? `Status: ${escHtml(familyRelationshipStatusLabel(group.relationship_status))}` : ''}
+                ${group.marriage_date_text ? ` · Married: ${escHtml(group.marriage_date_text)}` : ''}
+                ${group.divorce_date_text ? ` · Divorce/separation: ${escHtml(group.divorce_date_text)}` : ''}
+                ${(group.relationship_status || group.marriage_date_text || group.divorce_date_text) && group.notes ? '<br>' : ''}
                 ${group.notes ? escHtml(group.notes) : ''}
               </div>
             ` : ''}
@@ -1461,6 +1490,16 @@ function relationshipLabel(type) {
     sibling: 'Sibling'
   };
   return labels[type] || 'Relation';
+}
+
+function familyRelationshipStatusLabel(status) {
+  return {
+    married: 'Married / active',
+    widowed: 'Widowed',
+    divorced: 'Divorced',
+    separated: 'Separated',
+    unknown: 'Unknown'
+  }[status] || status || 'Unknown';
 }
 
 function relationshipDisplayLabel(rel) {
@@ -1984,6 +2023,12 @@ function resetFamilyGroupEditor() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  ['family-group-marriage-date','family-group-divorce-date'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const relationshipStatus = document.getElementById('family-group-relationship-status');
+  if (relationshipStatus) relationshipStatus.value = 'married';
   const gender = document.getElementById('family-group-spouse-gender');
   if (gender) gender.value = '';
   const results = document.getElementById('family-group-spouse-results');
@@ -2093,6 +2138,10 @@ async function saveCanonicalFamilyGroup() {
   const groupPayload = {
     primary_person_uid: currentPerson.uid,
     label: cleanValue('family-group-label') || null,
+    relationship_status: cleanValue('family-group-relationship-status') || 'married',
+    marriage_date_text: cleanValue('family-group-marriage-date') || null,
+    divorce_date_text: cleanValue('family-group-divorce-date') || null,
+    merge_status: 'reviewed',
     status: 'approved',
     notes: cleanValue('family-group-notes') || null,
     created_by: currentUser || 'editor',
@@ -2115,10 +2164,23 @@ async function saveCanonicalFamilyGroup() {
     groupPayload.spouse_gender = cleanValue('family-group-spouse-gender') || null;
   }
 
-  const { data: group, error: groupError } = await sb.from('canonical_family_groups')
+  let { data: group, error: groupError } = await sb.from('canonical_family_groups')
     .insert(groupPayload)
     .select()
     .single();
+  if (groupError && /schema cache|relationship_status|marriage_date_text|divorce_date_text|merge_status/i.test(groupError.message || '')) {
+    const fallbackPayload = { ...groupPayload };
+    delete fallbackPayload.relationship_status;
+    delete fallbackPayload.marriage_date_text;
+    delete fallbackPayload.divorce_date_text;
+    delete fallbackPayload.merge_status;
+    const fallback = await sb.from('canonical_family_groups')
+      .insert(fallbackPayload)
+      .select()
+      .single();
+    group = fallback.data;
+    groupError = fallback.error;
+  }
   if (groupError) {
     showEditStatus('Marriage group save failed: ' + groupError.message, true);
     return;

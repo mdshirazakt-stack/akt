@@ -1790,18 +1790,21 @@ function searchRelationshipPeople() {
 }
 
 async function lookupPeopleAndLinkedRecords(q) {
-  const exactId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q);
-  if (exactId) {
+  const idMatch = String(q || '').match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  const lookupText = String(q || '').trim();
+  const lookupId = idMatch ? idMatch[0] : '';
+  const exactId = Boolean(lookupId);
+  if (lookupId) {
     const { data, error } = await sb.from('people')
       .select('uid,name,sex,birth_place,gedcom_id')
-      .eq('uid', q)
+      .eq('uid', lookupId)
       .maybeSingle();
     if (error) return { rows: [], errorMessage: 'Profile UID lookup failed: ' + error.message, exactId };
     if (data && data.uid !== currentPerson.uid) return { rows: [data], exactId };
 
     const { data: linked, error: linkedError } = await sb.from('relationship_overrides')
       .select('*')
-      .eq('id', q)
+      .eq('id', lookupId)
       .eq('status', 'approved')
       .maybeSingle();
     if (linkedError) return { rows: [], errorMessage: 'Linked record lookup failed: ' + linkedError.message, exactId };
@@ -1830,11 +1833,31 @@ async function lookupPeopleAndLinkedRecords(q) {
 
   const { data, error } = await sb.from('people')
     .select('uid,name,sex,birth_place,gedcom_id')
-    .ilike('name', `%${q}%`)
+    .ilike('name', `%${lookupText}%`)
     .neq('uid', currentPerson.uid)
     .limit(12);
   if (error) return { rows: [], errorMessage: 'Search failed: ' + error.message, exactId };
-  return { rows: data || [], exactId };
+
+  const { data: linkedRows, error: linkedNameError } = await sb.from('relationship_overrides')
+    .select('id,related_person_uid,related_name,related_gender,status')
+    .eq('status', 'approved')
+    .ilike('related_name', `%${lookupText}%`)
+    .limit(8);
+  if (linkedNameError) return { rows: [], errorMessage: 'Linked record search failed: ' + linkedNameError.message, exactId };
+
+  const rows = data || [];
+  const seen = new Set(rows.map(row => row.uid).filter(Boolean));
+  (linkedRows || []).forEach(linked => {
+    if (linked.related_person_uid || !linked.related_name || seen.has(linked.id)) return;
+    seen.add(linked.id);
+    rows.push({
+      overlayRelId: linked.id,
+      name: linked.related_name,
+      sex: linked.related_gender || '',
+      birth_place: 'Linked Family Record'
+    });
+  });
+  return { rows, exactId };
 }
 
 async function runRelationshipSearch() {

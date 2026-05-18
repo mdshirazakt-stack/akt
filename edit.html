@@ -215,6 +215,20 @@ async function loadFamilyData() {
       return { ...fam, children };
     });
   }
+  await cleanupEmptySpouseGroups();
+}
+
+async function cleanupEmptySpouseGroups() {
+  const emptyGroups = spouseFamilies.filter(fam => {
+    const spouseUid = fam.husband_uid === focusUid ? fam.wife_uid : fam.husband_uid;
+    return !spouseUid && !(fam.children || []).length;
+  });
+  if (!emptyGroups.length) return;
+  for (const fam of emptyGroups) {
+    await sb.from('family_members').delete().eq('family_uid', fam.uid);
+    await sb.from('families').delete().eq('uid', fam.uid);
+  }
+  spouseFamilies = spouseFamilies.filter(fam => !emptyGroups.some(empty => empty.uid === fam.uid));
 }
 
 async function getPerson(uid) {
@@ -279,7 +293,8 @@ function emptyCard(text, action) {
 function spouseLine(fam) {
   const spouseUid = fam.husband_uid === focusUid ? fam.wife_uid : fam.husband_uid;
   const spouse = spouseUid ? peopleByUid[spouseUid] : null;
-  return `m. <a href="edit.html?uid=${encodeURIComponent(spouseUid || focusUid)}">${esc(spouse?.name || '(spouse not set)')}</a>`;
+  if (!spouseUid) return '';
+  return `m. <a href="edit.html?uid=${encodeURIComponent(spouseUid)}">${esc(spouse?.name || '(spouse not set)')}</a>`;
 }
 
 function familySection(fam, idx) {
@@ -294,6 +309,7 @@ function familySection(fam, idx) {
         <button class="small" onclick="addChildToFamily('${fam.uid}')">Add Son / Daughter</button>
         <button class="small" onclick="moveExistingChildToFamily('${fam.uid}')">Move Existing Child Here</button>
         <button class="small" onclick="editFamilyFacts('${fam.uid}')">Marriage Facts</button>
+        ${!spouseUid && !children.length ? `<button class="small danger" onclick="deleteEmptyFamilyGroup('${fam.uid}')">Delete Empty Group</button>` : ''}
       </div>
       <div class="children-grid">
         ${children.map(child => personCard(child, 'child')).join('')}
@@ -303,6 +319,23 @@ function familySection(fam, idx) {
       </div>
     </section>
   `;
+}
+
+async function deleteEmptyFamilyGroup(familyUid) {
+  const fam = spouseFamilies.find(f => f.uid === familyUid);
+  if (!fam) return;
+  const spouseUid = fam.husband_uid === focusUid ? fam.wife_uid : fam.husband_uid;
+  if (spouseUid || (fam.children || []).length) {
+    setStatus('Only groups with no spouse and no children can be deleted here.', true);
+    return;
+  }
+  const ok = confirm('Delete this empty spouse/partner group?');
+  if (!ok) return;
+  await sb.from('family_members').delete().eq('family_uid', familyUid);
+  const { error } = await sb.from('families').delete().eq('uid', familyUid);
+  if (error) return setStatus(error.message, true);
+  setStatus('Empty group deleted.');
+  await loadEditor();
 }
 
 function selectPerson(uid) {

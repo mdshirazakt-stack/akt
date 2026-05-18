@@ -2461,6 +2461,13 @@ async function applyProfileOverride(id, btn) {
     return;
   }
 
+  const sourceError = await applyCorrectionToSourcePerson(rec.person_uid, rec);
+  if (sourceError) {
+    if (btn) { btn.disabled = false; btn.textContent = originalText; }
+    toast('Profile overlay saved, but source person update failed: ' + sourceError.message, true);
+    return;
+  }
+
   const { error: requestError } = await sb.from('correction_requests')
     .update({
       applied_to_profile: true,
@@ -2479,8 +2486,33 @@ async function applyProfileOverride(id, btn) {
   rec.applied_to_profile = true;
   rec.applied_at = new Date().toISOString();
   if (rec.status === 'new') rec.status = 'approved';
-  toast('Safe fields applied to profile overlay.');
+  toast('Safe fields applied to source profile.');
   renderCorrections();
+}
+
+async function applyCorrectionToSourcePerson(uid, rec) {
+  if (!uid || !rec) return null;
+  const update = { updated_at: new Date().toISOString() };
+  if (rec.correction_name) update.name = rec.correction_name;
+  if (rec.correction_birth_date) update.birth_date = rec.correction_birth_date;
+  if (rec.correction_birth_location) update.birth_place = rec.correction_birth_location;
+  if (rec.correction_is_deceased) update.death_flag = true;
+  if (rec.correction_death_date) update.death_date = rec.correction_death_date;
+  if (rec.correction_death_location) update.death_place = rec.correction_death_location;
+  if (rec.correction_root_location) update.root_place = rec.correction_root_location;
+  if (rec.correction_current_location) update.current_place = rec.correction_current_location;
+  if (rec.correction_mobile) update.contact_address = rec.correction_mobile;
+  if (rec.correction_profile_note) update.notes = rec.correction_profile_note;
+  if (Object.keys(update).length === 1) return null;
+  let { error } = await sb.from('people').update(update).eq('uid', uid);
+  if (!error) return null;
+  if (!/schema cache|root_place|current_place|contact_address/i.test(error.message || '')) return error;
+  const fallback = { ...update };
+  delete fallback.root_place;
+  delete fallback.current_place;
+  delete fallback.contact_address;
+  const retry = await sb.from('people').update(fallback).eq('uid', uid);
+  return retry.error || null;
 }
 
 async function saveCorrectionNotes(id, notes) {

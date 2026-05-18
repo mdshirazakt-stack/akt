@@ -1663,16 +1663,55 @@ async function submitProfileEdit(event) {
   });
   const { error } = await sb.from('person_profile_overrides')
     .upsert(payload, { onConflict: 'person_uid' });
-  btn.disabled = false;
-  btn.textContent = 'Save Profile';
   if (error) {
+    btn.disabled = false;
+    btn.textContent = 'Save Profile';
     showEditStatus('Save failed: ' + error.message, true);
     return;
   }
+  const sourceError = await applyProfilePayloadToSourcePerson(currentPerson.uid, payload);
+  btn.disabled = false;
+  btn.textContent = 'Save Profile';
+  if (sourceError) {
+    showEditStatus('Saved as profile overlay, but source person update failed: ' + sourceError.message, true);
+    currentProfileOverlay = payload;
+    await renderPerson(currentPerson.uid, document.getElementById('person-container'));
+    return;
+  }
   currentProfileOverlay = payload;
-  showEditStatus('Profile saved.', false);
+  showEditStatus('Profile saved to source record.', false);
   await renderPerson(currentPerson.uid, document.getElementById('person-container'));
   setTimeout(closeEditProfile, 650);
+}
+
+async function applyProfilePayloadToSourcePerson(uid, payload) {
+  if (!uid || !payload) return null;
+  const update = {
+    name: payload.corrected_name || null,
+    sex: payload.corrected_gender || null,
+    birth_date: payload.birth_date_text || null,
+    birth_place: payload.birth_location || null,
+    death_flag: payload.is_deceased === true,
+    death_date: payload.is_deceased === true ? (payload.death_date_text || null) : null,
+    death_place: payload.is_deceased === true ? (payload.death_location || null) : null,
+    root_place: payload.root_location || null,
+    current_place: payload.current_location || null,
+    contact_address: payload.mobile_number || null,
+    notes: payload.profile_note || null,
+    updated_at: new Date().toISOString()
+  };
+  Object.keys(update).forEach(key => {
+    if (update[key] === undefined || update[key] === '') update[key] = null;
+  });
+  let { error } = await sb.from('people').update(update).eq('uid', uid);
+  if (!error) return null;
+  if (!/schema cache|root_place|current_place|contact_address/i.test(error.message || '')) return error;
+  const fallback = { ...update };
+  delete fallback.root_place;
+  delete fallback.current_place;
+  delete fallback.contact_address;
+  const retry = await sb.from('people').update(fallback).eq('uid', uid);
+  return retry.error || null;
 }
 
 function cleanValue(id) {

@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Edit Family - Apno Ki Talash</title>
+<link rel="icon" href="apnonkitalash-logo-favicon.png"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg:#f7f2e8; --panel:#fffdf7; --ink:#1f1a14; --muted:#746b5f;
+    --green:#254f34; --gold:#b5822b; --line:#cfc4b3; --blue:#165bd8; --red:#b42318;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:Arial, Helvetica, sans-serif; }
+  header { position:sticky; top:0; z-index:10; background:rgba(247,242,232,.95); border-bottom:1px solid var(--line); padding:14px 22px; display:flex; justify-content:space-between; gap:12px; align-items:center; }
+  h1 { margin:0; color:var(--green); font-family:Georgia, serif; font-size:1.45rem; }
+  .sub { color:var(--muted); font-size:.82rem; margin-top:3px; }
+  main { max-width:1180px; margin:0 auto; padding:22px; }
+  button, .btn { border:1px solid var(--line); background:#fffaf0; color:var(--green); padding:8px 12px; font-weight:700; cursor:pointer; text-decoration:none; font:inherit; }
+  button.primary { background:var(--green); color:#fff; border-color:var(--green); }
+  button.gold { background:var(--gold); color:#fff; border-color:var(--gold); }
+  button.danger { color:var(--red); border-color:var(--red); background:#fff; }
+  button.small, .btn.small { padding:5px 8px; font-size:.78rem; }
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+  .status { display:none; margin-bottom:16px; padding:12px 14px; border-left:4px solid var(--gold); background:#fffaf0; color:var(--green); font-weight:700; }
+  .layout { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:18px; align-items:start; }
+  .board { background:#edf2df; border:1px solid #9ca891; min-height:520px; padding:22px; overflow-x:auto; }
+  .row { display:flex; justify-content:center; gap:42px; align-items:flex-start; margin:10px 0 26px; min-width:820px; }
+  .row.center { margin-top:4px; }
+  .person-card { position:relative; min-width:220px; max-width:260px; background:#f4f6e7; border:1px solid #888; border-radius:4px; padding:12px 14px 28px; text-align:center; box-shadow:0 1px 0 rgba(0,0,0,.05); }
+  .person-card.focus { border-width:2px; background:#fffde7; }
+  .person-card.empty { color:var(--blue); font-weight:700; display:flex; align-items:center; justify-content:center; min-height:76px; }
+  .p-name { color:var(--blue); font-weight:800; line-height:1.25; }
+  .p-meta { font-size:.82rem; margin-top:5px; color:#111; line-height:1.35; white-space:pre-line; }
+  .card-actions { position:absolute; right:5px; top:5px; display:flex; gap:4px; }
+  .card-actions button { padding:1px 5px; font-size:.72rem; background:#f8f8f1; }
+  .death-dot { position:absolute; right:8px; bottom:8px; width:9px; height:9px; background:red; }
+  .connector { width:2px; height:34px; background:#777; margin:0 auto 8px; }
+  .spouse-list { text-align:center; margin:6px 0 4px; color:#111; }
+  .spouse-list a { color:var(--blue); font-weight:700; text-decoration:none; }
+  .family-box { min-width:820px; border:2px solid #666; background:#edf2df; margin:0 auto 24px; padding:12px; }
+  .family-title { font-weight:700; margin:0 0 10px; color:#333; }
+  .children-grid { display:grid; grid-template-columns:repeat(3,minmax(180px,1fr)); gap:16px; }
+  .add-card { min-height:72px; color:var(--blue); font-weight:800; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; }
+  .side { background:var(--panel); border:1px solid var(--line); padding:16px; position:sticky; top:84px; }
+  .side h2 { margin:0 0 12px; font-family:Georgia,serif; color:var(--green); }
+  label { display:block; font-size:.74rem; letter-spacing:.08em; text-transform:uppercase; color:var(--gold); font-weight:800; margin:11px 0 5px; }
+  input, select, textarea { width:100%; border:1px solid var(--line); background:#fff; padding:9px 10px; font:inherit; }
+  textarea { min-height:96px; resize:vertical; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .hint { font-size:.78rem; color:var(--muted); line-height:1.55; }
+  .section-title { margin:20px 0 10px; color:var(--gold); letter-spacing:.08em; text-transform:uppercase; font-weight:800; font-size:.8rem; border-top:1px solid var(--line); padding-top:14px; }
+  @media (max-width:900px) {
+    header { align-items:flex-start; flex-direction:column; }
+    main { padding:12px; }
+    .layout { grid-template-columns:1fr; }
+    .side { position:static; }
+    .board { padding:14px; }
+    .row, .family-box { min-width:720px; }
+    .children-grid { grid-template-columns:repeat(2,minmax(180px,1fr)); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Family Editor</h1>
+    <div class="sub" id="page-subtitle">Loading family workspace...</div>
+  </div>
+  <div class="toolbar">
+    <a class="btn small" id="profile-link" href="archive.html">Back</a>
+    <a class="btn small" id="tree-link" href="archive.html">Browse Tree</a>
+    <button class="small" onclick="loadEditor()">Refresh</button>
+  </div>
+</header>
+
+<main>
+  <div class="status" id="status"></div>
+  <div class="layout">
+    <section class="board" id="family-board">
+      <div class="hint">Loading...</div>
+    </section>
+
+    <aside class="side">
+      <h2>Edit Person</h2>
+      <div class="hint" id="editing-label">Select a profile card to edit details.</div>
+      <form onsubmit="savePerson(event)">
+        <input type="hidden" id="edit-uid"/>
+        <label>Name</label>
+        <input id="edit-name" placeholder="Full name"/>
+        <div class="grid2">
+          <div>
+            <label>Gender</label>
+            <select id="edit-sex">
+              <option value="">Unknown</option>
+              <option value="M">Male</option>
+              <option value="F">Female</option>
+            </select>
+          </div>
+          <div>
+            <label>Alive</label>
+            <select id="edit-alive">
+              <option value="alive">Yes</option>
+              <option value="deceased">No</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid2">
+          <div><label>Birth date</label><input id="edit-birth-date" placeholder="Any format"/></div>
+          <div><label>Birth place</label><input id="edit-birth-place"/></div>
+        </div>
+        <div class="grid2">
+          <div><label>Death date</label><input id="edit-death-date" placeholder="If deceased"/></div>
+          <div><label>Death place</label><input id="edit-death-place"/></div>
+        </div>
+        <label>Notes</label>
+        <textarea id="edit-notes" maxlength="2500"></textarea>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="primary" type="submit">Save</button>
+          <button type="button" onclick="selectPerson(focusUid)">Edit Focus</button>
+        </div>
+      </form>
+
+      <div class="section-title">Family Operations</div>
+      <div class="hint">
+        These controls write to the real genealogy tables. Browse Tree will reflect these family rows after refresh.
+      </div>
+      <div style="display:grid;gap:8px;margin-top:12px">
+        <button onclick="addParent('father')">Add / Set Father</button>
+        <button onclick="addParent('mother')">Add / Set Mother</button>
+        <button class="gold" onclick="addSpouseFamily()">Add Spouse / Partner Group</button>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<script>
+const SUPABASE_URL = 'https://fusairoeiabmqvsbxhfi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXNhYmFzZSIsInJlZiI6ImZ1c2Fpcm9laWFibXF2c2J4aGZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MTUwNTgsImV4cCI6MjA5MzQ5MTA1OH0.uTVlBn4iDFZzAeD2i4Bzt4fXVxGequ2W9LIxugBIKsA';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const params = new URLSearchParams(location.search);
+let focusUid = params.get('uid') || '';
+let focusPerson = null;
+let parentFamily = null;
+let father = null;
+let mother = null;
+let spouseFamilies = [];
+let peopleByUid = {};
+
+document.addEventListener('DOMContentLoaded', loadEditor);
+
+async function loadEditor() {
+  if (!focusUid) {
+    document.getElementById('family-board').innerHTML = '<div class="hint">No person selected.</div>';
+    return;
+  }
+  peopleByUid = {};
+  setStatus('', false, true);
+  document.getElementById('family-board').innerHTML = '<div class="hint">Loading family records...</div>';
+  focusPerson = await getPerson(focusUid);
+  if (!focusPerson) {
+    document.getElementById('family-board').innerHTML = '<div class="hint">Person not found.</div>';
+    return;
+  }
+  document.title = 'Edit ' + (focusPerson.name || 'Profile') + ' - Apno Ki Talash';
+  document.getElementById('page-subtitle').textContent = focusPerson.name || '(unnamed)';
+  document.getElementById('profile-link').href = 'person.html?uid=' + encodeURIComponent(focusUid);
+  document.getElementById('tree-link').href = 'archive.html?tree=' + encodeURIComponent(focusUid);
+  await loadFamilyData();
+  renderBoard();
+  selectPerson(focusUid);
+}
+
+async function loadFamilyData() {
+  const { data: childRows } = await sb.from('family_members')
+    .select('family_uid')
+    .eq('person_uid', focusUid)
+    .eq('role', 'child');
+  parentFamily = null;
+  if (childRows && childRows.length) {
+    const { data } = await sb.from('families').select('*').eq('uid', childRows[0].family_uid).maybeSingle();
+    parentFamily = data || null;
+  }
+
+  const parentUids = [parentFamily?.husband_uid, parentFamily?.wife_uid].filter(Boolean);
+  if (parentUids.length) await loadPeople(parentUids);
+  father = parentFamily?.husband_uid ? peopleByUid[parentFamily.husband_uid] : null;
+  mother = parentFamily?.wife_uid ? peopleByUid[parentFamily.wife_uid] : null;
+
+  const { data: fams } = await sb.from('families')
+    .select('*')
+    .or('husband_uid.eq.' + focusUid + ',wife_uid.eq.' + focusUid);
+  spouseFamilies = fams || [];
+
+  const famUids = spouseFamilies.map(f => f.uid);
+  const spouseUids = spouseFamilies.map(f => f.husband_uid === focusUid ? f.wife_uid : f.husband_uid).filter(Boolean);
+  await loadPeople(spouseUids);
+
+  if (famUids.length) {
+    const { data: members } = await sb.from('family_members')
+      .select('family_uid,person_uid,birth_order')
+      .in('family_uid', famUids)
+      .eq('role', 'child')
+      .order('birth_order');
+    const childUids = [...new Set((members || []).map(m => m.person_uid).filter(Boolean))];
+    await loadPeople(childUids);
+    spouseFamilies = spouseFamilies.map(fam => {
+      const children = (members || [])
+        .filter(m => m.family_uid === fam.uid)
+        .sort((a, b) => (a.birth_order || 999) - (b.birth_order || 999))
+        .map(m => peopleByUid[m.person_uid])
+        .filter(Boolean);
+      return { ...fam, children };
+    });
+  }
+}
+
+async function getPerson(uid) {
+  if (!uid) return null;
+  if (peopleByUid[uid]) return peopleByUid[uid];
+  const { data } = await sb.from('people').select('*').eq('uid', uid).maybeSingle();
+  if (data) peopleByUid[data.uid] = data;
+  return data || null;
+}
+
+async function loadPeople(uids) {
+  const missing = [...new Set((uids || []).filter(Boolean))].filter(uid => !peopleByUid[uid]);
+  if (!missing.length) return;
+  for (let i = 0; i < missing.length; i += 80) {
+    const { data } = await sb.from('people').select('*').in('uid', missing.slice(i, i + 80));
+    (data || []).forEach(p => { peopleByUid[p.uid] = p; });
+  }
+}
+
+function renderBoard() {
+  const spouseRows = spouseFamilies.map((fam, idx) => familySection(fam, idx)).join('');
+  document.getElementById('family-board').innerHTML = `
+    <div class="row">
+      ${father ? personCard(father, 'parent') : emptyCard('Add Father', "addParent('father')")}
+      ${mother ? personCard(mother, 'parent') : emptyCard('Add Mother', "addParent('mother')")}
+    </div>
+    <div class="connector"></div>
+    <div class="row center">
+      ${personCard(focusPerson, 'focus')}
+    </div>
+    <div class="spouse-list">
+      ${spouseFamilies.length ? spouseFamilies.map(fam => spouseLine(fam)).join('<br>') : 'm. <button class="small" onclick="addSpouseFamily()">add spouse/partner</button>'}
+      ${spouseFamilies.length ? '<br>m. <button class="small" onclick="addSpouseFamily()">add spouse/partner</button>' : ''}
+    </div>
+    <div class="connector"></div>
+    ${spouseRows || '<div class="family-box"><div class="family-title">No spouse/partner family groups yet.</div></div>'}
+  `;
+}
+
+function personCard(p, cls) {
+  const meta = [];
+  if (p.birth_date) meta.push('b. ' + p.birth_date);
+  if (p.birth_place) meta.push(p.birth_place);
+  if (p.death_flag) meta.push('d. ' + (p.death_date || 'deceased'));
+  return `
+    <div class="person-card ${cls === 'focus' ? 'focus' : ''}">
+      <div class="card-actions">
+        <button onclick="selectPerson('${p.uid}')">edit</button>
+        <button onclick="location.href='person.html?uid=${encodeURIComponent(p.uid)}'">view</button>
+      </div>
+      <div class="p-name">${esc(p.name || '(unnamed)')}</div>
+      <div class="p-meta">${esc(meta.join('\\n'))}</div>
+      ${p.death_flag ? '<span class="death-dot"></span>' : ''}
+    </div>
+  `;
+}
+
+function emptyCard(text, action) {
+  return `<button class="person-card empty" onclick="${action}">${esc(text)}</button>`;
+}
+
+function spouseLine(fam) {
+  const spouseUid = fam.husband_uid === focusUid ? fam.wife_uid : fam.husband_uid;
+  const spouse = spouseUid ? peopleByUid[spouseUid] : null;
+  return `m. <a href="edit.html?uid=${encodeURIComponent(spouseUid || focusUid)}">${esc(spouse?.name || '(spouse not set)')}</a>`;
+}
+
+function familySection(fam, idx) {
+  const spouseUid = fam.husband_uid === focusUid ? fam.wife_uid : fam.husband_uid;
+  const spouse = spouseUid ? peopleByUid[spouseUid] : null;
+  const title = `${focusPerson.name || 'Person'} and ${spouse?.name || 'spouse'}'s children`;
+  const children = fam.children || [];
+  return `
+    <section class="family-box">
+      <div class="family-title">${esc(title)} (${children.length})</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <button class="small" onclick="addChildToFamily('${fam.uid}')">Add Son / Daughter</button>
+        <button class="small" onclick="moveExistingChildToFamily('${fam.uid}')">Move Existing Child Here</button>
+        <button class="small" onclick="editFamilyFacts('${fam.uid}')">Marriage Facts</button>
+      </div>
+      <div class="children-grid">
+        ${children.map(child => personCard(child, 'child')).join('')}
+        <button class="person-card add-card" onclick="addChildToFamily('${fam.uid}')">
+          <span>add Son</span><span>add Daughter</span>
+        </button>
+      </div>
+    </section>
+  `;
+}
+
+function selectPerson(uid) {
+  const p = peopleByUid[uid];
+  if (!p) return;
+  document.getElementById('editing-label').textContent = p.name || '(unnamed)';
+  document.getElementById('edit-uid').value = p.uid;
+  document.getElementById('edit-name').value = p.name || '';
+  document.getElementById('edit-sex').value = p.sex || '';
+  document.getElementById('edit-alive').value = p.death_flag ? 'deceased' : 'alive';
+  document.getElementById('edit-birth-date').value = p.birth_date || '';
+  document.getElementById('edit-birth-place').value = p.birth_place || '';
+  document.getElementById('edit-death-date').value = p.death_date || '';
+  document.getElementById('edit-death-place').value = p.death_place || '';
+  document.getElementById('edit-notes').value = p.notes || '';
+}
+
+async function savePerson(event) {
+  event.preventDefault();
+  const uid = value('edit-uid');
+  if (!uid) return;
+  const deceased = value('edit-alive') === 'deceased';
+  const payload = {
+    name: value('edit-name') || null,
+    sex: value('edit-sex') || null,
+    birth_date: value('edit-birth-date') || null,
+    birth_place: value('edit-birth-place') || null,
+    death_flag: deceased,
+    death_date: deceased ? (value('edit-death-date') || null) : null,
+    death_place: deceased ? (value('edit-death-place') || null) : null,
+    notes: value('edit-notes') || null,
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await sb.from('people').update(payload).eq('uid', uid);
+  if (error) return setStatus(error.message, true);
+  setStatus('Profile saved to source person record.');
+  await loadEditor();
+}
+
+async function addParent(type) {
+  const parentUid = await getOrCreatePersonFromPrompt(type === 'father' ? 'Father' : 'Mother', type === 'father' ? 'M' : 'F');
+  if (!parentUid) return;
+  let fam = parentFamily;
+  if (!fam) {
+    fam = await createFamily();
+    if (!fam) return;
+    await addFamilyMember(fam.uid, focusUid);
+  }
+  const update = type === 'father' ? { husband_uid: parentUid } : { wife_uid: parentUid };
+  const { error } = await sb.from('families').update(update).eq('uid', fam.uid);
+  if (error) return setStatus(error.message, true);
+  setStatus((type === 'father' ? 'Father' : 'Mother') + ' saved.');
+  await loadEditor();
+}
+
+async function addSpouseFamily() {
+  const spouseUid = await getOrCreatePersonFromPrompt('Spouse / partner', focusPerson.sex === 'M' ? 'F' : 'M');
+  if (!spouseUid) return;
+  const spouse = await getPerson(spouseUid);
+  const fam = await createFamily();
+  if (!fam) return;
+  const update = {};
+  if (focusPerson.sex === 'F' || spouse?.sex === 'M') {
+    update.wife_uid = focusUid;
+    update.husband_uid = spouseUid;
+  } else {
+    update.husband_uid = focusUid;
+    update.wife_uid = spouseUid;
+  }
+  const { error } = await sb.from('families').update(update).eq('uid', fam.uid);
+  if (error) return setStatus(error.message, true);
+  setStatus('Spouse/partner group created.');
+  await loadEditor();
+}
+
+async function addChildToFamily(familyUid) {
+  const gender = prompt('Child gender? Type M, F, or leave blank:', '') || '';
+  const childUid = await getOrCreatePersonFromPrompt('Child', gender.toUpperCase() === 'F' ? 'F' : gender.toUpperCase() === 'M' ? 'M' : '');
+  if (!childUid) return;
+  await moveChildToFamily(childUid, familyUid);
+}
+
+async function moveExistingChildToFamily(familyUid) {
+  const childUid = prompt('Paste existing child profile UID to move into this spouse group:', '');
+  if (!childUid) return;
+  const child = await getPerson(childUid.trim());
+  if (!child) return setStatus('No person found for that UID.', true);
+  const ok = confirm('Move ' + (child.name || child.uid) + ' into this spouse/partner child group?');
+  if (!ok) return;
+  await moveChildToFamily(child.uid, familyUid);
+}
+
+async function moveChildToFamily(childUid, familyUid) {
+  const currentFamilyUids = spouseFamilies.map(f => f.uid);
+  if (currentFamilyUids.length) {
+    await sb.from('family_members')
+      .delete()
+      .eq('person_uid', childUid)
+      .eq('role', 'child')
+      .in('family_uid', currentFamilyUids);
+  }
+  const target = spouseFamilies.find(f => f.uid === familyUid);
+  const order = (target?.children?.length || 0) + 1;
+  const { error } = await sb.from('family_members').upsert({
+    family_uid: familyUid,
+    person_uid: childUid,
+    role: 'child',
+    birth_order: order
+  }, { onConflict: 'family_uid,person_uid' });
+  if (error) return setStatus(error.message, true);
+  setStatus('Child assigned to selected spouse/partner group.');
+  await loadEditor();
+}
+
+async function editFamilyFacts(familyUid) {
+  const fam = spouseFamilies.find(f => f.uid === familyUid);
+  if (!fam) return;
+  const marrDate = prompt('Marriage date (free text):', fam.marr_date || '') || '';
+  const marrPlace = prompt('Marriage place:', fam.marr_place || '') || '';
+  const status = prompt('Marriage status (married, divorced, separated, widowed, unknown):', fam.marr_status || 'married') || '';
+  const { error } = await sb.from('families').update({
+    marr_date: marrDate || null,
+    marr_place: marrPlace || null,
+    marr_status: status || null
+  }).eq('uid', familyUid);
+  if (error) return setStatus(error.message, true);
+  setStatus('Marriage facts saved.');
+  await loadEditor();
+}
+
+async function getOrCreatePersonFromPrompt(label, defaultSex) {
+  const existingUid = prompt(label + ': paste existing profile UID, or leave blank to create a new person:', '');
+  if (existingUid && existingUid.trim()) {
+    const existing = await getPerson(existingUid.trim());
+    if (!existing) {
+      setStatus('No person found for that UID.', true);
+      return '';
+    }
+    return existing.uid;
+  }
+  const name = prompt(label + ' name:', '');
+  if (!name || !name.trim()) return '';
+  const sex = prompt('Gender for ' + name + ' (M/F/blank):', defaultSex || '') || '';
+  const uid = crypto.randomUUID();
+  const { error } = await sb.from('people').insert({
+    uid,
+    gedcom_id: focusPerson?.gedcom_id || null,
+    name: name.trim(),
+    sex: sex.trim().toUpperCase() || null,
+    death_flag: false,
+    raw_gedcom_id: uid,
+    updated_at: new Date().toISOString()
+  });
+  if (error) {
+    setStatus(error.message, true);
+    return '';
+  }
+  return uid;
+}
+
+async function createFamily() {
+  const uid = crypto.randomUUID();
+  const { data, error } = await sb.from('families').insert({
+    uid,
+    gedcom_id: focusPerson?.gedcom_id || null,
+    raw_gedcom_id: uid
+  }).select('*').single();
+  if (error) {
+    setStatus(error.message, true);
+    return null;
+  }
+  return data;
+}
+
+async function addFamilyMember(familyUid, personUid) {
+  const { error } = await sb.from('family_members').upsert({
+    family_uid: familyUid,
+    person_uid: personUid,
+    role: 'child',
+    birth_order: 1
+  }, { onConflict: 'family_uid,person_uid' });
+  if (error) setStatus(error.message, true);
+}
+
+function value(id) {
+  return document.getElementById(id)?.value.trim() || '';
+}
+
+function setStatus(message, isError, hide) {
+  const el = document.getElementById('status');
+  if (hide || !message) {
+    el.style.display = 'none';
+    el.textContent = '';
+    return;
+  }
+  el.textContent = message;
+  el.style.display = 'block';
+  el.style.color = isError ? 'var(--red)' : 'var(--green)';
+  el.style.borderColor = isError ? 'var(--red)' : 'var(--gold)';
+}
+
+function esc(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+</script>
+</body>
+</html>

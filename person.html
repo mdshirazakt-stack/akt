@@ -1221,7 +1221,7 @@ async function renderPerson(uid, el) {
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <a class="btn-back" style="background:var(--green);color:#fff;border-color:var(--green)"
              href="archive.html?tree=${encodeURIComponent(p.uid)}">🌳 Browse Tree</a>
-          <button class="btn-back" style="border-color:var(--green);color:var(--green)" onclick="openEditProfile()">Edit Profile</button>
+          <a class="btn-back" style="border-color:var(--green);color:var(--green)" href="edit.html?uid=${encodeURIComponent(p.uid)}">Edit Profile</a>
           <button class="btn-back" onclick="shareProfile()" title="Copy link to this profile" id="share-btn">📤 Share</button>
           <button class="btn-back" style="border-color:var(--red);color:var(--red)"
                   onclick="openCorrectionForm()">✏️ Raise Corrections</button>

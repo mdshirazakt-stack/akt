@@ -815,8 +815,18 @@ async function loadGedcomSources() {
 async function loadPerson() {
   const params = new URLSearchParams(location.search);
   const uid = params.get('uid');
+  const relId = params.get('rel');
+  const familyGroupId = params.get('family_group');
   const container = document.getElementById('person-container');
 
+  if (relId) {
+    await renderRelationshipOverlayPerson(relId, container);
+    return;
+  }
+  if (familyGroupId) {
+    await renderFamilyGroupOverlaySpouse(familyGroupId, container);
+    return;
+  }
   if (!uid) {
     container.innerHTML = `<div class="empty-state">No person specified. <a href="archive.html" style="color:var(--gold)">Go back to search</a>.</div>`;
     return;
@@ -828,6 +838,187 @@ async function loadPerson() {
 // ===== NAVIGATE TO ANOTHER PERSON =====
 function goPerson(uid) {
   window.location.href = 'person.html?uid=' + encodeURIComponent(uid);
+}
+
+async function renderRelationshipOverlayPerson(relId, el) {
+  el.innerHTML = `<div class="empty-state"><span class="spinner"></span> Loading…</div>`;
+  const { data: rel, error } = await sb.from('relationship_overrides')
+    .select('*')
+    .eq('id', relId)
+    .maybeSingle();
+  if (error || !rel || rel.status !== 'approved') {
+    el.innerHTML = `<div class="empty-state">Linked record not found. <a href="archive.html" style="color:var(--gold)">Go back to search</a>.</div>`;
+    return;
+  }
+  if (rel.related_person_uid) {
+    await renderPerson(rel.related_person_uid, el);
+    return;
+  }
+  const { data: source } = await sb.from('people')
+    .select('uid,name,sex,birth_place,death_flag')
+    .eq('uid', rel.source_person_uid)
+    .maybeSingle();
+  const sourceChildren = await loadSourceChildren(rel.source_person_uid);
+  const backLink = source?.uid ? `person.html?uid=${encodeURIComponent(source.uid)}` : 'archive.html';
+  const sourceLabel = relationshipSourceLabel(rel.relationship_type);
+  document.title = `${rel.related_name || 'Linked Record'} — Apno Ki Talash`;
+
+  el.innerHTML = `
+    <div style="margin-bottom:16px">
+      <a class="btn-back" href="${backLink}">← Back to linked profile</a>
+    </div>
+    <div class="person-detail">
+      <div class="detail-header">
+        <div>
+          <h2>${escHtml(rel.related_name || '(linked person)')}</h2>
+          <div class="meta">
+            ${rel.related_gender ? `<span class="badge badge-${rel.related_gender}">${rel.related_gender === 'M' ? '♂ Male' : '♀ Female'}</span>` : ''}
+            <span class="badge" style="background:#fef3c7;color:#92400e">Linked family record</span>
+          </div>
+        </div>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-field"><div class="key">Name</div><div class="val">${escHtml(rel.related_name || '—')}</div></div>
+        <div class="detail-field"><div class="key">${escHtml(sourceLabel)}</div><div class="val">${source?.uid ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(source.uid)}">${escHtml(source.name || '(unnamed)')}</a>` : '—'}</div></div>
+      </div>
+      ${sourceChildren.length ? `
+        <div class="section-h">Children from linked family (${sourceChildren.length})</div>
+        <ul class="children-list">
+          ${sourceChildren.map(c => `
+            <li onclick="goPerson('${c.uid}')">
+              ${c.sex ? `<span class="badge badge-${c.sex}">${c.sex}</span>&nbsp;` : ''}
+              ${escHtml(c.name || '(unnamed)')}
+              ${c.death_flag ? `<span style="font-size:0.7rem;color:var(--muted)"> ✝</span>` : ''}
+            </li>
+          `).join('')}
+        </ul>
+      ` : ''}
+      ${rel.notes ? `
+        <div class="section-h">Notes</div>
+        <div class="family-card"><div class="fc-detail" style="white-space:normal;line-height:1.7">${formatNoteText(rel.notes)}</div></div>
+      ` : ''}
+      <div style="margin-top:22px;padding-top:12px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--muted)">
+        This is a lightweight linked profile created from a reviewed family link. More details can be added when available.
+      </div>
+    </div>
+  `;
+}
+
+async function renderFamilyGroupOverlaySpouse(groupId, el) {
+  el.innerHTML = `<div class="empty-state"><span class="spinner"></span> Loading…</div>`;
+  const { data: group, error } = await sb.from('canonical_family_groups')
+    .select('*, canonical_family_children(*)')
+    .eq('id', groupId)
+    .maybeSingle();
+  if (error || !group || group.status !== 'approved') {
+    el.innerHTML = `<div class="empty-state">Family group not found. <a href="archive.html" style="color:var(--gold)">Go back to search</a>.</div>`;
+    return;
+  }
+  if (group.spouse_person_uid) {
+    await renderPerson(group.spouse_person_uid, el);
+    return;
+  }
+  const { data: primary } = await sb.from('people')
+    .select('uid,name,sex,birth_place,death_flag')
+    .eq('uid', group.primary_person_uid)
+    .maybeSingle();
+  const children = await hydrateFamilyGroupChildren(group);
+  document.title = `${group.spouse_name || 'Spouse'} — Apno Ki Talash`;
+
+  el.innerHTML = `
+    <div style="margin-bottom:16px">
+      <a class="btn-back" href="person.html?uid=${encodeURIComponent(group.primary_person_uid)}">← Back to family profile</a>
+    </div>
+    <div class="person-detail">
+      <div class="detail-header">
+        <div>
+          <h2>${escHtml(group.spouse_name || '(spouse)')}</h2>
+          <div class="meta">
+            ${group.spouse_gender ? `<span class="badge badge-${group.spouse_gender}">${group.spouse_gender === 'M' ? '♂ Male' : '♀ Female'}</span>` : ''}
+            <span class="badge" style="background:#fef3c7;color:#92400e">Marriage group record</span>
+          </div>
+        </div>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-field"><div class="key">Name</div><div class="val">${escHtml(group.spouse_name || '—')}</div></div>
+        <div class="detail-field"><div class="key">Spouse</div><div class="val">${primary?.uid ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(primary.uid)}">${escHtml(primary.name || '(unnamed)')}</a>` : '—'}</div></div>
+        ${group.label ? `<div class="detail-field"><div class="key">Family Group</div><div class="val">${escHtml(group.label)}</div></div>` : ''}
+      </div>
+      ${children.length ? `
+        <div class="section-h">Children (${children.length})</div>
+        <ul class="children-list">
+          ${children.map(c => `
+            <li ${c.child_person_uid ? `onclick="goPerson('${c.child_person_uid}')"` : ''}>
+              ${c.sex ? `<span class="badge badge-${c.sex}">${c.sex}</span>&nbsp;` : ''}
+              ${escHtml(c.display_name || c.child_name || '(child)')}
+              ${c.death_flag ? `<span style="font-size:0.7rem;color:var(--muted)"> ✝</span>` : ''}
+            </li>
+          `).join('')}
+        </ul>
+      ` : ''}
+      ${group.notes ? `
+        <div class="section-h">Notes</div>
+        <div class="family-card"><div class="fc-detail" style="white-space:normal;line-height:1.7">${formatNoteText(group.notes)}</div></div>
+      ` : ''}
+      <div style="margin-top:22px;padding-top:12px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--muted)">
+        This is a lightweight family profile created from a reviewed marriage/child assignment.
+      </div>
+    </div>
+  `;
+}
+
+function relationshipSourceLabel(type) {
+  const labels = {
+    father: 'Child',
+    mother: 'Child',
+    spouse: 'Spouse',
+    son: 'Parent',
+    daughter: 'Parent',
+    sibling: 'Sibling'
+  };
+  return labels[type] || 'Linked Profile';
+}
+
+async function loadSourceChildren(uid) {
+  const { data: fams } = await sb.from('families')
+    .select('uid')
+    .or(`husband_uid.eq.${uid},wife_uid.eq.${uid}`);
+  const famUids = (fams || []).map(f => f.uid);
+  if (!famUids.length) return [];
+  const { data: members } = await sb.from('family_members')
+    .select('family_uid,person_uid,birth_order')
+    .in('family_uid', famUids)
+    .eq('role', 'child')
+    .order('birth_order');
+  const childUids = [...new Set((members || []).map(m => m.person_uid).filter(Boolean))];
+  if (!childUids.length) return [];
+  const { data: children } = await sb.from('people')
+    .select('uid,name,sex,death_flag')
+    .in('uid', childUids);
+  const orderMap = {};
+  (members || []).forEach((m, idx) => { if (!orderMap[m.person_uid]) orderMap[m.person_uid] = m.birth_order || idx + 1; });
+  return (children || []).sort((a, b) => (orderMap[a.uid] || 999) - (orderMap[b.uid] || 999));
+}
+
+async function hydrateFamilyGroupChildren(group) {
+  const rows = (group.canonical_family_children || []).slice().sort((a, b) => (a.birth_order || 999) - (b.birth_order || 999));
+  const childUids = [...new Set(rows.map(c => c.child_person_uid).filter(Boolean))];
+  const personMap = {};
+  if (childUids.length) {
+    const { data: people } = await sb.from('people')
+      .select('uid,name,sex,death_flag')
+      .in('uid', childUids);
+    (people || []).forEach(p => { personMap[p.uid] = p; });
+  }
+  return rows.map(child => {
+    const person = personMap[child.child_person_uid] || {};
+    return {
+      ...child,
+      display_name: person.name || child.child_name || '',
+      sex: person.sex || '',
+      death_flag: person.death_flag || false
+    };
+  });
 }
 
 // ===== RENDER PERSON DETAIL =====
@@ -1032,7 +1223,7 @@ async function renderPerson(uid, el) {
                 ${reviewedFamilyGroups.length > 1 ? `<span style="font-size:0.75rem;color:var(--muted);margin-right:6px">Marriage ${idx+1}</span>` : ''}
                 Spouse: ${group.spouse_person_uid
                   ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(group.spouse_person_uid)}">${escHtml(group.spouse_display_name || group.spouse_name || '(linked spouse)')}</a>`
-                  : `<span style="color:var(--muted)">${escHtml(group.spouse_name || '(spouse)')}</span>`}
+                  : `<a class="person-link" href="person.html?family_group=${encodeURIComponent(group.id)}">${escHtml(group.spouse_name || '(spouse)')}</a>`}
                 <span class="badge" style="margin-left:8px;background:#fef3c7;color:#92400e">Reviewed grouping</span>
               </div>
               <button class="mini-danger-btn" type="button" onclick="archiveCanonicalFamilyGroup('${group.id}')">Undo</button>
@@ -1131,7 +1322,7 @@ async function renderPerson(uid, el) {
                 <span class="relation-pill">${relationshipDisplayLabel(rel)}</span>
                 ${rel.related_person_uid
                   ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(rel.related_person_uid)}">${escHtml(rel.related_display_name || rel.related_name || '(linked person)')}</a>`
-                  : `<strong>${escHtml(rel.related_name || '(new person)')}</strong>`}
+                  : `<a class="person-link" href="person.html?rel=${encodeURIComponent(rel.id)}">${escHtml(rel.related_name || '(new person)')}</a>`}
                 ${rel.notes ? `<div class="fc-detail" style="margin-top:5px;white-space:normal">${escHtml(rel.notes)}</div>` : ''}
               </div>
               <button class="mini-danger-btn" type="button" onclick="archiveRelationshipOverride('${rel.id}')">Undo</button>

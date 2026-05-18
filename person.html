@@ -667,14 +667,14 @@
         <label class="form-field">
           Spouse link type
           <select id="family-group-spouse-mode" onchange="toggleFamilyGroupSpouseMode()">
-            <option value="existing_person">Search existing spouse profile</option>
+            <option value="existing_person">Search existing spouse profile or linked record</option>
             <option value="new_person">Record spouse name</option>
           </select>
         </label>
         <div id="family-group-existing-wrap" style="margin-top:12px">
           <label class="form-field">
-            Search spouse by name or UID
-            <input id="family-group-spouse-search" placeholder="Type a name, or paste a profile UID" oninput="searchFamilyGroupSpouse()"/>
+            Search spouse by name, profile UID, or linked record ID
+            <input id="family-group-spouse-search" placeholder="Type a name, paste a profile UID, or paste a rel ID" oninput="searchFamilyGroupSpouse()"/>
           </label>
           <div id="family-group-spouse-results" class="relation-search-results" style="display:none"></div>
           <div id="family-group-spouse-selected" style="display:none;margin-top:8px;font-size:0.84rem;color:var(--green)"></div>
@@ -1814,6 +1814,32 @@ async function runRelationshipSearch() {
       return;
     }
     rows = data && data.uid !== currentPerson.uid ? [data] : [];
+    if (!rows.length) {
+      const { data: linked, error: linkedError } = await sb.from('relationship_overrides')
+        .select('*')
+        .eq('id', q)
+        .eq('source_person_uid', currentPerson.uid)
+        .eq('status', 'approved')
+        .maybeSingle();
+      if (linkedError) {
+        box.innerHTML = `<div class="relation-search-item" style="color:var(--red)">Linked record lookup failed: ${escHtml(linkedError.message)}</div>`;
+        return;
+      }
+      if (linked && !linked.related_person_uid) {
+        rows = [{
+          overlayRelId: linked.id,
+          name: linked.related_name || '(linked spouse)',
+          sex: linked.related_gender || '',
+          birth_place: 'Linked Family Record'
+        }];
+      } else if (linked?.related_person_uid) {
+        const { data: linkedPerson } = await sb.from('people')
+          .select('uid,name,birth_place,gedcom_id')
+          .eq('uid', linked.related_person_uid)
+          .maybeSingle();
+        rows = linkedPerson ? [linkedPerson] : [];
+      }
+    }
   } else {
     const { data, error } = await sb.from('people')
       .select('uid,name,birth_place,gedcom_id')
@@ -1997,7 +2023,7 @@ async function runFamilyGroupSpouseSearch() {
       <span>${escHtml(p.name || '(unnamed)')}</span>
       <small style="color:var(--muted);text-align:right">
         ${escHtml(p.birth_place || '')}
-        <span style="display:block;font-size:0.68rem">${escHtml(p.uid)}</span>
+        <span style="display:block;font-size:0.68rem">${escHtml(p.uid || p.overlayRelId || '')}</span>
       </small>
     </div>
   `).join('');
@@ -2006,7 +2032,12 @@ async function runFamilyGroupSpouseSearch() {
 function selectFamilyGroupSpouse(index, el) {
   const person = familyGroupSpouseRows[index];
   if (!person) return;
-  selectedFamilyGroupSpouse = { uid: person.uid, name: person.name || '', place: person.birth_place || '' };
+  selectedFamilyGroupSpouse = {
+    uid: person.uid || '',
+    overlayRelId: person.overlayRelId || '',
+    name: person.name || '',
+    place: person.birth_place || ''
+  };
   document.querySelectorAll('#family-group-spouse-results .relation-search-item').forEach(item => item.classList.remove('selected'));
   if (el) el.classList.add('selected');
   const selected = document.getElementById('family-group-spouse-selected');
@@ -2035,11 +2066,11 @@ async function saveCanonicalFamilyGroup() {
     updated_at: new Date().toISOString()
   };
   if (mode === 'existing_person') {
-    if (!selectedFamilyGroupSpouse?.uid) {
-      showEditStatus('Search and select an existing spouse profile first.', true);
+    if (!selectedFamilyGroupSpouse?.uid && !selectedFamilyGroupSpouse?.overlayRelId) {
+      showEditStatus('Search and select an existing spouse profile or linked family record first.', true);
       return;
     }
-    groupPayload.spouse_person_uid = selectedFamilyGroupSpouse.uid;
+    groupPayload.spouse_person_uid = selectedFamilyGroupSpouse.uid || null;
     groupPayload.spouse_name = selectedFamilyGroupSpouse.name || null;
   } else {
     const name = cleanValue('family-group-spouse-name');

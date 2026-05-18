@@ -1,6 +1,6 @@
 # Apnon Ki Talash / Iraqi Biradari Project Handoff
 
-Last updated: 2026-05-16
+Last updated: 2026-05-18
 
 ## Project Overview
 
@@ -8,7 +8,7 @@ This project has been split into two separate repositories and domains.
 
 The split is intentional. The genealogy engine must remain isolated from the public heritage/content website so future CMS/admin work does not risk breaking Shijra functionality.
 
-## Current AKT Status As Of 2026-05-15
+## Current AKT Status As Of 2026-05-18
 
 Active repo:
 
@@ -28,7 +28,7 @@ Current git state at handoff:
 Branch: main
 Working tree before this handoff edit: clean
 Pending handoff-only change: PROJECT_HANDOFF.md
-Latest commit: 8891d5a Refine profile correction workflow
+Latest pushed commit before this handoff edit: a07fc35 Fix Supabase key on family editor
 ```
 
 Recent major AKT work completed:
@@ -48,8 +48,14 @@ Recent major AKT work completed:
 - Admin visitor table got sortable columns and cleaner mobile-unfriendly metadata was removed.
 - GEDCOM duplicate protection was changed to a filename warning instead of person-level duplicate blocking.
 - Profile correction workflow was introduced on `person.html`.
-- Admin can review correction requests and apply harmless profile fields into a separate overlay table.
-- GEDCOM data remains intact; community-approved edits are stored separately in `person_profile_overrides`.
+- Admin can review correction requests and apply harmless profile fields.
+- Harmless profile edits now also update the source `people` record directly, so future GEDCOM export can pick them up.
+- Relationship overlays were useful for exploration, but the project direction has shifted toward native genealogy table edits for real family graph changes.
+- A new native family editor page was created at `edit.html`.
+- `person.html` now sends `Edit Profile` to `edit.html?uid=<person_uid>`.
+- `edit.html` writes directly to `people`, `families`, and `family_members`.
+- `edit.html` supports editing person details, marking deceased, adding parents, adding spouse/partner family groups, adding children under a specific spouse group, moving existing children into a spouse group, and editing marriage facts/status.
+- Supabase key typo in `edit.html` was fixed in commit `a07fc35`.
 
 Profile correction overlay currently supports these harmless fields:
 
@@ -80,7 +86,63 @@ public.person_profile_overrides
 public.correction_requests correction_* columns
 ```
 
-The overlay is intentionally separate from GEDCOM source tables so future GEDCOM imports do not overwrite community-approved profile corrections.
+Profile overlays still exist as audit/review support, but safe approved profile fields now also write into `people`. Relationship graph edits should increasingly move away from overlays and into real `families` / `family_members` records.
+
+## Native Family Editor MVP
+
+New page:
+
+```text
+edit.html?uid=<person_uid>
+```
+
+Purpose:
+
+```text
+Native genealogy editor that writes to source-style tables instead of only showing overlay corrections.
+```
+
+Current implementation:
+
+- Loads the selected person as the focus person.
+- Shows father and mother from the person's parent `family_members` row.
+- Shows spouse/partner groups from `families`.
+- Shows children grouped under each spouse/partner family.
+- Allows editing a real person row:
+  - name
+  - gender
+  - alive/deceased flag
+  - birth date/place
+  - death date/place
+  - notes
+- Allows adding/setting father and mother.
+- Allows adding a spouse/partner family group.
+- Allows adding a new child under a specific spouse/partner group.
+- Allows moving an existing child UID into a specific spouse/partner group.
+- Allows editing marriage facts on the real `families` row:
+  - `marr_date`
+  - `marr_place`
+  - `marr_status`
+
+Important behavior:
+
+- Browse Tree reads from `families` and `family_members`, so edits made through `edit.html` should appear in Browse Tree after refresh.
+- Newly created people inherit the focus person's `gedcom_id` by default.
+- Newly created children should eventually default to the father/male source GEDCOM. The first MVP currently inherits the focus person's `gedcom_id`; this needs refinement when adding children from wife-side views.
+- Cross-GEDCOM marriages should preserve provenance:
+  - each person keeps their own original `gedcom_id`
+  - family rows connect them truthfully
+  - UI should later show source badges for person source, spouse source, and relationship/family source
+
+Known limitations / next fixes:
+
+- `edit.html` uses prompt dialogs for MVP operations. Replace with proper side-panel forms.
+- Permission gating is not enforced yet; this editor should eventually be admin/moderator-only.
+- Relationship overlays still exist and can confuse users if mixed with native edits. Decide whether to hide, migrate, or archive overlay relationship tools.
+- Need a safe way to delete/undo native family edits.
+- Need source GEDCOM selector/override when creating brand-new people/families.
+- Need better handling for wife with multiple husbands and husband with multiple wives in the visual editor.
+- Need GEDCOM export that emits edited `people`, `families`, and `family_members`.
 
 ## Open Item For Tomorrow: GEDCOM Notes
 
@@ -593,11 +655,19 @@ homepage announcements/events/docs/videos sections
 - Keep `apnonkitalash.com` and `iraqibiradari.com` separate.
 - Make small commits after each meaningful step.
 
-## Relationship And New-Family MVP
+## Relationship / Family Editing History
 
-Latest direction: keep GEDCOM imports intact, then store community edits as overlays that can later be reviewed, exported, or merged deliberately.
+Important context: the project first explored relationship overlays, then moved toward native table edits.
 
-New SQL file:
+The overlay approach is still present in the codebase, but it is no longer the preferred end-state for real genealogy relationships. The current direction is:
+
+```text
+Profile-safe fields -> update `people`
+Real relationship/family graph edits -> update `families` and `family_members`
+Audit/review/legacy overlay data -> keep for reference or migration
+```
+
+Overlay SQL file:
 
 ```text
 supabase_relationship_mvp.sql
@@ -624,11 +694,12 @@ canonical_family_children
 
 Current implementation:
 
-- `person.html` edit drawer now allows relationship overlay links for father, mother, spouse, son, daughter, and sibling.
-- Relationship additions can link to an existing person across GEDCOM files or record a new person name.
-- Approved relationship overlays display on the profile under “Linked Family Records”.
-- `person.html` can now save reviewed marriage/child groupings, e.g. one husband with two wives and separate children under each wife.
-- When reviewed marriage groups exist for a profile, the public profile displays those groups instead of the flatter GEDCOM marriage/children grouping.
+- `person.html` still contains the older edit drawer and overlay functions, but the visible `Edit Profile` entry point now goes to `edit.html?uid=<person_uid>`.
+- Relationship additions can still link to an existing person across GEDCOM files or record a new person name through the older overlay path.
+- Approved relationship overlays can display on the profile under “Linked Family Records”.
+- Reviewed marriage/child groupings using `canonical_family_groups` were added as an interim step.
+- This interim layer exposed a limitation: Browse Tree still reads the real `families` / `family_members` graph, so overlays alone do not make the tree truthful.
+- The new `edit.html` native editor is intended to replace overlay-based relationship editing for actual family structure updates.
 - `admin.html` now has a “Family Builder” tab for brand-new family submissions.
 - Family Builder can create a family submission, add people, and add relationships within that submitted family.
 - Family Builder also includes “Known Duplicate Profiles” to create identity groups and link multiple profile UIDs as the same real person.
@@ -637,9 +708,12 @@ Current implementation:
 
 Next relationship work:
 
-- Add review states before relationship overlays become public.
-- Add export logic that can combine GEDCOM data, profile overrides, notes, identity clusters, and relationship overlays.
-- Add a cleaner visual tree/editor for multi-generation submitted families.
+- Continue improving `edit.html` as the real family editor.
+- Add non-prompt UI forms for add spouse, add child, move child, and set parents.
+- Add admin/moderator permission gating before public exposure.
+- Add undo/delete tools for native family edits.
+- Decide whether to migrate existing `relationship_overrides` and `canonical_family_groups` into real `people` / `families` / `family_members`.
+- Add export logic that can emit GEDCOM from edited native tables plus useful audit/provenance metadata.
 
 ## Quick Commands
 

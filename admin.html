@@ -296,6 +296,7 @@
     <button class="nav-tab" onclick="switchTab('uploads', this)">Uploads History</button>
     <button class="nav-tab" onclick="switchTab('visitors', this)">Visitors</button>
     <button class="nav-tab" onclick="switchTab('activity', this)">Activity History</button>
+    <button class="nav-tab" onclick="switchTab('changelog', this)">Change Log</button>
     <button class="nav-tab" onclick="switchTab('settings', this)">Import Stats</button>
     <button class="nav-tab" onclick="switchTab('corrections', this)">📝 Corrections</button>
     <button class="nav-tab" onclick="switchTab('suggestions', this)">💡 Suggestions</button>
@@ -433,6 +434,34 @@
           <button class="btn-sm" onclick="loadActivity()">↻ Refresh</button>
         </div>
         <div id="activity-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- CHANGE LOG -->
+    <div id="panel-changelog" class="panel">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <h2 style="margin:0">Change Log</h2>
+          <button class="btn-sm" onclick="loadChangeLog()" style="background:var(--gold);color:#fff;border:none;padding:7px 16px;cursor:pointer;font-size:0.85rem">↻ Refresh</button>
+        </div>
+        <div class="insight-note">
+          Shows profile edits, linked family records, and reviewed marriage/child groupings created through the overlay tools.
+        </div>
+        <div style="overflow-x:auto;margin-top:16px">
+          <table>
+            <thead><tr>
+              <th>Time</th>
+              <th>Changed By</th>
+              <th>Change Type</th>
+              <th>Profile / Tree</th>
+              <th>Details</th>
+              <th>Status</th>
+            </tr></thead>
+            <tbody id="change-log-tbody">
+              <tr><td colspan="6"><div class="empty"><span class="spinner"></span> Loading…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -685,6 +714,7 @@ function switchTab(name, btn) {
   if (name === 'visitors') loadVisitors();
   if (name === 'settings') loadDbStats();
   if (name === 'activity') loadActivity();
+  if (name === 'changelog') loadChangeLog();
   if (name === 'corrections') loadCorrections();
   if (name === 'suggestions') loadSuggestions();
   if (name === 'findrequests') loadFindRequests();
@@ -1589,6 +1619,133 @@ function formatIST(value, includeZone = true) {
     hour12: true
   });
   return includeZone ? formatted + ' IST' : formatted;
+}
+
+// ===================== CHANGE LOG =====================
+async function loadChangeLog() {
+  const tbody = document.getElementById('change-log-tbody');
+  tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><span class="spinner"></span> Loading…</div></td></tr>';
+  try {
+    const [profileRes, relationRes, familyRes] = await Promise.all([
+      sb.from('person_profile_overrides').select('*').order('updated_at', { ascending: false }).limit(120),
+      sb.from('relationship_overrides').select('*').order('updated_at', { ascending: false }).limit(120),
+      sb.from('canonical_family_groups').select('*, canonical_family_children(*)').order('updated_at', { ascending: false }).limit(120)
+    ]);
+    const errors = [profileRes.error, relationRes.error, familyRes.error].filter(Boolean);
+    if (errors.length) throw errors[0];
+
+    const rows = [
+      ...(profileRes.data || []).map(row => profileOverrideChange(row)),
+      ...(relationRes.data || []).map(row => relationshipOverrideChange(row)),
+      ...(familyRes.data || []).map(row => familyGroupChange(row))
+    ].sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0)).slice(0, 250);
+
+    const uidSet = new Set();
+    rows.forEach(row => {
+      if (row.profileUid) uidSet.add(row.profileUid);
+      if (row.relatedUid) uidSet.add(row.relatedUid);
+    });
+    const names = await loadPersonNameMap([...uidSet]);
+    renderChangeLog(rows, names);
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty" style="color:var(--red)">Could not load change log. Make sure overlay tables exist in Supabase.<br>${escapeHtml(err.message || '')}</div></td></tr>`;
+  }
+}
+
+async function loadPersonNameMap(uids) {
+  const map = {};
+  if (!uids.length) return map;
+  for (let i = 0; i < uids.length; i += 80) {
+    const chunk = uids.slice(i, i + 80);
+    const { data } = await sb.from('people').select('uid,name').in('uid', chunk);
+    (data || []).forEach(p => { map[p.uid] = p.name || '(unnamed)'; });
+  }
+  return map;
+}
+
+function profileOverrideChange(row) {
+  const fields = [];
+  if (row.corrected_name) fields.push('name');
+  if (row.corrected_gender) fields.push('gender');
+  if (row.is_deceased !== null && row.is_deceased !== undefined) fields.push('alive/deceased');
+  if (row.birth_date_text) fields.push('birth date');
+  if (row.death_date_text) fields.push('death date');
+  if (row.mobile_number) fields.push('mobile');
+  if (row.root_location) fields.push('root place');
+  if (row.birth_location) fields.push('place of birth');
+  if (row.current_location) fields.push('current location');
+  if (row.birth_order_text) fields.push('birth order');
+  if (row.profile_note) fields.push('profile note');
+  if (row.email) fields.push('email');
+  return {
+    time: row.updated_at || row.approved_at,
+    actor: row.approved_by || 'editor',
+    type: 'Profile edit',
+    profileUid: row.person_uid,
+    details: fields.length ? `Updated ${fields.join(', ')}` : 'Profile overlay updated',
+    status: 'approved'
+  };
+}
+
+function relationshipOverrideChange(row) {
+  return {
+    time: row.updated_at || row.created_at,
+    actor: row.created_by || 'editor',
+    type: 'Linked family record',
+    profileUid: row.source_person_uid,
+    relatedUid: row.related_person_uid,
+    details: `${relationshipChangeLabel(row.relationship_type)}: ${row.related_name || row.related_person_uid || 'linked profile'}${row.notes ? ' · ' + row.notes : ''}`,
+    status: row.status || 'approved'
+  };
+}
+
+function familyGroupChange(row) {
+  const childCount = Number(row.canonical_family_children?.length || 0);
+  return {
+    time: row.updated_at || row.created_at,
+    actor: row.created_by || 'editor',
+    type: 'Marriage grouping',
+    profileUid: row.primary_person_uid,
+    relatedUid: row.spouse_person_uid,
+    details: `Spouse: ${row.spouse_name || row.spouse_person_uid || 'linked spouse'} · ${childCount} child${childCount === 1 ? '' : 'ren'} assigned${row.label ? ' · ' + row.label : ''}`,
+    status: row.status || 'approved'
+  };
+}
+
+function relationshipChangeLabel(type) {
+  return {
+    father: 'Father',
+    mother: 'Mother',
+    spouse: 'Spouse',
+    son: 'Son',
+    daughter: 'Daughter',
+    sibling: 'Sibling'
+  }[type] || 'Relationship';
+}
+
+function renderChangeLog(rows, names) {
+  const tbody = document.getElementById('change-log-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty">No overlay changes found yet.</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(row => {
+    const profileName = names[row.profileUid] || row.profileUid || 'Profile';
+    const related = row.relatedUid ? (names[row.relatedUid] || row.relatedUid) : '';
+    const profileLink = row.profileUid
+      ? `<a href="person.html?uid=${encodeURIComponent(row.profileUid)}" target="_blank" style="color:var(--gold);font-weight:700">${escapeHtml(profileName)}</a><br><span style="font-size:0.7rem;color:var(--muted)">${escapeHtml(row.profileUid)}</span>`
+      : '—';
+    return `
+      <tr>
+        <td>${formatIST(row.time, false)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(row.time)}</span></td>
+        <td>${escapeHtml(row.actor || 'editor')}</td>
+        <td><span class="activity-badge">${escapeHtml(row.type)}</span></td>
+        <td>${profileLink}</td>
+        <td>${escapeHtml(row.details || '')}${related ? `<br><span style="font-size:0.76rem;color:var(--muted)">Related: ${escapeHtml(related)}</span>` : ''}</td>
+        <td>${escapeHtml(row.status || '')}</td>
+      </tr>
+    `;
+  }).join('');
 }
 
 function timeAgo(value) {

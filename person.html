@@ -126,6 +126,13 @@
   .family-card { background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--gold2); padding: 14px; margin-bottom: 10px; }
   .family-card .fc-title { font-weight: 700; font-size: 0.87rem; margin-bottom: 6px; }
   .family-card .fc-detail { font-size: 0.8rem; color: var(--muted); }
+  .link-card-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .mini-danger-btn {
+    border: 1px solid var(--red); background: transparent; color: var(--red);
+    padding: 4px 8px; font-family: 'Lato', sans-serif; font-size: 0.68rem;
+    font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
+  }
+  .mini-danger-btn:hover { background: #fef2f2; }
   .children-list { list-style: none; padding: 0; }
   .children-list li { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.87rem; cursor: pointer; }
   .children-list li:hover { color: var(--gold); }
@@ -1020,12 +1027,15 @@ async function renderPerson(uid, el) {
         <div class="section-h">Marriage(s)</div>
         ${reviewedFamilyGroups.map((group, idx) => `
           <div class="family-card">
-            <div class="fc-title">
-              ${reviewedFamilyGroups.length > 1 ? `<span style="font-size:0.75rem;color:var(--muted);margin-right:6px">Marriage ${idx+1}</span>` : ''}
-              Spouse: ${group.spouse_person_uid
-                ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(group.spouse_person_uid)}">${escHtml(group.spouse_display_name || group.spouse_name || '(linked spouse)')}</a>`
-                : `<span style="color:var(--muted)">${escHtml(group.spouse_name || '(spouse)')}</span>`}
-              <span class="badge" style="margin-left:8px;background:#fef3c7;color:#92400e">Reviewed grouping</span>
+            <div class="link-card-row">
+              <div class="fc-title">
+                ${reviewedFamilyGroups.length > 1 ? `<span style="font-size:0.75rem;color:var(--muted);margin-right:6px">Marriage ${idx+1}</span>` : ''}
+                Spouse: ${group.spouse_person_uid
+                  ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(group.spouse_person_uid)}">${escHtml(group.spouse_display_name || group.spouse_name || '(linked spouse)')}</a>`
+                  : `<span style="color:var(--muted)">${escHtml(group.spouse_name || '(spouse)')}</span>`}
+                <span class="badge" style="margin-left:8px;background:#fef3c7;color:#92400e">Reviewed grouping</span>
+              </div>
+              <button class="mini-danger-btn" type="button" onclick="archiveCanonicalFamilyGroup('${group.id}')">Undo</button>
             </div>
             ${group.label || group.notes ? `
               <div class="fc-detail" style="white-space:normal">
@@ -1116,12 +1126,15 @@ async function renderPerson(uid, el) {
         <div class="section-h">Linked Family Records (${relationshipAdditions.length})</div>
         <div class="family-card">
           ${relationshipAdditions.map(rel => `
-            <div style="padding:9px 0;border-bottom:1px solid var(--border)">
-              <span class="relation-pill">${relationshipDisplayLabel(rel)}</span>
-              ${rel.related_person_uid
-                ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(rel.related_person_uid)}">${escHtml(rel.related_display_name || rel.related_name || '(linked person)')}</a>`
-                : `<strong>${escHtml(rel.related_name || '(new person)')}</strong>`}
-              ${rel.notes ? `<div class="fc-detail" style="margin-top:5px;white-space:normal">${escHtml(rel.notes)}</div>` : ''}
+            <div class="link-card-row" style="padding:9px 0;border-bottom:1px solid var(--border)">
+              <div>
+                <span class="relation-pill">${relationshipDisplayLabel(rel)}</span>
+                ${rel.related_person_uid
+                  ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(rel.related_person_uid)}">${escHtml(rel.related_display_name || rel.related_name || '(linked person)')}</a>`
+                  : `<strong>${escHtml(rel.related_name || '(new person)')}</strong>`}
+                ${rel.notes ? `<div class="fc-detail" style="margin-top:5px;white-space:normal">${escHtml(rel.notes)}</div>` : ''}
+              </div>
+              <button class="mini-danger-btn" type="button" onclick="archiveRelationshipOverride('${rel.id}')">Undo</button>
             </div>
           `).join('')}
         </div>
@@ -1290,6 +1303,34 @@ async function loadCanonicalFamilyGroups(uid) {
         };
       })
   }));
+}
+
+async function archiveRelationshipOverride(id) {
+  if (!id || !currentPerson) return;
+  const ok = confirm('Undo this linked family record? The original GEDCOM will not be changed.');
+  if (!ok) return;
+  const { error } = await sb.from('relationship_overrides')
+    .update({ status: 'archived', updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) {
+    alert('Could not undo linked family record: ' + error.message);
+    return;
+  }
+  await renderPerson(currentPerson.uid, document.getElementById('person-container'));
+}
+
+async function archiveCanonicalFamilyGroup(id) {
+  if (!id || !currentPerson) return;
+  const ok = confirm('Undo this reviewed marriage grouping? The source children will return to the ungrouped source view.');
+  if (!ok) return;
+  const { error } = await sb.from('canonical_family_groups')
+    .update({ status: 'archived', updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) {
+    alert('Could not undo marriage grouping: ' + error.message);
+    return;
+  }
+  await renderPerson(currentPerson.uid, document.getElementById('person-container'));
 }
 
 function openEditProfile() {

@@ -858,9 +858,10 @@ async function renderRelationshipOverlayPerson(relId, el) {
     .select('uid,name,sex,birth_place,death_flag')
     .eq('uid', rel.source_person_uid)
     .maybeSingle();
-  const sourceChildren = await loadSourceChildren(rel.source_person_uid);
+  const sourceChildren = await loadRelationshipOverlayChildren(rel);
   const backLink = source?.uid ? `person.html?uid=${encodeURIComponent(source.uid)}` : 'archive.html';
   const sourceLabel = relationshipSourceLabel(rel.relationship_type);
+  const childSectionTitle = rel.relationship_type === 'spouse' ? 'Children from this marriage' : 'Children from linked family';
   document.title = `${rel.related_name || 'Linked Record'} — Apno Ki Talash`;
 
   el.innerHTML = `
@@ -882,10 +883,10 @@ async function renderRelationshipOverlayPerson(relId, el) {
         <div class="detail-field"><div class="key">${escHtml(sourceLabel)}</div><div class="val">${source?.uid ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(source.uid)}">${escHtml(source.name || '(unnamed)')}</a>` : '—'}</div></div>
       </div>
       ${sourceChildren.length ? `
-        <div class="section-h">Children from linked family (${sourceChildren.length})</div>
+        <div class="section-h">${childSectionTitle} (${sourceChildren.length})</div>
         <ul class="children-list">
           ${sourceChildren.map(c => `
-            <li onclick="goPerson('${c.uid}')">
+            <li ${c.uid ? `onclick="goPerson('${c.uid}')"` : ''}>
               ${c.sex ? `<span class="badge badge-${c.sex}">${c.sex}</span>&nbsp;` : ''}
               ${escHtml(c.name || '(unnamed)')}
               ${c.death_flag ? `<span style="font-size:0.7rem;color:var(--muted)"> ✝</span>` : ''}
@@ -902,6 +903,24 @@ async function renderRelationshipOverlayPerson(relId, el) {
       </div>
     </div>
   `;
+}
+
+async function loadRelationshipOverlayChildren(rel) {
+  if (!rel?.source_person_uid) return [];
+  if (rel.relationship_type !== 'spouse') return loadSourceChildren(rel.source_person_uid);
+
+  const groups = await loadCanonicalFamilyGroups(rel.source_person_uid);
+  const normalizedName = normalizeLooseName(rel.related_name || '');
+  const matchedGroup = groups.find(group => normalizeLooseName(group.spouse_name || group.spouse_display_name || '') === normalizedName);
+  if (matchedGroup) {
+    return (matchedGroup.children || []).map(child => ({
+      uid: child.child_person_uid || '',
+      name: child.display_name || child.child_name || '',
+      sex: child.sex || '',
+      death_flag: child.death_flag || false
+    }));
+  }
+  return groups.length ? [] : loadSourceChildren(rel.source_person_uid);
 }
 
 async function renderFamilyGroupOverlaySpouse(groupId, el) {
@@ -2122,6 +2141,10 @@ async function saveCanonicalFamilyGroup() {
 }
 
 // ===== UTILS =====
+function normalizeLooseName(str) {
+  return String(str || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 function escHtml(str) {
   if (!str) return '';
   return String(str)

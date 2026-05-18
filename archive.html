@@ -224,11 +224,26 @@
     border-top: 8px solid currentColor; flex: 0 0 auto;
   }
   .filter-open-btn:hover { background: var(--goldl); border-color: var(--gold); color: var(--accent); }
+  .column-open-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 16px; border: 1px solid var(--border); background: var(--surface);
+    color: var(--muted); font-family: 'Lato', sans-serif; font-size: 0.82rem;
+    font-weight: 700; cursor: pointer; transition: all 0.18s;
+  }
+  .column-open-btn:hover { background: var(--goldl); border-color: var(--gold2); color: var(--accent); }
   .filter-summary { font-size: 0.82rem; color: var(--muted); }
   .active-filter-pills {
     display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
     margin: 0 0 18px;
   }
+  .column-panel {
+    display: none; border: 1px solid var(--border); background: var(--surface);
+    padding: 12px 14px; margin: -4px 0 16px;
+  }
+  .column-panel.open { display: block; }
+  .column-options { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .column-options label { display: inline-flex; gap: 7px; align-items: center; font-size: 0.82rem; color: var(--text); }
+  .column-options input { width: 16px; height: 16px; accent-color: var(--gold); }
   .active-filter-pill {
     display: inline-flex; align-items: center; gap: 7px;
     border: 1px solid var(--border); background: var(--surface);
@@ -441,9 +456,6 @@
     }
     .people-table td[data-label="Birth Place"] { padding-top: 9px; }
     .people-table td[data-label="Source"] { padding-bottom: 12px; }
-    .people-table td[data-label="Sex"],
-    .people-table td[data-label="Deceased"],
-    .people-table td[data-label="Status"] { display: none; }
     .source-tag {
       max-width: 100%; margin-left: 0; font-size: 0.78rem; font-weight: 600;
       white-space: normal; line-height: 1.35;
@@ -770,7 +782,11 @@
           <span class="filter-open-icon" aria-hidden="true"></span>
           <span id="filter-button-label">Filter Search Results</span>
         </button>
+        <button class="column-open-btn" type="button" onclick="toggleColumnPanel()">Columns</button>
         <div class="filter-summary" id="filter-result-summary"></div>
+      </div>
+      <div id="column-panel" class="column-panel">
+        <div class="column-options" id="column-options"></div>
       </div>
       <div class="active-filter-pills" id="active-filter-pills"></div>
 
@@ -1182,6 +1198,17 @@ let forumCategories = [];
 let forumSelectedCategoryId = null;
 let forumSelectedThread = null;
 let accessRequestMode = false;
+const SEARCH_STATE_KEY = 'akt_search_state_v2';
+const SEARCH_COLUMNS_KEY = 'akt_search_columns_v1';
+const SEARCH_COLUMNS = [
+  { key: 'name', label: 'Name', required: true },
+  { key: 'sex', label: 'Sex' },
+  { key: 'birth_place', label: 'Birth Place' },
+  { key: 'deceased', label: 'Deceased' },
+  { key: 'status', label: 'Status' },
+  { key: 'source', label: 'Source' }
+];
+let selectedSearchColumns = new Set(['name', 'birth_place', 'source']);
 
 // ===== AUTH =====
 async function doEnter() {
@@ -1335,7 +1362,9 @@ async function startApp(name) {
     return;
   }
 
-  loadSearch('');
+  restoreSearchState();
+  const restoredQuery = document.getElementById('search-input').value.trim();
+  loadSearch(restoredQuery);
 }
 
 function doLogout() {
@@ -1450,6 +1479,7 @@ async function loadGedcomSources() {
 
   // ── Extract places and build drawer options ──
   buildPlaceChips(gedcomUploads);
+  restoreSearchPreferences();
   updateActiveFilterPills();
 }
 
@@ -1814,6 +1844,96 @@ function renderDrawerStatusOptions() {
   document.querySelectorAll('input[name="drawer-status-filter"]').forEach(input => {
     input.checked = input.value === draftSearchFilter;
   });
+}
+
+function restoreSearchPreferences() {
+  try {
+    const savedColumns = JSON.parse(localStorage.getItem(SEARCH_COLUMNS_KEY) || '[]');
+    if (Array.isArray(savedColumns) && savedColumns.includes('name')) {
+      selectedSearchColumns = new Set(savedColumns.filter(key => SEARCH_COLUMNS.some(c => c.key === key)));
+      selectedSearchColumns.add('name');
+    }
+  } catch(e) {}
+  renderColumnOptions();
+}
+
+function restoreSearchState() {
+  try {
+    const raw = sessionStorage.getItem(SEARCH_STATE_KEY);
+    if (!raw) return;
+    const state = JSON.parse(raw);
+    if (!state || typeof state !== 'object') return;
+    document.getElementById('search-input').value = state.query || '';
+    searchFilter = state.searchFilter || 'all';
+    selectedSourceIds = new Set(Array.isArray(state.selectedSourceIds) ? state.selectedSourceIds : []);
+    selectedLocationNames = new Set(Array.isArray(state.selectedLocationNames) ? state.selectedLocationNames : []);
+    rebuildSelectedLocationSourceIds();
+    syncLegacyFilterIds();
+    searchPage = Number(state.searchPage || 0) || 0;
+    if (Array.isArray(state.columns) && state.columns.includes('name')) {
+      selectedSearchColumns = new Set(state.columns.filter(key => SEARCH_COLUMNS.some(c => c.key === key)));
+      selectedSearchColumns.add('name');
+    }
+    setFilterValue(searchFilter);
+    renderSourceOptions();
+    renderLocationOptions();
+    renderColumnOptions();
+    updateActiveFilterPills();
+  } catch(e) {}
+}
+
+function saveSearchState() {
+  try {
+    const state = {
+      query: document.getElementById('search-input')?.value.trim() || lastQuery || '',
+      searchFilter,
+      selectedSourceIds: [...selectedSourceIds],
+      selectedLocationNames: [...selectedLocationNames],
+      searchPage,
+      columns: [...selectedSearchColumns]
+    };
+    sessionStorage.setItem(SEARCH_STATE_KEY, JSON.stringify(state));
+    localStorage.setItem(SEARCH_COLUMNS_KEY, JSON.stringify([...selectedSearchColumns]));
+  } catch(e) {}
+}
+
+function toggleColumnPanel() {
+  const panel = document.getElementById('column-panel');
+  if (panel) panel.classList.toggle('open');
+}
+
+function renderColumnOptions() {
+  const container = document.getElementById('column-options');
+  if (!container) return;
+  container.innerHTML = SEARCH_COLUMNS.map(col => `
+    <label>
+      <input type="checkbox" value="${col.key}" ${selectedSearchColumns.has(col.key) ? 'checked' : ''} ${col.required ? 'disabled' : ''} onchange="toggleSearchColumn('${col.key}', this.checked)"/>
+      ${escapeHtml(col.label)}
+    </label>
+  `).join('');
+}
+
+function toggleSearchColumn(key, checked) {
+  if (key === 'name') return;
+  if (checked) selectedSearchColumns.add(key);
+  else selectedSearchColumns.delete(key);
+  selectedSearchColumns.add('name');
+  saveSearchState();
+  loadSearch(lastQuery);
+}
+
+function resultColumnLabel(key) {
+  return (SEARCH_COLUMNS.find(c => c.key === key) || {}).label || key;
+}
+
+function renderResultCell(key, p, rawTokens, src) {
+  if (key === 'name') return `<td data-label="Name"><span class="person-name">${highlightName(p.name || '(unnamed)', rawTokens)}</span></td>`;
+  if (key === 'sex') return `<td data-label="Sex">${escapeHtml(p.sex || '-')}</td>`;
+  if (key === 'birth_place') return `<td data-label="Birth Place">${escapeHtml(p.birth_place || '-')}</td>`;
+  if (key === 'deceased') return `<td data-label="Deceased">${p.death_flag ? 'Yes' : '-'}</td>`;
+  if (key === 'status') return `<td data-label="Status">${escapeHtml(p.marr_status || '-')}</td>`;
+  if (key === 'source') return `<td data-label="Source">${src ? `<span class="source-tag" title="${escapeHtml(p.gedcom_id)}">${escapeHtml(src)}</span>` : '-'}</td>`;
+  return '';
 }
 
 function filterLabel(value) {
@@ -2246,6 +2366,7 @@ function highlightName(name, tokens) {
 
 async function loadSearch(q) {
   lastQuery = q;
+  saveSearchState();
   const requestSeq = ++searchRequestSeq;
   const el = document.getElementById('search-results');
   if (!el) return;
@@ -2383,21 +2504,19 @@ async function loadSearch(q) {
   }
 
   const pages = Math.ceil(count / PAGE_SIZE);
+  const resultColumns = SEARCH_COLUMNS.filter(col => selectedSearchColumns.has(col.key));
   el.innerHTML = `
     <div class="result-count">${count.toLocaleString()} people found${q ? ` for "<strong>${escapeHtml(q)}</strong>"` : ''}${filterDesc}${fuzzyNote}</div>
     <div style="overflow-x:auto">
     <table class="people-table">
       <thead><tr>
-        <th>Name</th><th>Birth Place</th><th>Source</th>
+        ${resultColumns.map(col => `<th>${escapeHtml(resultColumnLabel(col.key))}</th>`).join('')}
       </tr></thead>
       <tbody>${data.map(p => {
         const src = srcMap[p.gedcom_id] || '';
-        const displayName = highlightName(p.name || '(unnamed)', rawTokens);
         return `
         <tr onclick="showPerson('${escapeJs(p.uid)}')">
-          <td data-label="Name"><span class="person-name">${displayName}</span></td>
-          <td data-label="Birth Place">${p.birth_place || '-'}</td>
-          <td data-label="Source">${src ? `<span class="source-tag" title="${p.gedcom_id}">${src}</span>` : '-'}</td>
+          ${resultColumns.map(col => renderResultCell(col.key, p, rawTokens, src)).join('')}
         </tr>`;
       }).join('')}</tbody>
     </table>
@@ -2422,7 +2541,7 @@ function buildPagination(pages) {
   if (searchPage < pages - 1) html += `<button class="page-btn" onclick="goPage(${searchPage+1})">Next ›</button>`;
   return html;
 }
-function goPage(p) { searchPage = p; loadSearch(lastQuery); window.scrollTo(0,0); }
+function goPage(p) { searchPage = p; saveSearchState(); loadSearch(lastQuery); window.scrollTo(0,0); }
 
 // ===== PERSON DETAIL =====
 async function showPersonInElement(uid, el) {
@@ -2435,6 +2554,7 @@ async function showPersonInElement(uid, el) {
 }
 
 function showPerson(uid) {
+  saveSearchState();
   window.location.href = 'person.html?uid=' + encodeURIComponent(uid);
 }
 

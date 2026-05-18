@@ -256,6 +256,14 @@
     border: 1px solid var(--border); background: var(--surface); color: var(--muted);
     font-size: 0.76rem; margin: 3px 6px 3px 0;
   }
+  .child-assignment-list {
+    display: grid; gap: 8px; max-height: 180px; overflow: auto;
+    border: 1px solid var(--border); background: var(--surface); padding: 10px; margin-top: 8px;
+  }
+  .child-assignment-list label {
+    display: flex; align-items: center; gap: 8px; font-size: 0.84rem; color: var(--text);
+  }
+  .child-assignment-list input { width: 17px; height: 17px; accent-color: var(--gold); }
 
   .empty-state { padding: 48px; text-align: center; color: var(--muted); font-size: 0.9rem; }
   .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
@@ -644,6 +652,59 @@
         </div>
       </div>
 
+      <div class="edit-section">
+        <div class="edit-section-title">Marriage / Child Assignment</div>
+        <p style="font-size:0.82rem;color:var(--muted);line-height:1.6;margin-bottom:12px">
+          Use this when children need to be grouped under a specific spouse without changing the source GEDCOM.
+        </p>
+        <label class="form-field">
+          Spouse link type
+          <select id="family-group-spouse-mode" onchange="toggleFamilyGroupSpouseMode()">
+            <option value="existing_person">Search existing spouse profile</option>
+            <option value="new_person">Record spouse name</option>
+          </select>
+        </label>
+        <div id="family-group-existing-wrap" style="margin-top:12px">
+          <label class="form-field">
+            Search spouse by name or UID
+            <input id="family-group-spouse-search" placeholder="Type a name, or paste a profile UID" oninput="searchFamilyGroupSpouse()"/>
+          </label>
+          <div id="family-group-spouse-results" class="relation-search-results" style="display:none"></div>
+          <div id="family-group-spouse-selected" style="display:none;margin-top:8px;font-size:0.84rem;color:var(--green)"></div>
+        </div>
+        <div id="family-group-new-wrap" style="display:none;margin-top:12px">
+          <div class="form-grid">
+            <label class="form-field">
+              Spouse name
+              <input id="family-group-spouse-name" placeholder="Spouse name"/>
+            </label>
+            <label class="form-field">
+              Gender
+              <select id="family-group-spouse-gender">
+                <option value="">Unknown</option>
+                <option value="F">Female</option>
+                <option value="M">Male</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <label class="form-field" style="margin-top:12px">
+          Group label
+          <input id="family-group-label" placeholder="Optional, e.g. First marriage"/>
+        </label>
+        <div style="margin-top:12px">
+          <div class="edit-section-title" style="margin-bottom:6px">Children under this spouse</div>
+          <div id="family-group-child-list" class="child-assignment-list">
+            <span style="color:var(--muted);font-size:0.84rem">Children will appear here after the profile loads.</span>
+          </div>
+        </div>
+        <label class="form-field" style="margin-top:12px">
+          Notes
+          <textarea id="family-group-notes" rows="3" placeholder="Optional context for this grouping"></textarea>
+        </label>
+        <button type="button" class="edit-action-btn primary" style="width:100%;margin-top:12px" onclick="saveCanonicalFamilyGroup()">Save Marriage Group</button>
+      </div>
+
       <div id="edit-status" style="display:none;margin-bottom:14px;padding:12px 16px;font-size:0.85rem;font-weight:700;border-left:3px solid var(--gold)"></div>
     </form>
     <div class="edit-actions">
@@ -665,6 +726,9 @@ let currentProfileOverlay = null;
 let selectedRelationshipType = '';
 let selectedRelationshipPerson = null;
 let relationshipSearchRows = [];
+let currentAssignableChildren = [];
+let selectedFamilyGroupSpouse = null;
+let familyGroupSpouseRows = [];
 
 // ===== AUTH =====
 async function doEnter() {
@@ -891,7 +955,14 @@ async function renderPerson(uid, el) {
   });
 
   const allChildren = Object.values(childrenMap);
+  currentAssignableChildren = allChildren;
   const relationshipAdditions = await loadRelationshipAdditions(uid);
+  const reviewedFamilyGroups = await loadCanonicalFamilyGroups(uid);
+  const hasReviewedMarriageGroups = reviewedFamilyGroups.length > 0;
+  const reviewedChildUids = new Set(reviewedFamilyGroups.flatMap(group => group.children || []).map(child => child.child_person_uid).filter(Boolean));
+  const unassignedReviewedChildren = hasReviewedMarriageGroups
+    ? allChildren.filter(child => !reviewedChildUids.has(child.uid))
+    : [];
 
   el.innerHTML = `
     <div style="margin-bottom:16px">
@@ -945,7 +1016,58 @@ async function renderPerson(uid, el) {
         </ul>
       ` : ''}
 
-      ${spouseFamilies.length ? `
+      ${hasReviewedMarriageGroups ? `
+        <div class="section-h">Marriage(s)</div>
+        ${reviewedFamilyGroups.map((group, idx) => `
+          <div class="family-card">
+            <div class="fc-title">
+              ${reviewedFamilyGroups.length > 1 ? `<span style="font-size:0.75rem;color:var(--muted);margin-right:6px">Marriage ${idx+1}</span>` : ''}
+              Spouse: ${group.spouse_person_uid
+                ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(group.spouse_person_uid)}">${escHtml(group.spouse_display_name || group.spouse_name || '(linked spouse)')}</a>`
+                : `<span style="color:var(--muted)">${escHtml(group.spouse_name || '(spouse)')}</span>`}
+              <span class="badge" style="margin-left:8px;background:#fef3c7;color:#92400e">Reviewed grouping</span>
+            </div>
+            ${group.label || group.notes ? `
+              <div class="fc-detail" style="white-space:normal">
+                ${group.label ? escHtml(group.label) : ''}
+                ${group.label && group.notes ? '<br>' : ''}
+                ${group.notes ? escHtml(group.notes) : ''}
+              </div>
+            ` : ''}
+            ${group.children.length ? `
+            <div class="fc-children">
+              <div class="fc-children-label">Children (${group.children.length})</div>
+              <ul class="children-list">
+                ${group.children.map(c => `
+                  <li ${c.child_person_uid ? `onclick="goPerson('${c.child_person_uid}')"` : ''}>
+                    ${c.sex ? `<span class="badge badge-${c.sex}">${c.sex}</span>&nbsp;` : ''}
+                    ${escHtml(c.display_name || c.child_name || '(child)')}
+                    ${c.death_flag ? `<span style="font-size:0.7rem;color:var(--muted)"> ✝</span>` : ''}
+                  </li>
+                `).join('')}
+              </ul>
+            </div>` : ''}
+          </div>
+        `).join('')}
+        ${unassignedReviewedChildren.length ? `
+          <div class="family-card">
+            <div class="fc-title">Unassigned source children</div>
+            <div class="fc-detail">These children are still present in the source record but have not yet been assigned to a reviewed spouse group.</div>
+            <div class="fc-children">
+              <div class="fc-children-label">Children (${unassignedReviewedChildren.length})</div>
+              <ul class="children-list">
+                ${unassignedReviewedChildren.map(c => `
+                  <li onclick="goPerson('${c.uid}')">
+                    ${c.sex ? `<span class="badge badge-${c.sex}">${c.sex}</span>&nbsp;` : ''}
+                    ${escHtml(c.name || '(unnamed)')}
+                    ${c.death_flag ? `<span style="font-size:0.7rem;color:var(--muted)"> ✝</span>` : ''}
+                  </li>
+                `).join('')}
+              </ul>
+            </div>
+          </div>
+        ` : ''}
+      ` : spouseFamilies.length ? `
         <div class="section-h">Marriage(s)</div>
         ${spouseFamilies.map(({ f, spouseUid, spouseName, children }, idx) => `
           <div class="family-card">
@@ -978,7 +1100,7 @@ async function renderPerson(uid, el) {
         `).join('')}
       ` : ''}
 
-      ${!spouseFamilies.length && allChildren.length ? `
+      ${!hasReviewedMarriageGroups && !spouseFamilies.length && allChildren.length ? `
         <div class="section-h">Children (${allChildren.length})</div>
         <ul class="children-list">
           ${allChildren.map(c => `
@@ -1131,6 +1253,45 @@ function relationshipDisplayLabel(rel) {
   return labels[rel.relationship_type] || 'Linked with';
 }
 
+async function loadCanonicalFamilyGroups(uid) {
+  const { data, error } = await sb.from('canonical_family_groups')
+    .select('*, canonical_family_children(*)')
+    .eq('primary_person_uid', uid)
+    .eq('status', 'approved')
+    .order('created_at', { ascending: true });
+  if (error || !data?.length) return [];
+  const spouseUids = [...new Set(data.map(g => g.spouse_person_uid).filter(Boolean))];
+  const childUids = [
+    ...new Set(data.flatMap(g => g.canonical_family_children || [])
+      .map(c => c.child_person_uid)
+      .filter(Boolean))
+  ];
+  const personUids = [...new Set([...spouseUids, ...childUids])];
+  const personMap = {};
+  if (personUids.length) {
+    const { data: people } = await sb.from('people')
+      .select('uid,name,sex,death_flag')
+      .in('uid', personUids);
+    (people || []).forEach(p => { personMap[p.uid] = p; });
+  }
+  return data.map(group => ({
+    ...group,
+    spouse_display_name: personMap[group.spouse_person_uid]?.name || '',
+    children: (group.canonical_family_children || [])
+      .slice()
+      .sort((a, b) => (a.birth_order || 999) - (b.birth_order || 999))
+      .map(child => {
+        const person = personMap[child.child_person_uid] || {};
+        return {
+          ...child,
+          display_name: person.name || child.child_name || '',
+          sex: person.sex || '',
+          death_flag: person.death_flag || false
+        };
+      })
+  }));
+}
+
 function openEditProfile() {
   if (!currentPerson) return;
   const overlay = currentProfileOverlay || {};
@@ -1151,6 +1312,8 @@ function openEditProfile() {
   document.getElementById('edit-death-date').value = firstText(overlay.death_date_text, currentPerson.death_date);
   document.getElementById('edit-death-location').value = firstText(overlay.death_location, currentPerson.death_place);
   resetRelationshipEditor();
+  resetFamilyGroupEditor();
+  renderFamilyGroupChildren();
   toggleEditDeathFields();
   showEditStatus('', false, true);
   document.getElementById('edit-backdrop').classList.add('open');
@@ -1502,6 +1665,185 @@ async function saveRelationshipOverride() {
   await renderPerson(currentPerson.uid, document.getElementById('person-container'));
 }
 
+function resetFamilyGroupEditor() {
+  selectedFamilyGroupSpouse = null;
+  familyGroupSpouseRows = [];
+  const mode = document.getElementById('family-group-spouse-mode');
+  if (mode) mode.value = 'existing_person';
+  ['family-group-spouse-search','family-group-spouse-name','family-group-label','family-group-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const gender = document.getElementById('family-group-spouse-gender');
+  if (gender) gender.value = '';
+  const results = document.getElementById('family-group-spouse-results');
+  if (results) {
+    results.style.display = 'none';
+    results.innerHTML = '';
+  }
+  const selected = document.getElementById('family-group-spouse-selected');
+  if (selected) {
+    selected.style.display = 'none';
+    selected.innerHTML = '';
+  }
+  toggleFamilyGroupSpouseMode();
+}
+
+function toggleFamilyGroupSpouseMode() {
+  const mode = document.getElementById('family-group-spouse-mode')?.value || 'existing_person';
+  const existing = document.getElementById('family-group-existing-wrap');
+  const created = document.getElementById('family-group-new-wrap');
+  if (existing) existing.style.display = mode === 'existing_person' ? 'block' : 'none';
+  if (created) created.style.display = mode === 'new_person' ? 'block' : 'none';
+}
+
+function renderFamilyGroupChildren() {
+  const box = document.getElementById('family-group-child-list');
+  if (!box) return;
+  if (!currentAssignableChildren.length) {
+    box.innerHTML = '<span style="color:var(--muted);font-size:0.84rem">No existing children found on this profile.</span>';
+    return;
+  }
+  box.innerHTML = currentAssignableChildren.map((child, idx) => `
+    <label>
+      <input type="checkbox" class="family-group-child" value="${escHtml(child.uid)}" data-name="${escAttr(child.name || '')}" data-order="${idx + 1}"/>
+      <span>${escHtml(child.name || '(unnamed)')}</span>
+    </label>
+  `).join('');
+}
+
+let familyGroupSearchTimer = null;
+function searchFamilyGroupSpouse() {
+  clearTimeout(familyGroupSearchTimer);
+  familyGroupSearchTimer = setTimeout(runFamilyGroupSpouseSearch, 250);
+}
+
+async function runFamilyGroupSpouseSearch() {
+  const q = document.getElementById('family-group-spouse-search').value.trim();
+  const box = document.getElementById('family-group-spouse-results');
+  selectedFamilyGroupSpouse = null;
+  document.getElementById('family-group-spouse-selected').style.display = 'none';
+  if (q.length < 2) {
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+  box.style.display = 'block';
+  box.innerHTML = '<div class="relation-search-item">Searching...</div>';
+  let rows = [];
+  const looksLikeUid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q);
+  if (looksLikeUid) {
+    const { data, error } = await sb.from('people')
+      .select('uid,name,birth_place,gedcom_id')
+      .eq('uid', q)
+      .maybeSingle();
+    if (error) {
+      box.innerHTML = `<div class="relation-search-item" style="color:var(--red)">UID lookup failed: ${escHtml(error.message)}</div>`;
+      return;
+    }
+    rows = data && data.uid !== currentPerson.uid ? [data] : [];
+  } else {
+    const { data, error } = await sb.from('people')
+      .select('uid,name,birth_place,gedcom_id')
+      .ilike('name', `%${q}%`)
+      .neq('uid', currentPerson.uid)
+      .limit(12);
+    if (error) {
+      box.innerHTML = `<div class="relation-search-item" style="color:var(--red)">Search failed: ${escHtml(error.message)}</div>`;
+      return;
+    }
+    rows = data || [];
+  }
+  if (!rows.length) {
+    familyGroupSpouseRows = [];
+    box.innerHTML = `<div class="relation-search-item">No matching spouse found${looksLikeUid ? ' for this UID' : ''}.</div>`;
+    return;
+  }
+  familyGroupSpouseRows = rows;
+  box.innerHTML = rows.map((p, idx) => `
+    <div class="relation-search-item" onclick="selectFamilyGroupSpouse(${idx}, this)">
+      <span>${escHtml(p.name || '(unnamed)')}</span>
+      <small style="color:var(--muted);text-align:right">
+        ${escHtml(p.birth_place || '')}
+        <span style="display:block;font-size:0.68rem">${escHtml(p.uid)}</span>
+      </small>
+    </div>
+  `).join('');
+}
+
+function selectFamilyGroupSpouse(index, el) {
+  const person = familyGroupSpouseRows[index];
+  if (!person) return;
+  selectedFamilyGroupSpouse = { uid: person.uid, name: person.name || '', place: person.birth_place || '' };
+  document.querySelectorAll('#family-group-spouse-results .relation-search-item').forEach(item => item.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+  const selected = document.getElementById('family-group-spouse-selected');
+  selected.style.display = 'block';
+  selected.innerHTML = `Selected: <strong>${escHtml(selectedFamilyGroupSpouse.name)}</strong>${selectedFamilyGroupSpouse.place ? ` · ${escHtml(selectedFamilyGroupSpouse.place)}` : ''}`;
+}
+
+async function saveCanonicalFamilyGroup() {
+  if (!currentPerson) return;
+  const mode = document.getElementById('family-group-spouse-mode').value;
+  const checkedChildren = [...document.querySelectorAll('.family-group-child:checked')].map(input => ({
+    uid: input.value,
+    name: input.dataset.name || '',
+    order: Number(input.dataset.order || 0) || null
+  }));
+  if (!checkedChildren.length) {
+    showEditStatus('Choose at least one child for this marriage group.', true);
+    return;
+  }
+  const groupPayload = {
+    primary_person_uid: currentPerson.uid,
+    label: cleanValue('family-group-label') || null,
+    status: 'approved',
+    notes: cleanValue('family-group-notes') || null,
+    created_by: currentUser || 'editor',
+    updated_at: new Date().toISOString()
+  };
+  if (mode === 'existing_person') {
+    if (!selectedFamilyGroupSpouse?.uid) {
+      showEditStatus('Search and select an existing spouse profile first.', true);
+      return;
+    }
+    groupPayload.spouse_person_uid = selectedFamilyGroupSpouse.uid;
+    groupPayload.spouse_name = selectedFamilyGroupSpouse.name || null;
+  } else {
+    const name = cleanValue('family-group-spouse-name');
+    if (!name) {
+      showEditStatus('Enter the spouse name.', true);
+      return;
+    }
+    groupPayload.spouse_name = name;
+    groupPayload.spouse_gender = cleanValue('family-group-spouse-gender') || null;
+  }
+
+  const { data: group, error: groupError } = await sb.from('canonical_family_groups')
+    .insert(groupPayload)
+    .select()
+    .single();
+  if (groupError) {
+    showEditStatus('Marriage group save failed: ' + groupError.message, true);
+    return;
+  }
+  const childRows = checkedChildren.map(child => ({
+    family_group_id: group.id,
+    child_person_uid: child.uid,
+    child_name: child.name || null,
+    birth_order: child.order
+  }));
+  const { error: childError } = await sb.from('canonical_family_children').insert(childRows);
+  if (childError) {
+    showEditStatus('Children assignment failed: ' + childError.message, true);
+    return;
+  }
+  showEditStatus('Marriage group saved.', false);
+  resetFamilyGroupEditor();
+  renderFamilyGroupChildren();
+  await renderPerson(currentPerson.uid, document.getElementById('person-container'));
+}
+
 // ===== UTILS =====
 function escHtml(str) {
   if (!str) return '';
@@ -1510,6 +1852,10 @@ function escHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function escAttr(str) {
+  return escHtml(str).replace(/'/g, '&#39;');
 }
 
 function formatNoteText(str) {

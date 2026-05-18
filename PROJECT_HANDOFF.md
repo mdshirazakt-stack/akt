@@ -618,6 +618,8 @@ relationship_overrides
 community_family_submissions
 community_family_people
 community_family_relationships
+canonical_family_groups
+canonical_family_children
 ```
 
 Current implementation:
@@ -625,14 +627,16 @@ Current implementation:
 - `person.html` edit drawer now allows relationship overlay links for father, mother, spouse, son, daughter, and sibling.
 - Relationship additions can link to an existing person across GEDCOM files or record a new person name.
 - Approved relationship overlays display on the profile under “Linked Family Records”.
+- `person.html` can now save reviewed marriage/child groupings, e.g. one husband with two wives and separate children under each wife.
+- When reviewed marriage groups exist for a profile, the public profile displays those groups instead of the flatter GEDCOM marriage/children grouping.
 - `admin.html` now has a “Family Builder” tab for brand-new family submissions.
 - Family Builder can create a family submission, add people, and add relationships within that submitted family.
 - Family Builder also includes “Known Duplicate Profiles” to create identity groups and link multiple profile UIDs as the same real person.
+- `archive.html` search results now support configurable result columns and preserve query, filters, page, and selected columns while moving between results and profile pages.
 - Role/permission enforcement is intentionally deferred, per current plan.
 
 Next relationship work:
 
-- Show reverse relationship overlays on related profiles.
 - Add review states before relationship overlays become public.
 - Add export logic that can combine GEDCOM data, profile overrides, notes, identity clusters, and relationship overlays.
 - Add a cleaner visual tree/editor for multi-generation submitted families.

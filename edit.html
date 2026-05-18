@@ -36,6 +36,7 @@
   .card-actions { position:absolute; right:5px; top:5px; display:flex; gap:4px; }
   .card-actions button { padding:1px 5px; font-size:.72rem; background:#f8f8f1; }
   .death-dot { position:absolute; right:8px; bottom:8px; width:9px; height:9px; background:red; }
+  .deceased-mark { color:var(--red); font-weight:900; margin-left:4px; }
   .connector { width:2px; height:34px; background:#777; margin:0 auto 8px; }
   .spouse-list { text-align:center; margin:6px 0 4px; color:#111; }
   .spouse-list a { color:var(--blue); font-weight:700; text-decoration:none; }
@@ -100,7 +101,7 @@
           </div>
           <div>
             <label>Alive</label>
-            <select id="edit-alive">
+            <select id="edit-alive" onchange="toggleDeathFields()">
               <option value="alive">Yes</option>
               <option value="deceased">No</option>
             </select>
@@ -110,9 +111,17 @@
           <div><label>Birth date</label><input id="edit-birth-date" placeholder="Any format"/></div>
           <div><label>Birth place</label><input id="edit-birth-place"/></div>
         </div>
-        <div class="grid2">
+        <div id="edit-death-fields" class="grid2" style="display:none">
           <div><label>Death date</label><input id="edit-death-date" placeholder="If deceased"/></div>
           <div><label>Death place</label><input id="edit-death-place"/></div>
+        </div>
+        <div class="grid2">
+          <div><label>Root place</label><input id="edit-root-place" placeholder="Ancestral / root place"/></div>
+          <div><label>Current place</label><input id="edit-current-place"/></div>
+        </div>
+        <div class="grid2">
+          <div><label>Mobile number</label><input id="edit-mobile" type="tel"/></div>
+          <div><label>Email</label><input id="edit-email" type="email"/></div>
         </div>
         <label>Notes</label>
         <textarea id="edit-notes" maxlength="2500"></textarea>
@@ -294,13 +303,14 @@ function spouseLine(fam) {
   const spouseUid = fam.husband_uid === focusUid ? fam.wife_uid : fam.husband_uid;
   const spouse = spouseUid ? peopleByUid[spouseUid] : null;
   if (!spouseUid) return '';
-  return `m. <a href="edit.html?uid=${encodeURIComponent(spouseUid)}">${esc(spouse?.name || '(spouse not set)')}</a>`;
+  return `m. <a href="edit.html?uid=${encodeURIComponent(spouseUid)}">${esc(spouse?.name || '(spouse not set)')}</a>${spouse?.death_flag ? '<span class="deceased-mark">†</span>' : ''}`;
 }
 
 function familySection(fam, idx) {
   const spouseUid = fam.husband_uid === focusUid ? fam.wife_uid : fam.husband_uid;
   const spouse = spouseUid ? peopleByUid[spouseUid] : null;
-  const title = `${focusPerson.name || 'Person'} and ${spouse?.name || 'spouse'}'s children`;
+  const spouseName = `${spouse?.name || 'spouse'}${spouse?.death_flag ? ' †' : ''}`;
+  const title = `${focusPerson.name || 'Person'} and ${spouseName}'s children`;
   const children = fam.children || [];
   return `
     <section class="family-box">
@@ -350,7 +360,22 @@ function selectPerson(uid) {
   document.getElementById('edit-birth-place').value = p.birth_place || '';
   document.getElementById('edit-death-date').value = p.death_date || '';
   document.getElementById('edit-death-place').value = p.death_place || '';
+  document.getElementById('edit-root-place').value = p.root_place || '';
+  document.getElementById('edit-current-place').value = p.current_place || '';
+  document.getElementById('edit-mobile').value = p.contact_address || '';
+  document.getElementById('edit-email').value = p.email || '';
   document.getElementById('edit-notes').value = p.notes || '';
+  toggleDeathFields();
+}
+
+function toggleDeathFields() {
+  const deceased = value('edit-alive') === 'deceased';
+  const fields = document.getElementById('edit-death-fields');
+  if (fields) fields.style.display = deceased ? 'grid' : 'none';
+  if (!deceased) {
+    document.getElementById('edit-death-date').value = '';
+    document.getElementById('edit-death-place').value = '';
+  }
 }
 
 async function savePerson(event) {
@@ -366,10 +391,23 @@ async function savePerson(event) {
     death_flag: deceased,
     death_date: deceased ? (value('edit-death-date') || null) : null,
     death_place: deceased ? (value('edit-death-place') || null) : null,
+    root_place: value('edit-root-place') || null,
+    current_place: value('edit-current-place') || null,
+    contact_address: value('edit-mobile') || null,
+    email: value('edit-email') || null,
     notes: value('edit-notes') || null,
     updated_at: new Date().toISOString()
   };
-  const { error } = await sb.from('people').update(payload).eq('uid', uid);
+  let { error } = await sb.from('people').update(payload).eq('uid', uid);
+  if (error && /schema cache|root_place|current_place|contact_address|email/i.test(error.message || '')) {
+    const fallback = { ...payload };
+    delete fallback.root_place;
+    delete fallback.current_place;
+    delete fallback.contact_address;
+    delete fallback.email;
+    const retry = await sb.from('people').update(fallback).eq('uid', uid);
+    error = retry.error;
+  }
   if (error) return setStatus(error.message, true);
   setStatus('Profile saved to source person record.');
   await loadEditor();

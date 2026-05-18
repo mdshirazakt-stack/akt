@@ -623,14 +623,14 @@
           <label class="form-field">
             Link type
             <select id="relationship-mode" onchange="toggleRelationshipMode()">
-              <option value="existing_person">Search existing person</option>
+              <option value="existing_person">Search existing profile or linked record</option>
               <option value="new_person">Record new person name</option>
             </select>
           </label>
           <div id="relationship-existing-wrap" style="margin-top:12px">
             <label class="form-field">
-              Search person by name or UID
-              <input id="relationship-search" placeholder="Type a name, or paste a profile UID" oninput="searchRelationshipPeople()"/>
+              Search person by name, profile UID, or linked record ID
+              <input id="relationship-search" placeholder="Type a name, paste a profile UID, or paste a rel ID" oninput="searchRelationshipPeople()"/>
             </label>
             <div id="relationship-search-results" class="relation-search-results" style="display:none"></div>
             <div id="relationship-selected" style="display:none;margin-top:8px;font-size:0.84rem;color:var(--green)"></div>
@@ -1789,6 +1789,54 @@ function searchRelationshipPeople() {
   relationshipSearchTimer = setTimeout(runRelationshipSearch, 250);
 }
 
+async function lookupPeopleAndLinkedRecords(q) {
+  const exactId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q);
+  if (exactId) {
+    const { data, error } = await sb.from('people')
+      .select('uid,name,sex,birth_place,gedcom_id')
+      .eq('uid', q)
+      .maybeSingle();
+    if (error) return { rows: [], errorMessage: 'Profile UID lookup failed: ' + error.message, exactId };
+    if (data && data.uid !== currentPerson.uid) return { rows: [data], exactId };
+
+    const { data: linked, error: linkedError } = await sb.from('relationship_overrides')
+      .select('*')
+      .eq('id', q)
+      .eq('status', 'approved')
+      .maybeSingle();
+    if (linkedError) return { rows: [], errorMessage: 'Linked record lookup failed: ' + linkedError.message, exactId };
+    if (!linked) return { rows: [], exactId };
+
+    if (linked.related_person_uid) {
+      if (linked.related_person_uid === currentPerson.uid) return { rows: [], exactId };
+      const { data: linkedPerson, error: linkedPersonError } = await sb.from('people')
+        .select('uid,name,sex,birth_place,gedcom_id')
+        .eq('uid', linked.related_person_uid)
+        .maybeSingle();
+      if (linkedPersonError) return { rows: [], errorMessage: 'Linked profile lookup failed: ' + linkedPersonError.message, exactId };
+      return { rows: linkedPerson ? [linkedPerson] : [], exactId };
+    }
+
+    return {
+      rows: [{
+        overlayRelId: linked.id,
+        name: linked.related_name || '(linked person)',
+        sex: linked.related_gender || '',
+        birth_place: 'Linked Family Record'
+      }],
+      exactId
+    };
+  }
+
+  const { data, error } = await sb.from('people')
+    .select('uid,name,sex,birth_place,gedcom_id')
+    .ilike('name', `%${q}%`)
+    .neq('uid', currentPerson.uid)
+    .limit(12);
+  if (error) return { rows: [], errorMessage: 'Search failed: ' + error.message, exactId };
+  return { rows: data || [], exactId };
+}
+
 async function runRelationshipSearch() {
   const q = document.getElementById('relationship-search').value.trim();
   const box = document.getElementById('relationship-search-results');
@@ -1802,59 +1850,14 @@ async function runRelationshipSearch() {
   box.style.display = 'block';
   box.innerHTML = '<div class="relation-search-item">Searching...</div>';
 
-  let rows = [];
-  const looksLikeUid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q);
-  if (looksLikeUid) {
-    const { data, error } = await sb.from('people')
-      .select('uid,name,birth_place,gedcom_id')
-      .eq('uid', q)
-      .maybeSingle();
-    if (error) {
-      box.innerHTML = `<div class="relation-search-item" style="color:var(--red)">UID lookup failed: ${escHtml(error.message)}</div>`;
-      return;
-    }
-    rows = data && data.uid !== currentPerson.uid ? [data] : [];
-    if (!rows.length) {
-      const { data: linked, error: linkedError } = await sb.from('relationship_overrides')
-        .select('*')
-        .eq('id', q)
-        .eq('source_person_uid', currentPerson.uid)
-        .eq('status', 'approved')
-        .maybeSingle();
-      if (linkedError) {
-        box.innerHTML = `<div class="relation-search-item" style="color:var(--red)">Linked record lookup failed: ${escHtml(linkedError.message)}</div>`;
-        return;
-      }
-      if (linked && !linked.related_person_uid) {
-        rows = [{
-          overlayRelId: linked.id,
-          name: linked.related_name || '(linked spouse)',
-          sex: linked.related_gender || '',
-          birth_place: 'Linked Family Record'
-        }];
-      } else if (linked?.related_person_uid) {
-        const { data: linkedPerson } = await sb.from('people')
-          .select('uid,name,birth_place,gedcom_id')
-          .eq('uid', linked.related_person_uid)
-          .maybeSingle();
-        rows = linkedPerson ? [linkedPerson] : [];
-      }
-    }
-  } else {
-    const { data, error } = await sb.from('people')
-      .select('uid,name,birth_place,gedcom_id')
-      .ilike('name', `%${q}%`)
-      .neq('uid', currentPerson.uid)
-      .limit(12);
-    if (error) {
-      box.innerHTML = `<div class="relation-search-item" style="color:var(--red)">Search failed: ${escHtml(error.message)}</div>`;
-      return;
-    }
-    rows = data || [];
+  const { rows, errorMessage, exactId } = await lookupPeopleAndLinkedRecords(q);
+  if (errorMessage) {
+    box.innerHTML = `<div class="relation-search-item" style="color:var(--red)">${escHtml(errorMessage)}</div>`;
+    return;
   }
   if (!rows.length) {
     relationshipSearchRows = [];
-    box.innerHTML = `<div class="relation-search-item">No matching person found${looksLikeUid ? ' for this UID' : ''}.</div>`;
+    box.innerHTML = `<div class="relation-search-item">No matching person found${exactId ? ' for this ID' : ''}.</div>`;
     return;
   }
   relationshipSearchRows = rows;
@@ -1863,7 +1866,7 @@ async function runRelationshipSearch() {
       <span>${escHtml(p.name || '(unnamed)')}</span>
       <small style="color:var(--muted);text-align:right">
         ${escHtml(p.birth_place || '')}
-        <span style="display:block;font-size:0.68rem">${escHtml(p.uid)}</span>
+        <span style="display:block;font-size:0.68rem">${escHtml(p.uid || p.overlayRelId || '')}</span>
       </small>
     </div>
   `).join('');
@@ -1872,12 +1875,18 @@ async function runRelationshipSearch() {
 function selectRelationshipPerson(index, el) {
   const person = relationshipSearchRows[index];
   if (!person) return;
-  selectedRelationshipPerson = { uid: person.uid, name: person.name || '', place: person.birth_place || '' };
+  selectedRelationshipPerson = {
+    uid: person.uid || '',
+    overlayRelId: person.overlayRelId || '',
+    name: person.name || '',
+    sex: person.sex || '',
+    place: person.birth_place || ''
+  };
   document.querySelectorAll('.relation-search-item').forEach(item => item.classList.remove('selected'));
   if (el) el.classList.add('selected');
   const selected = document.getElementById('relationship-selected');
   selected.style.display = 'block';
-  selected.innerHTML = `Selected: <strong>${escHtml(selectedRelationshipPerson.name)}</strong>${selectedRelationshipPerson.place ? ` · ${escHtml(selectedRelationshipPerson.place)}` : ''}`;
+  selected.innerHTML = `Selected: <strong>${escHtml(selectedRelationshipPerson.name)}</strong>${selectedRelationshipPerson.overlayRelId ? ' · linked record' : ''}${selectedRelationshipPerson.place ? ` · ${escHtml(selectedRelationshipPerson.place)}` : ''}`;
 }
 
 async function saveRelationshipOverride() {
@@ -1898,12 +1907,13 @@ async function saveRelationshipOverride() {
     updated_at: new Date().toISOString()
   };
   if (mode === 'existing_person') {
-    if (!selectedRelationshipPerson?.uid) {
-      showEditStatus('Search and select an existing person first.', true);
+    if (!selectedRelationshipPerson?.uid && !selectedRelationshipPerson?.overlayRelId) {
+      showEditStatus('Search and select an existing profile or linked family record first.', true);
       return;
     }
-    payload.related_person_uid = selectedRelationshipPerson.uid;
+    payload.related_person_uid = selectedRelationshipPerson.uid || null;
     payload.related_name = selectedRelationshipPerson.name || null;
+    payload.related_gender = selectedRelationshipPerson.overlayRelId ? (selectedRelationshipPerson.sex || null) : null;
   } else {
     const name = cleanValue('relationship-new-name');
     if (!name) {
@@ -1988,33 +1998,14 @@ async function runFamilyGroupSpouseSearch() {
   }
   box.style.display = 'block';
   box.innerHTML = '<div class="relation-search-item">Searching...</div>';
-  let rows = [];
-  const looksLikeUid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q);
-  if (looksLikeUid) {
-    const { data, error } = await sb.from('people')
-      .select('uid,name,birth_place,gedcom_id')
-      .eq('uid', q)
-      .maybeSingle();
-    if (error) {
-      box.innerHTML = `<div class="relation-search-item" style="color:var(--red)">UID lookup failed: ${escHtml(error.message)}</div>`;
-      return;
-    }
-    rows = data && data.uid !== currentPerson.uid ? [data] : [];
-  } else {
-    const { data, error } = await sb.from('people')
-      .select('uid,name,birth_place,gedcom_id')
-      .ilike('name', `%${q}%`)
-      .neq('uid', currentPerson.uid)
-      .limit(12);
-    if (error) {
-      box.innerHTML = `<div class="relation-search-item" style="color:var(--red)">Search failed: ${escHtml(error.message)}</div>`;
-      return;
-    }
-    rows = data || [];
+  const { rows, errorMessage, exactId } = await lookupPeopleAndLinkedRecords(q);
+  if (errorMessage) {
+    box.innerHTML = `<div class="relation-search-item" style="color:var(--red)">${escHtml(errorMessage)}</div>`;
+    return;
   }
   if (!rows.length) {
     familyGroupSpouseRows = [];
-    box.innerHTML = `<div class="relation-search-item">No matching spouse found${looksLikeUid ? ' for this UID' : ''}.</div>`;
+    box.innerHTML = `<div class="relation-search-item">No matching spouse found${exactId ? ' for this ID' : ''}.</div>`;
     return;
   }
   familyGroupSpouseRows = rows;

@@ -263,6 +263,11 @@
     border: 1px solid var(--border); background: var(--surface); color: var(--muted);
     font-size: 0.76rem; margin: 3px 6px 3px 0;
   }
+  .identity-ref-grid { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(160px, 1fr) auto; gap: 8px; align-items: center; }
+  .identity-ref-grid input {
+    width: 100%; border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+    padding: 10px 12px; font-family: 'Lato', sans-serif; font-size: 0.86rem;
+  }
   .child-assignment-list {
     display: grid; gap: 8px; max-height: 180px; overflow: auto;
     border: 1px solid var(--border); background: var(--surface); padding: 10px; margin-top: 8px;
@@ -283,6 +288,7 @@
     #correction-section { padding: 16px 18px; }
     .edit-drawer { width: 100%; }
     .edit-actions { width: 100%; }
+    .identity-ref-grid { grid-template-columns: 1fr; }
     .relationship-actions { grid-template-columns: 1fr; }
   }
 </style>
@@ -1063,6 +1069,98 @@ async function hydrateFamilyGroupChildren(group) {
   });
 }
 
+async function loadIdentityReferences(uid) {
+  const { data: memberships, error } = await sb.from('person_identity_members')
+    .select('group_id,person_uid,source_role,notes')
+    .eq('person_uid', uid);
+  if (error) return { groups: [], errorMessage: 'Identity reference tables are not ready. Run supabase_relationship_mvp.sql.' };
+  const groupIds = [...new Set((memberships || []).map(m => m.group_id).filter(Boolean))];
+  if (!groupIds.length) return { groups: [], errorMessage: '' };
+
+  const [{ data: groups, error: groupError }, { data: allMembers, error: memberError }] = await Promise.all([
+    sb.from('person_identity_groups')
+      .select('id,display_name,canonical_person_uid,notes,status')
+      .in('id', groupIds)
+      .neq('status', 'archived'),
+    sb.from('person_identity_members')
+      .select('group_id,person_uid,source_role,notes,created_at')
+      .in('group_id', groupIds)
+  ]);
+  if (groupError || memberError) return { groups: [], errorMessage: 'Could not load profile references.' };
+
+  const otherUids = [...new Set((allMembers || [])
+    .map(m => m.person_uid)
+    .filter(personUid => personUid && personUid !== uid))];
+  const personMap = {};
+  if (otherUids.length) {
+    const { data: people } = await sb.from('people')
+      .select('uid,name,birth_place,death_flag,gedcom_id')
+      .in('uid', otherUids);
+    (people || []).forEach(person => { personMap[person.uid] = person; });
+  }
+
+  return {
+    groups: (groups || []).map(group => ({
+      ...group,
+      references: (allMembers || [])
+        .filter(member => member.group_id === group.id && member.person_uid !== uid)
+        .map(member => ({ ...member, person: personMap[member.person_uid] || null }))
+        .filter(member => member.person)
+    })),
+    errorMessage: ''
+  };
+}
+
+function renderIdentityReferencesSection(identityReferenceData) {
+  const groups = identityReferenceData.groups || [];
+  const rows = groups.flatMap(group => group.references.map(ref => ({ group, ref })));
+  return `
+    <div class="section-h">Additional Profile References</div>
+    <div class="family-card">
+      ${identityReferenceData.errorMessage ? `
+        <div class="fc-detail" style="color:var(--red);white-space:normal">${escHtml(identityReferenceData.errorMessage)}</div>
+      ` : rows.length ? rows.map(({ group, ref }) => {
+        const source = gedcomUploads.find(upload => upload.id === ref.person.gedcom_id);
+        return `
+          <div class="link-card-row" style="padding:9px 0;border-bottom:1px solid var(--border)">
+            <div>
+              <span class="relation-pill">Reference</span>
+              <a class="person-link" href="person.html?uid=${encodeURIComponent(ref.person.uid)}">${escHtml(ref.person.name || '(unnamed)')}</a>
+              ${ref.person.death_flag ? `<span style="font-size:0.7rem;color:var(--muted)"> ✝</span>` : ''}
+              <div class="fc-detail" style="margin-top:5px;white-space:normal">
+                ${ref.person.birth_place ? escHtml(ref.person.birth_place) + ' · ' : ''}
+                ${source ? 'Source: ' + escHtml(source.filename.replace(/\\.ged$/i, '')) : ''}
+                ${group.notes ? `<br>${escHtml(group.notes)}` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('') : '<div class="fc-detail">No additional duplicate references attached yet.</div>'}
+      <div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)">
+        <div class="fc-detail" style="white-space:normal;margin-bottom:8px">
+          Link another existing profile UID when this person also appears in another GEDCOM, such as an in-laws family file.
+        </div>
+        <div class="identity-ref-grid">
+          <input id="identity-ref-uid" placeholder="Paste profile UID"/>
+          <input id="identity-ref-notes" placeholder="Optional note"/>
+          <button class="btn-back" type="button" onclick="attachIdentityReference()">Attach</button>
+        </div>
+        <div id="identity-ref-status" class="fc-detail" style="margin-top:8px"></div>
+      </div>
+    </div>
+  `;
+}
+
+async function lookupPersonByUid(uid) {
+  if (!uid) return null;
+  const { data, error } = await sb.from('people')
+    .select('uid,name,birth_place,gedcom_id,death_flag')
+    .eq('uid', uid)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data;
+}
+
 // ===== RENDER PERSON DETAIL =====
 async function renderPerson(uid, el) {
   el.innerHTML = `<div class="empty-state"><span class="spinner"></span> Loading…</div>`;
@@ -1205,6 +1303,7 @@ async function renderPerson(uid, el) {
   currentAssignableChildren = allChildren;
   const relationshipAdditions = await loadRelationshipAdditions(uid);
   const reviewedFamilyGroups = await loadCanonicalFamilyGroups(uid);
+  const identityReferenceData = await loadIdentityReferences(uid);
   const hasReviewedMarriageGroups = reviewedFamilyGroups.length > 0;
   const reviewedChildUids = new Set(reviewedFamilyGroups.flatMap(group => group.children || []).map(child => child.child_person_uid).filter(Boolean));
   const unassignedReviewedChildren = hasReviewedMarriageGroups
@@ -1244,7 +1343,6 @@ async function renderPerson(uid, el) {
         ${displayDeathDate     ? `<div class="detail-field"><div class="key">Death Date</div><div class="val">${escHtml(displayDeathDate)}</div></div>` : ''}
         ${displayMobile        ? `<div class="detail-field"><div class="key">Mobile</div><div class="val">${escHtml(displayMobile)}</div></div>` : ''}
         ${displayEmail         ? `<div class="detail-field"><div class="key">Email</div><div class="val">${escHtml(displayEmail)}</div></div>` : ''}
-        ${displayBirthOrder    ? `<div class="detail-field"><div class="key">Birth Order</div><div class="val">${escHtml(displayBirthOrder)}</div></div>` : ''}
         ${displayDeathLocation ? `<div class="detail-field"><div class="key">Death Place</div><div class="val">${escHtml(displayDeathLocation)}</div></div>` : ''}
         ${p.occupation   ? `<div class="detail-field"><div class="key">Occupation</div><div class="val">${escHtml(p.occupation)}</div></div>` : ''}
         <div class="detail-field"><div class="key">Father</div><div class="val">${fatherName}</div></div>
@@ -1386,6 +1484,8 @@ async function renderPerson(uid, el) {
         </div>
       ` : ''}
 
+      ${renderIdentityReferencesSection(identityReferenceData)}
+
       ${(sourceNote || communityNote) ? `
         <div class="section-h">Notes</div>
         <div class="family-card">
@@ -1444,6 +1544,87 @@ function shareProfile() {
     // Fallback for older browsers
     prompt('Copy this link:', url);
   });
+}
+
+function setIdentityReferenceStatus(message, isError = false) {
+  const el = document.getElementById('identity-ref-status');
+  if (!el) return;
+  el.textContent = message;
+  el.style.color = isError ? 'var(--red)' : 'var(--green)';
+  el.style.fontWeight = '700';
+}
+
+async function attachIdentityReference() {
+  if (!currentPerson) return;
+  const uidInput = document.getElementById('identity-ref-uid');
+  const notesInput = document.getElementById('identity-ref-notes');
+  const otherUid = uidInput?.value.trim() || '';
+  const notes = notesInput?.value.trim() || '';
+  if (!otherUid) {
+    setIdentityReferenceStatus('Paste the other profile UID first.', true);
+    return;
+  }
+  if (otherUid === currentPerson.uid) {
+    setIdentityReferenceStatus('This is already the current profile.', true);
+    return;
+  }
+  const otherPerson = await lookupPersonByUid(otherUid);
+  if (!otherPerson) {
+    setIdentityReferenceStatus('No profile found for that UID.', true);
+    return;
+  }
+
+  const { data: currentMemberships, error: memberError } = await sb.from('person_identity_members')
+    .select('group_id')
+    .eq('person_uid', currentPerson.uid)
+    .limit(1);
+  if (memberError) {
+    setIdentityReferenceStatus('Identity reference tables are not ready. Run supabase_relationship_mvp.sql.', true);
+    return;
+  }
+
+  let groupId = (currentMemberships || [])[0]?.group_id || '';
+  if (!groupId) {
+    const { data: group, error: groupError } = await sb.from('person_identity_groups')
+      .insert({
+        canonical_person_uid: currentPerson.uid,
+        display_name: currentPerson.name || otherPerson.name || 'Linked identity',
+        notes: notes || null,
+        status: 'active',
+        created_by: currentUser || 'profile_editor',
+        updated_at: new Date().toISOString()
+      })
+      .select('id')
+      .single();
+    if (groupError || !group) {
+      setIdentityReferenceStatus(groupError?.message || 'Could not create reference group.', true);
+      return;
+    }
+    groupId = group.id;
+  }
+
+  const rows = [
+    {
+      group_id: groupId,
+      person_uid: currentPerson.uid,
+      source_role: 'canonical_profile',
+      notes: null
+    },
+    {
+      group_id: groupId,
+      person_uid: otherUid,
+      source_role: 'source_profile',
+      notes: notes || null
+    }
+  ];
+  const { error } = await sb.from('person_identity_members')
+    .upsert(rows, { onConflict: 'group_id,person_uid' });
+  if (error) {
+    setIdentityReferenceStatus(error.message, true);
+    return;
+  }
+  setIdentityReferenceStatus('Reference attached. Refreshing profile...');
+  await renderPerson(currentPerson.uid, document.getElementById('person-container'));
 }
 
 // ===== EDIT PROFILE MVP =====

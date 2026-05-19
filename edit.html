@@ -475,11 +475,15 @@ function personCard(p, cls) {
   const initial = (p.name || '?').trim().charAt(0).toUpperCase() || '?';
   const genderClass = p.sex === 'F' ? 'female' : '';
   return `
-    <div class="person-card ${cls === 'focus' ? 'focus' : ''} ${cls === 'child' ? 'child-card' : ''} ${p.uid === editingUid ? 'editing' : ''}" data-person-uid="${esc(p.uid)}" ${cls === 'child' ? `draggable="${moveModeActive ? 'true' : 'false'}"` : ''}>
+    <div class="person-card ${cls === 'focus' ? 'focus' : ''} ${cls === 'child' ? 'child-card' : ''} ${p.uid === editingUid ? 'editing' : ''}"
+      data-person-uid="${esc(p.uid)}"
+      onclick="selectPerson('${esc(p.uid)}')"
+      title="Click to edit this visible profile"
+      ${cls === 'child' ? `draggable="${moveModeActive ? 'true' : 'false'}"` : ''}>
       ${cls === 'child' ? '<span class="drag-handle" title="Drag this handle to move the child into another family group">⋮⋮</span>' : ''}
       <div class="card-actions">
-        <button onclick="selectPerson('${p.uid}')">edit</button>
-        <button onclick="location.href='person.html?uid=${encodeURIComponent(p.uid)}'">view</button>
+        <button type="button" onclick="event.stopPropagation();selectPerson('${esc(p.uid)}')">edit</button>
+        <button type="button" onclick="event.stopPropagation();location.href='person.html?uid=${encodeURIComponent(p.uid)}'">view</button>
       </div>
       <div class="p-initial ${genderClass}">${esc(initial)}</div>
       <div class="p-name">${esc(p.name || '(unnamed)')}</div>

@@ -52,6 +52,47 @@
   .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .hint { font-size:.78rem; color:var(--muted); line-height:1.55; }
   .section-title { margin:20px 0 10px; color:var(--gold); letter-spacing:.08em; text-transform:uppercase; font-weight:800; font-size:.8rem; border-top:1px solid var(--line); padding-top:14px; }
+  .soft-title { display:flex; align-items:center; gap:10px; color:var(--green); font-family:Georgia,serif; font-size:1.05rem; }
+  .soft-title::before { content:""; width:22px; height:2px; background:var(--gold); display:inline-block; }
+  .person-card { transition:box-shadow .15s ease, transform .15s ease; }
+  .person-card:hover { box-shadow:0 8px 20px rgba(51,38,18,.08); }
+  .p-initial { width:46px; height:46px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; margin-bottom:8px; background:#173e2a; color:#fff8e9; border:3px solid rgba(181,130,43,.35); font-family:Georgia,serif; font-size:1.2rem; font-weight:800; }
+  .p-initial.female { background:#7d4436; }
+  .drag-handle { position:absolute; left:-12px; top:22px; width:28px; height:44px; border-radius:10px; background:var(--green); color:#e8c45c; display:flex; align-items:center; justify-content:center; font-weight:900; letter-spacing:1px; box-shadow:0 4px 10px rgba(0,0,0,.14); }
+  .family-box { border-color:#6d6a5d; position:relative; }
+  .family-box.has-spouse { border-style:dashed; border-color:var(--green); }
+  .family-actions { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .add-card { border:1px dashed #b9aa88; background:#fbf8e9; border-radius:8px; }
+  .plus-bubble { display:inline-flex; width:34px; height:34px; align-items:center; justify-content:center; border-radius:999px; background:#f2dda2; color:var(--gold); font-size:1.45rem; margin-bottom:4px; }
+  .modal-backdrop { position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center; padding:22px; background:rgba(27,39,31,.45); }
+  .modal-backdrop.open { display:flex; }
+  .modal { width:min(820px,100%); max-height:90vh; overflow:auto; background:#f7efd8; color:var(--green); border:1px solid #d6c69b; border-radius:22px; box-shadow:0 24px 80px rgba(0,0,0,.24); }
+  .modal-head { display:flex; justify-content:space-between; gap:16px; padding:24px 28px; border-bottom:1px solid #d8caa6; }
+  .modal-kicker { color:var(--gold); text-transform:uppercase; letter-spacing:.16em; font-weight:900; font-size:.8rem; margin-bottom:8px; }
+  .modal h2 { margin:0; font-family:Georgia,serif; color:var(--green); font-size:2rem; line-height:1.1; }
+  .modal-context { margin-top:8px; color:#5f7065; }
+  .modal-close { border:0; background:transparent; color:#59675d; font-size:2rem; padding:0 4px; line-height:1; }
+  .modal-body { padding:24px 28px; }
+  .notice { padding:14px 16px; border-left:4px solid var(--gold); background:#f3e4ad; color:var(--green); border-radius:10px; margin-bottom:20px; line-height:1.45; }
+  .choice-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .choice-card { text-align:left; border:1px solid #d7c89e; background:#fffaf0; border-radius:16px; padding:24px; min-height:160px; }
+  .choice-card.primary-choice { background:var(--green); color:#fffdf7; border-color:var(--green); }
+  .choice-card strong { display:block; font-family:Georgia,serif; font-size:1.35rem; margin:12px 0 8px; }
+  .choice-icon { width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:#efdea9; color:var(--gold); font-size:1.45rem; }
+  .primary-choice .choice-icon { background:rgba(255,255,255,.12); color:#e8c45c; }
+  .modal-search { border:3px solid #e3c67b; border-radius:16px; padding:12px 14px; background:white; font-size:1.1rem; }
+  .result-list { margin-top:18px; border:1px solid #d8caa6; border-radius:14px; background:#fffdf7; overflow:hidden; }
+  .search-result { display:grid; grid-template-columns:52px minmax(0,1fr) auto; gap:14px; align-items:center; padding:14px 16px; border-bottom:1px solid #e5dcc9; }
+  .search-result:last-child { border-bottom:0; }
+  .search-result-name { font-family:Georgia,serif; color:var(--green); font-size:1.12rem; font-weight:800; }
+  .search-result-meta { color:#667267; font-size:.84rem; margin-top:4px; }
+  .uid-pill { display:inline-block; margin-top:6px; padding:4px 8px; background:#efe4c5; border-radius:7px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; color:#546459; font-size:.75rem; }
+  .modal-footer { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:0 28px 24px; }
+  .field-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .status-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .status-option { min-height:92px; border-radius:14px; background:#fffdf7; border:1px solid #d8caa6; color:var(--green); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
+  .status-option.active { border:2px solid var(--green); box-shadow:0 0 0 4px rgba(181,130,43,.16); }
+  .status-icon { width:38px; height:38px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:#efe0b0; color:var(--gold); }
   @media (max-width:900px) {
     header { align-items:flex-start; flex-direction:column; }
     main { padding:12px; }
@@ -60,6 +101,9 @@
     .board { padding:14px; }
     .row, .family-box { min-width:720px; }
     .children-grid { grid-template-columns:repeat(2,minmax(180px,1fr)); }
+    .choice-grid, .field-row, .status-grid { grid-template-columns:1fr; }
+    .modal { border-radius:18px; }
+    .modal h2 { font-size:1.55rem; }
   }
 </style>
 </head>
@@ -144,6 +188,54 @@
   </div>
 </main>
 
+<div class="modal-backdrop" id="relationship-modal" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="relationship-title">
+    <div class="modal-head">
+      <div>
+        <div class="modal-kicker" id="relationship-kicker">Step 1 of 2 - choose how</div>
+        <h2 id="relationship-title">Add family connection</h2>
+        <div class="modal-context" id="relationship-context">Linking to selected profile.</div>
+      </div>
+      <button class="modal-close" type="button" onclick="closeRelationshipModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body" id="relationship-body"></div>
+    <div class="modal-footer" id="relationship-footer"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="marriage-modal" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="marriage-title">
+    <div class="modal-head">
+      <div>
+        <div class="modal-kicker">Marriage details</div>
+        <h2 id="marriage-title">Marriage details</h2>
+        <div class="modal-context">These details show up on both partners' profiles.</div>
+      </div>
+      <button class="modal-close" type="button" onclick="closeMarriageModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <label>Current status</label>
+      <div class="status-grid" id="marriage-status-grid"></div>
+      <div class="field-row">
+        <div>
+          <label>Marriage date</label>
+          <input id="marriage-date" placeholder="Any format - e.g. 12 Jan 1978"/>
+        </div>
+        <div>
+          <label>Marriage place</label>
+          <input id="marriage-place" placeholder="City, country"/>
+        </div>
+      </div>
+      <label>Notes (optional)</label>
+      <textarea id="marriage-notes" placeholder="Anything to remember about this marriage..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button type="button" onclick="closeMarriageModal()">Cancel</button>
+      <button class="primary" type="button" onclick="saveMarriageDetails()">Save details</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://fusairoeiabmqvsbxhfi.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1c2Fpcm9laWFibXF2c2J4aGZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MTUwNTgsImV4cCI6MjA5MzQ5MTA1OH0.uTVlBn4iDFZzAeD2i4Bzt4fXVxGequ2W9LIxugBIKsA';
@@ -157,8 +249,40 @@ let father = null;
 let mother = null;
 let spouseFamilies = [];
 let peopleByUid = {};
+let relationshipContext = null;
+let relationshipSearchTimer = null;
+let marriageContext = null;
+let selectedMarriageStatus = 'married';
+
+const RELATION_LABELS = {
+  father: 'Father',
+  mother: 'Mother',
+  spouse: 'Spouse / partner',
+  child: 'Child',
+  move_child: 'Existing child'
+};
+
+const MARRIAGE_STATUSES = [
+  ['married', '♡', 'Married'],
+  ['divorced', '↔', 'Divorced'],
+  ['separated', '╂', 'Separated'],
+  ['widowed', '⌒', 'Widowed'],
+  ['unknown', '?', 'Unknown'],
+  ['annulled', '⊘', 'Annulled']
+];
 
 document.addEventListener('DOMContentLoaded', loadEditor);
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return;
+  if (document.getElementById('relationship-modal')?.classList.contains('open')) closeRelationshipModal();
+  if (document.getElementById('marriage-modal')?.classList.contains('open')) closeMarriageModal();
+});
+document.getElementById('relationship-modal').addEventListener('click', event => {
+  if (event.target.id === 'relationship-modal') closeRelationshipModal();
+});
+document.getElementById('marriage-modal').addEventListener('click', event => {
+  if (event.target.id === 'marriage-modal') closeMarriageModal();
+});
 
 async function loadEditor() {
   if (!focusUid) {
@@ -282,12 +406,16 @@ function personCard(p, cls) {
   if (p.birth_date) meta.push('b. ' + p.birth_date);
   if (p.birth_place) meta.push(p.birth_place);
   if (p.death_flag && p.death_date) meta.push('d. ' + p.death_date);
+  const initial = (p.name || '?').trim().charAt(0).toUpperCase() || '?';
+  const genderClass = p.sex === 'F' ? 'female' : '';
   return `
     <div class="person-card ${cls === 'focus' ? 'focus' : ''}">
+      ${cls === 'child' ? '<span class="drag-handle" title="Use Move existing child to place this child in another family">⋮⋮</span>' : ''}
       <div class="card-actions">
         <button onclick="selectPerson('${p.uid}')">edit</button>
         <button onclick="location.href='person.html?uid=${encodeURIComponent(p.uid)}'">view</button>
       </div>
+      <div class="p-initial ${genderClass}">${esc(initial)}</div>
       <div class="p-name">${esc(p.name || '(unnamed)')}</div>
       <div class="p-meta">${esc(meta.join('\\n'))}</div>
       ${p.death_flag ? '<span class="deceased-badge" title="This person is marked as deceased">† Deceased</span>' : ''}
@@ -313,18 +441,18 @@ function familySection(fam, idx) {
   const title = `${focusPerson.name || 'Person'} and ${spouseName}'s children`;
   const children = fam.children || [];
   return `
-    <section class="family-box">
-      <div class="family-title">${esc(title)} (${children.length})</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-        <button class="small" onclick="addChildToFamily('${fam.uid}')">Add Son / Daughter</button>
-        <button class="small" onclick="moveExistingChildToFamily('${fam.uid}')">Move Existing Child Here</button>
-        <button class="small" onclick="editFamilyFacts('${fam.uid}')">Marriage Facts</button>
+    <section class="family-box ${spouseUid ? 'has-spouse' : ''}">
+      <div class="family-title"><span style="color:var(--gold)">Family ${idx + 1}</span> &nbsp; ${esc(title)} (${children.length})</div>
+      <div class="family-actions">
+        <button class="small" onclick="addChildToFamily('${fam.uid}')">+ Add a child</button>
+        <button class="small" onclick="moveExistingChildToFamily('${fam.uid}')">Move existing child here</button>
+        <button class="small" onclick="editFamilyFacts('${fam.uid}')">Marriage details</button>
         ${!spouseUid && !children.length ? `<button class="small danger" onclick="deleteEmptyFamilyGroup('${fam.uid}')">Delete Empty Group</button>` : ''}
       </div>
       <div class="children-grid">
         ${children.map(child => personCard(child, 'child')).join('')}
         <button class="person-card add-card" onclick="addChildToFamily('${fam.uid}')">
-          <span>add Son</span><span>add Daughter</span>
+          <span class="plus-bubble">+</span><span>Add a child</span><span style="font-weight:400;color:var(--muted)">son or daughter</span>
         </button>
       </div>
     </section>
@@ -414,8 +542,10 @@ async function savePerson(event) {
 }
 
 async function addParent(type) {
-  const parentUid = await getOrCreatePersonFromPrompt(type === 'father' ? 'Father' : 'Mother', type === 'father' ? 'M' : 'F');
-  if (!parentUid) return;
+  openRelationshipChooser(type);
+}
+
+async function setParent(type, parentUid) {
   let fam = parentFamily;
   if (!fam) {
     fam = await createFamily();
@@ -430,8 +560,10 @@ async function addParent(type) {
 }
 
 async function addSpouseFamily() {
-  const spouseUid = await getOrCreatePersonFromPrompt('Spouse / partner', focusPerson.sex === 'M' ? 'F' : 'M');
-  if (!spouseUid) return;
+  openRelationshipChooser('spouse');
+}
+
+async function createSpouseFamilyWith(spouseUid) {
   const spouse = await getPerson(spouseUid);
   const fam = await createFamily();
   if (!fam) return;
@@ -450,20 +582,11 @@ async function addSpouseFamily() {
 }
 
 async function addChildToFamily(familyUid) {
-  const gender = prompt('Child gender? Type M, F, or leave blank:', '') || '';
-  const childUid = await getOrCreatePersonFromPrompt('Child', gender.toUpperCase() === 'F' ? 'F' : gender.toUpperCase() === 'M' ? 'M' : '');
-  if (!childUid) return;
-  await moveChildToFamily(childUid, familyUid);
+  openRelationshipChooser('child', familyUid);
 }
 
 async function moveExistingChildToFamily(familyUid) {
-  const childUid = prompt('Paste existing child profile UID to move into this spouse group:', '');
-  if (!childUid) return;
-  const child = await getPerson(childUid.trim());
-  if (!child) return setStatus('No person found for that UID.', true);
-  const ok = confirm('Move ' + (child.name || child.uid) + ' into this spouse/partner child group?');
-  if (!ok) return;
-  await moveChildToFamily(child.uid, familyUid);
+  openRelationshipSearch('move_child', familyUid);
 }
 
 async function moveChildToFamily(childUid, familyUid) {
@@ -491,47 +614,283 @@ async function moveChildToFamily(childUid, familyUid) {
 async function editFamilyFacts(familyUid) {
   const fam = spouseFamilies.find(f => f.uid === familyUid);
   if (!fam) return;
-  const marrDate = prompt('Marriage date (free text):', fam.marr_date || '') || '';
-  const marrPlace = prompt('Marriage place:', fam.marr_place || '') || '';
-  const status = prompt('Marriage status (married, divorced, separated, widowed, unknown):', fam.marr_status || 'married') || '';
-  const { error } = await sb.from('families').update({
-    marr_date: marrDate || null,
-    marr_place: marrPlace || null,
-    marr_status: status || null
-  }).eq('uid', familyUid);
-  if (error) return setStatus(error.message, true);
-  setStatus('Marriage facts saved.');
-  await loadEditor();
+  openMarriageModal(fam);
 }
 
-async function getOrCreatePersonFromPrompt(label, defaultSex) {
-  const existingUid = prompt(label + ': paste existing profile UID, or leave blank to create a new person:', '');
-  if (existingUid && existingUid.trim()) {
-    const existing = await getPerson(existingUid.trim());
-    if (!existing) {
-      setStatus('No person found for that UID.', true);
-      return '';
-    }
-    return existing.uid;
+function openRelationshipChooser(kind, familyUid = '') {
+  relationshipContext = { kind, familyUid };
+  const label = RELATION_LABELS[kind] || 'Person';
+  setRelationshipHeader('Step 1 of 2 - choose how', 'Add ' + label.toLowerCase(), relationshipContextText(kind, familyUid));
+  document.getElementById('relationship-body').innerHTML = `
+    <div class="notice"><strong>Important:</strong> Many people are already in the family book. Always search first to avoid creating a duplicate profile.</div>
+    <div class="choice-grid">
+      <button class="choice-card primary-choice" type="button" onclick="openRelationshipSearch('${kind}', '${esc(familyUid)}')">
+        <span class="choice-icon">⌕</span>
+        <strong>Find existing person</strong>
+        <span>Search the family book by name, or paste a profile UID.</span>
+      </button>
+      <button class="choice-card" type="button" onclick="openCreatePersonModal('${kind}', '${esc(familyUid)}')">
+        <span class="choice-icon">+</span>
+        <strong>Add a brand new person</strong>
+        <span>This person has never been recorded in the family book before.</span>
+      </button>
+    </div>
+  `;
+  document.getElementById('relationship-footer').innerHTML = `<button type="button" onclick="closeRelationshipModal()">Cancel</button><span></span>`;
+  openRelationshipModal();
+}
+
+function openRelationshipSearch(kind = relationshipContext?.kind || 'child', familyUid = relationshipContext?.familyUid || '') {
+  relationshipContext = { kind, familyUid };
+  const label = RELATION_LABELS[kind] || 'Person';
+  setRelationshipHeader('Step 2 - find them', 'Add ' + label.toLowerCase(), relationshipContextText(kind, familyUid));
+  document.getElementById('relationship-body').innerHTML = `
+    <input class="modal-search" id="relationship-search-input" placeholder="Search by name or paste UID" oninput="queueRelationshipSearch()"/>
+    <div id="relationship-search-count" class="hint" style="margin-top:12px">Start typing to search the family book.</div>
+    <div class="result-list" id="relationship-results"></div>
+    <div class="notice" style="margin-top:18px">Can't find them? <button class="small" type="button" onclick="openCreatePersonModal('${kind}', '${esc(familyUid)}')">Add them as a new person</button></div>
+  `;
+  document.getElementById('relationship-footer').innerHTML = `
+    <button type="button" onclick="openRelationshipChooser('${kind}', '${esc(familyUid)}')">Back</button>
+    <button type="button" onclick="closeRelationshipModal()">Cancel</button>
+  `;
+  openRelationshipModal();
+  setTimeout(() => document.getElementById('relationship-search-input')?.focus(), 50);
+}
+
+function openCreatePersonModal(kind = relationshipContext?.kind || 'child', familyUid = relationshipContext?.familyUid || '') {
+  relationshipContext = { kind, familyUid };
+  const label = RELATION_LABELS[kind] || 'Person';
+  const sexDefault = defaultSexFor(kind);
+  setRelationshipHeader('Step 2 - create new entry', 'Add ' + label.toLowerCase(), relationshipContextText(kind, familyUid));
+  document.getElementById('relationship-body').innerHTML = `
+    <div class="notice">A new entry will be created in the family book. A unique ID is generated automatically.</div>
+    <label>Full name</label>
+    <input id="new-person-name" placeholder="e.g. Razia Begum"/>
+    <div class="field-row">
+      <div>
+        <label>Gender</label>
+        <select id="new-person-sex">
+          <option value="">Unknown</option>
+          <option value="M" ${sexDefault === 'M' ? 'selected' : ''}>Male</option>
+          <option value="F" ${sexDefault === 'F' ? 'selected' : ''}>Female</option>
+        </select>
+      </div>
+      <div>
+        <label>Living?</label>
+        <select id="new-person-living">
+          <option value="alive">Yes - alive</option>
+          <option value="deceased">No - deceased</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div><label>Birth date / year</label><input id="new-person-birth" placeholder="e.g. 1942"/></div>
+      <div><label>Place</label><input id="new-person-place" placeholder="e.g. Kanpur"/></div>
+    </div>
+  `;
+  document.getElementById('relationship-footer').innerHTML = `
+    <button type="button" onclick="openRelationshipChooser('${kind}', '${esc(familyUid)}')">Back</button>
+    <div style="display:flex;gap:10px">
+      <button type="button" onclick="closeRelationshipModal()">Cancel</button>
+      <button class="primary" type="button" onclick="createAndAttachPerson()">Add new ${esc(label.toLowerCase())}</button>
+    </div>
+  `;
+  openRelationshipModal();
+  setTimeout(() => document.getElementById('new-person-name')?.focus(), 50);
+}
+
+function setRelationshipHeader(kicker, title, context) {
+  document.getElementById('relationship-kicker').textContent = kicker;
+  document.getElementById('relationship-title').textContent = title;
+  document.getElementById('relationship-context').textContent = context;
+}
+
+function relationshipContextText(kind, familyUid) {
+  const base = focusPerson?.name || 'selected profile';
+  if ((kind === 'child' || kind === 'move_child') && familyUid) {
+    const fam = spouseFamilies.find(f => f.uid === familyUid);
+    const spouseUid = fam ? (fam.husband_uid === focusUid ? fam.wife_uid : fam.husband_uid) : '';
+    const spouse = spouseUid ? peopleByUid[spouseUid] : null;
+    return 'Linking under ' + base + (spouse ? ' and ' + spouse.name : ' spouse/partner group') + '.';
   }
-  const name = prompt(label + ' name:', '');
-  if (!name || !name.trim()) return '';
-  const sex = prompt('Gender for ' + name + ' (M/F/blank):', defaultSex || '') || '';
+  return 'Linking to ' + base + '.';
+}
+
+function openRelationshipModal() {
+  const modal = document.getElementById('relationship-modal');
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeRelationshipModal() {
+  const modal = document.getElementById('relationship-modal');
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+  relationshipContext = null;
+}
+
+function queueRelationshipSearch() {
+  clearTimeout(relationshipSearchTimer);
+  relationshipSearchTimer = setTimeout(runRelationshipSearch, 180);
+}
+
+async function runRelationshipSearch() {
+  const input = document.getElementById('relationship-search-input');
+  const list = document.getElementById('relationship-results');
+  const count = document.getElementById('relationship-search-count');
+  const q = input?.value.trim() || '';
+  if (!q) {
+    count.textContent = 'Start typing to search the family book.';
+    list.innerHTML = '';
+    return;
+  }
+  count.textContent = 'Searching...';
+  const uidMatch = q.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  let query = sb.from('people').select('uid,name,sex,birth_date,birth_place,death_flag,gedcom_id').limit(8);
+  query = uidMatch ? query.eq('uid', uidMatch[0]) : query.ilike('name', '%' + q + '%').order('name');
+  const { data, error } = await query;
+  if (error) {
+    count.textContent = error.message;
+    list.innerHTML = '';
+    return;
+  }
+  const rows = data || [];
+  count.textContent = rows.length + ' ' + (rows.length === 1 ? 'person' : 'people') + ' found for "' + q + '".';
+  if (!rows.length) {
+    list.innerHTML = `<div class="search-result"><div></div><div><div class="search-result-name">No matches</div><div class="search-result-meta">Try a different spelling, or create a new entry.</div></div><button class="small" onclick="openCreatePersonModal('${relationshipContext.kind}', '${esc(relationshipContext.familyUid || '')}')">Create new</button></div>`;
+    return;
+  }
+  rows.forEach(p => { peopleByUid[p.uid] = p; });
+  list.innerHTML = rows.map(p => {
+    const initial = (p.name || '?').trim().charAt(0).toUpperCase() || '?';
+    const meta = [p.sex === 'M' ? 'Male' : p.sex === 'F' ? 'Female' : '', p.birth_place || '', p.birth_date ? 'b. ' + p.birth_date : '', p.death_flag ? 'deceased' : ''].filter(Boolean).join(' · ');
+    return `
+      <div class="search-result">
+        <div class="p-initial ${p.sex === 'F' ? 'female' : ''}" style="margin:0">${esc(initial)}</div>
+        <div>
+          <div class="search-result-name">${esc(p.name || '(unnamed)')}</div>
+          <div class="search-result-meta">${esc(meta || 'No details recorded')}</div>
+          <span class="uid-pill">${esc(p.uid)}</span>
+        </div>
+        <button class="primary small" onclick="selectExistingForRelationship('${p.uid}')">Select</button>
+      </div>
+    `;
+  }).join('');
+}
+
+async function selectExistingForRelationship(personUid) {
+  const person = await getPerson(personUid);
+  if (!person) return setStatus('No person found for that UID.', true);
+  await attachPersonToContext(person.uid);
+}
+
+async function createAndAttachPerson() {
+  const name = value('new-person-name');
+  if (!name) return setStatus('Please enter a name before creating the profile.', true);
   const uid = crypto.randomUUID();
-  const { error } = await sb.from('people').insert({
+  const living = value('new-person-living') !== 'deceased';
+  const payload = {
     uid,
-    gedcom_id: focusPerson?.gedcom_id || null,
-    name: name.trim(),
-    sex: sex.trim().toUpperCase() || null,
-    death_flag: false,
+    gedcom_id: inferGedcomForNewPerson(),
+    name,
+    sex: value('new-person-sex') || null,
+    birth_date: value('new-person-birth') || null,
+    birth_place: value('new-person-place') || null,
+    death_flag: !living,
     raw_gedcom_id: uid,
     updated_at: new Date().toISOString()
-  });
-  if (error) {
-    setStatus(error.message, true);
-    return '';
+  };
+  const { error } = await sb.from('people').insert(payload);
+  if (error) return setStatus(error.message, true);
+  peopleByUid[uid] = payload;
+  await attachPersonToContext(uid);
+}
+
+async function attachPersonToContext(personUid) {
+  const ctx = relationshipContext;
+  if (!ctx) return;
+  closeRelationshipModal();
+  if (ctx.kind === 'father' || ctx.kind === 'mother') return setParent(ctx.kind, personUid);
+  if (ctx.kind === 'spouse') return createSpouseFamilyWith(personUid);
+  if (ctx.kind === 'child' || ctx.kind === 'move_child') return moveChildToFamily(personUid, ctx.familyUid);
+}
+
+function defaultSexFor(kind) {
+  if (kind === 'father') return 'M';
+  if (kind === 'mother') return 'F';
+  if (kind === 'spouse') return focusPerson?.sex === 'M' ? 'F' : focusPerson?.sex === 'F' ? 'M' : '';
+  return '';
+}
+
+function inferGedcomForNewPerson() {
+  const ctx = relationshipContext || {};
+  if ((ctx.kind === 'child' || ctx.kind === 'move_child') && ctx.familyUid) {
+    const fam = spouseFamilies.find(f => f.uid === ctx.familyUid);
+    const husband = fam?.husband_uid ? peopleByUid[fam.husband_uid] : null;
+    if (husband?.gedcom_id) return husband.gedcom_id;
   }
-  return uid;
+  return focusPerson?.gedcom_id || null;
+}
+
+function openMarriageModal(fam) {
+  marriageContext = fam;
+  const spouseUid = fam.husband_uid === focusUid ? fam.wife_uid : fam.husband_uid;
+  const spouse = spouseUid ? peopleByUid[spouseUid] : null;
+  selectedMarriageStatus = fam.marr_status || 'married';
+  document.getElementById('marriage-title').textContent = (focusPerson.name || 'Person') + ' · ' + (spouse?.name || 'Spouse');
+  document.getElementById('marriage-date').value = fam.marr_date || '';
+  document.getElementById('marriage-place').value = fam.marr_place || '';
+  document.getElementById('marriage-notes').value = fam.marr_notes || '';
+  renderMarriageStatuses();
+  const modal = document.getElementById('marriage-modal');
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+
+function renderMarriageStatuses() {
+  document.getElementById('marriage-status-grid').innerHTML = MARRIAGE_STATUSES.map(([value, icon, label]) => `
+    <button type="button" class="status-option ${selectedMarriageStatus === value ? 'active' : ''}" onclick="selectMarriageStatus('${value}')">
+      <span class="status-icon">${esc(icon)}</span>
+      <strong>${esc(label)}</strong>
+    </button>
+  `).join('');
+}
+
+function selectMarriageStatus(status) {
+  selectedMarriageStatus = status;
+  renderMarriageStatuses();
+}
+
+function closeMarriageModal() {
+  const modal = document.getElementById('marriage-modal');
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+  marriageContext = null;
+}
+
+async function saveMarriageDetails() {
+  if (!marriageContext) return;
+  const payload = {
+    marr_date: value('marriage-date') || null,
+    marr_place: value('marriage-place') || null,
+    marr_status: selectedMarriageStatus || null,
+    marr_notes: value('marriage-notes') || null
+  };
+  let { error } = await sb.from('families').update(payload).eq('uid', marriageContext.uid);
+  if (error && /schema cache|marr_notes/i.test(error.message || '')) {
+    delete payload.marr_notes;
+    const retry = await sb.from('families').update(payload).eq('uid', marriageContext.uid);
+    error = retry.error;
+  }
+  if (error) return setStatus(error.message, true);
+  closeMarriageModal();
+  setStatus('Marriage details saved.');
+  await loadEditor();
 }
 
 async function createFamily() {

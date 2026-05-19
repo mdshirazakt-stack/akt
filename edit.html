@@ -16,7 +16,7 @@
   header { position:sticky; top:0; z-index:10; background:rgba(247,242,232,.95); border-bottom:1px solid var(--line); padding:14px 22px; display:flex; justify-content:space-between; gap:12px; align-items:center; }
   h1 { margin:0; color:var(--green); font-family:Georgia, serif; font-size:1.45rem; }
   .sub { color:var(--muted); font-size:.82rem; margin-top:3px; }
-  main { max-width:1180px; margin:0 auto; padding:22px; }
+  main { width:100%; max-width:1680px; margin:0 auto; padding:22px 32px; }
   button, .btn { border:1px solid var(--line); background:#fffaf0; color:var(--green); padding:8px 12px; font-weight:700; cursor:pointer; text-decoration:none; font:inherit; }
   button.primary { background:var(--green); color:#fff; border-color:var(--green); }
   button.gold { background:var(--gold); color:#fff; border-color:var(--gold); }
@@ -24,12 +24,14 @@
   button.small, .btn.small { padding:5px 8px; font-size:.78rem; }
   .toolbar { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
   .status { display:none; margin-bottom:16px; padding:12px 14px; border-left:4px solid var(--gold); background:#fffaf0; color:var(--green); font-weight:700; }
-  .layout { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:18px; align-items:start; }
+  .layout { display:grid; grid-template-columns:minmax(0,1fr) 420px; gap:24px; align-items:start; }
   .board { background:#edf2df; border:1px solid #9ca891; min-height:520px; padding:22px; overflow-x:auto; }
   .row { display:flex; justify-content:center; gap:42px; align-items:flex-start; margin:10px 0 26px; min-width:820px; }
   .row.center { margin-top:4px; }
   .person-card { position:relative; min-width:220px; max-width:260px; background:#f4f6e7; border:1px solid #888; border-radius:4px; padding:12px 14px 28px; text-align:center; box-shadow:0 1px 0 rgba(0,0,0,.05); }
   .person-card.focus { border-width:2px; background:#fffde7; }
+  .person-card.editing { border:2px solid var(--gold); background:#fff5d8; box-shadow:0 0 0 4px rgba(181,130,43,.18), 0 10px 24px rgba(51,38,18,.12); }
+  .person-card.editing::after { content:"Editing"; position:absolute; left:10px; top:8px; padding:2px 7px; background:var(--gold); color:#fff; border-radius:999px; font-size:.64rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
   .person-card.empty { color:var(--blue); font-weight:700; display:flex; align-items:center; justify-content:center; min-height:76px; }
   .p-name { color:var(--blue); font-weight:800; line-height:1.25; }
   .p-meta { font-size:.82rem; margin-top:5px; color:#111; line-height:1.35; white-space:pre-line; }
@@ -58,7 +60,8 @@
   .person-card:hover { box-shadow:0 8px 20px rgba(51,38,18,.08); }
   .p-initial { width:46px; height:46px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; margin-bottom:8px; background:#173e2a; color:#fff8e9; border:3px solid rgba(181,130,43,.35); font-family:Georgia,serif; font-size:1.2rem; font-weight:800; }
   .p-initial.female { background:#7d4436; }
-  .drag-handle { position:absolute; left:-12px; top:22px; width:28px; height:44px; border-radius:10px; background:var(--green); color:#e8c45c; display:flex; align-items:center; justify-content:center; font-weight:900; letter-spacing:1px; box-shadow:0 4px 10px rgba(0,0,0,.14); }
+  .drag-handle { position:absolute; left:-12px; top:22px; width:28px; height:44px; border-radius:10px; background:var(--green); color:#e8c45c; display:none; align-items:center; justify-content:center; font-weight:900; letter-spacing:1px; box-shadow:0 4px 10px rgba(0,0,0,.14); }
+  .move-mode .drag-handle { display:flex; }
   .family-box { border-color:#6d6a5d; position:relative; }
   .family-box.has-spouse { border-style:dashed; border-color:var(--green); }
   .family-actions { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
@@ -253,6 +256,7 @@ let relationshipContext = null;
 let relationshipSearchTimer = null;
 let marriageContext = null;
 let selectedMarriageStatus = 'married';
+let editingUid = '';
 
 const RELATION_LABELS = {
   father: 'Father',
@@ -399,6 +403,7 @@ function renderBoard() {
     <div class="connector"></div>
     ${spouseRows || '<div class="family-box"><div class="family-title">No spouse/partner family groups yet.</div></div>'}
   `;
+  document.getElementById('family-board').classList.toggle('move-mode', Boolean(relationshipContext?.kind === 'move_child'));
 }
 
 function personCard(p, cls) {
@@ -409,8 +414,8 @@ function personCard(p, cls) {
   const initial = (p.name || '?').trim().charAt(0).toUpperCase() || '?';
   const genderClass = p.sex === 'F' ? 'female' : '';
   return `
-    <div class="person-card ${cls === 'focus' ? 'focus' : ''}">
-      ${cls === 'child' ? '<span class="drag-handle" title="Use Move existing child to place this child in another family">⋮⋮</span>' : ''}
+    <div class="person-card ${cls === 'focus' ? 'focus' : ''} ${p.uid === editingUid ? 'editing' : ''}" data-person-uid="${esc(p.uid)}">
+      ${cls === 'child' ? '<span class="drag-handle" title="This handle appears during child move mode">⋮⋮</span>' : ''}
       <div class="card-actions">
         <button onclick="selectPerson('${p.uid}')">edit</button>
         <button onclick="location.href='person.html?uid=${encodeURIComponent(p.uid)}'">view</button>
@@ -479,6 +484,8 @@ async function deleteEmptyFamilyGroup(familyUid) {
 function selectPerson(uid) {
   const p = peopleByUid[uid];
   if (!p) return;
+  editingUid = uid;
+  markEditingCard();
   document.getElementById('editing-label').textContent = p.name || '(unnamed)';
   document.getElementById('edit-uid').value = p.uid;
   document.getElementById('edit-name').value = p.name || '';
@@ -494,6 +501,13 @@ function selectPerson(uid) {
   document.getElementById('edit-email').value = p.email || '';
   document.getElementById('edit-notes').value = p.notes || '';
   toggleDeathFields();
+}
+
+function markEditingCard() {
+  document.querySelectorAll('.person-card.editing').forEach(card => card.classList.remove('editing'));
+  document.querySelectorAll('.person-card').forEach(card => {
+    if (card.dataset.personUid === editingUid) card.classList.add('editing');
+  });
 }
 
 function toggleDeathFields() {
@@ -539,6 +553,7 @@ async function savePerson(event) {
   if (error) return setStatus(error.message, true);
   setStatus('Profile saved to source person record.');
   await loadEditor();
+  selectPerson(uid);
 }
 
 async function addParent(type) {
@@ -643,18 +658,24 @@ function openRelationshipChooser(kind, familyUid = '') {
 function openRelationshipSearch(kind = relationshipContext?.kind || 'child', familyUid = relationshipContext?.familyUid || '') {
   relationshipContext = { kind, familyUid };
   const label = RELATION_LABELS[kind] || 'Person';
-  setRelationshipHeader('Step 2 - find them', 'Add ' + label.toLowerCase(), relationshipContextText(kind, familyUid));
+  const isMove = kind === 'move_child';
+  setRelationshipHeader(
+    isMove ? 'Find existing child' : 'Step 2 - find them',
+    isMove ? 'Move existing child here' : 'Add ' + label.toLowerCase(),
+    relationshipContextText(kind, familyUid)
+  );
   document.getElementById('relationship-body').innerHTML = `
     <input class="modal-search" id="relationship-search-input" placeholder="Search by name or paste UID" oninput="queueRelationshipSearch()"/>
     <div id="relationship-search-count" class="hint" style="margin-top:12px">Start typing to search the family book.</div>
     <div class="result-list" id="relationship-results"></div>
-    <div class="notice" style="margin-top:18px">Can't find them? <button class="small" type="button" onclick="openCreatePersonModal('${kind}', '${esc(familyUid)}')">Add them as a new person</button></div>
+    ${isMove ? '<div class="notice" style="margin-top:18px">This will move an existing child record into the selected spouse/partner group. It will not create a new profile.</div>' : `<div class="notice" style="margin-top:18px">Can't find them? <button class="small" type="button" onclick="openCreatePersonModal('${kind}', '${esc(familyUid)}')">Add them as a new person</button></div>`}
   `;
   document.getElementById('relationship-footer').innerHTML = `
-    <button type="button" onclick="openRelationshipChooser('${kind}', '${esc(familyUid)}')">Back</button>
+    ${isMove ? '<span></span>' : `<button type="button" onclick="openRelationshipChooser('${kind}', '${esc(familyUid)}')">Back</button>`}
     <button type="button" onclick="closeRelationshipModal()">Cancel</button>
   `;
   openRelationshipModal();
+  document.getElementById('family-board')?.classList.toggle('move-mode', isMove);
   setTimeout(() => document.getElementById('relationship-search-input')?.focus(), 50);
 }
 
@@ -729,6 +750,7 @@ function closeRelationshipModal() {
   modal.classList.remove('open');
   modal.setAttribute('aria-hidden', 'true');
   document.body.style.overflow = '';
+  document.getElementById('family-board')?.classList.remove('move-mode');
   relationshipContext = null;
 }
 
@@ -764,9 +786,11 @@ async function runRelationshipSearch() {
     return;
   }
   rows.forEach(p => { peopleByUid[p.uid] = p; });
+  const parentSummaries = await getParentSummaries(rows);
   list.innerHTML = rows.map(p => {
     const initial = (p.name || '?').trim().charAt(0).toUpperCase() || '?';
-    const meta = [p.sex === 'M' ? 'Male' : p.sex === 'F' ? 'Female' : '', p.birth_place || '', p.birth_date ? 'b. ' + p.birth_date : '', p.death_flag ? 'deceased' : ''].filter(Boolean).join(' · ');
+    const parentText = parentSummaries[p.uid] || '';
+    const meta = [parentText, p.birth_place || '', p.birth_date ? 'b. ' + p.birth_date : '', p.death_flag ? 'deceased' : ''].filter(Boolean).join(' · ');
     return `
       <div class="search-result">
         <div class="p-initial ${p.sex === 'F' ? 'female' : ''}" style="margin:0">${esc(initial)}</div>
@@ -779,6 +803,41 @@ async function runRelationshipSearch() {
       </div>
     `;
   }).join('');
+}
+
+async function getParentSummaries(rows) {
+  const result = {};
+  const personUids = rows.map(p => p.uid).filter(Boolean);
+  if (!personUids.length) return result;
+  const { data: memberships } = await sb.from('family_members')
+    .select('family_uid,person_uid')
+    .in('person_uid', personUids)
+    .eq('role', 'child');
+  const familyUids = [...new Set((memberships || []).map(m => m.family_uid).filter(Boolean))];
+  if (!familyUids.length) return result;
+  const { data: families } = await sb.from('families')
+    .select('uid,husband_uid,wife_uid')
+    .in('uid', familyUids);
+  const familyByUid = {};
+  const parentUids = [];
+  (families || []).forEach(fam => {
+    familyByUid[fam.uid] = fam;
+    if (fam.husband_uid) parentUids.push(fam.husband_uid);
+    if (fam.wife_uid) parentUids.push(fam.wife_uid);
+  });
+  await loadPeople(parentUids);
+  (memberships || []).forEach(member => {
+    if (result[member.person_uid]) return;
+    const fam = familyByUid[member.family_uid];
+    if (!fam) return;
+    const fatherName = fam.husband_uid ? peopleByUid[fam.husband_uid]?.name : '';
+    const motherName = fam.wife_uid ? peopleByUid[fam.wife_uid]?.name : '';
+    const parts = [];
+    if (fatherName) parts.push('father: ' + fatherName);
+    if (motherName) parts.push('mother: ' + motherName);
+    if (parts.length) result[member.person_uid] = parts.join(' · ');
+  });
+  return result;
 }
 
 async function selectExistingForRelationship(personUid) {
@@ -875,21 +934,24 @@ function closeMarriageModal() {
 
 async function saveMarriageDetails() {
   if (!marriageContext) return;
+  const notesValue = value('marriage-notes');
   const payload = {
     marr_date: value('marriage-date') || null,
     marr_place: value('marriage-place') || null,
     marr_status: selectedMarriageStatus || null,
-    marr_notes: value('marriage-notes') || null
+    marr_notes: notesValue || null
   };
+  let savedWithoutNotes = false;
   let { error } = await sb.from('families').update(payload).eq('uid', marriageContext.uid);
   if (error && /schema cache|marr_notes/i.test(error.message || '')) {
     delete payload.marr_notes;
+    savedWithoutNotes = Boolean(notesValue);
     const retry = await sb.from('families').update(payload).eq('uid', marriageContext.uid);
     error = retry.error;
   }
   if (error) return setStatus(error.message, true);
   closeMarriageModal();
-  setStatus('Marriage details saved.');
+  setStatus(savedWithoutNotes ? 'Marriage details saved, but notes need the marr_notes database column. Run supabase_family_editor_updates.sql.' : 'Marriage details saved.');
   await loadEditor();
 }
 

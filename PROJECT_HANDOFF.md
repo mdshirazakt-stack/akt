@@ -1,6 +1,6 @@
 # Apnon Ki Talash / Iraqi Biradari Project Handoff
 
-Last updated: 2026-05-18
+Last updated: 2026-05-19
 
 ## Project Overview
 
@@ -8,7 +8,7 @@ This project has been split into two separate repositories and domains.
 
 The split is intentional. The genealogy engine must remain isolated from the public heritage/content website so future CMS/admin work does not risk breaking Shijra functionality.
 
-## Current AKT Status As Of 2026-05-18
+## Current AKT Status As Of 2026-05-19
 
 Active repo:
 
@@ -28,7 +28,7 @@ Current git state at handoff:
 Branch: main
 Working tree before this handoff edit: clean
 Pending handoff-only change: PROJECT_HANDOFF.md
-Latest pushed commit before this handoff edit: a07fc35 Fix Supabase key on family editor
+Latest pushed commit before this handoff edit: 27634c3 Update family editor source labels and move mode
 ```
 
 Recent major AKT work completed:
@@ -54,8 +54,19 @@ Recent major AKT work completed:
 - A new native family editor page was created at `edit.html`.
 - `person.html` now sends `Edit Profile` to `edit.html?uid=<person_uid>`.
 - `edit.html` writes directly to `people`, `families`, and `family_members`.
-- `edit.html` supports editing person details, marking deceased, adding parents, adding spouse/partner family groups, adding children under a specific spouse group, moving existing children into a spouse group, and editing marriage facts/status.
+- `edit.html` supports editing person details, marking deceased, adding parents, adding spouse/partner family groups, adding children under a specific spouse group, moving existing children among spouse/family groups, and editing marriage facts/status.
 - Supabase key typo in `edit.html` was fixed in commit `a07fc35`.
+- Family editor UX was significantly improved after the first MVP:
+  - add father/mother/spouse now uses guided modals instead of browser prompts
+  - add child first asks son/daughter and filters search results by sex
+  - spouse search filters by opposite gender when the focus person's gender is known
+  - spouse search supports paged "Load more results"
+  - spouse search includes a fuzzy-search toggle, off by default
+  - search results show parent names where available
+  - search results now show source GEDCOM filename, not raw GEDCOM UUID
+  - selected editing card is visually highlighted
+  - child handles are hidden by default and appear only during move mode
+  - "Move existing child here" now enables board move mode instead of opening search
 
 Profile correction overlay currently supports these harmless fields:
 
@@ -117,18 +128,29 @@ Current implementation:
   - notes
 - Allows adding/setting father and mother.
 - Allows adding a spouse/partner family group.
-- Allows adding a new child under a specific spouse/partner group.
-- Allows moving an existing child UID into a specific spouse/partner group.
+- Allows adding/finding a son or daughter under a specific spouse/partner group:
+  - first asks whether the child is a son or daughter
+  - filters search results by `sex = M` or `sex = F`
+  - can create a brand-new child record if no match is found
+- Allows moving existing visible child cards among spouse/partner family groups:
+  - click `Move existing child here`
+  - child handles appear
+  - drag a child card into another visible family group
+  - click `Done` in the move banner
 - Allows editing marriage facts on the real `families` row:
   - `marr_date`
   - `marr_place`
   - `marr_status`
+  - `marr_notes` if the new schema column has been applied
 
 Important behavior:
 
 - Browse Tree reads from `families` and `family_members`, so edits made through `edit.html` should appear in Browse Tree after refresh.
-- Newly created people inherit the focus person's `gedcom_id` by default.
-- Newly created children should eventually default to the father/male source GEDCOM. The first MVP currently inherits the focus person's `gedcom_id`; this needs refinement when adding children from wife-side views.
+- Newly created people inherit a source GEDCOM:
+  - children prefer the husband/father's source GEDCOM when the target family has a husband
+  - otherwise they fall back to the focus person's `gedcom_id`
+  - other newly created people currently fall back to the focus person's `gedcom_id`
+- Relationship search results resolve `people.gedcom_id` through `gedcom_uploads.filename`, e.g. `202-Shiraz-familyof-Rasra`, rather than showing raw upload UUIDs.
 - Cross-GEDCOM marriages should preserve provenance:
   - each person keeps their own original `gedcom_id`
   - family rows connect them truthfully
@@ -136,13 +158,29 @@ Important behavior:
 
 Known limitations / next fixes:
 
-- `edit.html` uses prompt dialogs for MVP operations. Replace with proper side-panel forms.
+- `edit.html` still has a few prompt/confirm paths, especially deleting empty groups; most core add/search/create flows now use modals.
 - Permission gating is not enforced yet; this editor should eventually be admin/moderator-only.
 - Relationship overlays still exist and can confuse users if mixed with native edits. Decide whether to hide, migrate, or archive overlay relationship tools.
 - Need a safe way to delete/undo native family edits.
 - Need source GEDCOM selector/override when creating brand-new people/families.
 - Need better handling for wife with multiple husbands and husband with multiple wives in the visual editor.
 - Need GEDCOM export that emits edited `people`, `families`, and `family_members`.
+- Drag-and-drop move mode currently moves visible children among visible spouse/family groups for the current focus person. It does not search for children outside the current board.
+
+Schema note:
+
+```text
+supabase_family_editor_updates.sql
+```
+
+This file adds:
+
+```sql
+alter table public.families
+  add column if not exists marr_notes text;
+```
+
+Run it in the AKT Supabase project if marriage notes should persist from the marriage-details modal.
 
 ## Open Item For Tomorrow: GEDCOM Notes
 
@@ -700,6 +738,12 @@ Current implementation:
 - Reviewed marriage/child groupings using `canonical_family_groups` were added as an interim step.
 - This interim layer exposed a limitation: Browse Tree still reads the real `families` / `family_members` graph, so overlays alone do not make the tree truthful.
 - The new `edit.html` native editor is intended to replace overlay-based relationship editing for actual family structure updates.
+- `edit.html` now has the preferred editing path for real relationships:
+  - guided add/search/create modals for parents, spouse/partner, and children
+  - son/daughter child selection before child search
+  - spouse search constrained to the opposite gender when possible
+  - visible-card drag mode for moving children among spouse/family groups
+  - source labels resolved from `gedcom_uploads.filename`
 - `admin.html` now has a “Family Builder” tab for brand-new family submissions.
 - Family Builder can create a family submission, add people, and add relationships within that submitted family.
 - Family Builder also includes “Known Duplicate Profiles” to create identity groups and link multiple profile UIDs as the same real person.
@@ -709,7 +753,9 @@ Current implementation:
 Next relationship work:
 
 - Continue improving `edit.html` as the real family editor.
-- Add non-prompt UI forms for add spouse, add child, move child, and set parents.
+- Continue replacing remaining prompt/confirm paths with proper UI, especially destructive/delete operations.
+- Improve board-level drag/drop affordances and mobile behavior for move mode.
+- Add explicit source GEDCOM selector/override when creating brand-new people or families.
 - Add admin/moderator permission gating before public exposure.
 - Add undo/delete tools for native family edits.
 - Decide whether to migrate existing `relationship_overrides` and `canonical_family_groups` into real `people` / `families` / `family_members`.

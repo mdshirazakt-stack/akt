@@ -457,7 +457,6 @@ function familySection(fam, idx) {
     <section class="family-box ${spouseUid ? 'has-spouse' : ''}">
       <div class="family-title"><span style="color:var(--gold)">Family ${idx + 1}</span> &nbsp; ${esc(title)} (${children.length})</div>
       <div class="family-actions">
-        <button class="small" onclick="addChildToFamily('${fam.uid}')">+ Add a child</button>
         <button class="small" onclick="moveExistingChildToFamily('${fam.uid}')">Move existing child here</button>
         <button class="small" onclick="editFamilyFacts('${fam.uid}')">Marriage details</button>
         ${!spouseUid && !children.length ? `<button class="small danger" onclick="deleteEmptyFamilyGroup('${fam.uid}')">Delete Empty Group</button>` : ''}
@@ -605,7 +604,7 @@ async function createSpouseFamilyWith(spouseUid) {
 }
 
 async function addChildToFamily(familyUid) {
-  openRelationshipChooser('child', familyUid);
+  openChildSexChooser(familyUid);
 }
 
 async function moveExistingChildToFamily(familyUid) {
@@ -663,8 +662,30 @@ function openRelationshipChooser(kind, familyUid = '') {
   openRelationshipModal();
 }
 
-function openRelationshipSearch(kind = relationshipContext?.kind || 'child', familyUid = relationshipContext?.familyUid || '') {
-  relationshipContext = { kind, familyUid };
+function openChildSexChooser(familyUid = '') {
+  relationshipContext = { kind: 'child', familyUid, sexFilter: '' };
+  setRelationshipHeader('Step 1 of 2 - choose child sex', 'Add a child', relationshipContextText('child', familyUid));
+  document.getElementById('relationship-body').innerHTML = `
+    <div class="notice">Choose whether you are adding or finding a son or daughter. Search results will be filtered accordingly.</div>
+    <div class="choice-grid">
+      <button class="choice-card primary-choice" type="button" onclick="openRelationshipSearch('child', '${esc(familyUid)}', 'M')">
+        <span class="choice-icon">M</span>
+        <strong>Add / find son</strong>
+        <span>Search male profiles only, or create a new son entry.</span>
+      </button>
+      <button class="choice-card" type="button" onclick="openRelationshipSearch('child', '${esc(familyUid)}', 'F')">
+        <span class="choice-icon">F</span>
+        <strong>Add / find daughter</strong>
+        <span>Search female profiles only, or create a new daughter entry.</span>
+      </button>
+    </div>
+  `;
+  document.getElementById('relationship-footer').innerHTML = `<button type="button" onclick="closeRelationshipModal()">Cancel</button><span></span>`;
+  openRelationshipModal();
+}
+
+function openRelationshipSearch(kind = relationshipContext?.kind || 'child', familyUid = relationshipContext?.familyUid || '', sexFilter = relationshipContext?.sexFilter || '') {
+  relationshipContext = { kind, familyUid, sexFilter };
   relationshipSearchOffset = 0;
   relationshipSearchRows = [];
   relationshipSearchTotal = 0;
@@ -673,22 +694,23 @@ function openRelationshipSearch(kind = relationshipContext?.kind || 'child', fam
   const isMove = kind === 'move_child';
   const isSpouse = kind === 'spouse';
   const spouseFilter = isSpouse ? spouseSearchFilterText() : '';
+  const childFilter = kind === 'child' && sexFilter ? childSearchFilterText(sexFilter) : '';
   setRelationshipHeader(
     isMove ? 'Find existing child' : 'Step 2 - find them',
-    isMove ? 'Move existing child here' : 'Add ' + label.toLowerCase(),
+    isMove ? 'Move existing child here' : kind === 'child' ? 'Add ' + (sexFilter === 'F' ? 'daughter' : 'son') : 'Add ' + label.toLowerCase(),
     relationshipContextText(kind, familyUid)
   );
   document.getElementById('relationship-body').innerHTML = `
     <input class="modal-search" id="relationship-search-input" placeholder="Search by name or paste UID" oninput="queueRelationshipSearch()"/>
     <div class="search-tools">
-      <div id="relationship-search-count" class="hint">Start typing to search the family book.${spouseFilter ? ' ' + spouseFilter : ''}</div>
+      <div id="relationship-search-count" class="hint">Start typing to search the family book.${spouseFilter ? ' ' + spouseFilter : ''}${childFilter ? ' ' + childFilter : ''}</div>
       ${isSpouse ? '<button class="toggle-button" id="relationship-fuzzy-toggle" type="button" onclick="toggleRelationshipFuzzy()">Fuzzy search: off</button>' : ''}
     </div>
     <div class="result-list" id="relationship-results"></div>
-    ${isMove ? '<div class="notice" style="margin-top:18px">This will move an existing child record into the selected spouse/partner group. It will not create a new profile.</div>' : `<div class="notice" style="margin-top:18px">Can't find them? <button class="small" type="button" onclick="openCreatePersonModal('${kind}', '${esc(familyUid)}')">Add them as a new person</button></div>`}
+    ${isMove ? '<div class="notice" style="margin-top:18px">This will move an existing child record into the selected spouse/partner group. It will not create a new profile.</div>' : `<div class="notice" style="margin-top:18px">Can't find them? <button class="small" type="button" onclick="openCreatePersonModal('${kind}', '${esc(familyUid)}', '${esc(sexFilter)}')">Add them as a new person</button></div>`}
   `;
   document.getElementById('relationship-footer').innerHTML = `
-    ${isMove ? '<span></span>' : `<button type="button" onclick="openRelationshipChooser('${kind}', '${esc(familyUid)}')">Back</button>`}
+    ${isMove ? '<span></span>' : kind === 'child' ? `<button type="button" onclick="openChildSexChooser('${esc(familyUid)}')">Back</button>` : `<button type="button" onclick="openRelationshipChooser('${kind}', '${esc(familyUid)}')">Back</button>`}
     <button type="button" onclick="closeRelationshipModal()">Cancel</button>
   `;
   openRelationshipModal();
@@ -696,11 +718,11 @@ function openRelationshipSearch(kind = relationshipContext?.kind || 'child', fam
   setTimeout(() => document.getElementById('relationship-search-input')?.focus(), 50);
 }
 
-function openCreatePersonModal(kind = relationshipContext?.kind || 'child', familyUid = relationshipContext?.familyUid || '') {
-  relationshipContext = { kind, familyUid };
+function openCreatePersonModal(kind = relationshipContext?.kind || 'child', familyUid = relationshipContext?.familyUid || '', sexFilter = relationshipContext?.sexFilter || '') {
+  relationshipContext = { kind, familyUid, sexFilter };
   const label = RELATION_LABELS[kind] || 'Person';
   const sexDefault = defaultSexFor(kind);
-  setRelationshipHeader('Step 2 - create new entry', 'Add ' + label.toLowerCase(), relationshipContextText(kind, familyUid));
+  setRelationshipHeader('Step 2 - create new entry', kind === 'child' ? 'Add ' + (sexDefault === 'F' ? 'daughter' : 'son') : 'Add ' + label.toLowerCase(), relationshipContextText(kind, familyUid));
   document.getElementById('relationship-body').innerHTML = `
     <div class="notice">A new entry will be created in the family book. A unique ID is generated automatically.</div>
     <label>Full name</label>
@@ -728,7 +750,7 @@ function openCreatePersonModal(kind = relationshipContext?.kind || 'child', fami
     </div>
   `;
   document.getElementById('relationship-footer').innerHTML = `
-    <button type="button" onclick="openRelationshipChooser('${kind}', '${esc(familyUid)}')">Back</button>
+    ${kind === 'child' ? `<button type="button" onclick="openChildSexChooser('${esc(familyUid)}')">Back</button>` : `<button type="button" onclick="openRelationshipChooser('${kind}', '${esc(familyUid)}')">Back</button>`}
     <div style="display:flex;gap:10px">
       <button type="button" onclick="closeRelationshipModal()">Cancel</button>
       <button class="primary" type="button" onclick="createAndAttachPerson()">Add new ${esc(label.toLowerCase())}</button>
@@ -795,7 +817,7 @@ async function runRelationshipSearch(append = false) {
   const count = document.getElementById('relationship-search-count');
   const q = input?.value.trim() || '';
   if (!q) {
-    count.textContent = 'Start typing to search the family book.' + (relationshipContext?.kind === 'spouse' ? ' ' + spouseSearchFilterText() : '');
+    count.textContent = 'Start typing to search the family book.' + activeRelationshipFilterText();
     list.innerHTML = '';
     return;
   }
@@ -821,10 +843,10 @@ async function runRelationshipSearch(append = false) {
   relationshipSearchRows = append ? relationshipSearchRows.concat(rows) : rows;
   relationshipSearchOffset = relationshipSearchRows.length;
   const totalLabel = relationshipSearchTotal ? relationshipSearchTotal : relationshipSearchRows.length;
-  count.textContent = relationshipSearchRows.length + ' of ' + totalLabel + ' shown for "' + q + '".' + (relationshipContext?.kind === 'spouse' ? ' ' + spouseSearchFilterText() : '');
+  count.textContent = relationshipSearchRows.length + ' of ' + totalLabel + ' shown for "' + q + '".' + activeRelationshipFilterText();
   if (!relationshipSearchRows.length) {
     const canCreate = relationshipContext?.kind !== 'move_child';
-    list.innerHTML = `<div class="search-result"><div></div><div><div class="search-result-name">No matches</div><div class="search-result-meta">Try a different spelling${canCreate ? ', or create a new entry' : ''}.</div></div>${canCreate ? `<button class="small" onclick="openCreatePersonModal('${relationshipContext.kind}', '${esc(relationshipContext.familyUid || '')}')">Create new</button>` : '<span></span>'}</div>`;
+    list.innerHTML = `<div class="search-result"><div></div><div><div class="search-result-name">No matches</div><div class="search-result-meta">Try a different spelling${canCreate ? ', or create a new entry' : ''}.</div></div>${canCreate ? `<button class="small" onclick="openCreatePersonModal('${relationshipContext.kind}', '${esc(relationshipContext.familyUid || '')}', '${esc(relationshipContext.sexFilter || '')}')">Create new</button>` : '<span></span>'}</div>`;
     return;
   }
   relationshipSearchRows.forEach(p => { peopleByUid[p.uid] = p; });
@@ -840,7 +862,7 @@ async function runRelationshipSearch(append = false) {
         <div>
           <div class="search-result-name">${esc(p.name || '(unnamed)')}</div>
           <div class="search-result-meta">${esc(meta || 'No details recorded')}</div>
-          <span class="uid-pill">${esc(p.uid)}</span>
+          <span class="uid-pill">${esc(formatSourceLabel(p.gedcom_id))}</span>
         </div>
         <button class="primary small" onclick="selectExistingForRelationship('${p.uid}')">Select</button>
       </div>
@@ -855,6 +877,7 @@ function loadMoreRelationshipResults() {
 function applyRelationshipSearchFilters(query, q, uidMatch) {
   const spouseSex = relationshipContext?.kind === 'spouse' ? expectedSpouseSex() : '';
   if (spouseSex) query = query.eq('sex', spouseSex);
+  if (relationshipContext?.kind === 'child' && relationshipContext.sexFilter) query = query.eq('sex', relationshipContext.sexFilter);
   if (uidMatch) return query.eq('uid', uidMatch[0]);
   if (relationshipContext?.kind === 'spouse' && relationshipFuzzyEnabled) {
     const parts = q.split(/\s+/).map(part => part.trim()).filter(Boolean).slice(0, 4);
@@ -876,6 +899,24 @@ function spouseSearchFilterText() {
   if (sex === 'F') return 'Showing female profiles only for spouse search.';
   if (sex === 'M') return 'Showing male profiles only for spouse search.';
   return 'Spouse gender filter is not applied because this profile gender is unknown.';
+}
+
+function childSearchFilterText(sex) {
+  if (sex === 'M') return 'Showing male profiles only for son search.';
+  if (sex === 'F') return 'Showing female profiles only for daughter search.';
+  return '';
+}
+
+function activeRelationshipFilterText() {
+  if (relationshipContext?.kind === 'spouse') return ' ' + spouseSearchFilterText();
+  if (relationshipContext?.kind === 'child' && relationshipContext.sexFilter) return ' ' + childSearchFilterText(relationshipContext.sexFilter);
+  return '';
+}
+
+function formatSourceLabel(gedcomId) {
+  if (!gedcomId) return 'Source: not recorded';
+  const text = String(gedcomId).trim();
+  return /^gedcom/i.test(text) ? 'Source: ' + text : 'Source: GEDCOM ' + text;
 }
 
 function sanitizeSupabaseOrValue(value) {
@@ -955,6 +996,7 @@ async function attachPersonToContext(personUid) {
 }
 
 function defaultSexFor(kind) {
+  if (kind === 'child' && relationshipContext?.sexFilter) return relationshipContext.sexFilter;
   if (kind === 'father') return 'M';
   if (kind === 'mother') return 'F';
   if (kind === 'spouse') return focusPerson?.sex === 'M' ? 'F' : focusPerson?.sex === 'F' ? 'M' : '';

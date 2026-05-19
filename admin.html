@@ -2506,13 +2506,10 @@ async function applyCorrectionToSourcePerson(uid, rec) {
   if (Object.keys(update).length === 1) return null;
   let { error } = await sb.from('people').update(update).eq('uid', uid);
   if (!error) return null;
-  if (!/schema cache|root_place|current_place|contact_address/i.test(error.message || '')) return error;
-  const fallback = { ...update };
-  delete fallback.root_place;
-  delete fallback.current_place;
-  delete fallback.contact_address;
-  const retry = await sb.from('people').update(fallback).eq('uid', uid);
-  return retry.error || null;
+  if (/schema cache|root_place|current_place|contact_address/i.test(error.message || '')) {
+    return new Error('Profile fields are missing in Supabase. Please run the updated people profile fields SQL before applying root place, current place, or mobile changes.');
+  }
+  return error;
 }
 
 async function saveCorrectionNotes(id, notes) {

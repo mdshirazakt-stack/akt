@@ -60,7 +60,11 @@ alter table public.correction_requests
   add column if not exists applied_at timestamptz;
 
 alter table public.people
-  add column if not exists notes text;
+  add column if not exists notes text,
+  add column if not exists root_place text,
+  add column if not exists current_place text,
+  add column if not exists contact_address text,
+  add column if not exists email text;
 
 do $$
 begin

@@ -636,13 +636,7 @@ async function savePerson(event) {
   };
   let { error } = await sb.from('people').update(payload).eq('uid', uid);
   if (error && /schema cache|root_place|current_place|contact_address|email/i.test(error.message || '')) {
-    const fallback = { ...payload };
-    delete fallback.root_place;
-    delete fallback.current_place;
-    delete fallback.contact_address;
-    delete fallback.email;
-    const retry = await sb.from('people').update(fallback).eq('uid', uid);
-    error = retry.error;
+    return setStatus('Profile fields are missing in Supabase. Please run the updated people profile fields SQL before saving root place, current place, mobile, or email.', true);
   }
   if (error) return setStatus(error.message, true);
   const birthOrderError = await saveBirthOrder(uid);

@@ -84,6 +84,9 @@
   .choice-icon { width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:#efdea9; color:var(--gold); font-size:1.45rem; }
   .primary-choice .choice-icon { background:rgba(255,255,255,.12); color:#e8c45c; }
   .modal-search { border:3px solid #e3c67b; border-radius:16px; padding:12px 14px; background:white; font-size:1.1rem; }
+  .search-tools { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-top:12px; flex-wrap:wrap; }
+  .toggle-button { border-radius:999px; padding:7px 12px; background:#fffdf7; }
+  .toggle-button.active { background:var(--green); border-color:var(--green); color:#fff; }
   .result-list { margin-top:18px; border:1px solid #d8caa6; border-radius:14px; background:#fffdf7; overflow:hidden; }
   .search-result { display:grid; grid-template-columns:52px minmax(0,1fr) auto; gap:14px; align-items:center; padding:14px 16px; border-bottom:1px solid #e5dcc9; }
   .search-result:last-child { border-bottom:0; }
@@ -96,6 +99,7 @@
   .status-option { min-height:92px; border-radius:14px; background:#fffdf7; border:1px solid #d8caa6; color:var(--green); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
   .status-option.active { border:2px solid var(--green); box-shadow:0 0 0 4px rgba(181,130,43,.16); }
   .status-icon { width:38px; height:38px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:#efe0b0; color:var(--gold); }
+  .load-more-wrap { padding:14px; text-align:center; border-top:1px solid #e5dcc9; background:#fffaf0; }
   @media (max-width:900px) {
     header { align-items:flex-start; flex-direction:column; }
     main { padding:12px; }
@@ -254,6 +258,10 @@ let spouseFamilies = [];
 let peopleByUid = {};
 let relationshipContext = null;
 let relationshipSearchTimer = null;
+let relationshipSearchOffset = 0;
+let relationshipSearchRows = [];
+let relationshipSearchTotal = 0;
+let relationshipFuzzyEnabled = false;
 let marriageContext = null;
 let selectedMarriageStatus = 'married';
 let editingUid = '';
@@ -657,8 +665,14 @@ function openRelationshipChooser(kind, familyUid = '') {
 
 function openRelationshipSearch(kind = relationshipContext?.kind || 'child', familyUid = relationshipContext?.familyUid || '') {
   relationshipContext = { kind, familyUid };
+  relationshipSearchOffset = 0;
+  relationshipSearchRows = [];
+  relationshipSearchTotal = 0;
+  relationshipFuzzyEnabled = false;
   const label = RELATION_LABELS[kind] || 'Person';
   const isMove = kind === 'move_child';
+  const isSpouse = kind === 'spouse';
+  const spouseFilter = isSpouse ? spouseSearchFilterText() : '';
   setRelationshipHeader(
     isMove ? 'Find existing child' : 'Step 2 - find them',
     isMove ? 'Move existing child here' : 'Add ' + label.toLowerCase(),
@@ -666,7 +680,10 @@ function openRelationshipSearch(kind = relationshipContext?.kind || 'child', fam
   );
   document.getElementById('relationship-body').innerHTML = `
     <input class="modal-search" id="relationship-search-input" placeholder="Search by name or paste UID" oninput="queueRelationshipSearch()"/>
-    <div id="relationship-search-count" class="hint" style="margin-top:12px">Start typing to search the family book.</div>
+    <div class="search-tools">
+      <div id="relationship-search-count" class="hint">Start typing to search the family book.${spouseFilter ? ' ' + spouseFilter : ''}</div>
+      ${isSpouse ? '<button class="toggle-button" id="relationship-fuzzy-toggle" type="button" onclick="toggleRelationshipFuzzy()">Fuzzy search: off</button>' : ''}
+    </div>
     <div class="result-list" id="relationship-results"></div>
     ${isMove ? '<div class="notice" style="margin-top:18px">This will move an existing child record into the selected spouse/partner group. It will not create a new profile.</div>' : `<div class="notice" style="margin-top:18px">Can't find them? <button class="small" type="button" onclick="openCreatePersonModal('${kind}', '${esc(familyUid)}')">Add them as a new person</button></div>`}
   `;
@@ -756,38 +773,64 @@ function closeRelationshipModal() {
 
 function queueRelationshipSearch() {
   clearTimeout(relationshipSearchTimer);
-  relationshipSearchTimer = setTimeout(runRelationshipSearch, 180);
+  relationshipSearchOffset = 0;
+  relationshipSearchRows = [];
+  relationshipSearchTotal = 0;
+  relationshipSearchTimer = setTimeout(() => runRelationshipSearch(false), 180);
 }
 
-async function runRelationshipSearch() {
+function toggleRelationshipFuzzy() {
+  relationshipFuzzyEnabled = !relationshipFuzzyEnabled;
+  const toggle = document.getElementById('relationship-fuzzy-toggle');
+  if (toggle) {
+    toggle.textContent = 'Fuzzy search: ' + (relationshipFuzzyEnabled ? 'on' : 'off');
+    toggle.classList.toggle('active', relationshipFuzzyEnabled);
+  }
+  queueRelationshipSearch();
+}
+
+async function runRelationshipSearch(append = false) {
   const input = document.getElementById('relationship-search-input');
   const list = document.getElementById('relationship-results');
   const count = document.getElementById('relationship-search-count');
   const q = input?.value.trim() || '';
   if (!q) {
-    count.textContent = 'Start typing to search the family book.';
+    count.textContent = 'Start typing to search the family book.' + (relationshipContext?.kind === 'spouse' ? ' ' + spouseSearchFilterText() : '');
     list.innerHTML = '';
     return;
   }
   count.textContent = 'Searching...';
+  if (!append) {
+    relationshipSearchOffset = 0;
+    relationshipSearchRows = [];
+    relationshipSearchTotal = 0;
+  }
   const uidMatch = q.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-  let query = sb.from('people').select('uid,name,sex,birth_date,birth_place,death_flag,gedcom_id').limit(8);
-  query = uidMatch ? query.eq('uid', uidMatch[0]) : query.ilike('name', '%' + q + '%').order('name');
-  const { data, error } = await query;
+  let query = sb.from('people')
+    .select('uid,name,sex,birth_date,birth_place,death_flag,gedcom_id', { count: 'exact' })
+    .range(relationshipSearchOffset, relationshipSearchOffset + 7);
+  query = applyRelationshipSearchFilters(query, q, uidMatch);
+  const { data, error, count: totalCount } = await query;
   if (error) {
     count.textContent = error.message;
     list.innerHTML = '';
     return;
   }
   const rows = data || [];
-  count.textContent = rows.length + ' ' + (rows.length === 1 ? 'person' : 'people') + ' found for "' + q + '".';
-  if (!rows.length) {
-    list.innerHTML = `<div class="search-result"><div></div><div><div class="search-result-name">No matches</div><div class="search-result-meta">Try a different spelling, or create a new entry.</div></div><button class="small" onclick="openCreatePersonModal('${relationshipContext.kind}', '${esc(relationshipContext.familyUid || '')}')">Create new</button></div>`;
+  relationshipSearchTotal = totalCount || 0;
+  relationshipSearchRows = append ? relationshipSearchRows.concat(rows) : rows;
+  relationshipSearchOffset = relationshipSearchRows.length;
+  const totalLabel = relationshipSearchTotal ? relationshipSearchTotal : relationshipSearchRows.length;
+  count.textContent = relationshipSearchRows.length + ' of ' + totalLabel + ' shown for "' + q + '".' + (relationshipContext?.kind === 'spouse' ? ' ' + spouseSearchFilterText() : '');
+  if (!relationshipSearchRows.length) {
+    const canCreate = relationshipContext?.kind !== 'move_child';
+    list.innerHTML = `<div class="search-result"><div></div><div><div class="search-result-name">No matches</div><div class="search-result-meta">Try a different spelling${canCreate ? ', or create a new entry' : ''}.</div></div>${canCreate ? `<button class="small" onclick="openCreatePersonModal('${relationshipContext.kind}', '${esc(relationshipContext.familyUid || '')}')">Create new</button>` : '<span></span>'}</div>`;
     return;
   }
-  rows.forEach(p => { peopleByUid[p.uid] = p; });
-  const parentSummaries = await getParentSummaries(rows);
-  list.innerHTML = rows.map(p => {
+  relationshipSearchRows.forEach(p => { peopleByUid[p.uid] = p; });
+  const parentSummaries = await getParentSummaries(relationshipSearchRows);
+  const hasMore = relationshipSearchTotal > relationshipSearchRows.length;
+  list.innerHTML = relationshipSearchRows.map(p => {
     const initial = (p.name || '?').trim().charAt(0).toUpperCase() || '?';
     const parentText = parentSummaries[p.uid] || '';
     const meta = [parentText, p.birth_place || '', p.birth_date ? 'b. ' + p.birth_date : '', p.death_flag ? 'deceased' : ''].filter(Boolean).join(' · ');
@@ -802,7 +845,41 @@ async function runRelationshipSearch() {
         <button class="primary small" onclick="selectExistingForRelationship('${p.uid}')">Select</button>
       </div>
     `;
-  }).join('');
+  }).join('') + (hasMore ? '<div class="load-more-wrap"><button type="button" onclick="loadMoreRelationshipResults()">Load more results</button></div>' : '');
+}
+
+function loadMoreRelationshipResults() {
+  runRelationshipSearch(true);
+}
+
+function applyRelationshipSearchFilters(query, q, uidMatch) {
+  const spouseSex = relationshipContext?.kind === 'spouse' ? expectedSpouseSex() : '';
+  if (spouseSex) query = query.eq('sex', spouseSex);
+  if (uidMatch) return query.eq('uid', uidMatch[0]);
+  if (relationshipContext?.kind === 'spouse' && relationshipFuzzyEnabled) {
+    const parts = q.split(/\s+/).map(part => part.trim()).filter(Boolean).slice(0, 4);
+    if (parts.length > 1) {
+      return query.or(parts.map(part => 'name.ilike.%' + sanitizeSupabaseOrValue(part) + '%').join(',')).order('name');
+    }
+  }
+  return query.ilike('name', '%' + q + '%').order('name');
+}
+
+function expectedSpouseSex() {
+  if (focusPerson?.sex === 'M') return 'F';
+  if (focusPerson?.sex === 'F') return 'M';
+  return '';
+}
+
+function spouseSearchFilterText() {
+  const sex = expectedSpouseSex();
+  if (sex === 'F') return 'Showing female profiles only for spouse search.';
+  if (sex === 'M') return 'Showing male profiles only for spouse search.';
+  return 'Spouse gender filter is not applied because this profile gender is unknown.';
+}
+
+function sanitizeSupabaseOrValue(value) {
+  return String(value || '').replace(/[%,()]/g, '').replace(/\*/g, '');
 }
 
 async function getParentSummaries(rows) {

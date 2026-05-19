@@ -62,6 +62,12 @@
   .p-initial.female { background:#7d4436; }
   .drag-handle { position:absolute; left:-12px; top:22px; width:28px; height:44px; border-radius:10px; background:var(--green); color:#e8c45c; display:none; align-items:center; justify-content:center; font-weight:900; letter-spacing:1px; box-shadow:0 4px 10px rgba(0,0,0,.14); }
   .move-mode .drag-handle { display:flex; }
+  .move-mode .person-card.child-card { cursor:grab; }
+  .family-box.move-target { border-color:var(--gold); background:#f3edcf; }
+  .family-box.drag-over { outline:3px dashed var(--gold); outline-offset:5px; }
+  .move-banner { display:none; position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:35; background:var(--green); color:#fff; padding:12px 16px; border-radius:999px; box-shadow:0 12px 28px rgba(0,0,0,.2); align-items:center; gap:12px; }
+  .move-banner.show { display:flex; }
+  .move-banner button { border-color:#e6c25f; background:var(--gold); color:#fff; border-radius:999px; padding:6px 12px; }
   .family-box { border-color:#6d6a5d; position:relative; }
   .family-box.has-spouse { border-style:dashed; border-color:var(--green); }
   .family-actions { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
@@ -243,6 +249,11 @@
   </div>
 </div>
 
+<div class="move-banner" id="move-banner">
+  <span>Move mode - drag a child card handle into another family group.</span>
+  <button type="button" onclick="exitMoveMode()">Done</button>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://fusairoeiabmqvsbxhfi.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1c2Fpcm9laWFibXF2c2J4aGZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MTUwNTgsImV4cCI6MjA5MzQ5MTA1OH0.uTVlBn4iDFZzAeD2i4Bzt4fXVxGequ2W9LIxugBIKsA';
@@ -265,6 +276,8 @@ let relationshipFuzzyEnabled = false;
 let marriageContext = null;
 let selectedMarriageStatus = 'married';
 let editingUid = '';
+let gedcomSourceMap = {};
+let moveModeActive = false;
 
 const RELATION_LABELS = {
   father: 'Father',
@@ -313,9 +326,18 @@ async function loadEditor() {
   document.getElementById('page-subtitle').textContent = focusPerson.name || '(unnamed)';
   document.getElementById('profile-link').href = 'person.html?uid=' + encodeURIComponent(focusUid);
   document.getElementById('tree-link').href = 'archive.html?tree=' + encodeURIComponent(focusUid);
+  await loadGedcomSources();
   await loadFamilyData();
   renderBoard();
   selectPerson(focusUid);
+}
+
+async function loadGedcomSources() {
+  if (Object.keys(gedcomSourceMap).length) return;
+  const { data } = await sb.from('gedcom_uploads').select('id,filename');
+  (data || []).forEach(row => {
+    gedcomSourceMap[row.id] = cleanGedcomTitle(row.filename);
+  });
 }
 
 async function loadFamilyData() {
@@ -411,7 +433,9 @@ function renderBoard() {
     <div class="connector"></div>
     ${spouseRows || '<div class="family-box"><div class="family-title">No spouse/partner family groups yet.</div></div>'}
   `;
-  document.getElementById('family-board').classList.toggle('move-mode', Boolean(relationshipContext?.kind === 'move_child'));
+  document.getElementById('family-board').classList.toggle('move-mode', moveModeActive);
+  document.getElementById('move-banner')?.classList.toggle('show', moveModeActive);
+  attachMoveModeHandlers();
 }
 
 function personCard(p, cls) {
@@ -422,8 +446,8 @@ function personCard(p, cls) {
   const initial = (p.name || '?').trim().charAt(0).toUpperCase() || '?';
   const genderClass = p.sex === 'F' ? 'female' : '';
   return `
-    <div class="person-card ${cls === 'focus' ? 'focus' : ''} ${p.uid === editingUid ? 'editing' : ''}" data-person-uid="${esc(p.uid)}">
-      ${cls === 'child' ? '<span class="drag-handle" title="This handle appears during child move mode">⋮⋮</span>' : ''}
+    <div class="person-card ${cls === 'focus' ? 'focus' : ''} ${cls === 'child' ? 'child-card' : ''} ${p.uid === editingUid ? 'editing' : ''}" data-person-uid="${esc(p.uid)}" ${cls === 'child' ? `draggable="${moveModeActive ? 'true' : 'false'}"` : ''}>
+      ${cls === 'child' ? '<span class="drag-handle" title="Drag this handle to move the child into another family group">⋮⋮</span>' : ''}
       <div class="card-actions">
         <button onclick="selectPerson('${p.uid}')">edit</button>
         <button onclick="location.href='person.html?uid=${encodeURIComponent(p.uid)}'">view</button>
@@ -454,10 +478,10 @@ function familySection(fam, idx) {
   const title = `${focusPerson.name || 'Person'} and ${spouseName}'s children`;
   const children = fam.children || [];
   return `
-    <section class="family-box ${spouseUid ? 'has-spouse' : ''}">
+    <section class="family-box ${spouseUid ? 'has-spouse' : ''} ${moveModeActive ? 'move-target' : ''}" data-family-uid="${esc(fam.uid)}">
       <div class="family-title"><span style="color:var(--gold)">Family ${idx + 1}</span> &nbsp; ${esc(title)} (${children.length})</div>
       <div class="family-actions">
-        <button class="small" onclick="moveExistingChildToFamily('${fam.uid}')">Move existing child here</button>
+        <button class="small" onclick="moveExistingChildToFamily('${fam.uid}')">${moveModeActive ? 'Move mode active' : 'Move existing child here'}</button>
         <button class="small" onclick="editFamilyFacts('${fam.uid}')">Marriage details</button>
         ${!spouseUid && !children.length ? `<button class="small danger" onclick="deleteEmptyFamilyGroup('${fam.uid}')">Delete Empty Group</button>` : ''}
       </div>
@@ -608,7 +632,47 @@ async function addChildToFamily(familyUid) {
 }
 
 async function moveExistingChildToFamily(familyUid) {
-  openRelationshipSearch('move_child', familyUid);
+  moveModeActive = true;
+  renderBoard();
+  markEditingCard();
+  setStatus('Move mode enabled. Drag a child card by its handle into the correct family group, then click Done.');
+}
+
+function exitMoveMode() {
+  moveModeActive = false;
+  renderBoard();
+  markEditingCard();
+  document.getElementById('move-banner')?.classList.remove('show');
+  setStatus('Move mode closed.');
+}
+
+function attachMoveModeHandlers() {
+  if (!moveModeActive) return;
+  document.querySelectorAll('.person-card.child-card').forEach(card => {
+    card.addEventListener('dragstart', event => {
+      event.dataTransfer.setData('text/plain', card.dataset.personUid || '');
+      event.dataTransfer.effectAllowed = 'move';
+    });
+  });
+  document.querySelectorAll('.family-box[data-family-uid]').forEach(box => {
+    box.addEventListener('dragover', event => {
+      event.preventDefault();
+      box.classList.add('drag-over');
+      event.dataTransfer.dropEffect = 'move';
+    });
+    box.addEventListener('dragleave', () => box.classList.remove('drag-over'));
+    box.addEventListener('drop', async event => {
+      event.preventDefault();
+      box.classList.remove('drag-over');
+      const childUid = event.dataTransfer.getData('text/plain');
+      const familyUid = box.dataset.familyUid;
+      if (!childUid || !familyUid) return;
+      await moveChildToFamily(childUid, familyUid);
+      moveModeActive = true;
+      document.getElementById('family-board')?.classList.add('move-mode');
+      document.getElementById('move-banner')?.classList.add('show');
+    });
+  });
 }
 
 async function moveChildToFamily(childUid, familyUid) {
@@ -916,7 +980,15 @@ function activeRelationshipFilterText() {
 function formatSourceLabel(gedcomId) {
   if (!gedcomId) return 'Source: not recorded';
   const text = String(gedcomId).trim();
-  return /^gedcom/i.test(text) ? 'Source: ' + text : 'Source: GEDCOM ' + text;
+  return 'Source: ' + (gedcomSourceMap[text] || text);
+}
+
+function cleanGedcomTitle(filename) {
+  return String(filename || '')
+    .replace(/\.ged$/i, '')
+    .replace(/[_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function sanitizeSupabaseOrValue(value) {

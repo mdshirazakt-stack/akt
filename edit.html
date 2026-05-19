@@ -157,6 +157,42 @@
             </select>
           </div>
           <div>
+            <label>Root place</label>
+            <input id="edit-root-place" placeholder="Ancestral / root place"/>
+          </div>
+        </div>
+        <label>Birth order</label>
+        <select id="edit-birth-order">
+          <option value="">Unknown</option>
+          <option value="1">First</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+          <option value="11">11</option>
+          <option value="12">12</option>
+          <option value="13">13</option>
+          <option value="14">14</option>
+          <option value="15">15</option>
+          <option value="16">16</option>
+          <option value="17">17</option>
+          <option value="18">18</option>
+          <option value="19">19</option>
+          <option value="20">20</option>
+          <option value="999">Last</option>
+        </select>
+        <div class="grid2">
+          <div><label>Birth date</label><input id="edit-birth-date" placeholder="Any format"/></div>
+          <div><label>Birth place</label><input id="edit-birth-place"/></div>
+        </div>
+        <div class="grid2">
+          <div><label>Current place</label><input id="edit-current-place"/></div>
+          <div>
             <label>Alive</label>
             <select id="edit-alive" onchange="toggleDeathFields()">
               <option value="alive">Yes</option>
@@ -164,17 +200,9 @@
             </select>
           </div>
         </div>
-        <div class="grid2">
-          <div><label>Birth date</label><input id="edit-birth-date" placeholder="Any format"/></div>
-          <div><label>Birth place</label><input id="edit-birth-place"/></div>
-        </div>
         <div id="edit-death-fields" class="grid2" style="display:none">
           <div><label>Death date</label><input id="edit-death-date" placeholder="If deceased"/></div>
           <div><label>Death place</label><input id="edit-death-place"/></div>
-        </div>
-        <div class="grid2">
-          <div><label>Root place</label><input id="edit-root-place" placeholder="Ancestral / root place"/></div>
-          <div><label>Current place</label><input id="edit-current-place"/></div>
         </div>
         <div class="grid2">
           <div><label>Mobile number</label><input id="edit-mobile" type="tel"/></div>
@@ -278,6 +306,7 @@ let selectedMarriageStatus = 'married';
 let editingUid = '';
 let gedcomSourceMap = {};
 let moveModeActive = false;
+let editingBirthOrderFamilyUid = '';
 
 const RELATION_LABELS = {
   father: 'Father',
@@ -329,7 +358,7 @@ async function loadEditor() {
   await loadGedcomSources();
   await loadFamilyData();
   renderBoard();
-  selectPerson(focusUid);
+  await selectPerson(focusUid);
 }
 
 async function loadGedcomSources() {
@@ -512,7 +541,7 @@ async function deleteEmptyFamilyGroup(familyUid) {
   await loadEditor();
 }
 
-function selectPerson(uid) {
+async function selectPerson(uid) {
   const p = peopleByUid[uid];
   if (!p) return;
   editingUid = uid;
@@ -531,7 +560,41 @@ function selectPerson(uid) {
   document.getElementById('edit-mobile').value = p.contact_address || '';
   document.getElementById('edit-email').value = p.email || '';
   document.getElementById('edit-notes').value = p.notes || '';
+  await loadSelectedBirthOrder(uid);
   toggleDeathFields();
+}
+
+async function loadSelectedBirthOrder(uid) {
+  editingBirthOrderFamilyUid = '';
+  document.getElementById('edit-birth-order').value = '';
+  const { data, error } = await sb.from('family_members')
+    .select('family_uid,birth_order')
+    .eq('person_uid', uid)
+    .eq('role', 'child')
+    .order('birth_order')
+    .limit(1);
+  if (error) {
+    console.warn('Could not load birth order', error.message);
+    return;
+  }
+  const row = (data || [])[0];
+  if (!row) return;
+  editingBirthOrderFamilyUid = row.family_uid || '';
+  document.getElementById('edit-birth-order').value = normalizeBirthOrderValue(row.birth_order);
+}
+
+function normalizeBirthOrderValue(order) {
+  const numeric = Number(order);
+  if (!Number.isFinite(numeric) || numeric <= 0) return '';
+  if (numeric >= 999) return '999';
+  if (numeric > 20) return '';
+  return String(numeric);
+}
+
+function parseBirthOrderValue(order) {
+  const numeric = Number(order);
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  return numeric >= 999 ? 999 : numeric;
 }
 
 function markEditingCard() {
@@ -582,9 +645,21 @@ async function savePerson(event) {
     error = retry.error;
   }
   if (error) return setStatus(error.message, true);
+  const birthOrderError = await saveBirthOrder(uid);
+  if (birthOrderError) return setStatus('Profile saved, but birth order failed: ' + birthOrderError.message, true);
   setStatus('Profile saved to source person record.');
   await loadEditor();
-  selectPerson(uid);
+  await selectPerson(uid);
+}
+
+async function saveBirthOrder(uid) {
+  if (!editingBirthOrderFamilyUid) return null;
+  const { error } = await sb.from('family_members')
+    .update({ birth_order: parseBirthOrderValue(value('edit-birth-order')) })
+    .eq('family_uid', editingBirthOrderFamilyUid)
+    .eq('person_uid', uid)
+    .eq('role', 'child');
+  return error || null;
 }
 
 async function addParent(type) {

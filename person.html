@@ -1090,7 +1090,7 @@ async function renderPerson(uid, el) {
   const displayRootLocation = firstText(profileOverlay?.root_location, p.root_place);
   const displayCurrentLocation = firstText(profileOverlay?.current_location, p.current_place);
   const displayMobile = firstText(profileOverlay?.mobile_number);
-  const displayBirthOrder = firstText(profileOverlay?.birth_order_text);
+  let displayBirthOrder = firstText(profileOverlay?.birth_order_text);
   const displayEmail = firstText(profileOverlay?.email);
   const sourceNote = firstText(p.notes);
   const communityNote = firstText(profileOverlay?.profile_note);
@@ -1110,9 +1110,13 @@ async function renderPerson(uid, el) {
 
   // Family as child
   const { data: famsAsChild } = await sb.from('family_members')
-    .select('family_uid, role')
+    .select('family_uid, role, birth_order')
     .eq('person_uid', uid)
-    .eq('role', 'child');
+    .eq('role', 'child')
+    .order('birth_order');
+  if (!displayBirthOrder && famsAsChild && famsAsChild.length) {
+    displayBirthOrder = formatBirthOrderLabel(famsAsChild[0].birth_order);
+  }
 
   // Parent family
   let parentFamily = null;
@@ -1167,7 +1171,10 @@ async function renderPerson(uid, el) {
       const childUids = allMembers.map(m => m.person_uid);
       const { data: childPeople } = await sb.from('people').select('uid,name,sex,death_flag').in('uid', childUids);
       (childPeople || []).forEach(c => { childrenMap[c.uid] = c; });
-      allMembers.forEach(m => {
+      allMembers
+        .slice()
+        .sort((a, b) => (a.birth_order || 999) - (b.birth_order || 999))
+        .forEach(m => {
         if (!familyChildMap[m.family_uid]) familyChildMap[m.family_uid] = [];
         if (childrenMap[m.person_uid]) familyChildMap[m.family_uid].push(childrenMap[m.person_uid]);
       });
@@ -2268,6 +2275,15 @@ function firstText(...values) {
   for (const value of values) {
     if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
   }
+  return '';
+}
+
+function formatBirthOrderLabel(order) {
+  const numeric = Number(order);
+  if (!Number.isFinite(numeric) || numeric <= 0) return '';
+  if (numeric >= 999) return 'Last';
+  if (numeric === 1) return 'First';
+  if (numeric <= 20) return String(numeric);
   return '';
 }
 

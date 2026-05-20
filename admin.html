@@ -1679,6 +1679,8 @@ function profileOverrideChange(row) {
   if (row.profile_note) fields.push('profile note');
   if (row.email) fields.push('email');
   return {
+    source: 'person_profile_overrides',
+    id: row.person_uid,
     time: row.updated_at || row.approved_at,
     actor: row.approved_by || 'editor',
     type: 'Profile edit',
@@ -1775,6 +1777,12 @@ function renderChangeLog(rows, names) {
 }
 
 function renderChangeLogActions(row) {
+  if (row.source === 'person_profile_overrides' && row.profileUid) {
+    return `
+      <button class="btn-green" style="padding:5px 8px;font-size:0.72rem" onclick="makeProfileOverrideReal('${row.profileUid}')">Make Real + Remove</button>
+      <button class="btn-outline" style="margin-top:6px;padding:5px 8px;font-size:0.72rem" onclick="removeProfileOverride('${row.profileUid}')">Remove Overlay</button>
+    `;
+  }
   if (row.source !== 'canonical_family_groups' || !row.id || row.status === 'archived') return '—';
   if (row.mergeStatus === 'merged') {
     return `<div style="font-size:0.76rem;color:var(--green);font-weight:700">Merged${row.mergedAt ? `<br><span style="color:var(--muted);font-weight:400">${formatIST(row.mergedAt, false)}</span>` : ''}</div>
@@ -1788,6 +1796,106 @@ function renderChangeLogActions(row) {
     <button class="btn-green" style="padding:5px 8px;font-size:0.72rem" onclick="setFamilyGroupMergeStatus('${row.id}', 'merged')">Mark Merged</button>
     <button class="btn-outline" style="margin-top:6px;padding:5px 8px;font-size:0.72rem" onclick="setFamilyGroupMergeStatus('${row.id}', 'conflict')">Mark Conflict</button>
   `;
+}
+
+async function makeProfileOverrideReal(personUid) {
+  if (!personUid) return;
+  const ok = confirm('Write this community profile edit into the real person record, then remove the community overlay?');
+  if (!ok) return;
+  const { data: overlay, error: readError } = await sb.from('person_profile_overrides')
+    .select('*')
+    .eq('person_uid', personUid)
+    .maybeSingle();
+  if (readError || !overlay) {
+    toast(readError?.message || 'No profile overlay found for this person.', true);
+    return;
+  }
+  const update = profileOverlayToPeopleUpdate(overlay);
+  if (Object.keys(update).length > 1) {
+    const { error } = await sb.from('people').update(update).eq('uid', personUid);
+    if (error) {
+      toast('Could not update real person record: ' + error.message, true);
+      return;
+    }
+  }
+  const birthOrderError = await applyProfileOverlayBirthOrder(personUid, overlay.birth_order_text);
+  if (birthOrderError) {
+    toast('Profile saved, but birth order failed: ' + birthOrderError.message, true);
+    return;
+  }
+  const { error: deleteError } = await sb.from('person_profile_overrides')
+    .delete()
+    .eq('person_uid', personUid);
+  if (deleteError) {
+    toast('Real person updated, but overlay removal failed: ' + deleteError.message, true);
+    return;
+  }
+  toast('Profile edit made real and community overlay removed.');
+  await loadChangeLog();
+}
+
+async function removeProfileOverride(personUid) {
+  if (!personUid) return;
+  const ok = confirm('Remove this community profile overlay without changing the real person record?');
+  if (!ok) return;
+  const { error } = await sb.from('person_profile_overrides')
+    .delete()
+    .eq('person_uid', personUid);
+  if (error) {
+    toast(error.message, true);
+    return;
+  }
+  toast('Community profile overlay removed.');
+  await loadChangeLog();
+}
+
+function profileOverlayToPeopleUpdate(overlay) {
+  const update = { updated_at: new Date().toISOString() };
+  if (overlay.corrected_name) update.name = overlay.corrected_name;
+  if (overlay.corrected_gender) update.sex = overlay.corrected_gender;
+  if (overlay.birth_date_text) update.birth_date = overlay.birth_date_text;
+  if (overlay.birth_location) update.birth_place = overlay.birth_location;
+  if (overlay.root_location) update.root_place = overlay.root_location;
+  if (overlay.current_location) update.current_place = overlay.current_location;
+  if (overlay.mobile_number) update.contact_address = overlay.mobile_number;
+  if (overlay.email) update.email = overlay.email;
+  if (overlay.profile_note) update.notes = overlay.profile_note;
+  if (overlay.is_deceased !== null && overlay.is_deceased !== undefined) {
+    update.death_flag = overlay.is_deceased === true;
+    update.death_date = overlay.is_deceased === true ? (overlay.death_date_text || null) : null;
+    update.death_place = overlay.is_deceased === true ? (overlay.death_location || null) : null;
+  }
+  return update;
+}
+
+function parseProfileBirthOrderText(value) {
+  const text = String(value || '').trim().toLowerCase();
+  if (!text) return null;
+  if (text === 'first' || text === 'eldest') return 1;
+  if (text === 'last' || text === 'youngest') return 999;
+  const numeric = Number(text);
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  return numeric >= 999 ? 999 : numeric;
+}
+
+async function applyProfileOverlayBirthOrder(personUid, birthOrderText) {
+  const birthOrder = parseProfileBirthOrderText(birthOrderText);
+  if (birthOrder === null) return null;
+  const { data, error: readError } = await sb.from('family_members')
+    .select('family_uid')
+    .eq('person_uid', personUid)
+    .eq('role', 'child')
+    .order('birth_order')
+    .limit(1);
+  if (readError) return readError;
+  const row = (data || [])[0];
+  if (!row) return null;
+  const { error } = await sb.from('family_members')
+    .update({ birth_order: birthOrder })
+    .eq('family_uid', row.family_uid)
+    .eq('person_uid', personUid)
+    .eq('role', 'child');
+  return error || null;
 }
 
 async function setFamilyGroupMergeStatus(id, mergeStatus) {

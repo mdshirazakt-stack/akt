@@ -28,7 +28,7 @@
   .board { background:#edf2df; border:1px solid #9ca891; min-height:520px; padding:22px; overflow-x:auto; }
   .row { display:flex; justify-content:center; gap:42px; align-items:flex-start; margin:10px 0 26px; min-width:820px; }
   .row.center { margin-top:4px; }
-  .person-card { position:relative; min-width:220px; max-width:260px; background:#f4f6e7; border:1px solid #888; border-radius:4px; padding:12px 14px 28px; text-align:center; box-shadow:0 1px 0 rgba(0,0,0,.05); }
+  .person-card { position:relative; min-width:220px; max-width:260px; background:#f4f6e7; border:1px solid #888; border-radius:4px; padding:12px 14px 28px; text-align:center; box-shadow:0 1px 0 rgba(0,0,0,.05); cursor:pointer; }
   .person-card.male-card { background:#eaf3ff; border-color:#8ab7e6; }
   .person-card.female-card { background:#fff0f7; border-color:#e8a8c8; }
   .person-card.unknown-card { background:#f4f6e7; }
@@ -69,6 +69,7 @@
   .p-initial.female { background:#7d4436; }
   .drag-handle { position:absolute; left:-12px; top:22px; width:28px; height:44px; border-radius:10px; background:var(--green); color:#e8c45c; display:none; align-items:center; justify-content:center; font-weight:900; letter-spacing:1px; box-shadow:0 4px 10px rgba(0,0,0,.14); }
   .move-mode .drag-handle { display:flex; }
+  .move-mode .person-card { cursor:default; }
   .move-mode .person-card.child-card { cursor:grab; }
   .family-box.move-target { border-color:var(--gold); background:#f3edcf; }
   .family-box.drag-over { outline:3px dashed var(--gold); outline-offset:5px; }

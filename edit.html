@@ -44,6 +44,7 @@
   .p-meta { font-size:.82rem; margin-top:5px; color:#111; line-height:1.35; white-space:pre-line; }
   .card-actions { position:absolute; right:5px; top:5px; display:flex; gap:4px; }
   .card-actions button { padding:1px 5px; font-size:.72rem; background:#f8f8f1; }
+  .card-actions button.delete-card-btn { color:var(--red); border-color:#d28b84; background:#fff4f3; }
   .deceased-badge { display:inline-block; margin-top:7px; padding:2px 7px; border:1px solid #f4b4ad; background:#fff1f0; color:var(--red); font-size:.72rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
   .deceased-mark { color:var(--red); font-weight:900; margin-left:6px; }
   .connector { width:2px; height:34px; background:#777; margin:0 auto 8px; }
@@ -493,6 +494,7 @@ function personCard(p, cls) {
       <div class="card-actions">
         <button type="button" onclick="event.stopPropagation();selectPerson('${esc(p.uid)}')">edit</button>
         <button type="button" onclick="event.stopPropagation();location.href='person.html?uid=${encodeURIComponent(p.uid)}'">view</button>
+        <button class="delete-card-btn" type="button" onclick="event.stopPropagation();deletePerson('${esc(p.uid)}')">delete</button>
       </div>
       <div class="p-initial ${genderClass}">${esc(initial)}</div>
       <div class="p-name">${esc(p.name || '(unnamed)')}</div>
@@ -673,6 +675,57 @@ async function saveBirthOrder(uid) {
     .eq('person_uid', uid)
     .eq('role', 'child');
   return error || null;
+}
+
+async function deletePerson(uid) {
+  if (!uid) return;
+  const person = peopleByUid[uid] || await getPerson(uid);
+  const name = person?.name || '(unnamed)';
+  const firstConfirm = confirm(`Delete ${name}?\n\nThis will remove this person and detach them from visible family links. This cannot be undone.`);
+  if (!firstConfirm) return;
+  const typed = prompt(`Type DELETE to permanently delete ${name}.`);
+  if (typed !== 'DELETE') {
+    setStatus('Delete cancelled.');
+    return;
+  }
+
+  setStatus('Deleting person and cleaning family references...');
+  const cleanupSteps = [
+    () => sb.from('person_profile_overrides').delete().eq('person_uid', uid),
+    () => sb.from('relationship_overrides').delete().eq('source_person_uid', uid),
+    () => sb.from('relationship_overrides').delete().eq('related_person_uid', uid),
+    () => sb.from('person_identity_members').delete().eq('person_uid', uid),
+    () => sb.from('person_identity_groups').update({ canonical_person_uid: null, updated_at: new Date().toISOString() }).eq('canonical_person_uid', uid),
+    () => sb.from('canonical_family_children').delete().eq('child_person_uid', uid),
+    () => sb.from('canonical_family_groups').delete().eq('primary_person_uid', uid),
+    () => sb.from('canonical_family_groups').update({ spouse_person_uid: null, updated_at: new Date().toISOString() }).eq('spouse_person_uid', uid),
+    () => sb.from('family_members').delete().eq('person_uid', uid),
+    () => sb.from('families').update({ husband_uid: null }).eq('husband_uid', uid),
+    () => sb.from('families').update({ wife_uid: null }).eq('wife_uid', uid)
+  ];
+
+  for (const step of cleanupSteps) {
+    const { error } = await step();
+    if (error && !/does not exist|schema cache/i.test(error.message || '')) {
+      setStatus('Delete cleanup failed: ' + error.message, true);
+      return;
+    }
+  }
+
+  const { error } = await sb.from('people').delete().eq('uid', uid);
+  if (error) {
+    setStatus('Could not delete person: ' + error.message, true);
+    return;
+  }
+
+  if (uid === focusUid) {
+    location.href = 'archive.html';
+    return;
+  }
+  delete peopleByUid[uid];
+  if (editingUid === uid) editingUid = focusUid;
+  setStatus(`${name} deleted.`);
+  await loadEditor();
 }
 
 async function addParent(type) {

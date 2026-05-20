@@ -29,11 +29,18 @@
   .row { display:flex; justify-content:center; gap:42px; align-items:flex-start; margin:10px 0 26px; min-width:820px; }
   .row.center { margin-top:4px; }
   .person-card { position:relative; min-width:220px; max-width:260px; background:#f4f6e7; border:1px solid #888; border-radius:4px; padding:12px 14px 28px; text-align:center; box-shadow:0 1px 0 rgba(0,0,0,.05); }
+  .person-card.male-card { background:#eaf3ff; border-color:#8ab7e6; }
+  .person-card.female-card { background:#fff0f7; border-color:#e8a8c8; }
+  .person-card.unknown-card { background:#f4f6e7; }
   .person-card.focus { border-width:2px; background:#fffde7; }
+  .person-card.focus.male-card { background:#e1f0ff; border-color:#4d8bd5; }
+  .person-card.focus.female-card { background:#ffe5f1; border-color:#d36fa4; }
   .person-card.editing { border:2px solid var(--gold); background:#fff5d8; box-shadow:0 0 0 4px rgba(181,130,43,.18), 0 10px 24px rgba(51,38,18,.12); }
   .person-card.editing::after { content:"Editing"; position:absolute; left:10px; top:8px; padding:2px 7px; background:var(--gold); color:#fff; border-radius:999px; font-size:.64rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
   .person-card.empty { color:var(--blue); font-weight:700; display:flex; align-items:center; justify-content:center; min-height:76px; }
   .p-name { color:var(--blue); font-weight:800; line-height:1.25; }
+  .female-card .p-name { color:#9d2f68; }
+  .male-card .p-name { color:#165bd8; }
   .p-meta { font-size:.82rem; margin-top:5px; color:#111; line-height:1.35; white-space:pre-line; }
   .card-actions { position:absolute; right:5px; top:5px; display:flex; gap:4px; }
   .card-actions button { padding:1px 5px; font-size:.72rem; background:#f8f8f1; }
@@ -474,8 +481,9 @@ function personCard(p, cls) {
   if (p.death_flag && p.death_date) meta.push('d. ' + p.death_date);
   const initial = (p.name || '?').trim().charAt(0).toUpperCase() || '?';
   const genderClass = p.sex === 'F' ? 'female' : '';
+  const cardGenderClass = p.sex === 'M' ? 'male-card' : (p.sex === 'F' ? 'female-card' : 'unknown-card');
   return `
-    <div class="person-card ${cls === 'focus' ? 'focus' : ''} ${cls === 'child' ? 'child-card' : ''} ${p.uid === editingUid ? 'editing' : ''}"
+    <div class="person-card ${cardGenderClass} ${cls === 'focus' ? 'focus' : ''} ${cls === 'child' ? 'child-card' : ''} ${p.uid === editingUid ? 'editing' : ''}"
       data-person-uid="${esc(p.uid)}"
       onclick="focusProfile('${esc(p.uid)}')"
       title="Click to navigate this person as the editor focus"

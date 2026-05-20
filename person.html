@@ -1069,6 +1069,78 @@ async function hydrateFamilyGroupChildren(group) {
   });
 }
 
+function collapseDuplicateMarriageGroups(groups) {
+  const collapsed = [];
+  (groups || []).forEach(group => {
+    const existing = collapsed.find(candidate => sameSpouseReference(candidate, group));
+    if (!existing) {
+      collapsed.push({ ...group, children: dedupeChildren(group.children || []), alias_groups: [] });
+      return;
+    }
+    const existingHasChildren = (existing.children || []).length > 0;
+    const incomingHasChildren = (group.children || []).length > 0;
+    const mergedChildren = dedupeChildren([...(existing.children || []), ...(group.children || [])]);
+    if (!existingHasChildren && incomingHasChildren) {
+      const priorAlias = { ...existing, children: existing.children || [], alias_groups: [] };
+      Object.assign(existing, {
+        ...group,
+        children: mergedChildren,
+        alias_groups: [priorAlias, ...(existing.alias_groups || [])]
+      });
+      return;
+    }
+    existing.alias_groups.push(group);
+    existing.children = mergedChildren;
+  });
+  return collapsed;
+}
+
+function sameSpouseReference(a, b) {
+  if (!a || !b) return false;
+  if (a.spouse_person_uid && b.spouse_person_uid && a.spouse_person_uid === b.spouse_person_uid) return true;
+  const aNames = [a.spouse_display_name, a.spouse_name].filter(Boolean);
+  const bNames = [b.spouse_display_name, b.spouse_name].filter(Boolean);
+  return aNames.some(aName => bNames.some(bName => spouseNamesLookSame(aName, bName)));
+}
+
+function spouseNamesLookSame(a, b) {
+  const aTokens = meaningfulNameTokens(a);
+  const bTokens = meaningfulNameTokens(b);
+  if (!aTokens.length || !bTokens.length) return false;
+  const intersection = aTokens.filter(token => bTokens.includes(token));
+  const overlap = intersection.length;
+  const smaller = Math.min(aTokens.length, bTokens.length);
+  return overlap >= 3 && overlap / smaller >= 0.45;
+}
+
+function meaningfulNameTokens(name) {
+  const common = new Set(['prof', 'dr', 'doctor', 'mr', 'mrs', 'ms', 'janab', 'shaikh', 'sheikh', 'so', 's', 'of', 'urf', 'alias', 'current', 'late']);
+  return [...new Set(String(name || '')
+    .toLowerCase()
+    .replace(/mohd|mohamad|mohammad|muhammad/g, 'mohammad')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(token => token.length > 1 && !common.has(token)))];
+}
+
+function dedupeChildren(children) {
+  const seen = new Set();
+  return (children || []).filter(child => {
+    const key = child.child_person_uid || normalizeLooseName(child.display_name || child.child_name || child.name || '');
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((a, b) => (a.birth_order || 999) - (b.birth_order || 999));
+}
+
+function marriageAliasText(group) {
+  const names = [...new Set((group.alias_groups || [])
+    .map(alias => alias.spouse_display_name || alias.spouse_name)
+    .filter(name => name && normalizeLooseName(name) !== normalizeLooseName(group.spouse_display_name || group.spouse_name || '')))];
+  return names.length ? `Also recorded as: ${names.join('; ')}` : '';
+}
+
 async function loadIdentityReferences(uid) {
   const { data: memberships, error } = await sb.from('person_identity_members')
     .select('group_id,person_uid,source_role,notes')
@@ -1303,9 +1375,10 @@ async function renderPerson(uid, el) {
   currentAssignableChildren = allChildren;
   const relationshipAdditions = await loadRelationshipAdditions(uid);
   const reviewedFamilyGroups = await loadCanonicalFamilyGroups(uid);
+  const displayMarriageGroups = collapseDuplicateMarriageGroups(reviewedFamilyGroups);
   const identityReferenceData = await loadIdentityReferences(uid);
-  const hasReviewedMarriageGroups = reviewedFamilyGroups.length > 0;
-  const reviewedChildUids = new Set(reviewedFamilyGroups.flatMap(group => group.children || []).map(child => child.child_person_uid).filter(Boolean));
+  const hasReviewedMarriageGroups = displayMarriageGroups.length > 0;
+  const reviewedChildUids = new Set(displayMarriageGroups.flatMap(group => group.children || []).map(child => child.child_person_uid).filter(Boolean));
   const unassignedReviewedChildren = hasReviewedMarriageGroups
     ? allChildren.filter(child => !reviewedChildUids.has(child.uid))
     : [];
@@ -1363,11 +1436,11 @@ async function renderPerson(uid, el) {
 
       ${hasReviewedMarriageGroups ? `
         <div class="section-h">Marriage(s)</div>
-        ${reviewedFamilyGroups.map((group, idx) => `
+        ${displayMarriageGroups.map((group, idx) => `
           <div class="family-card">
             <div class="link-card-row">
               <div class="fc-title">
-                ${reviewedFamilyGroups.length > 1 ? `<span style="font-size:0.75rem;color:var(--muted);margin-right:6px">Marriage ${idx+1}</span>` : ''}
+                ${displayMarriageGroups.length > 1 ? `<span style="font-size:0.75rem;color:var(--muted);margin-right:6px">Marriage ${idx+1}</span>` : ''}
                 Spouse: ${group.spouse_person_uid
                   ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(group.spouse_person_uid)}">${escHtml(group.spouse_display_name || group.spouse_name || '(linked spouse)')}</a>`
                   : `<a class="person-link" href="person.html?family_group=${encodeURIComponent(group.id)}">${escHtml(group.spouse_name || '(spouse)')}</a>`}
@@ -1377,15 +1450,17 @@ async function renderPerson(uid, el) {
               </div>
               <button class="mini-danger-btn" type="button" onclick="archiveCanonicalFamilyGroup('${group.id}')">Undo</button>
             </div>
-            ${group.label || group.relationship_status || group.marriage_date_text || group.divorce_date_text || group.notes ? `
+            ${group.label || group.relationship_status || group.marriage_date_text || group.divorce_date_text || group.notes || marriageAliasText(group) ? `
               <div class="fc-detail" style="white-space:normal">
                 ${group.label ? escHtml(group.label) : ''}
-                ${group.label && (group.relationship_status || group.marriage_date_text || group.divorce_date_text || group.notes) ? '<br>' : ''}
+                ${group.label && (group.relationship_status || group.marriage_date_text || group.divorce_date_text || group.notes || marriageAliasText(group)) ? '<br>' : ''}
                 ${group.relationship_status ? `Status: ${escHtml(familyRelationshipStatusLabel(group.relationship_status))}` : ''}
                 ${group.marriage_date_text ? ` · Married: ${escHtml(group.marriage_date_text)}` : ''}
                 ${group.divorce_date_text ? ` · Divorce/separation: ${escHtml(group.divorce_date_text)}` : ''}
-                ${(group.relationship_status || group.marriage_date_text || group.divorce_date_text) && group.notes ? '<br>' : ''}
+                ${(group.relationship_status || group.marriage_date_text || group.divorce_date_text) && (group.notes || marriageAliasText(group)) ? '<br>' : ''}
                 ${group.notes ? escHtml(group.notes) : ''}
+                ${group.notes && marriageAliasText(group) ? '<br>' : ''}
+                ${marriageAliasText(group) ? escHtml(marriageAliasText(group)) : ''}
               </div>
             ` : ''}
             ${group.children.length ? `

@@ -681,7 +681,7 @@ async function deletePerson(uid) {
   if (!uid) return;
   const person = peopleByUid[uid] || await getPerson(uid);
   const name = person?.name || '(unnamed)';
-  const firstConfirm = confirm(`Delete ${name}?\n\nThis will remove this person and detach them from visible family links. This cannot be undone.`);
+  const firstConfirm = confirm(`Delete ${name}?\n\nThis deletes only this selected person and detaches their links. Parents, spouses, siblings, and children are not deleted automatically. This cannot be undone.`);
   if (!firstConfirm) return;
   const typed = prompt(`Type DELETE to permanently delete ${name}.`);
   if (typed !== 'DELETE') {
@@ -697,7 +697,7 @@ async function deletePerson(uid) {
     () => sb.from('person_identity_members').delete().eq('person_uid', uid),
     () => sb.from('person_identity_groups').update({ canonical_person_uid: null, updated_at: new Date().toISOString() }).eq('canonical_person_uid', uid),
     () => sb.from('canonical_family_children').delete().eq('child_person_uid', uid),
-    () => sb.from('canonical_family_groups').delete().eq('primary_person_uid', uid),
+    () => sb.from('canonical_family_groups').update({ status: 'archived', updated_at: new Date().toISOString() }).eq('primary_person_uid', uid),
     () => sb.from('canonical_family_groups').update({ spouse_person_uid: null, updated_at: new Date().toISOString() }).eq('spouse_person_uid', uid),
     () => sb.from('family_members').delete().eq('person_uid', uid),
     () => sb.from('families').update({ husband_uid: null }).eq('husband_uid', uid),
@@ -710,6 +710,11 @@ async function deletePerson(uid) {
       setStatus('Delete cleanup failed: ' + error.message, true);
       return;
     }
+  }
+  const emptyCleanupError = await cleanupEmptyFamilyContainers();
+  if (emptyCleanupError) {
+    setStatus('Delete cleanup failed: ' + emptyCleanupError.message, true);
+    return;
   }
 
   const { error } = await sb.from('people').delete().eq('uid', uid);
@@ -726,6 +731,26 @@ async function deletePerson(uid) {
   if (editingUid === uid) editingUid = focusUid;
   setStatus(`${name} deleted.`);
   await loadEditor();
+}
+
+async function cleanupEmptyFamilyContainers() {
+  const { data: families, error } = await sb.from('families')
+    .select('uid')
+    .is('husband_uid', null)
+    .is('wife_uid', null);
+  if (error && !/schema cache/i.test(error.message || '')) return error;
+  const familyUids = (families || []).map(fam => fam.uid).filter(Boolean);
+  for (const familyUid of familyUids) {
+    const { count, error: countError } = await sb.from('family_members')
+      .select('*', { count: 'exact', head: true })
+      .eq('family_uid', familyUid);
+    if (countError && !/schema cache/i.test(countError.message || '')) return countError;
+    if (Number(count || 0) === 0) {
+      const { error: deleteError } = await sb.from('families').delete().eq('uid', familyUid);
+      if (deleteError && !/schema cache/i.test(deleteError.message || '')) return deleteError;
+    }
+  }
+  return null;
 }
 
 async function addParent(type) {

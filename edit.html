@@ -477,8 +477,8 @@ function personCard(p, cls) {
   return `
     <div class="person-card ${cls === 'focus' ? 'focus' : ''} ${cls === 'child' ? 'child-card' : ''} ${p.uid === editingUid ? 'editing' : ''}"
       data-person-uid="${esc(p.uid)}"
-      onclick="selectPerson('${esc(p.uid)}')"
-      title="Click to edit this visible profile"
+      onclick="focusProfile('${esc(p.uid)}')"
+      title="Click to navigate this person as the editor focus"
       ${cls === 'child' ? `draggable="${moveModeActive ? 'true' : 'false'}"` : ''}>
       ${cls === 'child' ? '<span class="drag-handle" title="Drag this handle to move the child into another family group">⋮⋮</span>' : ''}
       <div class="card-actions">
@@ -491,6 +491,12 @@ function personCard(p, cls) {
       ${p.death_flag ? '<span class="deceased-badge" title="This person is marked as deceased">† Deceased</span>' : ''}
     </div>
   `;
+}
+
+function focusProfile(uid) {
+  if (!uid || moveModeActive) return;
+  if (uid === focusUid) return;
+  location.href = 'edit.html?uid=' + encodeURIComponent(uid);
 }
 
 function emptyCard(text, action) {

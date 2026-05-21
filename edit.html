@@ -5,14 +5,20 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Edit Family - Apno Ki Talash</title>
 <link rel="icon" href="apnonkitalash-logo-favicon.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Lora:wght@600;700&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
-    --bg:#f7f2e8; --panel:#fffdf7; --ink:#1f1a14; --muted:#746b5f;
-    --green:#254f34; --gold:#b5822b; --line:#cfc4b3; --blue:#165bd8; --red:#b42318;
+    --paper:#f3ecd6; --paper-2:#efe4c5; --card:#fbf6e6; --panel:#fffdf7;
+    --ink:#1d3a2a; --ink-soft:#5a6b5e; --muted:#8a8973;
+    --green:#254f34; --gold:#b88a2e; --gold-soft:#d5b66e;
+    --line:#d5c8aa; --rust:#a04a2a; --rust-bg:rgba(160,74,42,.09);
+    --bg:var(--paper); --blue:var(--ink); --red:var(--rust);
   }
   * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink); font-family:Arial, Helvetica, sans-serif; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:Inter, Arial, Helvetica, sans-serif; }
   header { position:sticky; top:0; z-index:10; background:rgba(247,242,232,.95); border-bottom:1px solid var(--line); padding:14px 22px; display:flex; justify-content:space-between; gap:12px; align-items:center; }
   h1 { margin:0; color:var(--green); font-family:Georgia, serif; font-size:1.45rem; }
   .sub { color:var(--muted); font-size:.82rem; margin-top:3px; }
@@ -28,26 +34,33 @@
   .board { background:#edf2df; border:1px solid #9ca891; min-height:520px; padding:22px; overflow-x:auto; }
   .row { display:flex; justify-content:center; gap:34px; align-items:flex-start; margin:10px 0 24px; min-width:760px; }
   .row.center { margin-top:4px; }
-  .person-card { position:relative; min-width:190px; max-width:230px; background:#f4f6e7; border:1px solid #888; border-radius:6px; padding:14px 12px 44px; text-align:center; box-shadow:0 1px 0 rgba(0,0,0,.05); cursor:pointer; overflow:hidden; }
-  .person-card.male-card { background:#f3f7fb; border-color:#c8d7e6; }
-  .person-card.female-card { background:#fbf3f6; border-color:#e3cbd6; }
-  .person-card.unknown-card { background:#f4f6e7; }
-  .person-card.focus { border-width:2px; background:#fffde7; }
-  .person-card.focus.male-card { background:#edf4fb; border-color:#94b7dc; }
-  .person-card.focus.female-card { background:#faedf2; border-color:#d6a9bf; }
-  .person-card.editing { border:2px solid var(--gold); background:#fff5d8; box-shadow:0 0 0 4px rgba(181,130,43,.18), 0 10px 24px rgba(51,38,18,.12); }
-  .person-card.editing::after { content:"Editing"; position:absolute; left:8px; top:7px; padding:2px 7px; background:var(--gold); color:#fff; border-radius:999px; font-size:.62rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+  .person-card { position:relative; min-width:210px; max-width:260px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:32px 28px 63px; text-align:center; box-shadow:0 8px 22px rgba(54,42,22,.08); cursor:pointer; overflow:clip; overflow-clip-margin:16px; color:var(--ink); }
+  .person-card.male-card,
+  .person-card.female-card,
+  .person-card.unknown-card,
+  .person-card.focus,
+  .person-card.focus.male-card,
+  .person-card.focus.female-card { background:var(--card); }
+  .person-card.focus { border-color:var(--gold-soft); }
+  .person-card.editing { border-color:var(--gold-soft); background:var(--card); box-shadow:0 0 0 4px rgba(184,138,46,.22), 0 12px 28px rgba(54,42,22,.12); }
+  .person-card.editing::after { content:"EDITING"; position:absolute; left:22px; top:-11px; z-index:2; padding:4px 10px; background:var(--gold); color:var(--card); border-radius:999px; font-family:Inter, Arial, sans-serif; font-size:.62rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
   .person-card.empty { color:var(--blue); font-weight:700; display:flex; align-items:center; justify-content:center; min-height:76px; }
-  .p-name { color:var(--blue); font-weight:800; line-height:1.25; font-size:.95rem; }
-  .female-card .p-name { color:#7f3d5c; }
-  .male-card .p-name { color:#2d5f9a; }
-  .p-meta { font-size:.78rem; margin-top:4px; color:#111; line-height:1.32; white-space:pre-line; }
-  .card-actions { position:absolute; left:0; right:0; bottom:0; display:grid; grid-template-columns:1fr 1fr 46px; border-top:1px solid rgba(116,107,95,.24); background:rgba(255,253,247,.76); }
-  .card-actions.no-delete { grid-template-columns:1fr 1fr; }
-  .card-actions button { border:0; border-right:1px solid rgba(116,107,95,.22); background:transparent; color:var(--green); padding:8px 6px; font-size:.74rem; font-weight:800; }
+  .p-name { color:var(--ink); font-family:Lora, Georgia, serif; font-size:20px; font-weight:600; line-height:1.22; text-wrap:balance; }
+  .female-card .p-name,
+  .male-card .p-name { color:var(--ink); }
+  .p-credentials { margin-top:7px; color:var(--ink-soft); font-family:Inter, Arial, sans-serif; font-size:13px; font-style:italic; line-height:1.25; }
+  .p-location { display:inline-flex; align-items:center; justify-content:center; gap:5px; margin-top:8px; color:var(--muted); font-family:Inter, Arial, sans-serif; font-size:12.5px; line-height:1.2; }
+  .p-location svg { width:12px; height:12px; stroke:currentColor; stroke-width:2; fill:none; flex:0 0 auto; }
+  .p-uid { display:inline-flex; align-items:center; gap:6px; margin-top:12px; padding:5px 9px; border:1px solid var(--line); border-radius:8px; background:var(--paper-2); color:var(--ink-soft); font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:11px; line-height:1; }
+  .p-uid-label { color:var(--gold); font-family:Inter, Arial, sans-serif; font-size:9px; font-weight:700; letter-spacing:.08em; }
+  .card-actions { position:absolute; left:0; right:0; bottom:0; display:grid; grid-template-columns:1fr 1fr 1fr; border-top:1px solid var(--line); background:linear-gradient(rgba(255,255,255,.45), rgba(255,255,255,.45)), var(--card); border-radius:0 0 14px 14px; overflow:hidden; }
+  .card-actions.no-delete { grid-template-columns:1fr 1fr 1fr; }
+  .card-actions button { border:0; border-right:1px solid var(--line); background:transparent; color:var(--ink); padding:13px 7px; font-family:Inter, Arial, sans-serif; font-size:13.5px; font-weight:500; display:inline-flex; align-items:center; justify-content:center; gap:7px; }
   .card-actions button:last-child { border-right:0; }
-  .card-actions button.edit-card-btn { background:var(--green); color:#fff; }
-  .card-actions button.delete-card-btn { color:var(--red); background:rgba(255,244,243,.72); font-size:.9rem; }
+  .card-actions button svg { width:15px; height:15px; stroke:currentColor; stroke-width:2; fill:none; }
+  .card-actions button.edit-card-btn { background:var(--ink); color:var(--paper); }
+  .card-actions button.delete-card-btn { color:var(--rust); background:transparent; }
+  .card-actions button.delete-card-btn:hover { background:var(--rust-bg); }
   .deceased-badge { display:inline-block; margin-top:7px; padding:2px 7px; border:1px solid #f4b4ad; background:#fff1f0; color:var(--red); font-size:.72rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
   .deceased-mark { color:var(--red); font-weight:900; margin-left:6px; }
   .connector { width:2px; height:34px; background:#777; margin:0 auto 8px; }
@@ -69,8 +82,8 @@
   .soft-title::before { content:""; width:22px; height:2px; background:var(--gold); display:inline-block; }
   .person-card { transition:box-shadow .15s ease, transform .15s ease; }
   .person-card:hover { box-shadow:0 8px 20px rgba(51,38,18,.08); }
-  .p-initial { width:38px; height:38px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; margin-bottom:7px; background:#173e2a; color:#fff8e9; border:3px solid rgba(181,130,43,.35); font-family:Georgia,serif; font-size:1.04rem; font-weight:800; }
-  .p-initial.female { background:#7d4436; }
+  .p-initial { width:72px; height:72px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; margin-bottom:14px; background:var(--ink); color:var(--card); box-shadow:inset 0 0 0 3px var(--gold-soft), 0 0 0 4px var(--paper); font-family:Lora, Georgia, serif; font-size:2rem; font-weight:700; }
+  .p-initial.female { background:var(--ink); }
   .drag-handle { position:absolute; left:-12px; top:22px; width:28px; height:44px; border-radius:10px; background:var(--green); color:#e8c45c; display:none; align-items:center; justify-content:center; font-weight:900; letter-spacing:1px; box-shadow:0 4px 10px rgba(0,0,0,.14); }
   .move-mode .drag-handle { display:flex; }
   .move-mode .person-card { cursor:default; }
@@ -557,13 +570,16 @@ function renderBoard() {
 }
 
 function personCard(p, cls) {
-  const meta = [];
-  if (p.birth_date) meta.push('b. ' + p.birth_date);
-  if (p.birth_place) meta.push(p.birth_place);
-  if (p.death_flag && p.death_date) meta.push('d. ' + p.death_date);
   const initial = (p.name || '?').trim().charAt(0).toUpperCase() || '?';
   const genderClass = p.sex === 'F' ? 'female' : '';
   const cardGenderClass = p.sex === 'M' ? 'male-card' : (p.sex === 'F' ? 'female-card' : 'unknown-card');
+  const credentials = p.occupation || '';
+  const location = p.current_place || p.birth_place || p.root_place || '';
+  const uidLabel = compactUid(p.uid);
+  const viewIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>';
+  const editIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+  const deleteIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
+  const locationIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-4.7 7-11a7 7 0 1 0-14 0c0 6.3 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>';
   return `
     <div class="person-card ${cardGenderClass} ${cls === 'focus' ? 'focus' : ''} ${cls === 'child' ? 'child-card' : ''} ${p.uid === editingUid ? 'editing' : ''}"
       data-person-uid="${esc(p.uid)}"
@@ -572,16 +588,24 @@ function personCard(p, cls) {
       ${cls === 'child' ? `draggable="${moveModeActive ? 'true' : 'false'}"` : ''}>
       ${cls === 'child' ? '<span class="drag-handle" title="Drag this handle to move the child into another family group">⋮⋮</span>' : ''}
       <div class="card-actions ${hasRole('superadmin') ? '' : 'no-delete'}">
-        <button type="button" onclick="event.stopPropagation();viewProfile('${esc(p.uid)}')">View</button>
-        <button class="edit-card-btn" type="button" onclick="event.stopPropagation();selectPerson('${esc(p.uid)}')">Edit</button>
-        ${hasRole('superadmin') ? `<button class="delete-card-btn" type="button" title="Delete this person" aria-label="Delete ${esc(p.name || 'person')}" onclick="event.stopPropagation();deletePerson('${esc(p.uid)}')">Del</button>` : ''}
+        <button type="button" onclick="event.stopPropagation();viewProfile('${esc(p.uid)}')">${viewIcon}<span>View</span></button>
+        <button class="edit-card-btn" type="button" onclick="event.stopPropagation();selectPerson('${esc(p.uid)}')">${editIcon}<span>Edit</span></button>
+        ${hasRole('superadmin') ? `<button class="delete-card-btn" type="button" title="Delete this person" aria-label="Delete ${esc(p.name || 'person')}" onclick="event.stopPropagation();deletePerson('${esc(p.uid)}')">${deleteIcon}<span>Delete</span></button>` : '<span aria-hidden="true"></span>'}
       </div>
       <div class="p-initial ${genderClass}">${esc(initial)}</div>
       <div class="p-name">${esc(p.name || '(unnamed)')}</div>
-      <div class="p-meta">${esc(meta.join('\\n'))}</div>
+      ${credentials ? `<div class="p-credentials">${esc(credentials)}</div>` : ''}
+      ${location ? `<div class="p-location">${locationIcon}<span>${esc(location)}</span></div>` : ''}
+      <div class="p-uid"><span class="p-uid-label">UID</span><span>${esc(uidLabel)}</span></div>
       ${p.death_flag ? '<span class="deceased-badge" title="This person is marked as deceased">† Deceased</span>' : ''}
     </div>
   `;
+}
+
+function compactUid(uid) {
+  const value = String(uid || '');
+  if (value.length <= 17) return value;
+  return value.slice(0, 8) + '_' + value.slice(-5);
 }
 
 function viewProfile(uid) {

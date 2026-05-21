@@ -26,9 +26,9 @@
   .status { display:none; margin-bottom:16px; padding:12px 14px; border-left:4px solid var(--gold); background:#fffaf0; color:var(--green); font-weight:700; }
   .layout { display:grid; grid-template-columns:minmax(0,1fr) 420px; gap:24px; align-items:start; }
   .board { background:#edf2df; border:1px solid #9ca891; min-height:520px; padding:22px; overflow-x:auto; }
-  .row { display:flex; justify-content:center; gap:42px; align-items:flex-start; margin:10px 0 26px; min-width:820px; }
+  .row { display:flex; justify-content:center; gap:34px; align-items:flex-start; margin:10px 0 24px; min-width:760px; }
   .row.center { margin-top:4px; }
-  .person-card { position:relative; min-width:220px; max-width:260px; background:#f4f6e7; border:1px solid #888; border-radius:4px; padding:34px 14px 28px; text-align:center; box-shadow:0 1px 0 rgba(0,0,0,.05); cursor:pointer; }
+  .person-card { position:relative; min-width:190px; max-width:230px; background:#f4f6e7; border:1px solid #888; border-radius:6px; padding:14px 12px 44px; text-align:center; box-shadow:0 1px 0 rgba(0,0,0,.05); cursor:pointer; overflow:hidden; }
   .person-card.male-card { background:#f3f7fb; border-color:#c8d7e6; }
   .person-card.female-card { background:#fbf3f6; border-color:#e3cbd6; }
   .person-card.unknown-card { background:#f4f6e7; }
@@ -36,17 +36,18 @@
   .person-card.focus.male-card { background:#edf4fb; border-color:#94b7dc; }
   .person-card.focus.female-card { background:#faedf2; border-color:#d6a9bf; }
   .person-card.editing { border:2px solid var(--gold); background:#fff5d8; box-shadow:0 0 0 4px rgba(181,130,43,.18), 0 10px 24px rgba(51,38,18,.12); }
-  .person-card.editing::after { content:"Editing"; position:absolute; left:10px; top:8px; padding:2px 7px; background:var(--gold); color:#fff; border-radius:999px; font-size:.64rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+  .person-card.editing::after { content:"Editing"; position:absolute; left:8px; top:7px; padding:2px 7px; background:var(--gold); color:#fff; border-radius:999px; font-size:.62rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
   .person-card.empty { color:var(--blue); font-weight:700; display:flex; align-items:center; justify-content:center; min-height:76px; }
-  .p-name { color:var(--blue); font-weight:800; line-height:1.25; }
+  .p-name { color:var(--blue); font-weight:800; line-height:1.25; font-size:.95rem; }
   .female-card .p-name { color:#7f3d5c; }
   .male-card .p-name { color:#2d5f9a; }
-  .p-meta { font-size:.82rem; margin-top:5px; color:#111; line-height:1.35; white-space:pre-line; }
-  .card-actions { position:absolute; left:8px; top:7px; right:8px; display:flex; justify-content:space-between; gap:10px; pointer-events:none; }
-  .card-main-actions { display:flex; gap:4px; pointer-events:auto; }
-  .card-danger-actions { margin-left:auto; pointer-events:auto; }
-  .card-actions button { padding:1px 5px; font-size:.72rem; background:#f8f8f1; }
-  .card-actions button.delete-card-btn { color:var(--red); border-color:#d28b84; background:#fff4f3; }
+  .p-meta { font-size:.78rem; margin-top:4px; color:#111; line-height:1.32; white-space:pre-line; }
+  .card-actions { position:absolute; left:0; right:0; bottom:0; display:grid; grid-template-columns:1fr 1fr 46px; border-top:1px solid rgba(116,107,95,.24); background:rgba(255,253,247,.76); }
+  .card-actions.no-delete { grid-template-columns:1fr 1fr; }
+  .card-actions button { border:0; border-right:1px solid rgba(116,107,95,.22); background:transparent; color:var(--green); padding:8px 6px; font-size:.74rem; font-weight:800; }
+  .card-actions button:last-child { border-right:0; }
+  .card-actions button.edit-card-btn { background:var(--green); color:#fff; }
+  .card-actions button.delete-card-btn { color:var(--red); background:rgba(255,244,243,.72); font-size:.9rem; }
   .deceased-badge { display:inline-block; margin-top:7px; padding:2px 7px; border:1px solid #f4b4ad; background:#fff1f0; color:var(--red); font-size:.72rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
   .deceased-mark { color:var(--red); font-weight:900; margin-left:6px; }
   .connector { width:2px; height:34px; background:#777; margin:0 auto 8px; }
@@ -68,7 +69,7 @@
   .soft-title::before { content:""; width:22px; height:2px; background:var(--gold); display:inline-block; }
   .person-card { transition:box-shadow .15s ease, transform .15s ease; }
   .person-card:hover { box-shadow:0 8px 20px rgba(51,38,18,.08); }
-  .p-initial { width:46px; height:46px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; margin-bottom:8px; background:#173e2a; color:#fff8e9; border:3px solid rgba(181,130,43,.35); font-family:Georgia,serif; font-size:1.2rem; font-weight:800; }
+  .p-initial { width:38px; height:38px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; margin-bottom:7px; background:#173e2a; color:#fff8e9; border:3px solid rgba(181,130,43,.35); font-family:Georgia,serif; font-size:1.04rem; font-weight:800; }
   .p-initial.female { background:#7d4436; }
   .drag-handle { position:absolute; left:-12px; top:22px; width:28px; height:44px; border-radius:10px; background:var(--green); color:#e8c45c; display:none; align-items:center; justify-content:center; font-weight:900; letter-spacing:1px; box-shadow:0 4px 10px rgba(0,0,0,.14); }
   .move-mode .drag-handle { display:flex; }
@@ -140,7 +141,7 @@
   <div class="toolbar">
     <a class="btn small" id="profile-link" href="archive.html">Back</a>
     <a class="btn small" id="tree-link" href="archive.html">Browse Tree</a>
-    <button class="small" onclick="loadEditor()">Refresh</button>
+    <button class="small" onclick="refreshEditor()">Refresh</button>
   </div>
 </header>
 
@@ -320,6 +321,8 @@ let moveModeActive = false;
 let editingBirthOrderFamilyUid = '';
 let currentUser = '';
 let currentUserRole = 'visitor';
+let profileFormDirty = false;
+let suppressDirtyTracking = false;
 const ROLE_LEVELS = { visitor: 1, moderator: 2, admin: 3, superadmin: 4 };
 
 const RELATION_LABELS = {
@@ -378,7 +381,44 @@ async function bootEditor() {
     `;
     return;
   }
+  setupUnsavedChangeGuard();
   await loadEditor();
+}
+
+function setupUnsavedChangeGuard() {
+  const form = document.querySelector('.side form');
+  if (form) {
+    form.addEventListener('input', markProfileDirty);
+    form.addEventListener('change', markProfileDirty);
+  }
+  ['profile-link', 'tree-link'].forEach(id => {
+    const link = document.getElementById(id);
+    if (!link) return;
+    link.addEventListener('click', event => {
+      if (confirmDiscardProfileChanges()) return;
+      event.preventDefault();
+    });
+  });
+  window.addEventListener('beforeunload', event => {
+    if (!profileFormDirty) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
+}
+
+function markProfileDirty() {
+  if (suppressDirtyTracking) return;
+  if (!value('edit-uid')) return;
+  profileFormDirty = true;
+}
+
+function resetProfileDirty() {
+  profileFormDirty = false;
+}
+
+function confirmDiscardProfileChanges() {
+  if (!profileFormDirty) return true;
+  return confirm('You have unsaved profile changes. Leave without saving?');
 }
 
 async function loadEditor() {
@@ -402,6 +442,12 @@ async function loadEditor() {
   await loadFamilyData();
   renderBoard();
   await selectPerson(focusUid);
+}
+
+async function refreshEditor() {
+  if (!confirmDiscardProfileChanges()) return;
+  resetProfileDirty();
+  await loadEditor();
 }
 
 async function loadGedcomSources() {
@@ -525,12 +571,10 @@ function personCard(p, cls) {
       title="Click to navigate this person as the editor focus"
       ${cls === 'child' ? `draggable="${moveModeActive ? 'true' : 'false'}"` : ''}>
       ${cls === 'child' ? '<span class="drag-handle" title="Drag this handle to move the child into another family group">⋮⋮</span>' : ''}
-      <div class="card-actions">
-        <div class="card-main-actions">
-          <button type="button" onclick="event.stopPropagation();selectPerson('${esc(p.uid)}')">edit</button>
-          <button type="button" onclick="event.stopPropagation();location.href='person.html?uid=${encodeURIComponent(p.uid)}'">view</button>
-        </div>
-        ${hasRole('superadmin') ? `<div class="card-danger-actions"><button class="delete-card-btn" type="button" onclick="event.stopPropagation();deletePerson('${esc(p.uid)}')">delete</button></div>` : ''}
+      <div class="card-actions ${hasRole('superadmin') ? '' : 'no-delete'}">
+        <button type="button" onclick="event.stopPropagation();viewProfile('${esc(p.uid)}')">View</button>
+        <button class="edit-card-btn" type="button" onclick="event.stopPropagation();selectPerson('${esc(p.uid)}')">Edit</button>
+        ${hasRole('superadmin') ? `<button class="delete-card-btn" type="button" title="Delete this person" aria-label="Delete ${esc(p.name || 'person')}" onclick="event.stopPropagation();deletePerson('${esc(p.uid)}')">Del</button>` : ''}
       </div>
       <div class="p-initial ${genderClass}">${esc(initial)}</div>
       <div class="p-name">${esc(p.name || '(unnamed)')}</div>
@@ -540,9 +584,15 @@ function personCard(p, cls) {
   `;
 }
 
+function viewProfile(uid) {
+  if (!confirmDiscardProfileChanges()) return;
+  location.href = 'person.html?uid=' + encodeURIComponent(uid);
+}
+
 function focusProfile(uid) {
   if (!uid || moveModeActive) return;
   if (uid === focusUid) return;
+  if (!confirmDiscardProfileChanges()) return;
   location.href = 'edit.html?uid=' + encodeURIComponent(uid);
 }
 
@@ -599,26 +649,34 @@ async function deleteEmptyFamilyGroup(familyUid) {
 }
 
 async function selectPerson(uid) {
+  if (uid === editingUid && profileFormDirty) return;
+  if (uid !== editingUid && !confirmDiscardProfileChanges()) return;
   const p = peopleByUid[uid];
   if (!p) return;
-  editingUid = uid;
-  markEditingCard();
-  document.getElementById('editing-label').textContent = p.name || '(unnamed)';
-  document.getElementById('edit-uid').value = p.uid;
-  document.getElementById('edit-name').value = p.name || '';
-  document.getElementById('edit-sex').value = p.sex || '';
-  document.getElementById('edit-alive').value = p.death_flag ? 'deceased' : 'alive';
-  document.getElementById('edit-birth-date').value = p.birth_date || '';
-  document.getElementById('edit-birth-place').value = p.birth_place || '';
-  document.getElementById('edit-death-date').value = p.death_date || '';
-  document.getElementById('edit-death-place').value = p.death_place || '';
-  document.getElementById('edit-root-place').value = p.root_place || '';
-  document.getElementById('edit-current-place').value = p.current_place || '';
-  document.getElementById('edit-mobile').value = p.contact_address || '';
-  document.getElementById('edit-email').value = p.email || '';
-  document.getElementById('edit-notes').value = p.notes || '';
-  await loadSelectedBirthOrder(uid);
-  toggleDeathFields();
+  suppressDirtyTracking = true;
+  try {
+    editingUid = uid;
+    markEditingCard();
+    document.getElementById('editing-label').textContent = p.name || '(unnamed)';
+    document.getElementById('edit-uid').value = p.uid;
+    document.getElementById('edit-name').value = p.name || '';
+    document.getElementById('edit-sex').value = p.sex || '';
+    document.getElementById('edit-alive').value = p.death_flag ? 'deceased' : 'alive';
+    document.getElementById('edit-birth-date').value = p.birth_date || '';
+    document.getElementById('edit-birth-place').value = p.birth_place || '';
+    document.getElementById('edit-death-date').value = p.death_date || '';
+    document.getElementById('edit-death-place').value = p.death_place || '';
+    document.getElementById('edit-root-place').value = p.root_place || '';
+    document.getElementById('edit-current-place').value = p.current_place || '';
+    document.getElementById('edit-mobile').value = p.contact_address || '';
+    document.getElementById('edit-email').value = p.email || '';
+    document.getElementById('edit-notes').value = p.notes || '';
+    await loadSelectedBirthOrder(uid);
+    toggleDeathFields();
+    resetProfileDirty();
+  } finally {
+    suppressDirtyTracking = false;
+  }
 }
 
 async function loadSelectedBirthOrder(uid) {
@@ -699,6 +757,7 @@ async function savePerson(event) {
   if (error) return setStatus(error.message, true);
   const birthOrderError = await saveBirthOrder(uid);
   if (birthOrderError) return setStatus('Profile saved, but birth order failed: ' + birthOrderError.message, true);
+  resetProfileDirty();
   setStatus('Profile saved to source person record.');
   await loadEditor();
   await selectPerson(uid);

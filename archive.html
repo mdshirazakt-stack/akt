@@ -1198,6 +1198,8 @@ let forumCategories = [];
 let forumSelectedCategoryId = null;
 let forumSelectedThread = null;
 let accessRequestMode = false;
+let currentUserRole = 'visitor';
+const ROLE_LEVELS = { visitor: 1, moderator: 2, admin: 3, superadmin: 4 };
 const SEARCH_STATE_KEY = 'akt_search_state_v2';
 const SEARCH_COLUMNS_KEY = 'akt_search_columns_v1';
 const SEARCH_COLUMNS = [
@@ -1211,6 +1213,14 @@ const SEARCH_COLUMNS = [
 let selectedSearchColumns = new Set(['name', 'birth_place', 'source']);
 
 // ===== AUTH =====
+function normalizeAccessRole(role) {
+  return ROLE_LEVELS[role] ? role : 'visitor';
+}
+
+function hasRole(role) {
+  return (ROLE_LEVELS[currentUserRole] || 0) >= (ROLE_LEVELS[role] || 0);
+}
+
 async function doEnter() {
   const name = document.getElementById('visitor-name').value.trim();
   const mobile = normalizeMobile(document.getElementById('visitor-mobile').value);
@@ -1278,6 +1288,7 @@ async function doEnter() {
       mobile,
       family_reference: familyReference,
       access_status: 'pending',
+      access_role: 'visitor',
       visit_count: 0,
       ip_hint: getIpHint()
     });
@@ -1293,7 +1304,8 @@ async function doEnter() {
   sessionStorage.setItem('akt_visitor_name', name);
   sessionStorage.setItem('akt_visitor_mobile', mobile);
   sessionStorage.setItem('akt_access_granted', '1');
-  await startApp(name);
+  sessionStorage.setItem('akt_visitor_role', normalizeAccessRole(existing?.access_role));
+  await startApp(name, existing?.access_role);
 }
 
 function revealAccessRequestFields(note) {
@@ -1316,8 +1328,9 @@ function showAccessMessage(message, isError) {
   err.style.display = 'block';
 }
 
-async function startApp(name) {
+async function startApp(name, role = 'visitor') {
   currentUser = name;
+  currentUserRole = normalizeAccessRole(role || sessionStorage.getItem('akt_visitor_role'));
   document.getElementById('user-display').textContent = name;
   document.getElementById('auth-gate').style.display = 'none';
   document.getElementById('app').style.display = 'block';
@@ -1371,7 +1384,9 @@ function doLogout() {
   sessionStorage.removeItem('akt_visitor_name');
   sessionStorage.removeItem('akt_visitor_mobile');
   sessionStorage.removeItem('akt_access_granted');
+  sessionStorage.removeItem('akt_visitor_role');
   currentUser = null;
+  currentUserRole = 'visitor';
   currentVisitCount = 0;
   accessRequestMode = false;
   document.getElementById('app').style.display = 'none';
@@ -1392,7 +1407,7 @@ function doLogout() {
   const savedMobile = sessionStorage.getItem('akt_visitor_mobile');
   const accessGranted = sessionStorage.getItem('akt_access_granted') === '1';
   if (accessGranted && savedName) {
-    startApp(savedName);
+    startApp(savedName, sessionStorage.getItem('akt_visitor_role'));
     return;
   }
   if (savedName) document.getElementById('visitor-name').value = savedName;

@@ -753,6 +753,8 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
+let currentUserRole = 'visitor';
+const ROLE_LEVELS = { visitor: 1, moderator: 2, admin: 3, superadmin: 4 };
 let gedcomUploads = [];
 let currentPerson = null; // cached person data
 let currentProfileOverlay = null;
@@ -764,6 +766,20 @@ let selectedFamilyGroupSpouse = null;
 let familyGroupSpouseRows = [];
 
 // ===== AUTH =====
+function normalizeAccessRole(role) {
+  return ROLE_LEVELS[role] ? role : 'visitor';
+}
+
+function hasRole(role) {
+  return (ROLE_LEVELS[currentUserRole] || 0) >= (ROLE_LEVELS[role] || 0);
+}
+
+function requireRole(role, action = 'perform this action') {
+  if (hasRole(role)) return true;
+  alert(`Only ${role} users can ${action}.`);
+  return false;
+}
+
 async function doEnter() {
   const name = document.getElementById('visitor-name').value.trim();
   if (!name) {
@@ -804,11 +820,13 @@ async function doEnter() {
 
   sessionStorage.setItem('akt_visitor_name', name);
   sessionStorage.setItem('akt_access_granted', '1');
-  await startApp(name);
+  sessionStorage.setItem('akt_visitor_role', normalizeAccessRole(existing.access_role));
+  await startApp(name, existing.access_role);
 }
 
-async function startApp(name) {
+async function startApp(name, role = 'visitor') {
   currentUser = name;
+  currentUserRole = normalizeAccessRole(role || sessionStorage.getItem('akt_visitor_role'));
   document.getElementById('user-display').textContent = name;
   document.getElementById('auth-gate').style.display = 'none';
   document.getElementById('app').style.display = 'block';
@@ -824,7 +842,7 @@ async function startApp(name) {
 (function() {
   const saved = sessionStorage.getItem('akt_visitor_name') || sessionStorage.getItem('akt_visitor');
   const accessGranted = sessionStorage.getItem('akt_access_granted') === '1' || !!sessionStorage.getItem('akt_visitor');
-  if (saved && accessGranted) startApp(saved);
+  if (saved && accessGranted) startApp(saved, sessionStorage.getItem('akt_visitor_role'));
 })();
 
 // ===== GEDCOM SOURCES =====
@@ -1400,7 +1418,7 @@ async function renderPerson(uid, el) {
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <a class="btn-back" style="background:var(--green);color:#fff;border-color:var(--green)"
              href="archive.html?tree=${encodeURIComponent(p.uid)}">🌳 Browse Tree</a>
-          <a class="btn-back" style="border-color:var(--green);color:var(--green)" href="edit.html?uid=${encodeURIComponent(p.uid)}">Edit Profile</a>
+          ${hasRole('admin') ? `<a class="btn-back" style="border-color:var(--green);color:var(--green)" href="edit.html?uid=${encodeURIComponent(p.uid)}">Edit Profile</a>` : ''}
           <button class="btn-back" onclick="shareProfile()" title="Copy link to this profile" id="share-btn">📤 Share</button>
           <button class="btn-back" style="border-color:var(--red);color:var(--red)"
                   onclick="openCorrectionForm()">✏️ Raise Corrections</button>
@@ -1631,6 +1649,7 @@ function setIdentityReferenceStatus(message, isError = false) {
 
 async function attachIdentityReference() {
   if (!currentPerson) return;
+  if (!requireRole('admin', 'link duplicate profile references')) return;
   const uidInput = document.getElementById('identity-ref-uid');
   const notesInput = document.getElementById('identity-ref-notes');
   const otherUid = uidInput?.value.trim() || '';
@@ -1819,6 +1838,7 @@ async function loadCanonicalFamilyGroups(uid) {
 
 async function archiveRelationshipOverride(id) {
   if (!id || !currentPerson) return;
+  if (!requireRole('admin', 'undo linked family records')) return;
   const ok = confirm('Undo this linked family record? The original GEDCOM will not be changed.');
   if (!ok) return;
   const { error } = await sb.from('relationship_overrides')
@@ -1833,6 +1853,7 @@ async function archiveRelationshipOverride(id) {
 
 async function archiveCanonicalFamilyGroup(id) {
   if (!id || !currentPerson) return;
+  if (!requireRole('admin', 'undo marriage groupings')) return;
   const ok = confirm('Undo this reviewed marriage grouping? The source children will return to the ungrouped source view.');
   if (!ok) return;
   const { error } = await sb.from('canonical_family_groups')
@@ -1847,6 +1868,7 @@ async function archiveCanonicalFamilyGroup(id) {
 
 function openEditProfile() {
   if (!currentPerson) return;
+  if (!requireRole('admin', 'edit profiles directly')) return;
   const overlay = currentProfileOverlay || {};
   const displayName = firstText(overlay.corrected_name, currentPerson.name, '');
   document.getElementById('edit-person-label').textContent = displayName || 'Selected person';
@@ -1896,6 +1918,7 @@ function toggleEditDeathFields() {
 async function submitProfileEdit(event) {
   event.preventDefault();
   if (!currentPerson) return;
+  if (!requireRole('admin', 'edit profiles directly')) return;
   const btn = document.getElementById('edit-save-btn');
   btn.disabled = true;
   btn.textContent = 'Saving...';
@@ -2271,6 +2294,7 @@ function selectRelationshipPerson(index, el) {
 }
 
 async function saveRelationshipOverride() {
+  if (!requireRole('admin', 'add linked family records')) return;
   if (!currentPerson || !selectedRelationshipType) {
     showEditStatus('Choose a relationship type first.', true);
     return;
@@ -2425,6 +2449,7 @@ function selectFamilyGroupSpouse(index, el) {
 
 async function saveCanonicalFamilyGroup() {
   if (!currentPerson) return;
+  if (!requireRole('admin', 'save marriage groupings')) return;
   const mode = document.getElementById('family-group-spouse-mode').value;
   const checkedChildren = [...document.querySelectorAll('.family-group-child:checked')].map(input => ({
     uid: input.value,

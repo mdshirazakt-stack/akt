@@ -28,21 +28,23 @@
   .board { background:#edf2df; border:1px solid #9ca891; min-height:520px; padding:22px; overflow-x:auto; }
   .row { display:flex; justify-content:center; gap:42px; align-items:flex-start; margin:10px 0 26px; min-width:820px; }
   .row.center { margin-top:4px; }
-  .person-card { position:relative; min-width:220px; max-width:260px; background:#f4f6e7; border:1px solid #888; border-radius:4px; padding:12px 14px 28px; text-align:center; box-shadow:0 1px 0 rgba(0,0,0,.05); cursor:pointer; }
-  .person-card.male-card { background:#eaf3ff; border-color:#8ab7e6; }
-  .person-card.female-card { background:#fff0f7; border-color:#e8a8c8; }
+  .person-card { position:relative; min-width:220px; max-width:260px; background:#f4f6e7; border:1px solid #888; border-radius:4px; padding:34px 14px 28px; text-align:center; box-shadow:0 1px 0 rgba(0,0,0,.05); cursor:pointer; }
+  .person-card.male-card { background:#f3f7fb; border-color:#c8d7e6; }
+  .person-card.female-card { background:#fbf3f6; border-color:#e3cbd6; }
   .person-card.unknown-card { background:#f4f6e7; }
   .person-card.focus { border-width:2px; background:#fffde7; }
-  .person-card.focus.male-card { background:#e1f0ff; border-color:#4d8bd5; }
-  .person-card.focus.female-card { background:#ffe5f1; border-color:#d36fa4; }
+  .person-card.focus.male-card { background:#edf4fb; border-color:#94b7dc; }
+  .person-card.focus.female-card { background:#faedf2; border-color:#d6a9bf; }
   .person-card.editing { border:2px solid var(--gold); background:#fff5d8; box-shadow:0 0 0 4px rgba(181,130,43,.18), 0 10px 24px rgba(51,38,18,.12); }
   .person-card.editing::after { content:"Editing"; position:absolute; left:10px; top:8px; padding:2px 7px; background:var(--gold); color:#fff; border-radius:999px; font-size:.64rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
   .person-card.empty { color:var(--blue); font-weight:700; display:flex; align-items:center; justify-content:center; min-height:76px; }
   .p-name { color:var(--blue); font-weight:800; line-height:1.25; }
-  .female-card .p-name { color:#9d2f68; }
-  .male-card .p-name { color:#165bd8; }
+  .female-card .p-name { color:#7f3d5c; }
+  .male-card .p-name { color:#2d5f9a; }
   .p-meta { font-size:.82rem; margin-top:5px; color:#111; line-height:1.35; white-space:pre-line; }
-  .card-actions { position:absolute; right:5px; top:5px; display:flex; gap:4px; }
+  .card-actions { position:absolute; left:8px; top:7px; right:8px; display:flex; justify-content:space-between; gap:10px; pointer-events:none; }
+  .card-main-actions { display:flex; gap:4px; pointer-events:auto; }
+  .card-danger-actions { margin-left:auto; pointer-events:auto; }
   .card-actions button { padding:1px 5px; font-size:.72rem; background:#f8f8f1; }
   .card-actions button.delete-card-btn { color:var(--red); border-color:#d28b84; background:#fff4f3; }
   .deceased-badge { display:inline-block; margin-top:7px; padding:2px 7px; border:1px solid #f4b4ad; background:#fff1f0; color:var(--red); font-size:.72rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
@@ -316,6 +318,9 @@ let editingUid = '';
 let gedcomSourceMap = {};
 let moveModeActive = false;
 let editingBirthOrderFamilyUid = '';
+let currentUser = '';
+let currentUserRole = 'visitor';
+const ROLE_LEVELS = { visitor: 1, moderator: 2, admin: 3, superadmin: 4 };
 
 const RELATION_LABELS = {
   father: 'Father',
@@ -334,7 +339,7 @@ const MARRIAGE_STATUSES = [
   ['annulled', '⊘', 'Annulled']
 ];
 
-document.addEventListener('DOMContentLoaded', loadEditor);
+document.addEventListener('DOMContentLoaded', bootEditor);
 document.addEventListener('keydown', event => {
   if (event.key !== 'Escape') return;
   if (document.getElementById('relationship-modal')?.classList.contains('open')) closeRelationshipModal();
@@ -346,6 +351,35 @@ document.getElementById('relationship-modal').addEventListener('click', event =>
 document.getElementById('marriage-modal').addEventListener('click', event => {
   if (event.target.id === 'marriage-modal') closeMarriageModal();
 });
+
+function normalizeAccessRole(role) {
+  return ROLE_LEVELS[role] ? role : 'visitor';
+}
+
+function hasRole(role) {
+  return (ROLE_LEVELS[currentUserRole] || 0) >= (ROLE_LEVELS[role] || 0);
+}
+
+function requireRole(role, action = 'perform this action') {
+  if (hasRole(role)) return true;
+  setStatus(`Only ${role} users can ${action}.`, true);
+  return false;
+}
+
+async function bootEditor() {
+  currentUser = sessionStorage.getItem('akt_visitor_name') || '';
+  currentUserRole = normalizeAccessRole(sessionStorage.getItem('akt_visitor_role'));
+  if (!hasRole('admin')) {
+    document.querySelector('main').innerHTML = `
+      <div class="status" style="display:block;border-left-color:var(--red);color:var(--red);background:#fff4f3">
+        Admin access is required to use the family editor.
+      </div>
+      <a class="btn" href="archive.html">Back to archive</a>
+    `;
+    return;
+  }
+  await loadEditor();
+}
 
 async function loadEditor() {
   if (!focusUid) {
@@ -492,9 +526,11 @@ function personCard(p, cls) {
       ${cls === 'child' ? `draggable="${moveModeActive ? 'true' : 'false'}"` : ''}>
       ${cls === 'child' ? '<span class="drag-handle" title="Drag this handle to move the child into another family group">⋮⋮</span>' : ''}
       <div class="card-actions">
-        <button type="button" onclick="event.stopPropagation();selectPerson('${esc(p.uid)}')">edit</button>
-        <button type="button" onclick="event.stopPropagation();location.href='person.html?uid=${encodeURIComponent(p.uid)}'">view</button>
-        <button class="delete-card-btn" type="button" onclick="event.stopPropagation();deletePerson('${esc(p.uid)}')">delete</button>
+        <div class="card-main-actions">
+          <button type="button" onclick="event.stopPropagation();selectPerson('${esc(p.uid)}')">edit</button>
+          <button type="button" onclick="event.stopPropagation();location.href='person.html?uid=${encodeURIComponent(p.uid)}'">view</button>
+        </div>
+        ${hasRole('superadmin') ? `<div class="card-danger-actions"><button class="delete-card-btn" type="button" onclick="event.stopPropagation();deletePerson('${esc(p.uid)}')">delete</button></div>` : ''}
       </div>
       <div class="p-initial ${genderClass}">${esc(initial)}</div>
       <div class="p-name">${esc(p.name || '(unnamed)')}</div>
@@ -637,6 +673,7 @@ function toggleDeathFields() {
 
 async function savePerson(event) {
   event.preventDefault();
+  if (!requireRole('admin', 'save profile changes')) return;
   const uid = value('edit-uid');
   if (!uid) return;
   const deceased = value('edit-alive') === 'deceased';
@@ -678,6 +715,7 @@ async function saveBirthOrder(uid) {
 }
 
 async function deletePerson(uid) {
+  if (!requireRole('superadmin', 'delete people')) return;
   if (!uid) return;
   const person = peopleByUid[uid] || await getPerson(uid);
   const name = person?.name || '(unnamed)';

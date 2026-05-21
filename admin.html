@@ -292,17 +292,17 @@
   </header>
 
   <nav>
-    <button class="nav-tab active" onclick="switchTab('upload', this)">Upload GEDCOM</button>
-    <button class="nav-tab" onclick="switchTab('uploads', this)">Uploads History</button>
-    <button class="nav-tab" onclick="switchTab('visitors', this)">Visitors</button>
-    <button class="nav-tab" onclick="switchTab('activity', this)">Activity History</button>
-    <button class="nav-tab" onclick="switchTab('changelog', this)">Review & Merge</button>
-    <button class="nav-tab" onclick="switchTab('settings', this)">Import Stats</button>
-    <button class="nav-tab" onclick="switchTab('corrections', this)">📝 Corrections</button>
-    <button class="nav-tab" onclick="switchTab('suggestions', this)">💡 Suggestions</button>
-    <button class="nav-tab" onclick="switchTab('findrequests', this)">🔍 Find Requests</button>
-    <button class="nav-tab" onclick="switchTab('familybuilder', this)">👪 Family Builder</button>
-    <button class="nav-tab" onclick="switchTab('forum', this)">💬 Forum</button>
+    <button class="nav-tab active" data-min-role="admin" onclick="switchTab('upload', this)">Upload GEDCOM</button>
+    <button class="nav-tab" data-min-role="admin" onclick="switchTab('uploads', this)">Uploads History</button>
+    <button class="nav-tab" data-min-role="admin" onclick="switchTab('visitors', this)">Visitors</button>
+    <button class="nav-tab" data-min-role="moderator" onclick="switchTab('activity', this)">Activity History</button>
+    <button class="nav-tab" data-min-role="moderator" onclick="switchTab('changelog', this)">Review & Merge</button>
+    <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('settings', this)">Import Stats</button>
+    <button class="nav-tab" data-min-role="moderator" onclick="switchTab('corrections', this)">📝 Corrections</button>
+    <button class="nav-tab" data-min-role="moderator" onclick="switchTab('suggestions', this)">💡 Suggestions</button>
+    <button class="nav-tab" data-min-role="moderator" onclick="switchTab('findrequests', this)">🔍 Find Requests</button>
+    <button class="nav-tab" data-min-role="admin" onclick="switchTab('familybuilder', this)">👪 Family Builder</button>
+    <button class="nav-tab" data-min-role="moderator" onclick="switchTab('forum', this)">💬 Forum</button>
   </nav>
 
   <main>
@@ -414,6 +414,7 @@
               <th>Mobile / Reference</th>
               <th class="sortable" onclick="sortVisitorsBy('last_seen')">Last Seen (IST) <span class="sort-indicator" id="sort-last_seen"></span></th>
               <th class="sortable" onclick="sortVisitorsBy('status')">Status <span class="sort-indicator" id="sort-status"></span></th>
+              <th class="sortable" onclick="sortVisitorsBy('role')">Role <span class="sort-indicator" id="sort-role"></span></th>
               <th>Actions</th>
             </tr></thead>
             <tbody id="visitors-tbody"></tbody>
@@ -683,6 +684,17 @@ let selectedCommunityFamily = null;
 let selectedCommunityFamilyPeople = [];
 let selectedCommunityFamilyRelationships = [];
 let identityGroups = [];
+const ACCESS_ROLES = ['visitor', 'moderator', 'admin', 'superadmin'];
+const ROLE_LEVELS = { visitor: 1, moderator: 2, admin: 3, superadmin: 4 };
+let currentAdminRole = 'visitor';
+
+function normalizeAccessRole(role) {
+  return ROLE_LEVELS[role] ? role : 'visitor';
+}
+
+function hasAdminRole(role) {
+  return (ROLE_LEVELS[currentAdminRole] || 0) >= (ROLE_LEVELS[role] || 0);
+}
 
 // ===================== AUTH =====================
 async function doLogin() {
@@ -692,21 +704,57 @@ async function doLogin() {
   const correct = data ? data.value : 'akt2024';
   if (pw === correct) {
     adminPassword = correct;
+    currentAdminRole = 'superadmin';
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
+    applyAdminRoleVisibility();
     loadAll();
   } else {
     document.getElementById('login-err').style.display = 'block';
   }
 }
 function doLogout() {
+  currentAdminRole = 'visitor';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   document.getElementById('pw-input').value = '';
 }
 
+function applyAdminRoleVisibility() {
+  document.querySelectorAll('.nav-tab').forEach(tab => {
+    const allowed = hasAdminRole(tab.dataset.minRole || 'moderator');
+    tab.style.display = allowed ? '' : 'none';
+    if (!allowed) tab.classList.remove('active');
+  });
+  const active = document.querySelector('.nav-tab.active:not([style*="display: none"])') || document.querySelector('.nav-tab:not([style*="display: none"])');
+  if (active && !active.classList.contains('active')) {
+    const target = active.getAttribute('onclick')?.match(/switchTab\('([^']+)'/)?.[1];
+    if (target) switchTab(target, active);
+  }
+}
+
+function bootstrapRoleSession() {
+  const sessionRole = normalizeAccessRole(sessionStorage.getItem('akt_visitor_role'));
+  if (!ROLE_LEVELS[sessionRole] || ROLE_LEVELS[sessionRole] < ROLE_LEVELS.moderator) return;
+  currentAdminRole = sessionRole;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  applyAdminRoleVisibility();
+  const firstTab = document.querySelector('.nav-tab:not([style*="display: none"])');
+  const target = firstTab?.getAttribute('onclick')?.match(/switchTab\('([^']+)'/)?.[1] || 'corrections';
+  switchTab(target, firstTab);
+  loadAll();
+}
+
+document.addEventListener('DOMContentLoaded', bootstrapRoleSession);
+
 // ===================== TABS =====================
 function switchTab(name, btn) {
+  const tab = btn || document.querySelector(`.nav-tab[onclick*="'${name}'"]`);
+  if (tab && !hasAdminRole(tab.dataset.minRole || 'moderator')) {
+    toast('Your role does not have access to that section.', true);
+    return;
+  }
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
@@ -1351,7 +1399,7 @@ async function deleteUpload(id, name) {
 // ===================== VISITORS =====================
 async function loadVisitors() {
   const tbody = document.getElementById('visitors-tbody');
-  tbody.innerHTML = '<tr><td colspan="6" class="empty"><span class="spinner"></span> Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" class="empty"><span class="spinner"></span> Loading…</td></tr>';
   const { data } = await sb.from('visitors').select('*').order('last_seen', { ascending: false });
   allVisitors = data || [];
   renderVisitors(allVisitors);
@@ -1359,7 +1407,7 @@ async function loadVisitors() {
 
 function renderVisitors(visitors) {
   const tbody = document.getElementById('visitors-tbody');
-  if (!visitors.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No visitors yet.</td></tr>'; return; }
+  if (!visitors.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No visitors yet.</td></tr>'; return; }
   updateVisitorSortIndicators();
   const sortedVisitors = sortVisitorRows(visitors);
   tbody.innerHTML = sortedVisitors.map(v => {
@@ -1384,6 +1432,11 @@ function renderVisitors(visitors) {
       </td>
       <td>${formatIST(v.last_seen, false)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(v.last_seen)}</span></td>
       <td><span class="badge" style="${statusStyles[status] || statusStyles.pending}">${escapeHtml(status)}</span></td>
+      <td>
+        <select onchange="setVisitorRole('${v.id}', this.value)" style="min-width:132px;padding:7px 9px;font-size:0.78rem">
+          ${ACCESS_ROLES.map(role => `<option value="${role}" ${(v.access_role || 'visitor') === role ? 'selected' : ''}>${role}</option>`).join('')}
+        </select>
+      </td>
       <td style="min-width:190px">
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${status !== 'approved' ? `<button class="btn-sm" onclick="approveVisitor('${v.id}')" style="border-color:var(--green);color:var(--green)">Approve</button>` : ''}
@@ -1431,6 +1484,9 @@ function sortVisitorRows(visitors) {
     } else if (visitorSort.key === 'status') {
       av = visitorAccessStatus(a);
       bv = visitorAccessStatus(b);
+    } else if (visitorSort.key === 'role') {
+      av = ACCESS_ROLES.indexOf(a.access_role || 'visitor');
+      bv = ACCESS_ROLES.indexOf(b.access_role || 'visitor');
     } else {
       av = String(a.name_entered || '').toLowerCase();
       bv = String(b.name_entered || '').toLowerCase();
@@ -1452,6 +1508,21 @@ function updateVisitorSortIndicators() {
   if (el) el.textContent = visitorSort.dir === 'asc' ? '▲' : '▼';
 }
 
+async function setVisitorRole(id, role) {
+  if (!ACCESS_ROLES.includes(role)) return;
+  const { error } = await sb.from('visitors').update({
+    access_role: role,
+    updated_at: new Date().toISOString()
+  }).eq('id', id);
+  if (error) {
+    toast('Could not update role. Run the updated access gate SQL first.', true);
+    return;
+  }
+  toast('Visitor role updated');
+  allVisitors = allVisitors.map(v => v.id === id ? { ...v, access_role: role } : v);
+  filterVisitors();
+}
+
 async function blockVisitor(id) {
   const reason = prompt('Reason for blocking (optional):') || '';
   await sb.from('visitors').update({ is_blocked: true, access_status: 'blocked', block_reason: reason, updated_at: new Date().toISOString() }).eq('id', id);
@@ -1465,6 +1536,7 @@ async function unblockVisitor(id) {
 async function approveVisitor(id) {
   await sb.from('visitors').update({
     access_status: 'approved',
+    access_role: 'visitor',
     is_blocked: false,
     block_reason: null,
     approved_at: new Date().toISOString(),

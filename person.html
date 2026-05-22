@@ -884,6 +884,17 @@ function goPerson(uid) {
   window.location.href = 'person.html?uid=' + encodeURIComponent(uid);
 }
 
+function isMarkedDeceased(person) {
+  if (!person) return false;
+  if (person.death_flag === true || person.is_deceased === true || person.linked_death_flag === true) return true;
+  const name = String(person.name || person.display_name || person.child_name || person.related_name || '');
+  return /\blate\b/i.test(name) || /\bd\.\s*\d{3,4}\b/i.test(name);
+}
+
+function deceasedMarker(person) {
+  return isMarkedDeceased(person) ? `<span style="font-size:0.7rem;color:var(--muted)"> ✝</span>` : '';
+}
+
 async function renderRelationshipOverlayPerson(relId, el) {
   el.innerHTML = `<div class="empty-state"><span class="spinner"></span> Loading…</div>`;
   const { data: rel, error } = await sb.from('relationship_overrides')
@@ -933,7 +944,7 @@ async function renderRelationshipOverlayPerson(relId, el) {
             <li ${c.uid ? `onclick="goPerson('${c.uid}')"` : ''}>
               ${c.sex ? `<span class="badge badge-${c.sex}">${c.sex}</span>&nbsp;` : ''}
               ${escHtml(c.name || '(unnamed)')}
-              ${c.death_flag ? `<span style="font-size:0.7rem;color:var(--muted)"> ✝</span>` : ''}
+              ${deceasedMarker(c)}
             </li>
           `).join('')}
         </ul>
@@ -1017,7 +1028,7 @@ async function renderFamilyGroupOverlaySpouse(groupId, el) {
             <li ${c.child_person_uid ? `onclick="goPerson('${c.child_person_uid}')"` : ''}>
               ${c.sex ? `<span class="badge badge-${c.sex}">${c.sex}</span>&nbsp;` : ''}
               ${escHtml(c.display_name || c.child_name || '(child)')}
-              ${c.death_flag ? `<span style="font-size:0.7rem;color:var(--muted)"> ✝</span>` : ''}
+              ${deceasedMarker(c)}
             </li>
           `).join('')}
         </ul>
@@ -1201,6 +1212,54 @@ async function loadIdentityReferences(uid) {
   };
 }
 
+function profileUid(row) {
+  return row?.uid || row?.person_uid || row?.child_person_uid || row?.related_person_uid || '';
+}
+
+async function applyLinkedDeceasedFlags(rows) {
+  const people = (rows || []).filter(Boolean);
+  const uids = [...new Set(people.map(profileUid).filter(Boolean))];
+  if (!uids.length) return;
+
+  const { data: memberships, error } = await sb.from('person_identity_members')
+    .select('group_id,person_uid')
+    .in('person_uid', uids);
+  if (error || !memberships?.length) return;
+
+  const groupIds = [...new Set(memberships.map(m => m.group_id).filter(Boolean))];
+  if (!groupIds.length) return;
+
+  const { data: allMembers } = await sb.from('person_identity_members')
+    .select('group_id,person_uid')
+    .in('group_id', groupIds);
+  if (!allMembers?.length) return;
+
+  const memberUids = [...new Set(allMembers.map(m => m.person_uid).filter(Boolean))];
+  const { data: memberPeople } = await sb.from('people')
+    .select('uid,name,death_flag')
+    .in('uid', memberUids);
+  const personByUid = {};
+  (memberPeople || []).forEach(person => { personByUid[person.uid] = person; });
+
+  const deceasedGroupIds = new Set();
+  (allMembers || []).forEach(member => {
+    if (isMarkedDeceased(personByUid[member.person_uid])) deceasedGroupIds.add(member.group_id);
+  });
+  if (!deceasedGroupIds.size) return;
+
+  const groupsByUid = {};
+  (memberships || []).forEach(member => {
+    if (!groupsByUid[member.person_uid]) groupsByUid[member.person_uid] = [];
+    groupsByUid[member.person_uid].push(member.group_id);
+  });
+  people.forEach(person => {
+    const linkedGroups = groupsByUid[profileUid(person)] || [];
+    if (linkedGroups.some(groupId => deceasedGroupIds.has(groupId))) {
+      person.linked_death_flag = true;
+    }
+  });
+}
+
 function renderIdentityReferencesSection(identityReferenceData) {
   const groups = identityReferenceData.groups || [];
   const rows = groups.flatMap(group => group.references.map(ref => ({ group, ref })));
@@ -1216,7 +1275,7 @@ function renderIdentityReferencesSection(identityReferenceData) {
             <div>
               <span class="relation-pill">Reference</span>
               <a class="person-link" href="person.html?uid=${encodeURIComponent(ref.person.uid)}">${escHtml(ref.person.name || '(unnamed)')}</a>
-              ${ref.person.death_flag ? `<span style="font-size:0.7rem;color:var(--muted)"> ✝</span>` : ''}
+              ${deceasedMarker(ref.person)}
               <div class="fc-detail" style="margin-top:5px;white-space:normal">
                 ${ref.person.birth_place ? escHtml(ref.person.birth_place) + ' · ' : ''}
                 ${source ? 'Source: ' + escHtml(source.filename.replace(/\\.ged$/i, '')) : ''}
@@ -1282,7 +1341,7 @@ async function renderPerson(uid, el) {
   const displayEmail = firstText(profileOverlay?.email);
   const sourceNote = firstText(p.notes);
   const communityNote = firstText(profileOverlay?.profile_note);
-  const displayDeceased = profileOverlay?.is_deceased === true || p.death_flag === true;
+  const displayDeceased = profileOverlay?.is_deceased === true || isMarkedDeceased(p);
 
   // Update page title
   document.title = displayName + ' — Apno Ki Talash';
@@ -1324,7 +1383,7 @@ async function renderPerson(uid, el) {
     if (sibMembers && sibMembers.length > 1) {
       const sibUids = sibMembers.map(m => m.person_uid).filter(u => u !== uid);
       if (sibUids.length) {
-        const { data: sibPeople } = await sb.from('people').select('uid,name,sex').in('uid', sibUids);
+        const { data: sibPeople } = await sb.from('people').select('uid,name,sex,death_flag').in('uid', sibUids);
         // Preserve birth_order from sibMembers
         const orderMap = {};
         sibMembers.forEach(m => orderMap[m.person_uid] = m.birth_order);
@@ -1341,8 +1400,8 @@ async function renderPerson(uid, el) {
   });
   let spouseMap = {};
   if (spouseUids.length) {
-    const { data: spouses } = await sb.from('people').select('uid,name').in('uid', spouseUids);
-    (spouses || []).forEach(s => spouseMap[s.uid] = s.name);
+    const { data: spouses } = await sb.from('people').select('uid,name,death_flag').in('uid', spouseUids);
+    (spouses || []).forEach(s => spouseMap[s.uid] = s);
   }
 
   // Children
@@ -1384,9 +1443,10 @@ async function renderPerson(uid, el) {
 
   const spouseFamilies = (famsAsSpouse || []).map(f => {
     const spouseUid  = f.husband_uid === uid ? f.wife_uid : f.husband_uid;
-    const spouseName = spouseMap[spouseUid] || '(unknown)';
+    const spouse = spouseMap[spouseUid] || null;
+    const spouseName = spouse?.name || '(unknown)';
     const children   = familyChildMap[f.uid] || [];
-    return { f, spouseUid, spouseName, children };
+    return { f, spouseUid, spouse, spouseName, children };
   });
 
   const allChildren = Object.values(childrenMap);
@@ -1400,6 +1460,12 @@ async function renderPerson(uid, el) {
   const unassignedReviewedChildren = hasReviewedMarriageGroups
     ? allChildren.filter(child => !reviewedChildUids.has(child.uid))
     : [];
+  await applyLinkedDeceasedFlags([
+    ...siblings,
+    ...Object.values(spouseMap),
+    ...allChildren,
+    ...displayMarriageGroups.flatMap(group => group.children || [])
+  ]);
 
   el.innerHTML = `
     <div style="margin-bottom:16px">
@@ -1447,6 +1513,7 @@ async function renderPerson(uid, el) {
             <li onclick="goPerson('${s.uid}')">
               ${s.sex ? `<span class="badge badge-${s.sex}">${s.sex}</span>&nbsp;` : ''}
               ${escHtml(s.name || '(unnamed)')}
+              ${deceasedMarker(s)}
             </li>
           `).join('')}
         </ul>
@@ -1489,7 +1556,7 @@ async function renderPerson(uid, el) {
                   <li ${c.child_person_uid ? `onclick="goPerson('${c.child_person_uid}')"` : ''}>
                     ${c.sex ? `<span class="badge badge-${c.sex}">${c.sex}</span>&nbsp;` : ''}
                     ${escHtml(c.display_name || c.child_name || '(child)')}
-                    ${c.death_flag ? `<span style="font-size:0.7rem;color:var(--muted)"> ✝</span>` : ''}
+                    ${deceasedMarker(c)}
                   </li>
                 `).join('')}
               </ul>
@@ -1507,7 +1574,7 @@ async function renderPerson(uid, el) {
                   <li onclick="goPerson('${c.uid}')">
                     ${c.sex ? `<span class="badge badge-${c.sex}">${c.sex}</span>&nbsp;` : ''}
                     ${escHtml(c.name || '(unnamed)')}
-                    ${c.death_flag ? `<span style="font-size:0.7rem;color:var(--muted)"> ✝</span>` : ''}
+                    ${deceasedMarker(c)}
                   </li>
                 `).join('')}
               </ul>
@@ -1516,13 +1583,14 @@ async function renderPerson(uid, el) {
         ` : ''}
       ` : spouseFamilies.length ? `
         <div class="section-h">Marriage(s)</div>
-        ${spouseFamilies.map(({ f, spouseUid, spouseName, children }, idx) => `
+        ${spouseFamilies.map(({ f, spouseUid, spouse, spouseName, children }, idx) => `
           <div class="family-card">
             <div class="fc-title">
               ${spouseFamilies.length > 1 ? `<span style="font-size:0.75rem;color:var(--muted);margin-right:6px">Marriage ${idx+1}</span>` : ''}
               Spouse: ${spouseUid
                 ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(spouseUid)}">${escHtml(spouseName)}</a>`
                 : `<span style="color:var(--muted)">${escHtml(spouseName)}</span>`}
+              ${deceasedMarker(spouse || { name: spouseName })}
               ${f.marr_status ? `<span class="badge" style="margin-left:8px">${escHtml(f.marr_status)}</span>` : ''}
             </div>
             ${f.marr_date || f.marr_place ? `
@@ -1538,7 +1606,7 @@ async function renderPerson(uid, el) {
                   <li onclick="goPerson('${c.uid}')">
                     ${c.sex ? `<span class="badge badge-${c.sex}">${c.sex}</span>&nbsp;` : ''}
                     ${escHtml(c.name || '(unnamed)')}
-                    ${c.death_flag ? `<span style="font-size:0.7rem;color:var(--muted)"> ✝</span>` : ''}
+                    ${deceasedMarker(c)}
                   </li>
                 `).join('')}
               </ul>
@@ -1554,6 +1622,7 @@ async function renderPerson(uid, el) {
             <li onclick="goPerson('${c.uid}')">
               ${c.sex ? `<span class="badge badge-${c.sex}">${c.sex}</span>&nbsp;` : ''}
               ${escHtml(c.name || '(unnamed)')}
+              ${deceasedMarker(c)}
             </li>
           `).join('')}
         </ul>
@@ -1882,7 +1951,7 @@ function openEditProfile() {
   document.getElementById('edit-current-location').value = firstText(overlay.current_location, currentPerson.current_place);
   document.getElementById('edit-mobile').value = firstText(overlay.mobile_number);
   document.getElementById('edit-profile-note').value = firstText(overlay.profile_note);
-  const isDeceased = overlay.is_deceased === true || currentPerson.death_flag === true;
+  const isDeceased = overlay.is_deceased === true || isMarkedDeceased(currentPerson);
   document.getElementById('edit-alive-status').value = isDeceased ? 'deceased' : 'alive';
   document.getElementById('edit-death-date').value = firstText(overlay.death_date_text, currentPerson.death_date);
   document.getElementById('edit-death-location').value = firstText(overlay.death_location, currentPerson.death_place);

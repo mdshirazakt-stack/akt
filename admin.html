@@ -445,15 +445,34 @@
       </div>
     </div>
 
-    <!-- REVIEW & MERGE -->
+    <!-- CHANGE REVIEW -->
     <div id="panel-changelog" class="panel">
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-          <h2 style="margin:0">Review & Merge</h2>
+          <h2 style="margin:0">Change Review</h2>
           <button class="btn-sm" onclick="loadChangeLog()" style="background:var(--gold);color:#fff;border:none;padding:7px 16px;cursor:pointer;font-size:0.85rem">↻ Refresh</button>
         </div>
         <div class="insight-note">
-          Review profile edits, linked family records, and marriage/child groupings. Mark reviewed family groupings as merged once they are accepted into the canonical family layer used for future GEDCOM export.
+          Searchable audit view for admin, moderator, and superadmin tree changes. Use this to see who changed what, where it happened, and which older overlay items still need cleanup.
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(220px,1fr) 180px 180px;gap:10px;margin-top:16px">
+          <input id="change-log-search" placeholder="Search by person, actor, UID, or details…" oninput="filterChangeLog()" style="margin:0"/>
+          <select id="change-log-type" onchange="filterChangeLog()">
+            <option value="">All change types</option>
+            <option value="tree">Direct tree edits</option>
+            <option value="profile">Profile edits</option>
+            <option value="linked">Linked records</option>
+            <option value="marriage">Marriage groups</option>
+          </select>
+          <select id="change-log-status" onchange="filterChangeLog()">
+            <option value="">All statuses</option>
+            <option value="recorded">Recorded</option>
+            <option value="approved">Approved</option>
+            <option value="reviewed">Reviewed</option>
+            <option value="merged">Merged</option>
+            <option value="conflict">Conflict</option>
+            <option value="archived">Archived</option>
+          </select>
         </div>
         <div style="overflow-x:auto;margin-top:16px">
           <table>
@@ -464,7 +483,7 @@
               <th>Profile / Tree</th>
               <th>Details</th>
               <th>Status</th>
-              <th>Merge</th>
+              <th>Actions</th>
             </tr></thead>
             <tbody id="change-log-tbody">
               <tr><td colspan="7"><div class="empty"><span class="spinner"></span> Loading…</div></td></tr>
@@ -715,6 +734,8 @@ let selectedCommunityFamilyPeople = [];
 let selectedCommunityFamilyRelationships = [];
 let identityGroups = [];
 let uploadedSources = [];
+let changeLogRows = [];
+let changeLogNames = {};
 const ACCESS_ROLES = ['visitor', 'moderator', 'admin', 'superadmin'];
 const ROLE_LEVELS = { visitor: 1, moderator: 2, admin: 3, superadmin: 4 };
 let currentAdminRole = 'visitor';
@@ -2079,15 +2100,21 @@ async function loadChangeLog() {
   const tbody = document.getElementById('change-log-tbody');
   tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><span class="spinner"></span> Loading…</div></td></tr>';
   try {
-    const [profileRes, relationRes, familyRes] = await Promise.all([
+    const [profileRes, relationRes, familyRes, activityRes] = await Promise.all([
       sb.from('person_profile_overrides').select('*').order('updated_at', { ascending: false }).limit(120),
       sb.from('relationship_overrides').select('*').order('updated_at', { ascending: false }).limit(120),
-      sb.from('canonical_family_groups').select('*, canonical_family_children(*)').order('updated_at', { ascending: false }).limit(120)
+      sb.from('canonical_family_groups').select('*, canonical_family_children(*)').order('updated_at', { ascending: false }).limit(120),
+      sb.from('activity_logs')
+        .select('id,visitor_name,action,target,details,device,timezone,created_at')
+        .like('action', 'tree_%')
+        .order('created_at', { ascending: false })
+        .limit(250)
     ]);
-    const errors = [profileRes.error, relationRes.error, familyRes.error].filter(Boolean);
+    const errors = [profileRes.error, relationRes.error, familyRes.error, activityRes.error].filter(Boolean);
     if (errors.length) throw errors[0];
 
     const rows = [
+      ...(activityRes.data || []).map(row => activityTreeChange(row)),
       ...(profileRes.data || []).map(row => profileOverrideChange(row)),
       ...(relationRes.data || []).map(row => relationshipOverrideChange(row)),
       ...(familyRes.data || []).map(row => familyGroupChange(row))
@@ -2097,12 +2124,58 @@ async function loadChangeLog() {
     rows.forEach(row => {
       if (row.profileUid) uidSet.add(row.profileUid);
       if (row.relatedUid) uidSet.add(row.relatedUid);
+      if (row.childUid) uidSet.add(row.childUid);
     });
-    const names = await loadPersonNameMap([...uidSet]);
-    renderChangeLog(rows, names);
+    changeLogRows = rows;
+    changeLogNames = await loadPersonNameMap([...uidSet]);
+    filterChangeLog();
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="7"><div class="empty" style="color:var(--red)">Could not load review queue. Make sure overlay tables exist in Supabase and the latest relationship migration has run.<br>${escapeHtml(err.message || '')}</div></td></tr>`;
   }
+}
+
+function activityTreeChange(row) {
+  const details = row.details || {};
+  return {
+    source: 'activity_logs',
+    id: row.id,
+    time: row.created_at,
+    actor: row.visitor_name || 'editor',
+    actorRole: details.actor_role || '',
+    type: treeActionLabel(row.action),
+    category: 'tree',
+    profileUid: details.profile_uid || '',
+    relatedUid: details.related_uid || '',
+    childUid: details.child_uid || '',
+    details: row.target || describeActivity(row),
+    detailMeta: activityDetailsText(details),
+    status: 'recorded',
+    rawAction: row.action
+  };
+}
+
+function treeActionLabel(action) {
+  return {
+    tree_profile_saved: 'Profile saved',
+    tree_person_created: 'Person created',
+    tree_person_deleted: 'Person deleted',
+    tree_parent_set: 'Parent updated',
+    tree_spouse_group_created: 'Spouse group created',
+    tree_child_moved: 'Child moved',
+    tree_marriage_saved: 'Marriage updated',
+    tree_family_group_deleted: 'Family group deleted'
+  }[action] || String(action || 'Tree change').replace(/^tree_/, '').replace(/_/g, ' ');
+}
+
+function activityDetailsText(details = {}) {
+  const parts = [];
+  if (details.relation) parts.push(`Relation: ${details.relation}`);
+  if (details.relationship_kind) parts.push(`Relationship: ${details.relationship_kind}`);
+  if (details.marriage_status) parts.push(`Marriage status: ${details.marriage_status}`);
+  if (details.changed_fields?.length) parts.push(`Fields: ${details.changed_fields.join(', ')}`);
+  if (details.family_uid) parts.push(`Family: ${details.family_uid}`);
+  if (details.gedcom_id) parts.push(`GEDCOM: ${details.gedcom_id}`);
+  return parts.join(' · ');
 }
 
 async function loadPersonNameMap(uids) {
@@ -2136,6 +2209,7 @@ function profileOverrideChange(row) {
     time: row.updated_at || row.approved_at,
     actor: row.approved_by || 'editor',
     type: 'Profile edit',
+    category: 'profile',
     profileUid: row.person_uid,
     details: fields.length ? `Updated ${fields.join(', ')}` : 'Profile overlay updated',
     status: 'approved'
@@ -2147,6 +2221,7 @@ function relationshipOverrideChange(row) {
     time: row.updated_at || row.created_at,
     actor: row.created_by || 'editor',
     type: 'Linked family record',
+    category: 'linked',
     profileUid: row.source_person_uid,
     relatedUid: row.related_person_uid,
     details: `${relationshipChangeLabel(row.relationship_type)}: ${row.related_name || row.related_person_uid || 'linked profile'}${row.notes ? ' · ' + row.notes : ''}`,
@@ -2171,6 +2246,7 @@ function familyGroupChange(row) {
     time: row.updated_at || row.created_at,
     actor: row.created_by || 'editor',
     type: 'Marriage grouping',
+    category: 'marriage',
     profileUid: row.primary_person_uid,
     relatedUid: row.spouse_person_uid,
     details: bits.join(' · '),
@@ -2202,25 +2278,62 @@ function familyRelationshipStatusLabel(status) {
   }[status] || status || 'Unknown';
 }
 
+function filterChangeLog() {
+  const q = (document.getElementById('change-log-search')?.value || '').trim().toLowerCase();
+  const type = document.getElementById('change-log-type')?.value || '';
+  const status = document.getElementById('change-log-status')?.value || '';
+  const rows = changeLogRows.filter(row => {
+    if (type && row.category !== type) return false;
+    const rowStatus = String(row.mergeStatus || row.status || '').toLowerCase();
+    if (status && rowStatus !== status) return false;
+    if (!q) return true;
+    const haystack = [
+      row.time,
+      row.actor,
+      row.actorRole,
+      row.type,
+      row.status,
+      row.mergeStatus,
+      row.profileUid,
+      row.relatedUid,
+      row.childUid,
+      changeLogNames[row.profileUid],
+      changeLogNames[row.relatedUid],
+      changeLogNames[row.childUid],
+      row.details,
+      row.detailMeta
+    ].join(' ').toLowerCase();
+    return haystack.includes(q);
+  });
+  renderChangeLog(rows, changeLogNames);
+}
+
 function renderChangeLog(rows, names) {
   const tbody = document.getElementById('change-log-tbody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="7"><div class="empty">No overlay changes found yet.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty">No matching changes found.</div></td></tr>';
     return;
   }
   tbody.innerHTML = rows.map(row => {
     const profileName = names[row.profileUid] || row.profileUid || 'Profile';
     const related = row.relatedUid ? (names[row.relatedUid] || row.relatedUid) : '';
+    const child = row.childUid ? (names[row.childUid] || row.childUid) : '';
     const profileLink = row.profileUid
       ? `<a href="person.html?uid=${encodeURIComponent(row.profileUid)}" target="_blank" style="color:var(--gold);font-weight:700">${escapeHtml(profileName)}</a><br><span style="font-size:0.7rem;color:var(--muted)">${escapeHtml(row.profileUid)}</span>`
       : '—';
+    const relatedLines = [
+      related ? `Related: ${related}` : '',
+      child ? `Child: ${child}` : '',
+      row.detailMeta || ''
+    ].filter(Boolean);
+    const actorRole = row.actorRole ? `<br><span style="font-size:0.72rem;color:var(--muted)">${escapeHtml(row.actorRole)}</span>` : '';
     return `
       <tr>
         <td>${formatIST(row.time, false)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(row.time)}</span></td>
-        <td>${escapeHtml(row.actor || 'editor')}</td>
+        <td><strong>${escapeHtml(row.actor || 'editor')}</strong>${actorRole}</td>
         <td><span class="activity-badge">${escapeHtml(row.type)}</span></td>
         <td>${profileLink}</td>
-        <td>${escapeHtml(row.details || '')}${related ? `<br><span style="font-size:0.76rem;color:var(--muted)">Related: ${escapeHtml(related)}</span>` : ''}</td>
+        <td>${escapeHtml(row.details || '')}${relatedLines.length ? `<br><span style="font-size:0.76rem;color:var(--muted)">${escapeHtml(relatedLines.join(' · '))}</span>` : ''}</td>
         <td>${escapeHtml(row.status || '')}${row.mergeStatus ? `<br><span style="font-size:0.76rem;color:${row.mergeStatus === 'merged' ? 'var(--green)' : row.mergeStatus === 'conflict' ? 'var(--red)' : 'var(--muted)'}">merge: ${escapeHtml(row.mergeStatus)}</span>` : ''}</td>
         <td>${renderChangeLogActions(row)}</td>
       </tr>

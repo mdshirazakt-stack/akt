@@ -1156,7 +1156,7 @@ function meaningfulNameTokens(name) {
 function dedupeChildren(children) {
   const seen = new Set();
   return (children || []).filter(child => {
-    const key = child.child_person_uid || normalizeLooseName(child.display_name || child.child_name || child.name || '');
+    const key = child.child_person_uid || child.uid || normalizeLooseName(child.display_name || child.child_name || child.name || '');
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -1168,6 +1168,87 @@ function marriageAliasText(group) {
     .map(alias => alias.spouse_display_name || alias.spouse_name)
     .filter(name => name && normalizeLooseName(name) !== normalizeLooseName(group.spouse_display_name || group.spouse_name || '')))];
   return names.length ? `Also recorded as: ${names.join('; ')}` : '';
+}
+
+async function loadIdentityGroupMap(uids) {
+  const uniqueUids = [...new Set((uids || []).filter(Boolean))];
+  if (!uniqueUids.length) return {};
+  const { data: memberships, error } = await sb.from('person_identity_members')
+    .select('group_id,person_uid')
+    .in('person_uid', uniqueUids);
+  if (error || !memberships?.length) return {};
+
+  const groupIds = [...new Set(memberships.map(m => m.group_id).filter(Boolean))];
+  const { data: groups } = await sb.from('person_identity_groups')
+    .select('id,status')
+    .in('id', groupIds)
+    .neq('status', 'archived');
+  const activeGroups = new Set((groups || []).map(g => g.id));
+  const map = {};
+  memberships.forEach(member => {
+    if (!activeGroups.has(member.group_id)) return;
+    if (!map[member.person_uid]) map[member.person_uid] = [];
+    map[member.person_uid].push(member.group_id);
+  });
+  return map;
+}
+
+function sameIdentityUid(aUid, bUid, identityMap = {}) {
+  if (!aUid || !bUid) return false;
+  if (aUid === bUid) return true;
+  const aGroups = identityMap[aUid] || [];
+  const bGroups = identityMap[bUid] || [];
+  return aGroups.some(groupId => bGroups.includes(groupId));
+}
+
+function sameSourceSpouseFamily(a, b, identityMap = {}) {
+  if (!a || !b) return false;
+  if (sameIdentityUid(a.spouseUid, b.spouseUid, identityMap)) return true;
+  return spouseNamesLookSame(a.spouseName, b.spouseName);
+}
+
+function collapseDuplicateSourceSpouseFamilies(families, identityMap = {}) {
+  const collapsed = [];
+  (families || []).forEach(family => {
+    const existing = collapsed.find(row => sameSourceSpouseFamily(row, family, identityMap));
+    if (!existing) {
+      collapsed.push({ ...family, aliasFamilies: [] });
+      return;
+    }
+    const priorAlias = {
+      spouseUid: existing.spouseUid,
+      spouseName: existing.spouseName,
+      familyUid: existing.f?.uid,
+      childCount: (existing.children || []).length
+    };
+    const incomingAlias = {
+      spouseUid: family.spouseUid,
+      spouseName: family.spouseName,
+      familyUid: family.f?.uid,
+      childCount: (family.children || []).length
+    };
+    const existingHadChildren = (existing.children || []).length > 0;
+    const incomingHasChildren = (family.children || []).length > 0;
+    const mergedChildren = dedupeChildren([...(existing.children || []), ...(family.children || [])]);
+    existing.aliasFamilies = [...(existing.aliasFamilies || []), incomingAlias];
+    if (!existingHadChildren && incomingHasChildren) {
+      Object.assign(existing, {
+        ...family,
+        children: mergedChildren,
+        aliasFamilies: [priorAlias, ...(existing.aliasFamilies || [])]
+      });
+    } else {
+      existing.children = mergedChildren;
+    }
+  });
+  return collapsed;
+}
+
+function sourceMarriageAliasText(row) {
+  const aliases = [...new Set((row.aliasFamilies || [])
+    .map(alias => alias.spouseName)
+    .filter(name => name && normalizeLooseName(name) !== normalizeLooseName(row.spouseName || '')))];
+  return aliases.length ? `Also recorded as: ${aliases.join('; ')}` : '';
 }
 
 async function loadIdentityReferences(uid) {
@@ -1448,6 +1529,8 @@ async function renderPerson(uid, el) {
     const children   = familyChildMap[f.uid] || [];
     return { f, spouseUid, spouse, spouseName, children };
   });
+  const spouseIdentityMap = await loadIdentityGroupMap(spouseFamilies.map(row => row.spouseUid));
+  const displaySpouseFamilies = collapseDuplicateSourceSpouseFamilies(spouseFamilies, spouseIdentityMap);
 
   const allChildren = Object.values(childrenMap);
   currentAssignableChildren = allChildren;
@@ -1581,18 +1664,21 @@ async function renderPerson(uid, el) {
             </div>
           </div>
         ` : ''}
-      ` : spouseFamilies.length ? `
+      ` : displaySpouseFamilies.length ? `
         <div class="section-h">Marriage(s)</div>
-        ${spouseFamilies.map(({ f, spouseUid, spouse, spouseName, children }, idx) => `
+        ${displaySpouseFamilies.map(({ f, spouseUid, spouse, spouseName, children, aliasFamilies }, idx) => `
           <div class="family-card">
             <div class="fc-title">
-              ${spouseFamilies.length > 1 ? `<span style="font-size:0.75rem;color:var(--muted);margin-right:6px">Marriage ${idx+1}</span>` : ''}
+              ${displaySpouseFamilies.length > 1 ? `<span style="font-size:0.75rem;color:var(--muted);margin-right:6px">Marriage ${idx+1}</span>` : ''}
               Spouse: ${spouseUid
                 ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(spouseUid)}">${escHtml(spouseName)}</a>`
                 : `<span style="color:var(--muted)">${escHtml(spouseName)}</span>`}
               ${deceasedMarker(spouse || { name: spouseName })}
               ${f.marr_status ? `<span class="badge" style="margin-left:8px">${escHtml(f.marr_status)}</span>` : ''}
             </div>
+            ${sourceMarriageAliasText({ spouseName, aliasFamilies }) ? `
+              <div class="fc-detail" style="white-space:normal">${escHtml(sourceMarriageAliasText({ spouseName, aliasFamilies }))}</div>
+            ` : ''}
             ${f.marr_date || f.marr_place ? `
             <div class="fc-detail">
               ${f.marr_date  ? `📅 ${escHtml(f.marr_date)}`  : ''}
@@ -1615,7 +1701,7 @@ async function renderPerson(uid, el) {
         `).join('')}
       ` : ''}
 
-      ${!hasReviewedMarriageGroups && !spouseFamilies.length && allChildren.length ? `
+      ${!hasReviewedMarriageGroups && !displaySpouseFamilies.length && allChildren.length ? `
         <div class="section-h">Children (${allChildren.length})</div>
         <ul class="children-list">
           ${allChildren.map(c => `

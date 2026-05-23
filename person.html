@@ -1422,7 +1422,7 @@ async function renderPerson(uid, el) {
   const displayEmail = firstText(profileOverlay?.email);
   const sourceNote = firstText(p.notes);
   const communityNote = firstText(profileOverlay?.profile_note);
-  const displayDeceased = profileOverlay?.is_deceased === true || isMarkedDeceased(p);
+  let displayDeceased = profileOverlay?.is_deceased === true || isMarkedDeceased(p);
 
   // Update page title
   document.title = displayName + ' — Apno Ki Talash';
@@ -1431,10 +1431,28 @@ async function renderPerson(uid, el) {
   const srcUpload = gedcomUploads.find(u => u.id === p.gedcom_id);
   const srcLabel  = srcUpload ? srcUpload.filename.replace(/\.ged$/i, '') : '';
 
-  // Families as spouse
-  const { data: famsAsSpouse } = await sb.from('families')
-    .select('*')
-    .or(`husband_uid.eq.${uid},wife_uid.eq.${uid}`);
+  const identityReferenceData = await loadIdentityReferences(uid);
+  const identityReferenceUids = identityReferenceData.groups
+    .flatMap(group => group.references || [])
+    .map(ref => ref.person?.uid)
+    .filter(Boolean);
+  if (!displayDeceased) {
+    displayDeceased = identityReferenceData.groups
+      .flatMap(group => group.references || [])
+      .some(ref => isMarkedDeceased(ref.person));
+  }
+  const equivalentPersonUids = [...new Set([uid, ...identityReferenceUids])];
+  const equivalentUidSet = new Set(equivalentPersonUids);
+
+  // Families as spouse across this profile and its active identity references.
+  const spouseFamilyMap = {};
+  for (const personUid of equivalentPersonUids) {
+    const { data: rows } = await sb.from('families')
+      .select('*')
+      .or(`husband_uid.eq.${personUid},wife_uid.eq.${personUid}`);
+    (rows || []).forEach(row => { spouseFamilyMap[row.uid] = row; });
+  }
+  const famsAsSpouse = Object.values(spouseFamilyMap);
 
   // Family as child
   const { data: famsAsChild } = await sb.from('family_members')
@@ -1476,8 +1494,8 @@ async function renderPerson(uid, el) {
   // Spouse UIDs
   const spouseUids = [];
   (famsAsSpouse || []).forEach(f => {
-    if (f.husband_uid && f.husband_uid !== uid) spouseUids.push(f.husband_uid);
-    if (f.wife_uid   && f.wife_uid   !== uid) spouseUids.push(f.wife_uid);
+    if (f.husband_uid && !equivalentUidSet.has(f.husband_uid)) spouseUids.push(f.husband_uid);
+    if (f.wife_uid   && !equivalentUidSet.has(f.wife_uid)) spouseUids.push(f.wife_uid);
   });
   let spouseMap = {};
   if (spouseUids.length) {
@@ -1523,7 +1541,7 @@ async function renderPerson(uid, el) {
   }
 
   const spouseFamilies = (famsAsSpouse || []).map(f => {
-    const spouseUid  = f.husband_uid === uid ? f.wife_uid : f.husband_uid;
+    const spouseUid  = equivalentUidSet.has(f.husband_uid) ? f.wife_uid : f.husband_uid;
     const spouse = spouseMap[spouseUid] || null;
     const spouseName = spouse?.name || '(unknown)';
     const children   = familyChildMap[f.uid] || [];
@@ -1535,9 +1553,11 @@ async function renderPerson(uid, el) {
   const allChildren = Object.values(childrenMap);
   currentAssignableChildren = allChildren;
   const relationshipAdditions = await loadRelationshipAdditions(uid);
-  const reviewedFamilyGroups = await loadCanonicalFamilyGroups(uid);
+  const reviewedFamilyGroups = [];
+  for (const personUid of equivalentPersonUids) {
+    reviewedFamilyGroups.push(...await loadCanonicalFamilyGroups(personUid));
+  }
   const displayMarriageGroups = collapseDuplicateMarriageGroups(reviewedFamilyGroups);
-  const identityReferenceData = await loadIdentityReferences(uid);
   const hasReviewedMarriageGroups = displayMarriageGroups.length > 0;
   const reviewedChildUids = new Set(displayMarriageGroups.flatMap(group => group.children || []).map(child => child.child_person_uid).filter(Boolean));
   const unassignedReviewedChildren = hasReviewedMarriageGroups

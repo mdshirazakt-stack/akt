@@ -300,7 +300,6 @@
     <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('settings', this)">Import Stats</button>
     <button class="nav-tab" data-min-role="moderator" onclick="switchTab('corrections', this)">📝 Corrections</button>
     <button class="nav-tab" data-min-role="moderator" onclick="switchTab('suggestions', this)">💡 Suggestions</button>
-    <button class="nav-tab" data-min-role="moderator" onclick="switchTab('findrequests', this)">🔍 Find Requests</button>
     <button class="nav-tab" data-min-role="admin" onclick="switchTab('familybuilder', this)">👪 Family Builder</button>
     <button class="nav-tab" data-min-role="moderator" onclick="switchTab('forum', this)">💬 Forum</button>
   </nav>
@@ -386,13 +385,17 @@
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
           <h2 style="margin:0">Uploads History</h2>
-          <button class="btn-sm" onclick="exportAllNamesJson()" id="export-btn"
-            style="background:var(--gold);color:#fff;border:none;padding:7px 16px;border-radius:6px;cursor:pointer;font-size:0.85rem">
-            ⬇ Export allnames.json
-          </button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+            <button class="btn-sm" onclick="exportSelectedGedcoms()">Export Selected GEDCOMs</button>
+            <button class="btn-sm" onclick="exportAllGedcoms()">Export All GEDCOMs</button>
+            <button class="btn-sm" onclick="exportAllNamesJson()" id="export-btn"
+              style="background:var(--gold);color:#fff;border:none;padding:7px 16px;border-radius:6px;cursor:pointer;font-size:0.85rem">
+              ⬇ Export allnames.json
+            </button>
+          </div>
         </div>
         <div style="font-size:0.8rem;color:var(--muted);margin-bottom:14px">
-          Export and place <code>allnames.json</code> next to <code>archive.html</code> to enable instant loading in the browse app.
+          Select GEDCOM sources to export in bulk as a zip, or export <code>allnames.json</code> next to <code>archive.html</code> for instant browse loading.
         </div>
         <div id="uploads-list"><div class="empty">Loading…</div></div>
       </div>
@@ -405,6 +408,10 @@
         <div class="flex-row" style="margin-bottom:16px">
           <input class="search-bar" id="visitor-search" placeholder="Search by name…" oninput="filterVisitors()" style="flex:1;margin:0"/>
           <button class="btn-sm" onclick="loadVisitors()">↻ Refresh</button>
+        </div>
+        <div class="insight-note" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+          <span>Reset public access before relaunch. This keeps only admin and superadmin visitors, clears everyone else, and removes previous activity history.</span>
+          <button class="btn-sm btn-danger" onclick="clearPublicVisitors()">Clear Public Visitors</button>
         </div>
         <div id="visitors-table-wrap">
           <table>
@@ -707,6 +714,7 @@ let selectedCommunityFamily = null;
 let selectedCommunityFamilyPeople = [];
 let selectedCommunityFamilyRelationships = [];
 let identityGroups = [];
+let uploadedSources = [];
 const ACCESS_ROLES = ['visitor', 'moderator', 'admin', 'superadmin'];
 const ROLE_LEVELS = { visitor: 1, moderator: 2, admin: 3, superadmin: 4 };
 let currentAdminRole = 'visitor';
@@ -789,7 +797,6 @@ function switchTab(name, btn) {
   if (name === 'changelog') loadChangeLog();
   if (name === 'corrections') loadCorrections();
   if (name === 'suggestions') loadSuggestions();
-  if (name === 'findrequests') loadFindRequests();
   if (name === 'familybuilder') loadFamilyBuilder();
   if (name === 'forum') loadForumAdmin();
 }
@@ -1364,47 +1371,103 @@ async function loadUploads() {
   const list = document.getElementById('uploads-list');
   list.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
   const { data, error } = await sb.from('gedcom_uploads').select('*').order('uploaded_at', { ascending: false });
-  if (error || !data || !data.length) { list.innerHTML = '<div class="empty">No uploads yet.</div>'; return; }
-  list.innerHTML = data.map(u => `
+  uploadedSources = data || [];
+  if (error || !uploadedSources.length) { list.innerHTML = '<div class="empty">No uploads yet.</div>'; return; }
+  list.innerHTML = `
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:0.82rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.08em">
+      <input type="checkbox" id="upload-select-all" onchange="toggleAllUploadSelections(this.checked)"/>
+      Select all visible GEDCOMs
+    </label>
+    ${uploadedSources.map(u => `
     <div class="upload-row">
-      <div>
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <input type="checkbox" class="upload-select" value="${u.id}" aria-label="Select ${escapeHtml(u.filename)}"/>
+        <div>
         <div class="fname">📁 ${u.filename}</div>
         <div class="fmeta">${u.people_count} people &nbsp;·&nbsp; ${u.families_count} families &nbsp;·&nbsp; ${new Date(u.uploaded_at).toLocaleString()}</div>
         ${u.notes ? `<div class="fmeta" style="margin-top:4px">📝 ${u.notes}</div>` : ''}
+        </div>
       </div>
       <div class="faction">
         <button class="btn-sm" onclick="exportGedcomSource('${u.id}','${u.filename.replace(/'/g,"\\'")}')">Export GEDCOM</button>
         <button class="btn-sm btn-danger" onclick="deleteUpload('${u.id}','${u.filename.replace(/'/g,"\\'")}')">Delete</button>
       </div>
     </div>
-  `).join('');
+  `).join('')}`;
+}
+
+function toggleAllUploadSelections(checked) {
+  document.querySelectorAll('.upload-select').forEach(cb => { cb.checked = checked; });
 }
 
 async function exportGedcomSource(gedcomId, filename) {
   toast(`Preparing GEDCOM export for "${filename}"...`);
   try {
-    const [{ data: people, error: peopleError }, { data: families, error: familyError }] = await Promise.all([
-      sb.from('people').select('*').eq('gedcom_id', gedcomId).order('raw_gedcom_id'),
-      sb.from('families').select('*').eq('gedcom_id', gedcomId).order('raw_gedcom_id')
-    ]);
-    if (peopleError) throw peopleError;
-    if (familyError) throw familyError;
-    const familyUids = (families || []).map(f => f.uid).filter(Boolean);
-    let members = [];
-    if (familyUids.length) {
-      const { data, error } = await sb.from('family_members')
-        .select('family_uid,person_uid,role,birth_order')
-        .in('family_uid', familyUids)
-        .eq('role', 'child')
-        .order('birth_order');
-      if (error) throw error;
-      members = data || [];
-    }
-    const gedcomText = buildGedcomExport({ people: people || [], families: families || [], members, filename });
+    const gedcomText = await buildGedcomSourceText(gedcomId, filename);
     downloadTextFile(gedcomText, /\.ged$/i.test(filename) ? filename : filename + '.ged', 'text/plain;charset=utf-8');
     toast(`GEDCOM exported: ${filename}`);
   } catch (err) {
     toast('GEDCOM export failed: ' + (err.message || err), true);
+  }
+}
+
+async function buildGedcomSourceText(gedcomId, filename) {
+  const [{ data: people, error: peopleError }, { data: families, error: familyError }] = await Promise.all([
+    sb.from('people').select('*').eq('gedcom_id', gedcomId).order('raw_gedcom_id'),
+    sb.from('families').select('*').eq('gedcom_id', gedcomId).order('raw_gedcom_id')
+  ]);
+  if (peopleError) throw peopleError;
+  if (familyError) throw familyError;
+  const familyUids = (families || []).map(f => f.uid).filter(Boolean);
+  let members = [];
+  if (familyUids.length) {
+    const { data, error } = await sb.from('family_members')
+      .select('family_uid,person_uid,role,birth_order')
+      .in('family_uid', familyUids)
+      .eq('role', 'child')
+      .order('birth_order');
+    if (error) throw error;
+    members = data || [];
+  }
+  return buildGedcomExport({ people: people || [], families: families || [], members, filename });
+}
+
+async function exportSelectedGedcoms() {
+  const ids = Array.from(document.querySelectorAll('.upload-select:checked')).map(cb => cb.value);
+  if (!ids.length) {
+    toast('Select at least one GEDCOM source first.', true);
+    return;
+  }
+  await exportGedcomBundle(uploadedSources.filter(source => ids.includes(source.id)), 'apnonkitalash-selected-gedcoms.zip');
+}
+
+async function exportAllGedcoms() {
+  if (!uploadedSources.length) await loadUploads();
+  if (!uploadedSources.length) {
+    toast('No GEDCOM sources found.', true);
+    return;
+  }
+  const ok = confirm(`Export all ${uploadedSources.length.toLocaleString()} GEDCOM source files as one zip?`);
+  if (!ok) return;
+  await exportGedcomBundle(uploadedSources, 'apnonkitalash-all-gedcoms.zip');
+}
+
+async function exportGedcomBundle(sources, zipName) {
+  toast(`Preparing ${sources.length.toLocaleString()} GEDCOM export(s)...`);
+  const files = [];
+  try {
+    for (let index = 0; index < sources.length; index++) {
+      const source = sources[index];
+      toast(`Exporting ${index + 1}/${sources.length}: ${source.filename}`);
+      const text = await buildGedcomSourceText(source.id, source.filename);
+      const safeName = safeGedcomFilename(source.filename);
+      files.push({ name: safeName, text });
+    }
+    const zipBlob = buildStoredZip(files);
+    downloadBlob(zipBlob, zipName);
+    toast(`Downloaded ${sources.length.toLocaleString()} GEDCOM export(s).`);
+  } catch (err) {
+    toast('Bulk GEDCOM export failed: ' + (err.message || err), true);
   }
 }
 
@@ -1535,6 +1598,10 @@ function gedcomDate(date) {
 
 function downloadTextFile(text, filename, type) {
   const blob = new Blob([text], { type });
+  downloadBlob(blob, filename);
+}
+
+function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -1542,6 +1609,97 @@ function downloadTextFile(text, filename, type) {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+function safeGedcomFilename(filename) {
+  const base = String(filename || 'source-family.ged')
+    .replace(/[\\/:*?"<>|]+/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim() || 'source-family.ged';
+  return /\.ged$/i.test(base) ? base : base + '.ged';
+}
+
+function buildStoredZip(files) {
+  const encoder = new TextEncoder();
+  const chunks = [];
+  const central = [];
+  let offset = 0;
+
+  files.forEach(file => {
+    const nameBytes = encoder.encode(file.name);
+    const data = encoder.encode(file.text || '');
+    const crc = crc32(data);
+    const { time, date } = zipDosDate(new Date());
+
+    const local = new Uint8Array(30 + nameBytes.length);
+    const localView = new DataView(local.buffer);
+    localView.setUint32(0, 0x04034b50, true);
+    localView.setUint16(4, 20, true);
+    localView.setUint16(6, 0, true);
+    localView.setUint16(8, 0, true);
+    localView.setUint16(10, time, true);
+    localView.setUint16(12, date, true);
+    localView.setUint32(14, crc, true);
+    localView.setUint32(18, data.length, true);
+    localView.setUint32(22, data.length, true);
+    localView.setUint16(26, nameBytes.length, true);
+    local.set(nameBytes, 30);
+    chunks.push(local, data);
+
+    const centralHeader = new Uint8Array(46 + nameBytes.length);
+    const centralView = new DataView(centralHeader.buffer);
+    centralView.setUint32(0, 0x02014b50, true);
+    centralView.setUint16(4, 20, true);
+    centralView.setUint16(6, 20, true);
+    centralView.setUint16(8, 0, true);
+    centralView.setUint16(10, 0, true);
+    centralView.setUint16(12, time, true);
+    centralView.setUint16(14, date, true);
+    centralView.setUint32(16, crc, true);
+    centralView.setUint32(20, data.length, true);
+    centralView.setUint32(24, data.length, true);
+    centralView.setUint16(28, nameBytes.length, true);
+    centralView.setUint32(42, offset, true);
+    centralHeader.set(nameBytes, 46);
+    central.push(centralHeader);
+    offset += local.length + data.length;
+  });
+
+  const centralSize = central.reduce((sum, part) => sum + part.length, 0);
+  const end = new Uint8Array(22);
+  const endView = new DataView(end.buffer);
+  endView.setUint32(0, 0x06054b50, true);
+  endView.setUint16(8, files.length, true);
+  endView.setUint16(10, files.length, true);
+  endView.setUint32(12, centralSize, true);
+  endView.setUint32(16, offset, true);
+  return new Blob([...chunks, ...central, end], { type: 'application/zip' });
+}
+
+function zipDosDate(date) {
+  const year = Math.max(date.getFullYear(), 1980);
+  return {
+    time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
+    date: ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate()
+  };
+}
+
+function crc32(bytes) {
+  let crc = -1;
+  for (let i = 0; i < bytes.length; i++) {
+    crc = (crc >>> 8) ^ CRC32_TABLE[(crc ^ bytes[i]) & 0xff];
+  }
+  return (crc ^ -1) >>> 0;
+}
+
+const CRC32_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    table[i] = c >>> 0;
+  }
+  return table;
+})();
 
 async function deleteUpload(id, name) {
   if (!confirm(`Delete "${name}"?\n\nThis will permanently remove:\n• All people from this file\n• All families from this file\n• All family member links\n• The upload record itself\n\nThis cannot be undone.`)) return;
@@ -1732,6 +1890,41 @@ async function approveVisitor(id) {
   }).eq('id', id);
   toast('Access approved');
   loadVisitors();
+}
+
+async function clearPublicVisitors() {
+  if (!hasAdminRole('superadmin')) {
+    toast('Only superadmin can clear public visitors.', true);
+    return;
+  }
+  const keepers = allVisitors.filter(v => ['admin', 'superadmin'].includes(v.access_role || 'visitor'));
+  const deleteCount = allVisitors.length - keepers.length;
+  const ok = confirm(
+    `Clear public visitor access now?\n\nThis will delete ${deleteCount.toLocaleString()} visitor record(s), including visitors and moderators, and clear previous activity history.\n\nAdmin and superadmin visitor records will be kept.`
+  );
+  if (!ok) return;
+  const typed = prompt('Type CLEAR VISITORS to confirm.');
+  if (typed !== 'CLEAR VISITORS') {
+    toast('Visitor cleanup cancelled.');
+    return;
+  }
+
+  const activityDelete = await sb.from('activity_logs').delete().neq('visitor_name', '__never__');
+  if (activityDelete.error && !/does not exist|schema cache/i.test(activityDelete.error.message || '')) {
+    toast('Could not clear activity history: ' + activityDelete.error.message, true);
+    return;
+  }
+
+  const { error } = await sb.from('visitors')
+    .delete()
+    .or('access_role.is.null,access_role.not.in.(admin,superadmin)');
+  if (error) {
+    toast('Could not clear public visitors: ' + error.message, true);
+    return;
+  }
+  toast('Public visitors and previous activity history cleared.');
+  await loadVisitors();
+  if (document.getElementById('panel-activity').classList.contains('active')) loadActivity();
 }
 
 async function copyApprovalMessage(id) {

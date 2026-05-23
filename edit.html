@@ -380,6 +380,30 @@ function requireRole(role, action = 'perform this action') {
   return false;
 }
 
+async function logTreeChange(action, target, details = {}) {
+  if (!hasRole('moderator')) return;
+  const actor = currentUser || sessionStorage.getItem('akt_visitor_name') || `Admin (${currentUserRole})`;
+  const payload = {
+    visitor_name: actor,
+    action,
+    target,
+    details: {
+      ...details,
+      actor_role: currentUserRole,
+      source: 'edit.html'
+    },
+    device: navigator.userAgent,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+    created_at: new Date().toISOString()
+  };
+  const { error } = await sb.from('activity_logs').insert(payload);
+  if (error && /location_hint|schema cache/i.test(error.message || '')) {
+    const fallbackPayload = { ...payload };
+    delete fallbackPayload.location_hint;
+    await sb.from('activity_logs').insert(fallbackPayload);
+  }
+}
+
 async function bootEditor() {
   currentUser = sessionStorage.getItem('akt_visitor_name') || '';
   currentUserRole = normalizeAccessRole(sessionStorage.getItem('akt_visitor_role'));
@@ -659,6 +683,11 @@ async function deleteEmptyFamilyGroup(familyUid) {
   const { error } = await sb.from('families').delete().eq('uid', familyUid);
   if (error) return setStatus(error.message, true);
   await refreshGedcomCounts(fam.gedcom_id);
+  await logTreeChange('tree_family_group_deleted', 'Deleted empty family group', {
+    profile_uid: focusUid,
+    family_uid: familyUid,
+    gedcom_id: fam.gedcom_id || null
+  });
   setStatus('Empty group deleted.');
   await loadEditor();
 }
@@ -772,6 +801,11 @@ async function savePerson(event) {
   if (error) return setStatus(error.message, true);
   const birthOrderError = await saveBirthOrder(uid);
   if (birthOrderError) return setStatus('Profile saved, but birth order failed: ' + birthOrderError.message, true);
+  await logTreeChange('tree_profile_saved', `Saved profile: ${payload.name || uid}`, {
+    profile_uid: uid,
+    gedcom_id: peopleByUid[uid]?.gedcom_id || focusPerson?.gedcom_id || null,
+    changed_fields: Object.keys(payload).filter(key => key !== 'updated_at')
+  });
   resetProfileDirty();
   setStatus('Profile saved to source person record.');
   await loadEditor();
@@ -835,6 +869,10 @@ async function deletePerson(uid) {
     return;
   }
   await refreshGedcomCounts(person?.gedcom_id);
+  await logTreeChange('tree_person_deleted', `Deleted person: ${name}`, {
+    profile_uid: uid,
+    gedcom_id: person?.gedcom_id || null
+  });
 
   if (uid === focusUid) {
     location.href = 'archive.html';
@@ -881,6 +919,13 @@ async function setParent(type, parentUid) {
   const { error } = await sb.from('families').update(update).eq('uid', fam.uid);
   if (error) return setStatus(error.message, true);
   await refreshGedcomCounts(fam.gedcom_id);
+  await logTreeChange('tree_parent_set', `${type === 'father' ? 'Father' : 'Mother'} saved`, {
+    profile_uid: focusUid,
+    related_uid: parentUid,
+    family_uid: fam.uid,
+    relation: type,
+    gedcom_id: fam.gedcom_id || null
+  });
   setStatus((type === 'father' ? 'Father' : 'Mother') + ' saved.');
   await loadEditor();
 }
@@ -904,6 +949,12 @@ async function createSpouseFamilyWith(spouseUid) {
   const { error } = await sb.from('families').update(update).eq('uid', fam.uid);
   if (error) return setStatus(error.message, true);
   await refreshGedcomCounts(fam.gedcom_id);
+  await logTreeChange('tree_spouse_group_created', 'Spouse/partner group created', {
+    profile_uid: focusUid,
+    related_uid: spouseUid,
+    family_uid: fam.uid,
+    gedcom_id: fam.gedcom_id || null
+  });
   setStatus('Spouse/partner group created.');
   await loadEditor();
 }
@@ -975,6 +1026,12 @@ async function moveChildToFamily(childUid, familyUid) {
   }, { onConflict: 'family_uid,person_uid' });
   if (error) return setStatus(error.message, true);
   await refreshGedcomCounts(target?.gedcom_id);
+  await logTreeChange('tree_child_moved', 'Child assigned to spouse/partner group', {
+    profile_uid: focusUid,
+    child_uid: childUid,
+    family_uid: familyUid,
+    gedcom_id: target?.gedcom_id || null
+  });
   setStatus('Child assigned to selected spouse/partner group.');
   await loadEditor();
 }
@@ -1339,6 +1396,11 @@ async function createAndAttachPerson() {
   if (error) return setStatus(error.message, true);
   peopleByUid[payload.uid] = payload;
   await refreshGedcomCounts(payload.gedcom_id);
+  await logTreeChange('tree_person_created', `Created person: ${payload.name}`, {
+    profile_uid: payload.uid,
+    gedcom_id: payload.gedcom_id || null,
+    relationship_kind: relationshipContext?.kind || ''
+  });
   await attachPersonToContext(payload.uid);
 }
 
@@ -1409,6 +1471,8 @@ function closeMarriageModal() {
 
 async function saveMarriageDetails() {
   if (!marriageContext) return;
+  const familyUid = marriageContext.uid;
+  const gedcomId = marriageContext.gedcom_id || null;
   const notesValue = value('marriage-notes');
   const payload = {
     marr_date: value('marriage-date') || null,
@@ -1417,15 +1481,21 @@ async function saveMarriageDetails() {
     marr_notes: notesValue || null
   };
   let savedWithoutNotes = false;
-  let { error } = await sb.from('families').update(payload).eq('uid', marriageContext.uid);
+  let { error } = await sb.from('families').update(payload).eq('uid', familyUid);
   if (error && /schema cache|marr_notes/i.test(error.message || '')) {
     delete payload.marr_notes;
     savedWithoutNotes = Boolean(notesValue);
-    const retry = await sb.from('families').update(payload).eq('uid', marriageContext.uid);
+    const retry = await sb.from('families').update(payload).eq('uid', familyUid);
     error = retry.error;
   }
   if (error) return setStatus(error.message, true);
   closeMarriageModal();
+  await logTreeChange('tree_marriage_saved', 'Marriage details saved', {
+    profile_uid: focusUid,
+    family_uid: familyUid,
+    marriage_status: payload.marr_status || '',
+    gedcom_id: gedcomId
+  });
   setStatus(savedWithoutNotes ? 'Marriage details saved, but notes need the marr_notes database column. Run supabase_family_editor_updates.sql.' : 'Marriage details saved.');
   await loadEditor();
 }

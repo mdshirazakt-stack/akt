@@ -1163,6 +1163,28 @@ function dedupeChildren(children) {
   }).sort((a, b) => (a.birth_order || 999) - (b.birth_order || 999));
 }
 
+function dedupeSourceChildren(children) {
+  const seen = new Set();
+  return (children || []).filter(child => {
+    const key = sourceChildKey(child);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((a, b) => (a.birth_order || 999) - (b.birth_order || 999));
+}
+
+function sourceChildKey(child) {
+  const name = String(child?.display_name || child?.child_name || child?.name || '')
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/\blate\b|\bd\.\s*\d{3,4}\b/g, ' ')
+    .replace(/mohd|mohamad|muhammad/g, 'mohammad')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return name || child?.child_person_uid || child?.uid || '';
+}
+
 function marriageAliasText(group) {
   const names = [...new Set((group.alias_groups || [])
     .map(alias => alias.spouse_display_name || alias.spouse_name)
@@ -1204,7 +1226,12 @@ function sameIdentityUid(aUid, bUid, identityMap = {}) {
 function sameSourceSpouseFamily(a, b, identityMap = {}) {
   if (!a || !b) return false;
   if (sameIdentityUid(a.spouseUid, b.spouseUid, identityMap)) return true;
+  if (!a.spouseUid && !b.spouseUid && spouseIsUnknown(a.spouseName) && spouseIsUnknown(b.spouseName)) return true;
   return spouseNamesLookSame(a.spouseName, b.spouseName);
+}
+
+function spouseIsUnknown(name) {
+  return !String(name || '').trim() || normalizeLooseName(name) === '(unknown)' || normalizeLooseName(name) === 'unknown';
 }
 
 function collapseDuplicateSourceSpouseFamilies(families, identityMap = {}) {
@@ -1229,7 +1256,7 @@ function collapseDuplicateSourceSpouseFamilies(families, identityMap = {}) {
     };
     const existingHadChildren = (existing.children || []).length > 0;
     const incomingHasChildren = (family.children || []).length > 0;
-    const mergedChildren = dedupeChildren([...(existing.children || []), ...(family.children || [])]);
+    const mergedChildren = dedupeSourceChildren([...(existing.children || []), ...(family.children || [])]);
     existing.aliasFamilies = [...(existing.aliasFamilies || []), incomingAlias];
     if (!existingHadChildren && incomingHasChildren) {
       Object.assign(existing, {

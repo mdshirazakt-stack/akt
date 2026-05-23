@@ -566,7 +566,30 @@
           <button class="btn-sm" onclick="loadFamilyBuilder()" style="background:var(--gold);color:#fff;border:none;padding:7px 16px;cursor:pointer;font-size:0.85rem">↻ Refresh</button>
         </div>
         <div class="insight-note">
-          Use this for a family that does not yet exist in any GEDCOM. It stores a structured submission first; later it can be linked, reviewed, or exported without changing source GEDCOM records.
+          Use this for a family that does not yet exist in any GEDCOM. Create a new source family/GEDCOM, start with the earliest known ancestor, then continue building the tree in the Family Editor.
+        </div>
+        <h3 style="margin-top:18px">Create New Source Family / GEDCOM</h3>
+        <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:16px">
+          <input id="new-source-filename" placeholder="GEDCOM / source name, e.g. 203-New Family of Lar"/>
+          <input id="new-source-root-name" placeholder="Earliest known ancestor / root person"/>
+          <input id="new-source-root-place" placeholder="Root place"/>
+          <select id="new-source-root-gender">
+            <option value="">Gender unknown</option>
+            <option value="M">Male</option>
+            <option value="F">Female</option>
+          </select>
+        </div>
+        <textarea id="new-source-notes" placeholder="Notes about this new source family" style="margin-top:12px;min-height:80px"></textarea>
+        <button class="btn-gold" style="margin-top:12px" onclick="createSourceFamilyGedcom()">Create Source & Open Editor</button>
+        <div class="insight-note" style="margin-top:14px">
+          New people added from that editor workspace will inherit this new source family. Existing people from other GEDCOMs can still be found, linked, and marked as duplicate references.
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Structured Family Submissions</h2>
+        <div class="insight-note">
+          Optional scratch area for collecting family details before converting them into a real source GEDCOM.
         </div>
         <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:16px">
           <input id="family-root-name" placeholder="Root family / ancestor name"/>
@@ -1350,10 +1373,174 @@ async function loadUploads() {
         ${u.notes ? `<div class="fmeta" style="margin-top:4px">📝 ${u.notes}</div>` : ''}
       </div>
       <div class="faction">
+        <button class="btn-sm" onclick="exportGedcomSource('${u.id}','${u.filename.replace(/'/g,"\\'")}')">Export GEDCOM</button>
         <button class="btn-sm btn-danger" onclick="deleteUpload('${u.id}','${u.filename.replace(/'/g,"\\'")}')">Delete</button>
       </div>
     </div>
   `).join('');
+}
+
+async function exportGedcomSource(gedcomId, filename) {
+  toast(`Preparing GEDCOM export for "${filename}"...`);
+  try {
+    const [{ data: people, error: peopleError }, { data: families, error: familyError }] = await Promise.all([
+      sb.from('people').select('*').eq('gedcom_id', gedcomId).order('raw_gedcom_id'),
+      sb.from('families').select('*').eq('gedcom_id', gedcomId).order('raw_gedcom_id')
+    ]);
+    if (peopleError) throw peopleError;
+    if (familyError) throw familyError;
+    const familyUids = (families || []).map(f => f.uid).filter(Boolean);
+    let members = [];
+    if (familyUids.length) {
+      const { data, error } = await sb.from('family_members')
+        .select('family_uid,person_uid,role,birth_order')
+        .in('family_uid', familyUids)
+        .eq('role', 'child')
+        .order('birth_order');
+      if (error) throw error;
+      members = data || [];
+    }
+    const gedcomText = buildGedcomExport({ people: people || [], families: families || [], members, filename });
+    downloadTextFile(gedcomText, /\.ged$/i.test(filename) ? filename : filename + '.ged', 'text/plain;charset=utf-8');
+    toast(`GEDCOM exported: ${filename}`);
+  } catch (err) {
+    toast('GEDCOM export failed: ' + (err.message || err), true);
+  }
+}
+
+function buildGedcomExport({ people, families, members, filename }) {
+  const personXrefs = {};
+  const familyXrefs = {};
+  people.forEach((person, index) => {
+    personXrefs[person.uid] = gedcomXref(person.raw_gedcom_id, 'I', index + 1);
+  });
+  families.forEach((family, index) => {
+    familyXrefs[family.uid] = gedcomXref(family.raw_gedcom_id, 'F', index + 1);
+  });
+  const famcByPerson = {};
+  const famsByPerson = {};
+  families.forEach(family => {
+    const famXref = familyXrefs[family.uid];
+    if (family.husband_uid && personXrefs[family.husband_uid]) {
+      if (!famsByPerson[family.husband_uid]) famsByPerson[family.husband_uid] = [];
+      famsByPerson[family.husband_uid].push(famXref);
+    }
+    if (family.wife_uid && personXrefs[family.wife_uid]) {
+      if (!famsByPerson[family.wife_uid]) famsByPerson[family.wife_uid] = [];
+      famsByPerson[family.wife_uid].push(famXref);
+    }
+  });
+  (members || []).forEach(member => {
+    if (!personXrefs[member.person_uid] || !familyXrefs[member.family_uid]) return;
+    if (!famcByPerson[member.person_uid]) famcByPerson[member.person_uid] = [];
+    famcByPerson[member.person_uid].push(familyXrefs[member.family_uid]);
+  });
+
+  const lines = [
+    '0 HEAD',
+    '1 SOUR APNONKITALASH',
+    '2 NAME Apno Ki Talash',
+    '1 GEDC',
+    '2 VERS 5.5.1',
+    '2 FORM LINEAGE-LINKED',
+    '1 CHAR UTF-8',
+    `1 DATE ${gedcomDate(new Date())}`,
+    `1 FILE ${gedcomText(filename || 'apnonkitalash-export.ged')}`
+  ];
+
+  people.forEach(person => {
+    const xref = personXrefs[person.uid];
+    lines.push(`0 ${xref} INDI`);
+    lines.push(`1 NAME ${gedcomName(person.name)}`);
+    if (person.sex) lines.push(`1 SEX ${person.sex}`);
+    if (person.birth_date || person.birth_place) {
+      lines.push('1 BIRT');
+      if (person.birth_date) lines.push(`2 DATE ${gedcomText(person.birth_date)}`);
+      if (person.birth_place) lines.push(`2 PLAC ${gedcomText(person.birth_place)}`);
+    }
+    if (person.death_flag || person.death_date || person.death_place) {
+      lines.push('1 DEAT');
+      if (person.death_date) lines.push(`2 DATE ${gedcomText(person.death_date)}`);
+      if (person.death_place) lines.push(`2 PLAC ${gedcomText(person.death_place)}`);
+    }
+    if (person.occupation) lines.push(`1 OCCU ${gedcomText(person.occupation)}`);
+    if (person.root_place) appendGedcomNote(lines, `Root place: ${person.root_place}`);
+    if (person.current_place) appendGedcomNote(lines, `Current place: ${person.current_place}`);
+    if (person.contact_address) appendGedcomNote(lines, `Mobile/contact: ${person.contact_address}`);
+    if (person.email) appendGedcomNote(lines, `Email: ${person.email}`);
+    if (person.notes) appendGedcomNote(lines, person.notes);
+    (famsByPerson[person.uid] || []).forEach(famXref => lines.push(`1 FAMS ${famXref}`));
+    (famcByPerson[person.uid] || []).forEach(famXref => lines.push(`1 FAMC ${famXref}`));
+  });
+
+  const membersByFamily = {};
+  (members || []).forEach(member => {
+    if (!membersByFamily[member.family_uid]) membersByFamily[member.family_uid] = [];
+    membersByFamily[member.family_uid].push(member);
+  });
+  families.forEach(family => {
+    const xref = familyXrefs[family.uid];
+    lines.push(`0 ${xref} FAM`);
+    if (family.husband_uid && personXrefs[family.husband_uid]) lines.push(`1 HUSB ${personXrefs[family.husband_uid]}`);
+    if (family.wife_uid && personXrefs[family.wife_uid]) lines.push(`1 WIFE ${personXrefs[family.wife_uid]}`);
+    (membersByFamily[family.uid] || [])
+      .slice()
+      .sort((a, b) => (a.birth_order || 999) - (b.birth_order || 999))
+      .forEach(member => {
+        if (personXrefs[member.person_uid]) lines.push(`1 CHIL ${personXrefs[member.person_uid]}`);
+      });
+    if (family.marr_date || family.marr_place || family.marr_status || family.marr_notes) {
+      lines.push('1 MARR');
+      if (family.marr_date) lines.push(`2 DATE ${gedcomText(family.marr_date)}`);
+      if (family.marr_place) lines.push(`2 PLAC ${gedcomText(family.marr_place)}`);
+      if (family.marr_status && family.marr_status !== 'married') appendGedcomNote(lines, `Marriage status: ${family.marr_status}`, 2);
+      if (family.marr_notes) appendGedcomNote(lines, family.marr_notes, 2);
+    }
+  });
+  lines.push('0 TRLR');
+  return lines.join('\n') + '\n';
+}
+
+function gedcomXref(raw, prefix, fallbackNumber) {
+  const text = String(raw || '').trim().replace(/^@|@$/g, '');
+  const value = text || `${prefix}${fallbackNumber}`;
+  return `@${value.replace(/\s+/g, '_')}@`;
+}
+
+function gedcomName(name) {
+  const clean = gedcomText(name || 'Unnamed');
+  if (clean.includes('/')) return clean;
+  const parts = clean.trim().split(/\s+/);
+  if (parts.length < 2) return clean;
+  const surname = parts.pop();
+  return `${parts.join(' ')} /${surname}/`;
+}
+
+function gedcomText(value) {
+  return String(value || '').replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function appendGedcomNote(lines, note, level = 1) {
+  const text = gedcomText(String(note || '').replace(/<br\s*\/?>/gi, '\n'));
+  if (!text) return;
+  const chunks = text.match(/.{1,220}(?:\s|$)/g) || [text];
+  lines.push(`${level} NOTE ${chunks.shift().trim()}`);
+  chunks.forEach(chunk => lines.push(`${level + 1} CONC ${chunk.trim()}`));
+}
+
+function gedcomDate(date) {
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function downloadTextFile(text, filename, type) {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 async function deleteUpload(id, name) {
@@ -2708,6 +2895,87 @@ function escHtml(v) {
 }
 
 // ===================== FAMILY BUILDER =====================
+async function createSourceFamilyGedcom() {
+  const filenameRaw = document.getElementById('new-source-filename').value.trim();
+  const rootName = document.getElementById('new-source-root-name').value.trim();
+  const rootPlace = document.getElementById('new-source-root-place').value.trim();
+  const rootGender = document.getElementById('new-source-root-gender').value || null;
+  const notes = document.getElementById('new-source-notes').value.trim();
+
+  if (!filenameRaw) {
+    toast('GEDCOM / source name is required.', true);
+    return;
+  }
+  if (!rootName) {
+    toast('Root person name is required.', true);
+    return;
+  }
+
+  const filename = /\.ged$/i.test(filenameRaw) ? filenameRaw : filenameRaw + '.ged';
+  const uploadPayload = {
+    filename,
+    people_count: 1,
+    families_count: 0,
+    notes: notes || 'Created manually from New Family Builder.'
+  };
+  let { data: upload, error: uploadError } = await sb.from('gedcom_uploads')
+    .insert(uploadPayload)
+    .select()
+    .single();
+  if (uploadError && /schema cache|notes/i.test(uploadError.message || '')) {
+    const fallbackPayload = {
+      filename,
+      people_count: 1,
+      families_count: 0
+    };
+    const retry = await sb.from('gedcom_uploads')
+      .insert(fallbackPayload)
+      .select()
+      .single();
+    upload = retry.data;
+    uploadError = retry.error;
+  }
+  if (uploadError || !upload) {
+    toast(uploadError?.message || 'Could not create source family.', true);
+    return;
+  }
+
+  const pfx = String(upload.id || '').slice(0, 8) || crypto.randomUUID().slice(0, 8);
+  const rootUid = `${pfx}_I1`;
+  const personPayload = {
+    uid: rootUid,
+    gedcom_id: upload.id,
+    raw_gedcom_id: '@I1@',
+    name: rootName,
+    sex: rootGender,
+    root_place: rootPlace || null,
+    birth_place: rootPlace || null,
+    notes: notes || null,
+    death_flag: false,
+    updated_at: new Date().toISOString()
+  };
+  let { error: personError } = await sb.from('people').insert(personPayload);
+  if (personError && /schema cache|root_place/i.test(personError.message || '')) {
+    const fallbackPerson = { ...personPayload };
+    delete fallbackPerson.root_place;
+    personError = (await sb.from('people').insert(fallbackPerson)).error;
+  }
+  if (personError) {
+    await sb.from('gedcom_uploads').delete().eq('id', upload.id);
+    toast('Source created, but root person failed: ' + personError.message, true);
+    return;
+  }
+
+  ['new-source-filename','new-source-root-name','new-source-root-place','new-source-root-gender','new-source-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  toast('New source family created. Opening editor...');
+  setTimeout(() => {
+    window.location.href = 'edit.html?uid=' + encodeURIComponent(rootUid);
+  }, 350);
+}
+
 async function loadFamilyBuilder() {
   const container = document.getElementById('family-submissions-list');
   if (!container) return;

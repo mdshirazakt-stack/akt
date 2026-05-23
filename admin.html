@@ -3637,6 +3637,21 @@ async function addIdentityMember(groupId) {
     toast('Profile UID was not found in people table.', true);
     return;
   }
+  const { data: existing, error: existingError } = await sb.from('person_identity_members')
+    .select('group_id,person_uid')
+    .eq('group_id', groupId)
+    .eq('person_uid', uid)
+    .maybeSingle();
+  if (existingError) {
+    toast(existingError.message, true);
+    return;
+  }
+  if (existing) {
+    toast('This profile is already linked in this identity group.');
+    input.value = '';
+    await loadIdentityGroups();
+    return;
+  }
   const { error } = await sb.from('person_identity_members').insert({
     group_id: groupId,
     person_uid: uid,

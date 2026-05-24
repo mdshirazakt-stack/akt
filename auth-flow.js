@@ -49,9 +49,12 @@
   }
 
   function setView(view) {
+    const gate = byId('auth-gate');
+    const hasWarmSession = sessionStorage.getItem('akt_access_granted') === '1';
     const signIn = byId('auth-signin-panel');
     const form = byId('visitor-onboarding-form');
     const loading = byId('auth-loading');
+    if (gate) gate.style.display = view === 'loading' && hasWarmSession ? 'none' : 'flex';
     if (signIn) signIn.style.display = view === 'signin' ? 'block' : 'none';
     if (form) form.style.display = view === 'onboarding' ? 'grid' : 'none';
     if (loading) loading.style.display = view === 'loading' ? 'block' : 'none';

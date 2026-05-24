@@ -1487,6 +1487,7 @@ let parsedData = null; // { people, families, familyMembers, filename }
 let dupDecisions = {}; // uid -> 'overwrite' | 'skip'
 let allVisitors = [];
 let registeredUsers = [];
+let registeredSort = { key: 'registered', dir: 'desc' };
 let visitorSort = { key: 'last_seen', dir: 'desc' };
 let forumAdminView = 'threads';
 let forumAdminThreads = [];
@@ -2771,6 +2772,49 @@ function filterRegisteredUsers() {
   renderRegisteredUsers(registeredUsers.filter(user => registeredUserSearchText(user).includes(q)));
 }
 
+function sortRegisteredUsersBy(key) {
+  if (registeredSort.key === key) {
+    registeredSort.dir = registeredSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    registeredSort.key = key;
+    registeredSort.dir = ['registered', 'last_seen', 'consent_accepted_at'].includes(key) ? 'desc' : 'asc';
+  }
+  filterRegisteredUsers();
+}
+
+function updateRegisteredSortIndicators() {
+  document.querySelectorAll('[id^="registered-sort-"]').forEach(el => { el.textContent = ''; });
+  const el = document.getElementById('registered-sort-' + registeredSort.key);
+  if (el) el.textContent = registeredSort.dir === 'asc' ? '▲' : '▼';
+}
+
+function sortRegisteredRows(users) {
+  const dir = registeredSort.dir === 'asc' ? 1 : -1;
+  return [...users].sort((a, b) => {
+    const av = registeredSortValue(a, registeredSort.key);
+    const bv = registeredSortValue(b, registeredSort.key);
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return String(a.name_entered || '').localeCompare(String(b.name_entered || ''));
+  });
+}
+
+function registeredSortValue(user, key) {
+  if (key === 'name') return String(user.name_entered || '').toLowerCase();
+  if (key === 'email') return String(user.email || '').toLowerCase();
+  if (key === 'mobile') return String(user.mobile || '').toLowerCase();
+  if (key === 'root_place') return String(user.root_place || user.family_reference || '').toLowerCase();
+  if (key === 'current_place') return String(user.current_place || '').toLowerCase();
+  if (key === 'ancestor') return String(user.oldest_ancestor || '').toLowerCase();
+  if (key === 'heard_from') return registeredHeardFromText(user).toLowerCase();
+  if (key === 'status') return visitorAccessStatus(user);
+  if (key === 'role') return ACCESS_ROLES.indexOf(user.access_role || 'visitor');
+  if (key === 'consent') return user.consent_terms_accepted ? 1 : 0;
+  if (key === 'consent_accepted_at') return new Date(user.consent_accepted_at || 0).getTime();
+  if (key === 'last_seen') return new Date(user.last_seen || 0).getTime();
+  return new Date(user.visitor_form_completed_at || user.updated_at || 0).getTime();
+}
+
 function registeredUserSearchText(user) {
   return [
     user.name_entered,
@@ -2796,50 +2840,61 @@ function renderRegisteredUsers(users) {
     box.innerHTML = '<div class="empty">No registered user records yet.</div>';
     return;
   }
-  box.innerHTML = users.map(user => {
+  const rows = sortRegisteredRows(users);
+  box.innerHTML = `
+    <div style="overflow:auto;border:1px solid var(--border);background:#fff">
+      <table style="min-width:1680px">
+        <thead>
+          <tr>
+            <th class="sortable" onclick="sortRegisteredUsersBy('name')">Name <span class="sort-indicator" id="registered-sort-name"></span></th>
+            <th class="sortable" onclick="sortRegisteredUsersBy('email')">Email <span class="sort-indicator" id="registered-sort-email"></span></th>
+            <th class="sortable" onclick="sortRegisteredUsersBy('mobile')">Mobile <span class="sort-indicator" id="registered-sort-mobile"></span></th>
+            <th>Father</th>
+            <th class="sortable" onclick="sortRegisteredUsersBy('root_place')">Root Place <span class="sort-indicator" id="registered-sort-root_place"></span></th>
+            <th class="sortable" onclick="sortRegisteredUsersBy('current_place')">Current Place <span class="sort-indicator" id="registered-sort-current_place"></span></th>
+            <th>Address</th>
+            <th class="sortable" onclick="sortRegisteredUsersBy('ancestor')">Oldest Ancestor <span class="sort-indicator" id="registered-sort-ancestor"></span></th>
+            <th class="sortable" onclick="sortRegisteredUsersBy('heard_from')">Heard From <span class="sort-indicator" id="registered-sort-heard_from"></span></th>
+            <th class="sortable" onclick="sortRegisteredUsersBy('status')">Status <span class="sort-indicator" id="registered-sort-status"></span></th>
+            <th class="sortable" onclick="sortRegisteredUsersBy('role')">Role <span class="sort-indicator" id="registered-sort-role"></span></th>
+            <th class="sortable" onclick="sortRegisteredUsersBy('consent')">Consent <span class="sort-indicator" id="registered-sort-consent"></span></th>
+            <th class="sortable" onclick="sortRegisteredUsersBy('registered')">Registered <span class="sort-indicator" id="registered-sort-registered"></span></th>
+            <th class="sortable" onclick="sortRegisteredUsersBy('last_seen')">Last Seen <span class="sort-indicator" id="registered-sort-last_seen"></span></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(user => {
     const status = visitorAccessStatus(user);
     const sections = Array.isArray(user.consent_sections) ? user.consent_sections.join(', ') : String(user.consent_sections || '');
     const heard = registeredHeardFromText(user);
     return `
-      <div style="border:1px solid var(--border);background:#fff;margin-bottom:12px;padding:16px">
-        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px">
-          <div>
-            <div style="font-size:1rem;font-weight:800;color:var(--text)">${escapeHtml(user.name_entered || '(unnamed)')}</div>
-            <div style="font-size:0.78rem;color:var(--muted);margin-top:3px">${escapeHtml(user.email || 'No email captured')}</div>
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <span class="badge" style="background:${status === 'approved' ? '#dcfce7' : status === 'blocked' ? '#fee2e2' : '#fef3c7'};color:${status === 'approved' ? '#166534' : status === 'blocked' ? '#991b1b' : '#92400e'}">${escapeHtml(status)}</span>
-            <span class="badge" style="background:#ede9fe;color:#5b21b6">${escapeHtml(user.access_role || 'visitor')}</span>
-            ${user.consent_terms_accepted ? '<span class="badge" style="background:#e0f2fe;color:#075985">consented</span>' : '<span class="badge" style="background:#fee2e2;color:#991b1b">no consent</span>'}
-          </div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
-          ${registeredField('Mobile', user.mobile)}
-          ${registeredField("Father's name", user.father_name)}
-          ${registeredField('Root place', user.root_place || user.family_reference)}
-          ${registeredField('Current place', user.current_place)}
-          ${registeredField('Current address', user.current_address)}
-          ${registeredField('Oldest known ancestor', user.oldest_ancestor)}
-          ${registeredField('Heard from', heard)}
-          ${registeredField('Consent sections', sections || '-')}
-          ${registeredField('Consent version', user.consent_version)}
-          ${registeredField('Consent accepted', user.consent_accepted_at ? formatIST(user.consent_accepted_at) : '')}
-          ${registeredField('Registered', user.visitor_form_completed_at ? formatIST(user.visitor_form_completed_at) : '')}
-          ${registeredField('Last seen', user.last_seen ? formatIST(user.last_seen) : '')}
-        </div>
-      </div>
+      <tr>
+        <td><strong>${escapeHtml(user.name_entered || '(unnamed)')}</strong></td>
+        <td>${escapeHtml(user.email || '-')}</td>
+        <td>${escapeHtml(user.mobile || '-')}</td>
+        <td>${escapeHtml(user.father_name || '-')}</td>
+        <td>${escapeHtml(user.root_place || user.family_reference || '-')}</td>
+        <td>${escapeHtml(user.current_place || '-')}</td>
+        <td style="white-space:normal;min-width:220px">${escapeHtml(user.current_address || '-')}</td>
+        <td>${escapeHtml(user.oldest_ancestor || '-')}</td>
+        <td style="white-space:normal;min-width:220px">${escapeHtml(heard || '-')}</td>
+        <td><span class="badge" style="background:${status === 'approved' ? '#dcfce7' : status === 'blocked' ? '#fee2e2' : '#fef3c7'};color:${status === 'approved' ? '#166534' : status === 'blocked' ? '#991b1b' : '#92400e'}">${escapeHtml(status)}</span></td>
+        <td><span class="badge" style="background:#ede9fe;color:#5b21b6">${escapeHtml(user.access_role || 'visitor')}</span></td>
+        <td>
+          ${user.consent_terms_accepted ? '<span class="badge" style="background:#e0f2fe;color:#075985">yes</span>' : '<span class="badge" style="background:#fee2e2;color:#991b1b">no</span>'}
+          <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">${escapeHtml(sections || '-')}</div>
+          <div style="font-size:0.68rem;color:var(--muted)">${escapeHtml(user.consent_version || '')}</div>
+        </td>
+        <td>${user.visitor_form_completed_at ? formatIST(user.visitor_form_completed_at, false) : '-'}</td>
+        <td>${user.last_seen ? formatIST(user.last_seen, false) : '-'}</td>
+      </tr>
     `;
-  }).join('');
-}
-
-function registeredField(label, value) {
-  return `
-    <div style="background:var(--bg);border:1px solid var(--border);padding:9px 11px;min-height:58px">
-      <div style="font-size:0.66rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">${escapeHtml(label)}</div>
-      <div style="font-size:0.84rem;color:var(--text);white-space:pre-wrap;line-height:1.45">${escapeHtml(value || '-')}</div>
+  }).join('')}
+        </tbody>
+      </table>
     </div>
   `;
+  updateRegisteredSortIndicators();
 }
 
 function registeredHeardFromText(user) {

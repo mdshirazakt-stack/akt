@@ -56,6 +56,8 @@
     const form = byId('visitor-onboarding-form');
     const loading = byId('auth-loading');
     if (gate) gate.style.display = view === 'loading' && hasWarmSession ? 'none' : 'flex';
+    if (gate) gate.dataset.authView = view;
+    document.querySelector('.auth-shell')?.classList.toggle('onboarding-mode', view === 'onboarding');
     if (signIn) signIn.style.display = view === 'signin' ? 'block' : 'none';
     if (form) form.style.display = view === 'onboarding' ? 'grid' : 'none';
     if (loading) loading.style.display = view === 'loading' ? 'block' : 'none';

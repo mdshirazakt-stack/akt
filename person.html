@@ -82,6 +82,44 @@
   .btn-enter:hover { background: #213b2a; }
   .auth-err { color: #c0392b; font-size: 0.82rem; margin-top: 12px; display: none; }
   .auth-note { font-size: 0.75rem; color: #6f8068; margin-top: 14px; line-height: 1.5; }
+  .auth-shell.onboarding-mode { display: block; max-width: 980px; width: min(980px, 100%); }
+  .auth-shell.onboarding-mode .auth-box {
+    border-radius: 4px;
+    overflow: hidden;
+    padding: clamp(30px, 5vw, 54px) clamp(22px, 6vw, 82px) 34px;
+    position: relative;
+  }
+  .auth-shell.onboarding-mode .auth-box::before,
+  .auth-shell.onboarding-mode .auth-box::after {
+    background: linear-gradient(65deg, transparent 46%, #2f4d37 47%, transparent 49%);
+    content: "";
+    height: 260px;
+    opacity: 0.08;
+    pointer-events: none;
+    position: absolute;
+    width: 210px;
+  }
+  .auth-shell.onboarding-mode .auth-box::before { left: -88px; top: 70px; transform: rotate(-16deg); }
+  .auth-shell.onboarding-mode .auth-box::after { right: -78px; top: 140px; transform: scaleX(-1) rotate(-12deg); }
+  .auth-shell.onboarding-mode .auth-icon { height: 82px; margin-bottom: 16px; width: 82px; }
+  .auth-shell.onboarding-mode .urdu { display: none; }
+  .auth-shell.onboarding-mode .eng {
+    color: #264532;
+    font-family: 'Amiri', serif;
+    font-size: clamp(2.45rem, 6vw, 4.1rem);
+    font-weight: 400;
+    letter-spacing: 0;
+    margin-bottom: 2px;
+    text-transform: none;
+  }
+  .auth-shell.onboarding-mode .prompt {
+    color: var(--gold);
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    margin-bottom: 28px;
+    text-transform: uppercase;
+  }
   .auth-secondary-btn {
     width: 100%; padding: 12px 16px; background: #fffaf0; color: var(--green);
     border: 1px solid rgba(46,110,74,0.28); font-family: 'Lato', sans-serif;
@@ -107,6 +145,108 @@
   .auth-footer-links { color: #6f8068; font-size: 0.76rem; margin-top: 16px; text-align: center; }
   .auth-footer-links a { color: var(--green); font-weight: 700; margin: 0 7px; text-decoration: none; }
   .auth-footer-links a:hover { text-decoration: underline; }
+  .registration-stepper {
+    align-items: start;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    margin: 0 auto 34px;
+    max-width: 620px;
+    position: relative;
+  }
+  .registration-stepper::before {
+    background: #ded9d0;
+    content: "";
+    height: 2px;
+    left: 16.5%;
+    position: absolute;
+    right: 16.5%;
+    top: 18px;
+  }
+  .reg-step { color: #8a8379; font-size: 0.8rem; font-weight: 700; position: relative; text-align: center; z-index: 1; }
+  .reg-step span {
+    align-items: center;
+    background: #e5e2db;
+    border-radius: 999px;
+    color: #777168;
+    display: inline-flex;
+    height: 38px;
+    justify-content: center;
+    margin-bottom: 8px;
+    width: 38px;
+  }
+  .reg-step.active { color: var(--green); }
+  .reg-step.active span { background: var(--green); color: #fff; }
+  .registration-copy { margin: 0 auto 28px; max-width: 680px; text-align: center; }
+  .registration-copy h2 { color: var(--green); font-family: 'Lato', sans-serif; font-size: 1.25rem; margin-bottom: 8px; }
+  .registration-copy p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+  .reg-grid { display: grid; gap: 18px; grid-template-columns: 1fr 1fr; }
+  .reg-grid.single { grid-template-columns: 1fr; }
+  .reg-field { display: block; text-align: left; }
+  .reg-field-title {
+    color: #2d2821;
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    margin: 0 0 8px;
+    text-transform: uppercase;
+  }
+  .auth-shell.onboarding-mode .auth-box input,
+  .auth-shell.onboarding-mode .auth-box textarea,
+  .auth-shell.onboarding-mode .auth-box select {
+    background: rgba(255,255,255,0.76);
+    border-color: #d8c9b5;
+    margin-bottom: 0;
+    min-height: 58px;
+    text-align: left;
+  }
+  .auth-shell.onboarding-mode .auth-box textarea { min-height: 118px; }
+  .onboarding-block { display: grid; gap: 18px; }
+  .privacy-card {
+    align-items: center;
+    background: rgba(242,248,236,0.74);
+    border: 1px solid rgba(111,146,93,0.32);
+    color: #50624d;
+    display: grid;
+    gap: 4px 12px;
+    grid-template-columns: 34px 1fr;
+    margin-top: 8px;
+    padding: 16px 18px;
+    text-align: left;
+  }
+  .privacy-card strong { color: var(--green); }
+  .privacy-icon {
+    align-items: center;
+    border: 2px solid var(--green);
+    border-radius: 999px;
+    color: var(--green);
+    display: inline-flex;
+    font-weight: 900;
+    height: 28px;
+    justify-content: center;
+    width: 28px;
+  }
+  .consent-panel { background: rgba(255,250,240,0.84); border: 1px solid var(--border); margin-top: 6px; padding: 18px; }
+  .auth-shell.onboarding-mode .btn-enter {
+    align-items: center;
+    display: inline-flex;
+    font-size: 1rem;
+    justify-content: center;
+    letter-spacing: 0;
+    margin: 14px auto 0;
+    max-width: 320px;
+    min-height: 58px;
+    text-transform: none;
+  }
+  .submit-hint { color: var(--muted); font-size: 0.8rem; margin-top: 12px; text-align: center; }
+  .trust-row {
+    border-top: 1px solid rgba(201,168,76,0.28);
+    color: var(--muted);
+    font-size: 0.78rem;
+    margin: 30px -82px -14px;
+    padding-top: 16px;
+    text-align: center;
+  }
 
   /* ===== MAIN APP ===== */
   #app { display: none; }
@@ -318,6 +458,11 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   @media(max-width:640px){
+    #auth-gate { align-items: flex-start; padding: 18px; }
+    .auth-shell.onboarding-mode .auth-box { padding: 28px 18px 24px; }
+    .reg-grid { grid-template-columns: 1fr; }
+    .registration-stepper { margin-bottom: 26px; }
+    .trust-row { margin-left: -18px; margin-right: -18px; }
     header { padding: 0 16px; }
     main { padding: 16px; }
     .person-detail { padding: 18px; }
@@ -350,40 +495,101 @@
       </div>
       <form id="visitor-onboarding-form" class="auth-request-fields" onsubmit="AKT_AUTH.submitOnboarding(event)">
         <div class="visitor-email-display" id="visitor-email-display"></div>
-        <div class="first-time-copy">First-time registration form: please fill these details once to get access to the website.</div>
-        <div class="auth-section-title">Visitor Details</div>
-        <input type="text" id="visitor-name" placeholder="Name" maxlength="100" autocomplete="name"/>
-        <input type="tel" id="visitor-mobile" placeholder="Mobile phone number" maxlength="30" autocomplete="tel"/>
-        <input type="text" id="visitor-father-name" placeholder="Father's name" maxlength="140"/>
-        <input type="text" id="visitor-root-place" placeholder="Root place" maxlength="180"/>
-        <input type="text" id="visitor-current-place" placeholder="Current place" maxlength="180"/>
-        <textarea id="visitor-current-address" placeholder="Current address" maxlength="500"></textarea>
-        <input type="text" id="visitor-oldest-ancestor" placeholder="Oldest known family ancestor" maxlength="220"/>
-        <div class="auth-section-title">How did you hear about this website?</div>
-        <select id="visitor-heard-source" onchange="AKT_AUTH.toggleHeardFromFields()">
-          <option value="">Choose one</option>
-          <option value="relative">Via a relative</option>
-          <option value="whatsapp">WhatsApp / community group</option>
-          <option value="search">Search engine</option>
-          <option value="social">Social media</option>
-          <option value="other">Other</option>
-        </select>
-        <div id="heard-relative-fields" style="display:none">
-          <input type="text" id="visitor-heard-relative-name" placeholder="Relative name" maxlength="140"/>
-          <input type="text" id="visitor-heard-relative-place" placeholder="Relative place" maxlength="180"/>
+        <div class="registration-stepper" aria-label="Registration steps">
+          <div class="reg-step active"><span>1</span><div>Your Details</div></div>
+          <div class="reg-step"><span>2</span><div>About You</div></div>
+          <div class="reg-step"><span>3</span><div>Consent</div></div>
         </div>
-        <div id="heard-other-fields" style="display:none">
-          <textarea id="visitor-heard-details" placeholder="Please share details" maxlength="500"></textarea>
+        <div class="registration-copy">
+          <h2>Let’s get to know you</h2>
+          <p>First-time registration form: please share these details once to continue to the private family tree archive.</p>
         </div>
-        <div class="auth-section-title">Consent</div>
-        <div class="auth-note" style="text-align:left;margin:0 0 10px">Please read the <a href="terms.html" target="_blank" rel="noopener" style="color:var(--green);font-weight:700">Terms & Conditions and Privacy Policy</a> before accepting.</div>
-        <div class="consent-list">
-          <label class="consent-item"><input id="consent-section-6" type="checkbox"/> <span>I will use family information respectfully and will not use it to harm family or community harmony.</span></label>
-          <label class="consent-item"><input id="consent-section-7" type="checkbox"/> <span>I will not upload misleading information, impersonate anyone, scrape data, or misuse the website.</span></label>
-          <label class="consent-item"><input id="consent-section-8" type="checkbox"/> <span>I consent to limited personal, family, login, device, usage, and consent data being stored for authentication, moderation, security, genealogy management, and community communication.</span></label>
-          <label class="consent-item"><input id="consent-section-18" type="checkbox"/> <span>I accept the consent agreement, disclaimer, privacy policy, community guidelines, and the community-driven nature of the archive.</span></label>
+        <div class="onboarding-block">
+          <div class="reg-grid">
+            <label class="reg-field">
+              <span class="reg-field-title">Full Name</span>
+              <input type="text" id="visitor-name" placeholder="Enter your full name" maxlength="100" autocomplete="name"/>
+            </label>
+            <label class="reg-field">
+              <span class="reg-field-title">Mobile Phone Number</span>
+              <input type="tel" id="visitor-mobile" placeholder="Enter mobile number" maxlength="30" autocomplete="tel"/>
+            </label>
+          </div>
+          <div class="reg-grid single">
+            <label class="reg-field">
+              <span class="reg-field-title">Father's Name</span>
+              <input type="text" id="visitor-father-name" placeholder="Enter your father's name" maxlength="140"/>
+            </label>
+          </div>
+          <div class="reg-grid">
+            <label class="reg-field">
+              <span class="reg-field-title">Root Place (Origin)</span>
+              <input type="text" id="visitor-root-place" placeholder="Enter root place" maxlength="180"/>
+            </label>
+            <label class="reg-field">
+              <span class="reg-field-title">Current Place</span>
+              <input type="text" id="visitor-current-place" placeholder="Enter current place" maxlength="180"/>
+            </label>
+          </div>
+          <div class="reg-grid single">
+            <label class="reg-field">
+              <span class="reg-field-title">Current Address (Optional)</span>
+              <textarea id="visitor-current-address" placeholder="Enter your current address" maxlength="500"></textarea>
+            </label>
+          </div>
+          <div class="reg-grid single">
+            <label class="reg-field">
+              <span class="reg-field-title">Oldest Known Ancestor (Optional)</span>
+              <input type="text" id="visitor-oldest-ancestor" placeholder="Enter name of oldest known family ancestor" maxlength="220"/>
+            </label>
+          </div>
+          <div class="reg-grid single">
+            <label class="reg-field">
+              <span class="reg-field-title">Where did you hear about this website?</span>
+              <select id="visitor-heard-source" onchange="AKT_AUTH.toggleHeardFromFields()">
+                <option value="">Choose one</option>
+                <option value="relative">Via a relative</option>
+                <option value="whatsapp">WhatsApp / community group</option>
+                <option value="search">Search engine</option>
+                <option value="social">Social media</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+          </div>
+          <div id="heard-relative-fields" class="reg-grid" style="display:none">
+            <label class="reg-field">
+              <span class="reg-field-title">Relative Name</span>
+              <input type="text" id="visitor-heard-relative-name" placeholder="Relative name" maxlength="140"/>
+            </label>
+            <label class="reg-field">
+              <span class="reg-field-title">Relative Place</span>
+              <input type="text" id="visitor-heard-relative-place" placeholder="Relative place" maxlength="180"/>
+            </label>
+          </div>
+          <div id="heard-other-fields" class="reg-grid single" style="display:none">
+            <label class="reg-field">
+              <span class="reg-field-title">Details</span>
+              <textarea id="visitor-heard-details" placeholder="Please share details" maxlength="500"></textarea>
+            </label>
+          </div>
+          <div class="privacy-card">
+            <span class="privacy-icon">✓</span>
+            <div><strong>Your privacy matters</strong><br/>Your information is secure and only used for genealogy, archive access, moderation, and community communication.</div>
+          </div>
+          <div class="consent-panel">
+            <div class="auth-section-title">Consent</div>
+            <div class="auth-note" style="text-align:left;margin:0 0 10px">Please read the <a href="terms.html" target="_blank" rel="noopener" style="color:var(--green);font-weight:700">Terms & Conditions and Privacy Policy</a> before accepting.</div>
+            <div class="consent-list">
+              <label class="consent-item"><input id="consent-section-6" type="checkbox"/> <span>I will use family information respectfully and will not use it to harm family or community harmony.</span></label>
+              <label class="consent-item"><input id="consent-section-7" type="checkbox"/> <span>I will not upload misleading information, impersonate anyone, scrape data, or misuse the website.</span></label>
+              <label class="consent-item"><input id="consent-section-8" type="checkbox"/> <span>I consent to limited personal, family, login, device, usage, and consent data being stored for authentication, moderation, security, genealogy management, and community communication.</span></label>
+              <label class="consent-item"><input id="consent-section-18" type="checkbox"/> <span>I accept the consent agreement, disclaimer, privacy policy, community guidelines, and the community-driven nature of the archive.</span></label>
+            </div>
+          </div>
         </div>
         <button class="btn-enter" id="visitor-onboarding-submit" type="submit">Accept & Enter</button>
+        <div class="submit-hint">You can review and edit before submitting.</div>
+        <div class="trust-row">Secure • Private • Trusted</div>
       </form>
       <div id="auth-err" class="auth-err">Please enter your name to continue.</div>
       <div class="auth-note" id="auth-note">Sign in with Google or email. First-time visitors will complete a short consent form.</div>

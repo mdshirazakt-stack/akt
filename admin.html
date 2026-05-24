@@ -1516,6 +1516,12 @@ async function doLogin() {
 }
 function doLogout() {
   currentAdminRole = 'visitor';
+  sb.auth.signOut().catch(() => {});
+  sessionStorage.removeItem('akt_visitor_name');
+  sessionStorage.removeItem('akt_visitor_mobile');
+  sessionStorage.removeItem('akt_access_granted');
+  sessionStorage.removeItem('akt_visitor_role');
+  sessionStorage.removeItem('akt_auth_user_id');
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   document.getElementById('pw-input').value = '';
@@ -1538,10 +1544,50 @@ function applyAdminRoleVisibility() {
   }
 }
 
-function bootstrapRoleSession() {
+async function bootstrapRoleSession() {
+  const authRole = await bootstrapSupabaseAuthRole();
+  if (authRole) {
+    openAdminForRole(authRole);
+    return;
+  }
   const sessionRole = normalizeAccessRole(sessionStorage.getItem('akt_visitor_role'));
   if (!ROLE_LEVELS[sessionRole] || ROLE_LEVELS[sessionRole] < ROLE_LEVELS.moderator) return;
-  currentAdminRole = sessionRole;
+  openAdminForRole(sessionRole);
+}
+
+async function bootstrapSupabaseAuthRole() {
+  const { data } = await sb.auth.getSession();
+  const user = data?.session?.user;
+  if (!user) return '';
+  const email = (user.email || user.user_metadata?.email || '').trim();
+  let visitor = null;
+  const byUser = await sb.from('visitors')
+    .select('*')
+    .eq('auth_user_id', user.id)
+    .order('last_seen', { ascending: false })
+    .limit(1);
+  if (!byUser.error && byUser.data?.length) visitor = byUser.data[0];
+  if (!visitor && email) {
+    const byEmail = await sb.from('visitors')
+      .select('*')
+      .ilike('email', email)
+      .order('last_seen', { ascending: false })
+      .limit(1);
+    if (!byEmail.error && byEmail.data?.length) visitor = byEmail.data[0];
+  }
+  const status = visitor?.is_blocked ? 'blocked' : (visitor?.access_status || '');
+  const role = normalizeAccessRole(visitor?.access_role);
+  if (status !== 'approved' || ROLE_LEVELS[role] < ROLE_LEVELS.moderator) return '';
+  sessionStorage.setItem('akt_visitor_name', visitor.name_entered || email || 'Admin');
+  sessionStorage.setItem('akt_visitor_mobile', visitor.mobile || '');
+  sessionStorage.setItem('akt_access_granted', '1');
+  sessionStorage.setItem('akt_visitor_role', role);
+  sessionStorage.setItem('akt_auth_user_id', user.id);
+  return role;
+}
+
+function openAdminForRole(role) {
+  currentAdminRole = normalizeAccessRole(role);
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   applyAdminRoleVisibility();
@@ -2700,12 +2746,16 @@ function renderVisitors(visitors) {
     <tr class="${v.is_blocked ? 'blocked' : ''}">
       <td>
         <strong>${escapeHtml(v.name_entered)}</strong>
+        ${v.email ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:3px">${escapeHtml(v.email)}</div>` : ''}
         ${v.admin_notes ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:3px">Note: ${escapeHtml(v.admin_notes)}</div>` : ''}
       </td>
       <td><strong>${Number(v.visit_count || 0).toLocaleString()}</strong></td>
       <td style="font-size:0.78rem;color:var(--muted)">
         ${v.mobile ? `<strong style="color:var(--text)">${escapeHtml(v.mobile)}</strong><br>` : ''}
-        ${v.family_reference ? `${escapeHtml(v.family_reference)}<br>` : ''}
+        ${v.father_name ? `Father: ${escapeHtml(v.father_name)}<br>` : ''}
+        ${v.root_place || v.family_reference ? `Root: ${escapeHtml(v.root_place || v.family_reference)}<br>` : ''}
+        ${v.current_place ? `Current: ${escapeHtml(v.current_place)}<br>` : ''}
+        ${v.consent_terms_accepted ? `<span style="color:var(--green);font-weight:700">Consent ${escapeHtml(v.consent_version || '')}</span><br>` : ''}
         ${formatVisitorTimezone(v.ip_hint)}
       </td>
       <td>${formatIST(v.last_seen, false)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(v.last_seen)}</span></td>

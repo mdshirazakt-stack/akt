@@ -159,8 +159,12 @@ Important behavior:
 Known limitations / next fixes:
 
 - `edit.html` still has a few prompt/confirm paths, especially deleting empty groups; most core add/search/create flows now use modals.
-- Permission gating is not enforced yet; this editor should eventually be admin/moderator-only.
+- Permission gating now allows moderators into profile editing while relationship/family graph operations remain admin-only in the UI guards.
 - Relationship overlays still exist and can confuse users if mixed with native edits. Decide whether to hide, migrate, or archive overlay relationship tools.
+- Backlog: improve the Raise Correction form before expanding duplicate review:
+  - make "Flag duplicate profile" a dedicated section, not just a field inside relationship corrections
+  - explain that visitors should paste the other profile link or UID and briefly say why they think it is the same person
+  - split correction form areas into chevron-openable sections so users can see all available sections at once without a long intimidating form
 - Need a safe way to delete/undo native family edits.
 - Need source GEDCOM selector/override when creating brand-new people/families.
 - Need better handling for wife with multiple husbands and husband with multiple wives in the visual editor.

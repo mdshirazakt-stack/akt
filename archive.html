@@ -6,6 +6,7 @@
 <title>Apno Ki Talash — اپنوں کی تلاش</title>
 <link rel="icon" type="image/png" href="apnonkitalash-icon-light.png"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="auth-flow.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
 <style>
   :root {
@@ -97,12 +98,31 @@
     text-align: center;
   }
   .auth-box textarea { min-height: 76px; resize: vertical; line-height: 1.5; text-align: left; }
+  .auth-box select {
+    width: 100%; padding: 13px 16px; border: 1px solid rgba(201,168,76,0.35);
+    background: #fffaf0; color: var(--ink); font-family: 'Lato', sans-serif; font-size: 0.95rem;
+    outline: none; margin-bottom: 10px;
+  }
   .auth-box input:focus, .auth-box textarea:focus { border-color: var(--gold2); box-shadow: 0 0 0 3px rgba(201,168,76,0.13); }
   .auth-box input::placeholder, .auth-box textarea::placeholder { color: #9ab88a; }
   .auth-fields { display: grid; gap: 0; }
   .auth-fields.two { grid-template-columns: 1fr 1fr; gap: 10px; }
   .auth-request-fields { display: none; }
   .auth-request-fields.open { display: block; }
+  .auth-action-row { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .auth-secondary-btn {
+    width: 100%; padding: 12px 16px; background: #fffaf0; color: var(--green);
+    border: 1px solid rgba(46,110,74,0.28); font-family: 'Lato', sans-serif;
+    font-weight: 700; cursor: pointer;
+  }
+  .auth-divider { display: flex; align-items: center; gap: 10px; color: #9b8b74; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; margin: 14px 0; }
+  .auth-divider::before, .auth-divider::after { content: ""; height: 1px; flex: 1; background: var(--border); }
+  .visitor-email-display { color: var(--green); font-size: 0.78rem; font-weight: 700; margin: -10px 0 12px; word-break: break-all; }
+  .auth-section-title { color: var(--gold); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin: 12px 0 8px; text-align: left; }
+  .consent-list { display: grid; gap: 8px; margin-top: 6px; }
+  .consent-item { display: grid; grid-template-columns: 18px 1fr; gap: 9px; align-items: start; text-align: left; font-size: 0.78rem; color: #5f5547; line-height: 1.45; }
+  .consent-item input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--green); }
+  .auth-loading { color: var(--muted); font-size: 0.85rem; padding: 14px 0; }
   .btn-enter {
     width: 100%; padding: 14px; background: #2f4d37; color: #fff9ef;
     border: none; font-family: 'Lato', sans-serif; font-weight: 700;
@@ -724,17 +744,54 @@
       <div class="auth-icon"><img src="apnonkitalash-icon-light.png" alt="Apno Ki Talash icon"/></div>
       <div class="urdu">اپنوں کی تلاش</div>
       <div class="eng">Apno Ki Talash</div>
-      <p class="prompt">This is a private family tree archive.<br>Access is approved for known community members.</p>
-      <div class="auth-fields">
-        <input type="text" id="visitor-name" placeholder="Your full name" maxlength="100"/>
+      <p class="prompt">Sign in to continue to the private family tree archive.</p>
+      <div id="auth-loading" class="auth-loading">Checking your session...</div>
+      <div id="auth-signin-panel">
+        <div class="auth-action-row">
+          <button class="btn-enter" type="button" onclick="AKT_AUTH.signInWithGoogle()">Continue with Google</button>
+          <div class="auth-divider">or</div>
+          <input type="email" id="auth-email" placeholder="Email address" autocomplete="email"/>
+          <button class="auth-secondary-btn" id="magic-link-btn" type="button" onclick="AKT_AUTH.sendMagicLink()">Send Magic Link</button>
+        </div>
       </div>
-      <div id="access-request-fields" class="auth-request-fields">
-        <input type="tel" id="visitor-mobile" placeholder="Mobile number" maxlength="30"/>
-        <input type="text" id="visitor-family-reference" placeholder="Root place / family reference" maxlength="180"/>
-      </div>
-      <button class="btn-enter" id="access-submit-btn" onclick="doEnter()">Enter Site</button>
+      <form id="visitor-onboarding-form" class="auth-request-fields" onsubmit="AKT_AUTH.submitOnboarding(event)">
+        <div class="visitor-email-display" id="visitor-email-display"></div>
+        <div class="auth-section-title">Visitor Details</div>
+        <input type="text" id="visitor-name" placeholder="Name" maxlength="100" autocomplete="name"/>
+        <input type="tel" id="visitor-mobile" placeholder="Mobile phone number" maxlength="30" autocomplete="tel"/>
+        <input type="text" id="visitor-father-name" placeholder="Father's name" maxlength="140"/>
+        <input type="text" id="visitor-root-place" placeholder="Root place" maxlength="180"/>
+        <input type="text" id="visitor-current-place" placeholder="Current place" maxlength="180"/>
+        <textarea id="visitor-current-address" placeholder="Current address" maxlength="500"></textarea>
+        <input type="text" id="visitor-oldest-ancestor" placeholder="Oldest known family ancestor" maxlength="220"/>
+        <div class="auth-section-title">How did you hear about this website?</div>
+        <select id="visitor-heard-source" onchange="AKT_AUTH.toggleHeardFromFields()">
+          <option value="">Choose one</option>
+          <option value="relative">Via a relative</option>
+          <option value="whatsapp">WhatsApp / community group</option>
+          <option value="search">Search engine</option>
+          <option value="social">Social media</option>
+          <option value="other">Other</option>
+        </select>
+        <div id="heard-relative-fields" style="display:none">
+          <input type="text" id="visitor-heard-relative-name" placeholder="Relative name" maxlength="140"/>
+          <input type="text" id="visitor-heard-relative-place" placeholder="Relative place" maxlength="180"/>
+        </div>
+        <div id="heard-other-fields" style="display:none">
+          <textarea id="visitor-heard-details" placeholder="Please share details" maxlength="500"></textarea>
+        </div>
+        <div class="auth-section-title">Consent</div>
+        <div class="auth-note" style="text-align:left;margin:0 0 10px">Please read the <a href="Shajra-Terms-and-Conditions.pdf" target="_blank" rel="noopener" style="color:var(--green);font-weight:700">Terms & Conditions</a> before accepting.</div>
+        <div class="consent-list">
+          <label class="consent-item"><input id="consent-section-6" type="checkbox"/> <span>I will use family information respectfully and will not use it to harm family or community harmony.</span></label>
+          <label class="consent-item"><input id="consent-section-7" type="checkbox"/> <span>I will not upload misleading information, impersonate anyone, scrape data, or misuse the website.</span></label>
+          <label class="consent-item"><input id="consent-section-8" type="checkbox"/> <span>I consent to limited personal, family, login, device, usage, and consent data being stored for authentication, moderation, security, genealogy management, and community communication.</span></label>
+          <label class="consent-item"><input id="consent-section-18" type="checkbox"/> <span>I accept the consent agreement, disclaimer, privacy policy, community guidelines, and the community-driven nature of the archive.</span></label>
+        </div>
+        <button class="btn-enter" id="visitor-onboarding-submit" type="submit">Accept & Enter</button>
+      </form>
       <div class="auth-err" id="auth-err">Please enter your name to continue.</div>
-      <div class="auth-note" id="auth-note">Enter your approved name. If you are new, we will ask for a few details for admin review.</div>
+      <div class="auth-note" id="auth-note">Sign in with Google or email. First-time visitors will complete a short consent form.</div>
     </div>
   </div>
 </div>
@@ -1328,9 +1385,10 @@ function showAccessMessage(message, isError) {
   err.style.display = 'block';
 }
 
-async function startApp(name, role = 'visitor') {
+async function startApp(name, role = 'visitor', visitorRecord = null) {
   currentUser = name;
   currentUserRole = normalizeAccessRole(role || sessionStorage.getItem('akt_visitor_role'));
+  currentVisitCount = Number(visitorRecord?.visit_count || currentVisitCount || 0);
   document.getElementById('user-display').textContent = name;
   document.getElementById('auth-gate').style.display = 'none';
   document.getElementById('app').style.display = 'block';
@@ -1381,10 +1439,19 @@ async function startApp(name, role = 'visitor') {
 }
 
 function doLogout() {
+  if (window.AKT_AUTH) {
+    AKT_AUTH.signOut();
+    return;
+  }
+  resetAuthUi();
+}
+
+function resetAuthUi() {
   sessionStorage.removeItem('akt_visitor_name');
   sessionStorage.removeItem('akt_visitor_mobile');
   sessionStorage.removeItem('akt_access_granted');
   sessionStorage.removeItem('akt_visitor_role');
+  sessionStorage.removeItem('akt_auth_user_id');
   currentUser = null;
   currentUserRole = 'visitor';
   currentVisitCount = 0;
@@ -1392,27 +1459,16 @@ function doLogout() {
   document.getElementById('app').style.display = 'none';
   document.getElementById('auth-gate').style.display = 'flex';
   document.getElementById('auth-err').style.display = 'none';
-  document.getElementById('access-request-fields').classList.remove('open');
-  document.getElementById('access-submit-btn').textContent = 'Enter Site';
-  document.getElementById('auth-note').textContent = 'Enter your approved name. If you are new, we will ask for a few details for admin review.';
-  document.getElementById('visitor-name').value = '';
-  document.getElementById('visitor-mobile').value = '';
-  document.getElementById('visitor-family-reference').value = '';
-  document.getElementById('visitor-name').focus();
+  document.getElementById('auth-note').textContent = 'Sign in with Google or email. First-time visitors will complete a short consent form.';
+  document.querySelectorAll('#visitor-onboarding-form input, #visitor-onboarding-form textarea').forEach(el => {
+    if (el.type === 'checkbox') el.checked = false;
+    else el.value = '';
+  });
+  const email = document.getElementById('auth-email');
+  if (email) email.focus();
 }
 
-// Resume only within an already-approved browser session.
-(function() {
-  const savedName = sessionStorage.getItem('akt_visitor_name');
-  const savedMobile = sessionStorage.getItem('akt_visitor_mobile');
-  const accessGranted = sessionStorage.getItem('akt_access_granted') === '1';
-  if (accessGranted && savedName) {
-    startApp(savedName, sessionStorage.getItem('akt_visitor_role'));
-    return;
-  }
-  if (savedName) document.getElementById('visitor-name').value = savedName;
-  if (savedMobile) document.getElementById('visitor-mobile').value = savedMobile;
-})();
+AKT_AUTH.setup({ sb, onStart: startApp, onSignOut: resetAuthUi });
 
 function getIpHint() {
   // Basic browser fingerprint (not exact IP)

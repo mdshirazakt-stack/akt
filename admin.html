@@ -216,6 +216,183 @@
   .drop-zone strong { color: var(--text); white-space: normal; }
   #file-input { display: none; }
 
+  /* GEDCOM EXPORT */
+  .export-page {
+    background: #fffaf4;
+    border: 1px solid #ead9c2;
+    border-radius: 18px;
+    margin: -6px -6px 0;
+    overflow: hidden;
+  }
+  .export-hero {
+    padding: 32px 34px 36px;
+    border-bottom: 1px solid #ead9c2;
+  }
+  .export-breadcrumb {
+    color: #a8947f;
+    font-size: 0.88rem;
+    margin-bottom: 16px;
+  }
+  .export-breadcrumb strong { color: #4a3a2d; }
+  .export-title {
+    align-items: center;
+    color: #c96b3e;
+    display: flex;
+    font-family: 'Amiri', serif;
+    font-size: 2rem;
+    gap: 12px;
+    line-height: 1.1;
+    margin-bottom: 14px;
+  }
+  .export-title svg { height: 30px; width: 30px; }
+  .export-subtitle {
+    color: #766553;
+    font-size: 1.02rem;
+    line-height: 1.55;
+    max-width: 880px;
+  }
+  .export-subtitle code {
+    background: #fff;
+    border: 1px solid #ead9c2;
+    border-radius: 6px;
+    color: #4a3a2d;
+    padding: 1px 7px;
+  }
+  .export-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 28px;
+  }
+  .export-action {
+    align-items: center;
+    border-radius: 8px;
+    display: inline-flex;
+    font-size: 0.95rem;
+    font-weight: 800;
+    gap: 10px;
+    letter-spacing: 0;
+    padding: 15px 22px;
+    text-transform: none;
+    width: auto;
+  }
+  .export-action svg, .export-row-action svg { height: 18px; width: 18px; }
+  .export-action.primary {
+    background: var(--gold);
+    border-color: var(--gold);
+    box-shadow: 0 9px 18px rgba(232,132,74,0.24);
+    color: #fff;
+  }
+  .export-body { padding: 28px 34px 36px; }
+  .export-toolbar {
+    align-items: center;
+    background: #fffaf4;
+    border: 1px solid #ead9c2;
+    border-radius: 12px;
+    display: grid;
+    gap: 14px;
+    grid-template-columns: auto minmax(240px, 420px) auto 1fr auto;
+    margin-bottom: 18px;
+    padding: 14px 18px;
+  }
+  .export-select-all {
+    align-items: center;
+    color: #2e2a25;
+    display: inline-flex;
+    font-weight: 800;
+    gap: 10px;
+    white-space: nowrap;
+  }
+  .export-search {
+    margin: 0;
+    min-width: 0;
+  }
+  .export-selected-pill {
+    background: #fff1e6;
+    border: 1px solid #f3b48a;
+    border-radius: 999px;
+    color: #c96b3e;
+    font-weight: 800;
+    padding: 8px 14px;
+    white-space: nowrap;
+  }
+  .export-summary {
+    color: #5e5043;
+    font-size: 0.92rem;
+    justify-self: end;
+    white-space: nowrap;
+  }
+  .export-sort { color: #5e5043; white-space: nowrap; }
+  .export-list {
+    background: #fff;
+    border: 1px solid #ead9c2;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .export-source-row {
+    align-items: center;
+    border-bottom: 1px solid #ead9c2;
+    display: grid;
+    gap: 18px;
+    grid-template-columns: 34px 52px minmax(0, 1fr) auto;
+    padding: 20px 24px;
+  }
+  .export-source-row:last-child { border-bottom: none; }
+  .export-source-row.selected {
+    background: #fde8d6;
+    box-shadow: inset 4px 0 0 var(--gold);
+  }
+  .export-file-icon {
+    align-items: center;
+    background: #fffaf4;
+    border: 1px solid #ead9c2;
+    border-radius: 10px;
+    color: #c96b3e;
+    display: grid;
+    height: 44px;
+    justify-items: center;
+    width: 44px;
+  }
+  .export-file-icon svg { height: 22px; width: 22px; }
+  .export-file-name {
+    color: #302820;
+    font-size: 1.02rem;
+    font-weight: 800;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .export-file-meta {
+    color: #7a6a58;
+    font-size: 0.88rem;
+    margin-top: 5px;
+  }
+  .export-row-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .export-row-action {
+    align-items: center;
+    background: #fff;
+    border: 1px solid #ead9c2;
+    border-radius: 8px;
+    color: #796855;
+    cursor: pointer;
+    display: inline-flex;
+    height: 38px;
+    justify-content: center;
+    width: 38px;
+  }
+  .export-row-action:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+  .export-checkbox {
+    accent-color: var(--gold);
+    height: 18px;
+    width: 18px;
+  }
+
   /* PROGRESS */
   .progress-wrap { margin: 16px 0; display: none; }
   .progress-label { font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
@@ -660,6 +837,26 @@
       margin-right: auto;
       max-width: 240px;
     }
+    .export-page {
+      border-radius: 0;
+      margin: -22px -18px 0;
+    }
+    .export-hero, .export-body { padding: 24px 18px; }
+    .export-title { font-size: 1.7rem; }
+    .export-toolbar {
+      grid-template-columns: 1fr;
+      justify-items: stretch;
+    }
+    .export-summary { justify-self: start; }
+    .export-source-row {
+      grid-template-columns: 28px 42px minmax(0, 1fr);
+      padding: 16px;
+    }
+    .export-row-actions {
+      grid-column: 2 / -1;
+      justify-content: flex-start;
+    }
+    .export-file-name { white-space: normal; }
     .builder-hero { grid-template-columns: 1fr; }
     .builder-steps { justify-content: flex-start; }
     .builder-grid, .identity-create { grid-template-columns: 1fr; }
@@ -816,22 +1013,36 @@
 
     <!-- GEDCOM EXPORT -->
     <div id="panel-uploads" class="panel">
-      <div class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-          <h2 style="margin:0">Export GEDCOM</h2>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-            <button class="btn-sm btn-export" onclick="exportSelectedGedcoms()">Export Selected GEDCOMs</button>
-            <button class="btn-sm btn-export" onclick="exportAllGedcoms()">Export All GEDCOMs</button>
-            <button class="btn-sm" onclick="exportAllNamesJson()" id="export-btn"
-              style="background:var(--gold);color:#fff;border:none;padding:7px 16px;border-radius:6px;cursor:pointer;font-size:0.85rem">
-              ⬇ Export allnames.json
-            </button>
+      <div class="export-page">
+        <section class="export-hero">
+          <div class="export-breadcrumb">Admin&nbsp; › &nbsp;Imports&nbsp; › &nbsp;<strong>Export GEDCOM</strong></div>
+          <div class="export-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M5 16v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg>
+            <span>Export GEDCOM</span>
           </div>
+          <div class="export-subtitle">
+            Select GEDCOM sources to export individually or in bulk as a <code>.zip</code>, or export <code>allnames.json</code> next to <code>archive.html</code> for instant browse loading.
+          </div>
+          <div class="export-actions">
+            <button class="btn-sm export-action" onclick="exportSelectedGedcoms()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>Export selected</button>
+            <button class="btn-sm export-action" onclick="exportAllGedcoms()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h9a2 2 0 0 1 2 2v12"/><path d="M5 3h9a2 2 0 0 1 2 2v12H5z"/></svg>Export all</button>
+            <button class="btn-sm export-action primary" onclick="exportAllNamesJson()" id="export-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg>Export allnames.json</button>
+          </div>
+        </section>
+
+        <div class="export-body">
+          <div class="export-toolbar">
+            <label class="export-select-all">
+              <input type="checkbox" class="export-checkbox" id="upload-select-all" onchange="toggleAllUploadSelections(this.checked)"/>
+              <span>Select all visible</span>
+            </label>
+            <input class="search-bar export-search" id="upload-search" placeholder="Search GEDCOM files..." oninput="filterUploads()"/>
+            <span class="export-selected-pill" id="upload-selected-count">0 selected</span>
+            <span class="export-summary" id="upload-summary">Loading GEDCOMs...</span>
+            <span class="export-sort">Sort: newest</span>
+          </div>
+          <div id="uploads-list"><div class="empty">Loading…</div></div>
         </div>
-        <div style="font-size:0.8rem;color:var(--muted);margin-bottom:14px">
-          Select GEDCOM sources to export in bulk as a zip, or export <code>allnames.json</code> next to <code>archive.html</code> for instant browse loading.
-        </div>
-        <div id="uploads-list"><div class="empty">Loading…</div></div>
       </div>
     </div>
 
@@ -1231,6 +1442,8 @@ let selectedCommunityFamilyPeople = [];
 let selectedCommunityFamilyRelationships = [];
 let identityGroups = [];
 let uploadedSources = [];
+let uploadSearchQuery = '';
+let selectedUploadIds = new Set();
 let changeLogRows = [];
 let changeLogNames = {};
 const ACCESS_ROLES = ['visitor', 'moderator', 'admin', 'superadmin'];
@@ -1894,32 +2107,99 @@ async function loadUploads() {
   list.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
   const { data, error } = await sb.from('gedcom_uploads').select('*').order('uploaded_at', { ascending: false });
   uploadedSources = data || [];
-  if (error || !uploadedSources.length) { list.innerHTML = '<div class="empty">No uploads yet.</div>'; return; }
-  list.innerHTML = `
-    <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:0.82rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.08em">
-      <input type="checkbox" id="upload-select-all" onchange="toggleAllUploadSelections(this.checked)"/>
-      Select all visible GEDCOMs
-    </label>
-    ${uploadedSources.map(u => `
-    <div class="upload-row">
-      <div style="display:flex;gap:10px;align-items:flex-start">
-        <input type="checkbox" class="upload-select" value="${u.id}" aria-label="Select ${escapeHtml(u.filename)}"/>
-        <div>
-        <div class="fname">📁 ${u.filename}</div>
-        <div class="fmeta">${u.people_count} people &nbsp;·&nbsp; ${u.families_count} families &nbsp;·&nbsp; ${new Date(u.uploaded_at).toLocaleString()}</div>
-        ${u.notes ? `<div class="fmeta" style="margin-top:4px">📝 ${u.notes}</div>` : ''}
-        </div>
-      </div>
-      <div class="faction">
-        <button class="btn-sm btn-export" onclick="exportGedcomSource('${u.id}','${u.filename.replace(/'/g,"\\'")}')">Export GEDCOM</button>
-        <button class="btn-sm btn-danger" onclick="deleteUpload('${u.id}','${u.filename.replace(/'/g,"\\'")}')">Delete</button>
-      </div>
-    </div>
-  `).join('')}`;
+  selectedUploadIds = new Set([...selectedUploadIds].filter(id => uploadedSources.some(source => source.id === id)));
+  if (error || !uploadedSources.length) {
+    updateUploadSummary([]);
+    updateUploadSelectionSummary();
+    list.innerHTML = '<div class="empty">No uploads yet.</div>';
+    return;
+  }
+  renderUploads();
 }
 
 function toggleAllUploadSelections(checked) {
-  document.querySelectorAll('.upload-select').forEach(cb => { cb.checked = checked; });
+  visibleUploadedSources().forEach(source => {
+    if (checked) selectedUploadIds.add(source.id);
+    else selectedUploadIds.delete(source.id);
+  });
+  document.querySelectorAll('.upload-select').forEach(cb => {
+    cb.checked = selectedUploadIds.has(cb.value);
+    cb.closest('.export-source-row')?.classList.toggle('selected', cb.checked);
+  });
+  updateUploadSelectionSummary();
+}
+
+function filterUploads() {
+  uploadSearchQuery = (document.getElementById('upload-search')?.value || '').toLowerCase().trim();
+  renderUploads();
+}
+
+function visibleUploadedSources() {
+  if (!uploadSearchQuery) return uploadedSources;
+  return uploadedSources.filter(source => String(source.filename || '').toLowerCase().includes(uploadSearchQuery));
+}
+
+function renderUploads() {
+  const list = document.getElementById('uploads-list');
+  const visible = visibleUploadedSources();
+  updateUploadSummary(visible);
+  if (!visible.length) {
+    list.innerHTML = '<div class="empty">No GEDCOM files match your search.</div>';
+    updateUploadSelectionSummary();
+    return;
+  }
+  list.innerHTML = `<div class="export-list">
+      ${visible.map(source => renderUploadSourceRow(source)).join('')}
+  </div>`;
+  updateUploadSelectionSummary();
+}
+
+function renderUploadSourceRow(source) {
+  const idArg = JSON.stringify(source.id);
+  const filenameArg = JSON.stringify(source.filename || '');
+  const isSelected = selectedUploadIds.has(source.id);
+  return `
+    <div class="export-source-row${isSelected ? ' selected' : ''}">
+      <input type="checkbox" class="upload-select export-checkbox" value="${escapeHtml(source.id)}" aria-label="Select ${escapeHtml(source.filename)}" onchange="handleUploadSelectionChange(this)" ${isSelected ? 'checked' : ''}/>
+      <div class="export-file-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12"/><path d="M7 3h10l1 4H6l1-4Z"/><path d="M6 7h12v13H6z"/></svg>
+      </div>
+      <div>
+        <div class="export-file-name">${escapeHtml(source.filename)}</div>
+        <div class="export-file-meta">${Number(source.people_count || 0).toLocaleString()} people &nbsp;·&nbsp; ${Number(source.families_count || 0).toLocaleString()} families &nbsp;·&nbsp; ${formatDateTime(source.uploaded_at)}</div>
+        ${source.notes ? `<div class="export-file-meta">Note: ${escapeHtml(source.notes)}</div>` : ''}
+      </div>
+      <div class="export-row-actions">
+        <button class="export-row-action" title="Export GEDCOM" onclick="exportGedcomSource(${idArg}, ${filenameArg})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+        <button class="export-row-action" title="Rename GEDCOM" onclick="renameGedcomSource(${idArg}, ${filenameArg})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+        <button class="export-row-action" title="Delete GEDCOM" onclick="deleteUpload(${idArg}, ${filenameArg})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 15H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
+      </div>
+    </div>`;
+}
+
+function handleUploadSelectionChange(cb) {
+  if (cb.checked) selectedUploadIds.add(cb.value);
+  else selectedUploadIds.delete(cb.value);
+  cb.closest('.export-source-row')?.classList.toggle('selected', cb.checked);
+  updateUploadSelectionSummary();
+}
+
+function updateUploadSelectionSummary() {
+  const count = document.getElementById('upload-selected-count');
+  if (count) count.textContent = `${selectedUploadIds.size.toLocaleString()} selected`;
+  const visibleBoxes = Array.from(document.querySelectorAll('.upload-select'));
+  const selectAll = document.getElementById('upload-select-all');
+  if (selectAll) {
+    selectAll.checked = visibleBoxes.length > 0 && visibleBoxes.every(cb => selectedUploadIds.has(cb.value));
+    selectAll.indeterminate = visibleBoxes.some(cb => selectedUploadIds.has(cb.value)) && !selectAll.checked;
+  }
+}
+
+function updateUploadSummary(sources) {
+  const summary = document.getElementById('upload-summary');
+  if (!summary) return;
+  const people = sources.reduce((sum, source) => sum + Number(source.people_count || 0), 0);
+  summary.textContent = `${sources.length.toLocaleString()} files · ${people.toLocaleString()} people total`;
 }
 
 async function exportGedcomSource(gedcomId, filename) {
@@ -1931,6 +2211,26 @@ async function exportGedcomSource(gedcomId, filename) {
   } catch (err) {
     toast('GEDCOM export failed: ' + (err.message || err), true);
   }
+}
+
+async function renameGedcomSource(gedcomId, filename) {
+  const nextName = prompt('Rename GEDCOM file only. This will not change any people, families, or GEDCOM content.', filename);
+  if (!nextName) return;
+  const cleanName = nextName.trim();
+  if (!cleanName) return;
+  const finalName = /\.ged$/i.test(cleanName) ? cleanName : cleanName + '.ged';
+  if (finalName === filename) return;
+
+  const { error } = await sb.from('gedcom_uploads')
+    .update({ filename: finalName })
+    .eq('id', gedcomId);
+  if (error) {
+    toast('Rename failed: ' + error.message, true);
+    return;
+  }
+  uploadedSources = uploadedSources.map(source => source.id === gedcomId ? { ...source, filename: finalName } : source);
+  renderUploads();
+  toast(`GEDCOM renamed to "${finalName}"`);
 }
 
 async function buildGedcomSourceText(gedcomId, filename) {
@@ -1955,7 +2255,7 @@ async function buildGedcomSourceText(gedcomId, filename) {
 }
 
 async function exportSelectedGedcoms() {
-  const ids = Array.from(document.querySelectorAll('.upload-select:checked')).map(cb => cb.value);
+  const ids = [...selectedUploadIds];
   if (!ids.length) {
     toast('Select at least one GEDCOM source first.', true);
     return;

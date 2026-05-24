@@ -1,5 +1,6 @@
 (function () {
   const CONSENT_VERSION = 'terms-2026-05-25';
+  const ONBOARDING_DRAFT_KEY = 'akt_onboarding_draft_v1';
   const REQUIRED_CONSENT_SECTIONS = ['6', '7', '8', '18'];
   const ROLE_LEVELS = { visitor: 1, moderator: 2, admin: 3, superadmin: 4 };
 
@@ -105,6 +106,7 @@
   }
 
   function fillOnboarding(user, visitor) {
+    const draft = loadDraft();
     const name = value('visitor-name') || visitor?.name_entered || userName(user);
     const email = userEmail(user);
     if (byId('visitor-name')) byId('visitor-name').value = name || '';
@@ -119,7 +121,60 @@
     if (byId('visitor-heard-relative-name')) byId('visitor-heard-relative-name').value = visitor?.heard_from_relative_name || '';
     if (byId('visitor-heard-relative-place')) byId('visitor-heard-relative-place').value = visitor?.heard_from_relative_place || '';
     if (byId('visitor-heard-details')) byId('visitor-heard-details').value = visitor?.heard_from_details || '';
+    if (draft) restoreDraft(draft);
     toggleHeardFromFields();
+  }
+
+  function onboardingFieldIds() {
+    return [
+      'visitor-name',
+      'visitor-mobile',
+      'visitor-father-name',
+      'visitor-root-place',
+      'visitor-current-place',
+      'visitor-current-address',
+      'visitor-oldest-ancestor',
+      'visitor-heard-source',
+      'visitor-heard-relative-name',
+      'visitor-heard-relative-place',
+      'visitor-heard-details'
+    ];
+  }
+
+  function loadDraft() {
+    try {
+      return JSON.parse(sessionStorage.getItem(ONBOARDING_DRAFT_KEY) || 'null');
+    } catch {
+      return null;
+    }
+  }
+
+  function restoreDraft(draft) {
+    onboardingFieldIds().forEach(id => {
+      if (draft[id] !== undefined && byId(id)) byId(id).value = draft[id];
+    });
+    REQUIRED_CONSENT_SECTIONS.forEach(section => {
+      const id = 'consent-section-' + section;
+      if (draft[id] !== undefined && byId(id)) byId(id).checked = Boolean(draft[id]);
+    });
+  }
+
+  function saveDraft() {
+    const draft = {};
+    onboardingFieldIds().forEach(id => { if (byId(id)) draft[id] = byId(id).value; });
+    REQUIRED_CONSENT_SECTIONS.forEach(section => {
+      const id = 'consent-section-' + section;
+      if (byId(id)) draft[id] = byId(id).checked;
+    });
+    sessionStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(draft));
+  }
+
+  function bindDraftAutosave() {
+    const form = byId('visitor-onboarding-form');
+    if (!form || form.dataset.draftAutosaveBound === '1') return;
+    form.dataset.draftAutosaveBound = '1';
+    form.addEventListener('input', saveDraft);
+    form.addEventListener('change', saveDraft);
   }
 
   async function enterVisitor(visitor) {
@@ -339,6 +394,7 @@
     }
 
     await recordConsent(saved, snapshot);
+    sessionStorage.removeItem(ONBOARDING_DRAFT_KEY);
     if (btn) {
       btn.disabled = false;
       btn.textContent = 'Accept & Enter';
@@ -377,6 +433,7 @@
     sessionStorage.removeItem('akt_access_granted');
     sessionStorage.removeItem('akt_visitor_role');
     sessionStorage.removeItem('akt_auth_user_id');
+    sessionStorage.removeItem(ONBOARDING_DRAFT_KEY);
     currentVisitor = null;
     currentSession = null;
     await sb?.auth.signOut();
@@ -391,6 +448,7 @@
     initialized = true;
 
     setView('loading');
+    bindDraftAutosave();
     const sessionResult = await sb.auth.getSession();
     await handleSession(sessionResult.data?.session || null);
 

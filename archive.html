@@ -123,6 +123,7 @@
   .consent-item { display: grid; grid-template-columns: 18px 1fr; gap: 9px; align-items: start; text-align: left; font-size: 0.78rem; color: #5f5547; line-height: 1.45; }
   .consent-item input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--green); }
   .auth-loading { color: var(--muted); font-size: 0.85rem; padding: 14px 0; }
+  .first-time-copy { text-align: left; color: #5f5547; background: #fffaf0; border-left: 3px solid var(--gold2); padding: 10px 12px; font-size: 0.82rem; line-height: 1.5; margin: 0 0 14px; }
   .btn-enter {
     width: 100%; padding: 14px; background: #2f4d37; color: #fff9ef;
     border: none; font-family: 'Lato', sans-serif; font-weight: 700;
@@ -166,6 +167,12 @@
     letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
   }
   .logout-btn:hover { background: rgba(201,168,76,0.18); border-color: var(--gold2); }
+  .site-footer { padding: 22px 20px; text-align: center; color: var(--muted); font-size: 0.78rem; border-top: 1px solid var(--border); margin-top: 36px; }
+  .site-footer a { color: var(--gold); text-decoration: none; font-weight: 700; margin: 0 8px; }
+  .site-footer a:hover { text-decoration: underline; }
+  .auth-footer-links { color: #6f8068; font-size: 0.76rem; margin-top: 16px; text-align: center; }
+  .auth-footer-links a { color: var(--green); font-weight: 700; margin: 0 7px; text-decoration: none; }
+  .auth-footer-links a:hover { text-decoration: underline; }
 
   nav {
     display: flex; align-items: stretch;
@@ -756,6 +763,7 @@
       </div>
       <form id="visitor-onboarding-form" class="auth-request-fields" onsubmit="AKT_AUTH.submitOnboarding(event)">
         <div class="visitor-email-display" id="visitor-email-display"></div>
+        <div class="first-time-copy">First-time registration form: please fill these details once to get access to the website.</div>
         <div class="auth-section-title">Visitor Details</div>
         <input type="text" id="visitor-name" placeholder="Name" maxlength="100" autocomplete="name"/>
         <input type="tel" id="visitor-mobile" placeholder="Mobile phone number" maxlength="30" autocomplete="tel"/>
@@ -781,7 +789,7 @@
           <textarea id="visitor-heard-details" placeholder="Please share details" maxlength="500"></textarea>
         </div>
         <div class="auth-section-title">Consent</div>
-        <div class="auth-note" style="text-align:left;margin:0 0 10px">Please read the <a href="Shajra-Terms-and-Conditions.pdf" target="_blank" rel="noopener" style="color:var(--green);font-weight:700">Terms & Conditions</a> before accepting.</div>
+        <div class="auth-note" style="text-align:left;margin:0 0 10px">Please read the <a href="terms.html" target="_blank" rel="noopener" style="color:var(--green);font-weight:700">Terms & Conditions and Privacy Policy</a> before accepting.</div>
         <div class="consent-list">
           <label class="consent-item"><input id="consent-section-6" type="checkbox"/> <span>I will use family information respectfully and will not use it to harm family or community harmony.</span></label>
           <label class="consent-item"><input id="consent-section-7" type="checkbox"/> <span>I will not upload misleading information, impersonate anyone, scrape data, or misuse the website.</span></label>
@@ -792,6 +800,10 @@
       </form>
       <div class="auth-err" id="auth-err">Please enter your name to continue.</div>
       <div class="auth-note" id="auth-note">Sign in with Google or email. First-time visitors will complete a short consent form.</div>
+    </div>
+    <div class="auth-footer-links">
+      <a href="terms.html" target="_blank" rel="noopener">Terms & Conditions</a>
+      <a href="terms.html#privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>
     </div>
   </div>
 </div>
@@ -1206,6 +1218,10 @@
     </div>
 
   </main>
+  <footer class="site-footer">
+    <a href="terms.html">Terms & Conditions</a>
+    <a href="terms.html#privacy-policy">Privacy Policy</a>
+  </footer>
 </div>
 
 <!-- Share popup -->

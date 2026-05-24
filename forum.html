@@ -85,6 +85,21 @@
     margin: 0 auto;
     padding: 32px 20px 60px;
   }
+  .site-footer {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 22px 20px 32px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+  .site-footer a {
+    color: var(--gold);
+    font-weight: 900;
+    margin: 0 8px;
+    text-decoration: none;
+  }
+  .site-footer a:hover { text-decoration: underline; }
   .hero {
     background: rgba(255,253,248,0.93);
     border: 1px solid var(--line);
@@ -387,6 +402,10 @@
     </section>
   </div>
 </main>
+<footer class="site-footer">
+  <a href="terms.html">Terms & Conditions</a>
+  <a href="terms.html#privacy-policy">Privacy Policy</a>
+</footer>
 
 <script>
 const SUPABASE_URL = 'https://fusairoeiabmqvsbxhfi.supabase.co';

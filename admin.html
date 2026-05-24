@@ -87,14 +87,35 @@
   header .hright { display: flex; align-items: center; gap: 16px; }
   header #hdr-stats { color: #d5cbc0 !important; }
   .btn-sm {
-    padding: 7px 14px; border: 1px solid rgba(255,255,255,0.2); background: transparent;
+    padding: 7px 14px; border: 1px solid var(--border); background: transparent;
     border-radius: 6px;
-    color: #f7efe4; font-family: 'Lato', sans-serif; font-size: 0.78rem;
+    color: var(--muted); font-family: 'Lato', sans-serif; font-size: 0.78rem;
     cursor: pointer; letter-spacing: 0.05em; transition: all 0.2s;
   }
   .btn-sm:hover { border-color: var(--gold); color: var(--gold); }
-  .btn-danger { border-color: var(--gold); color: var(--gold); }
-  .btn-danger:hover { background: var(--gold); color: #fff; }
+  .btn-danger { border-color: var(--red); color: var(--red); }
+  .btn-danger:hover { background: var(--red); color: #fff; }
+  header .btn-sm {
+    border-color: rgba(255,255,255,0.2);
+    color: #f7efe4;
+  }
+  header .btn-danger {
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+  header .btn-danger:hover {
+    background: var(--gold);
+    color: #ffffff;
+  }
+  .btn-export {
+    background: #4b2818;
+    border-color: var(--gold);
+    color: #ffd4bd;
+  }
+  .btn-export:hover {
+    background: var(--gold);
+    color: #ffffff;
+  }
 
   .admin-layout {
     display: grid;
@@ -160,6 +181,7 @@
     line-height: 1;
     padding: 3px 6px;
   }
+  .nav-badge:empty { display: none; }
 
   main {
     background: #ffffff;
@@ -690,15 +712,15 @@
     <nav aria-label="Admin sections">
       <div class="nav-section">
         <div class="nav-section-label">Imports</div>
-        <button class="nav-tab active" data-min-role="admin" onclick="switchTab('upload', this)"><span class="nav-icon" aria-hidden="true">↥</span><span class="nav-label">Upload GEDCOM</span></button>
-        <button class="nav-tab" data-min-role="admin" onclick="switchTab('uploads', this)"><span class="nav-icon" aria-hidden="true">↺</span><span class="nav-label">Uploads history</span></button>
+        <button class="nav-tab active" data-min-role="admin" onclick="switchTab('upload', this)"><span class="nav-icon" aria-hidden="true">↥</span><span class="nav-label">Import GEDCOM</span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('uploads', this)"><span class="nav-icon" aria-hidden="true">↺</span><span class="nav-label">Export GEDCOM</span></button>
         <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('settings', this)"><span class="nav-icon" aria-hidden="true">⌁</span><span class="nav-label">Import stats</span></button>
       </div>
       <div class="nav-section">
         <div class="nav-section-label">Review Queue</div>
-        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('changelog', this)"><span class="nav-icon" aria-hidden="true">⌘</span><span class="nav-label">Review & Merge</span></button>
-        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('corrections', this)"><span class="nav-icon" aria-hidden="true">✎</span><span class="nav-label">Corrections</span></button>
-        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('suggestions', this)"><span class="nav-icon" aria-hidden="true">♢</span><span class="nav-label">Suggestions</span></button>
+        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('changelog', this)"><span class="nav-icon" aria-hidden="true">⌘</span><span class="nav-label">Review & Merge</span><span class="nav-badge" id="badge-changelog"></span></button>
+        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('corrections', this)"><span class="nav-icon" aria-hidden="true">✎</span><span class="nav-label">Corrections</span><span class="nav-badge" id="badge-corrections"></span></button>
+        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('suggestions', this)"><span class="nav-icon" aria-hidden="true">♢</span><span class="nav-label">Suggestions</span><span class="nav-badge" id="badge-suggestions"></span></button>
       </div>
       <div class="nav-section">
         <div class="nav-section-label">Tree</div>
@@ -706,18 +728,18 @@
       </div>
       <div class="nav-section">
         <div class="nav-section-label">Community</div>
-        <button class="nav-tab" data-min-role="admin" onclick="switchTab('visitors', this)"><span class="nav-icon" aria-hidden="true">☷</span><span class="nav-label">Visitors</span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('visitors', this)"><span class="nav-icon" aria-hidden="true">☷</span><span class="nav-label">Visitors</span><span class="nav-badge" id="badge-visitors"></span></button>
         <button class="nav-tab" data-min-role="moderator" onclick="switchTab('activity', this)"><span class="nav-icon" aria-hidden="true">⌁</span><span class="nav-label">Activity history</span></button>
-        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('forum', this)"><span class="nav-icon" aria-hidden="true">◌</span><span class="nav-label">Forum</span></button>
+        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('forum', this)"><span class="nav-icon" aria-hidden="true">◌</span><span class="nav-label">Forum</span><span class="nav-badge" id="badge-forum"></span></button>
       </div>
     </nav>
 
     <main>
 
-    <!-- UPLOAD PANEL -->
+    <!-- IMPORT PANEL -->
     <div id="panel-upload" class="panel active">
       <div class="card">
-        <h2>Upload GEDCOM File</h2>
+        <h2>Import GEDCOM File</h2>
         <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()"
              ondragover="event.preventDefault();this.classList.add('dragover')"
              ondragleave="this.classList.remove('dragover')"
@@ -788,14 +810,14 @@
       </div>
     </div>
 
-    <!-- UPLOADS HISTORY -->
+    <!-- GEDCOM EXPORT -->
     <div id="panel-uploads" class="panel">
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-          <h2 style="margin:0">Uploads History</h2>
+          <h2 style="margin:0">Export GEDCOM</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-            <button class="btn-sm" onclick="exportSelectedGedcoms()">Export Selected GEDCOMs</button>
-            <button class="btn-sm" onclick="exportAllGedcoms()">Export All GEDCOMs</button>
+            <button class="btn-sm btn-export" onclick="exportSelectedGedcoms()">Export Selected GEDCOMs</button>
+            <button class="btn-sm btn-export" onclick="exportAllGedcoms()">Export All GEDCOMs</button>
             <button class="btn-sm" onclick="exportAllNamesJson()" id="export-btn"
               style="background:var(--gold);color:#fff;border:none;padding:7px 16px;border-radius:6px;cursor:pointer;font-size:0.85rem">
               ⬇ Export allnames.json
@@ -1885,7 +1907,7 @@ async function loadUploads() {
         </div>
       </div>
       <div class="faction">
-        <button class="btn-sm" onclick="exportGedcomSource('${u.id}','${u.filename.replace(/'/g,"\\'")}')">Export GEDCOM</button>
+        <button class="btn-sm btn-export" onclick="exportGedcomSource('${u.id}','${u.filename.replace(/'/g,"\\'")}')">Export GEDCOM</button>
         <button class="btn-sm btn-danger" onclick="deleteUpload('${u.id}','${u.filename.replace(/'/g,"\\'")}')">Delete</button>
       </div>
     </div>
@@ -2243,6 +2265,7 @@ async function loadVisitors() {
   tbody.innerHTML = '<tr><td colspan="7" class="empty"><span class="spinner"></span> Loading…</td></tr>';
   const { data } = await sb.from('visitors').select('*').order('last_seen', { ascending: false });
   allVisitors = data || [];
+  setNavBadge('visitors', allVisitors.filter(v => visitorAccessStatus(v) === 'pending').length);
   renderVisitors(allVisitors);
 }
 
@@ -2281,8 +2304,7 @@ function renderVisitors(visitors) {
       <td style="min-width:190px">
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${status !== 'approved' ? `<button class="btn-sm" onclick="approveVisitor('${v.id}')" style="border-color:var(--green);color:var(--green)">Approve</button>` : ''}
-          ${status !== 'rejected' && status !== 'blocked' ? `<button class="btn-sm" onclick="rejectVisitor('${v.id}')">Reject</button>` : ''}
-          ${status === 'approved' ? `<button class="btn-sm" onclick="copyApprovalMessage('${v.id}')">Copy Message</button>` : ''}
+          ${status !== 'rejected' && status !== 'blocked' ? `<button class="btn-sm btn-export" onclick="rejectVisitor('${v.id}')">Reject</button>` : ''}
           ${status === 'blocked'
             ? `<button class="btn-sm" onclick="unblockVisitor('${v.id}')">Unblock</button>`
             : `<button class="btn-sm btn-danger" onclick="blockVisitor('${v.id}')">Block</button>`
@@ -2603,6 +2625,7 @@ async function loadChangeLog() {
     });
     changeLogRows = rows;
     changeLogNames = await loadPersonNameMap([...uidSet]);
+    setNavBadge('changelog', rows.length);
     filterChangeLog();
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="7"><div class="empty" style="color:var(--red)">Could not load review queue. Make sure overlay tables exist in Supabase and the latest relationship migration has run.<br>${escapeHtml(err.message || '')}</div></td></tr>`;
@@ -3141,7 +3164,18 @@ async function loadActivityLogs(fromDate, toDate) {
 function renderActivity(items) {
   const list = document.getElementById('activity-list');
   if (!items.length) { list.innerHTML = '<div class="empty">No activity found for this period.</div>'; return; }
-  list.innerHTML = items.map(item => {
+  list.innerHTML = `<table>
+    <thead>
+      <tr>
+        <th>When</th>
+        <th>Visitor</th>
+        <th>Activity</th>
+        <th>Device / Location</th>
+        <th>Details</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${items.map(item => {
     const details = item.details || {};
     const visitor = item.visitor_name || item.name_entered || 'Unknown visitor';
     const title = item.target || describeActivity(item);
@@ -3155,15 +3189,16 @@ function renderActivity(items) {
     if (tz) metaParts.push(`Timezone: ${tz}`);
     if (details.result_count !== undefined) metaParts.push(`${Number(details.result_count || 0).toLocaleString()} results`);
     if (details.fallback) metaParts.push('visitor log fallback');
-    return `<div class="activity-row">
-      <div class="activity-icon">${activityIcon(item.action)}</div>
-      <div class="activity-main">
-        <div class="activity-title">${escapeHtml(title)} <span class="activity-user-pill">👤 ${escapeHtml(visitor)}</span>${item.is_blocked ? ' <span style="color:var(--red2);font-size:0.75rem">[blocked]</span>' : ''}</div>
-        <div class="activity-time">${formatIST(item.created_at || item.last_seen)} <span style="color:#b58a2a">(${timeAgo(item.created_at || item.last_seen)})</span></div>
-        ${metaParts.length ? `<div class="activity-meta">${escapeHtml(metaParts.join(' · '))}</div>` : ''}
-      </div>
-    </div>`;
-  }).join('');
+    return `<tr>
+      <td>${formatIST(item.created_at || item.last_seen)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(item.created_at || item.last_seen)}</span></td>
+      <td><strong>${escapeHtml(visitor)}</strong>${item.is_blocked ? '<br><span style="color:var(--red2);font-size:0.72rem">blocked</span>' : ''}</td>
+      <td><span class="activity-icon">${activityIcon(item.action)}</span> ${escapeHtml(describeActivity(item))}<br><span style="font-size:0.76rem;color:var(--muted)">${escapeHtml(title)}</span></td>
+      <td>${escapeHtml([device, locationHint].filter(Boolean).join(' · ') || '-')}<br>${tz ? `<span style="font-size:0.72rem;color:var(--muted)">Timezone: ${escapeHtml(tz)}</span>` : ''}</td>
+      <td>${metaParts.length ? escapeHtml(metaParts.join(' · ')) : '-'}</td>
+    </tr>`;
+  }).join('')}
+    </tbody>
+  </table>`;
 }
 
 function filterActivity() {
@@ -3182,12 +3217,62 @@ function filterActivity() {
 }
 
 // ===================== UTILS =====================
+function formatBadgeCount(count) {
+  const num = Number(count || 0);
+  if (!num) return '';
+  return num > 99 ? '99+' : String(num);
+}
+
+function setNavBadge(name, count) {
+  const badge = document.getElementById('badge-' + name);
+  if (badge) badge.textContent = formatBadgeCount(count);
+}
+
+function updateForumBadge() {
+  setNavBadge('forum', (forumAdminThreads || []).length + (forumAdminPosts || []).length + (forumAdminFlags || []).length);
+}
+
+async function loadAttentionBadges() {
+  const [visitors, corrections, suggestions, forumThreads, forumPosts, forumFlags, profileReviews, relationReviews, familyReviews] = await Promise.allSettled([
+    sb.from('visitors').select('id,access_status,is_blocked').limit(1000),
+    sb.from('correction_requests').select('id,status').limit(1000),
+    sb.from('suggestions').select('id,status').limit(1000),
+    sb.from('forum_threads').select('id').eq('status', 'pending').limit(1000),
+    sb.from('forum_posts').select('id').eq('status', 'pending').limit(1000),
+    sb.from('forum_flags').select('id').eq('status', 'new').limit(1000),
+    sb.from('profile_overrides').select('id').limit(1000),
+    sb.from('relationship_overrides').select('id').limit(1000),
+    sb.from('canonical_family_groups').select('id').limit(1000)
+  ]);
+
+  if (visitors.status === 'fulfilled' && !visitors.value.error) {
+    setNavBadge('visitors', (visitors.value.data || []).filter(v => visitorAccessStatus(v) === 'pending').length);
+  }
+  if (corrections.status === 'fulfilled' && !corrections.value.error) {
+    setNavBadge('corrections', (corrections.value.data || []).filter(r => ['new', 'in_progress'].includes(r.status || 'new')).length);
+  }
+  if (suggestions.status === 'fulfilled' && !suggestions.value.error) {
+    setNavBadge('suggestions', (suggestions.value.data || []).filter(r => (r.status || 'new') === 'new').length);
+  }
+  const forumCount = [forumThreads, forumPosts, forumFlags].reduce((sum, result) => {
+    if (result.status !== 'fulfilled' || result.value.error) return sum;
+    return sum + (result.value.data || []).length;
+  }, 0);
+  setNavBadge('forum', forumCount);
+  const reviewCount = [profileReviews, relationReviews, familyReviews].reduce((sum, result) => {
+    if (result.status !== 'fulfilled' || result.value.error) return sum;
+    return sum + (result.value.data || []).length;
+  }, 0);
+  setNavBadge('changelog', reviewCount);
+}
+
 async function loadAll() {
   const [{ count: pc }, { count: fc }] = await Promise.all([
     sb.from('people').select('*', { count: 'exact', head: true }),
     sb.from('families').select('*', { count: 'exact', head: true })
   ]);
   document.getElementById('hdr-stats').textContent = `${(pc||0).toLocaleString()} people · ${(fc||0).toLocaleString()} families`;
+  loadAttentionBadges();
   if (document.getElementById('panel-activity').classList.contains('active')) loadActivity();
 }
 
@@ -3399,6 +3484,7 @@ async function loadCorrections() {
     return;
   }
   correctionsData = data || [];
+  setNavBadge('corrections', correctionsData.filter(r => ['new', 'in_progress'].includes(r.status || 'new')).length);
   renderCorrections();
 }
 
@@ -4216,6 +4302,7 @@ async function loadSuggestions() {
     .order('created_at', { ascending: false });
   if (error) { container.innerHTML = `<div class="empty" style="color:var(--red)">${error.message}</div>`; return; }
   suggestionsData = data || [];
+  setNavBadge('suggestions', suggestionsData.filter(r => (r.status || 'new') === 'new').length);
   renderSuggestions();
 }
 
@@ -4394,6 +4481,7 @@ async function loadForumAdmin() {
         .order('created_at', { ascending: false });
       if (error) throw error;
       forumAdminThreads = data || [];
+      updateForumBadge();
       renderForumAdminThreads(forumAdminThreads, 'pending');
     } else if (forumAdminView === 'published') {
       const { data, error } = await sb.from('forum_threads')
@@ -4411,6 +4499,7 @@ async function loadForumAdmin() {
         .order('created_at', { ascending: false });
       if (error) throw error;
       forumAdminPosts = data || [];
+      updateForumBadge();
       renderForumAdminPosts();
     } else if (forumAdminView === 'flags') {
       const { data, error } = await sb.from('forum_flags')
@@ -4419,6 +4508,7 @@ async function loadForumAdmin() {
         .order('created_at', { ascending: false });
       if (error) throw error;
       forumAdminFlags = data || [];
+      updateForumBadge();
       renderForumAdminFlags();
     }
   } catch (err) {

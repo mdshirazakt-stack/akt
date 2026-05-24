@@ -2406,6 +2406,7 @@ async function loadSearch(q) {
       .not('name', 'ilike', ',%')
       .not('name', 'ilike', ';%')
       .not('name', 'ilike', '-%')
+      .not('name', 'ilike', '+%')
       .not('name', 'ilike', '1%son%')
       .not('name', 'ilike', '1%daughter%');
     if (searchFilter === 'M') query = query.eq('sex', 'M');

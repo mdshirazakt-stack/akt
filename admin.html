@@ -246,6 +246,217 @@
   }
   .forum-admin-tab.active { background: var(--gold); color: #fff; border-color: var(--gold); }
 
+  /* FAMILY BUILDER ADMIN UX */
+  .builder-shell { display: grid; gap: 22px; }
+  .builder-hero {
+    background:
+      radial-gradient(circle at top right, rgba(232,132,74,0.16), transparent 34%),
+      linear-gradient(135deg, #fffaf2 0%, #ffffff 62%);
+    border: 1px solid #ead9c2;
+    border-top: 4px solid var(--gold);
+    padding: 24px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 18px;
+    align-items: center;
+    box-shadow: 0 14px 36px rgba(58,46,34,0.07);
+  }
+  .builder-mark, .builder-icon {
+    width: 52px;
+    height: 52px;
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    background: #fcf3e9;
+    border: 1px solid #ead9c2;
+    color: var(--gold);
+    font-size: 1.55rem;
+  }
+  .builder-hero h2 {
+    margin: 0;
+    font-family: 'Amiri', serif;
+    color: #1d3a2a;
+    font-size: 1.75rem;
+    line-height: 1.15;
+  }
+  .builder-hero p { margin: 4px 0 0; color: var(--muted); line-height: 1.55; max-width: 78ch; }
+  .builder-hero strong { color: var(--text); }
+  .builder-steps { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .builder-pill {
+    border: 1px solid #ead9c2;
+    background: #ffffff;
+    color: #8a641d;
+    padding: 7px 10px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .builder-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+    gap: 18px;
+    align-items: start;
+  }
+  .builder-card {
+    background: var(--surface);
+    border: 1px solid #ead9c2;
+    padding: 22px;
+    box-shadow: 0 10px 30px rgba(58,46,34,0.05);
+  }
+  .builder-card.warm { background: #fffaf2; }
+  .builder-card h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #1d3a2a;
+    font-family: 'Amiri', serif;
+    font-size: 1.25rem;
+    letter-spacing: 0;
+    text-transform: none;
+    margin: 0 0 5px;
+  }
+  .builder-card .builder-help { color: var(--muted); font-size: 0.86rem; line-height: 1.55; margin-bottom: 16px; }
+  .builder-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .builder-field { display: flex; flex-direction: column; gap: 7px; }
+  .builder-field.full { grid-column: 1 / -1; }
+  .builder-field label {
+    color: #b07826;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+  }
+  .builder-panel input,
+  .builder-panel select,
+  .builder-panel textarea {
+    width: 100%;
+    border: 1px solid #d8c4a8;
+    background: #fff;
+    color: var(--text);
+    padding: 12px 14px;
+    font: inherit;
+    font-size: 0.93rem;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  .builder-panel input:focus,
+  .builder-panel select:focus,
+  .builder-panel textarea:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(232,132,74,0.16);
+  }
+  .builder-panel textarea { min-height: 92px; resize: vertical; line-height: 1.5; }
+  .builder-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+  .builder-actions .btn-gold { width: auto; }
+  .builder-note {
+    background: #fff8ef;
+    border: 1px solid #f0d5b7;
+    border-left: 4px solid var(--gold);
+    color: var(--muted);
+    padding: 13px 15px;
+    font-size: 0.86rem;
+    line-height: 1.6;
+  }
+  .builder-section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .builder-section-title h2 { margin: 0; color: #1d3a2a; }
+  .identity-create {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.8fr);
+    gap: 14px;
+  }
+  .identity-preview {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    color: var(--muted);
+    font-size: 0.83rem;
+  }
+  .identity-groups {
+    display: grid;
+    gap: 14px;
+    margin-top: 18px;
+  }
+  .identity-card {
+    border: 1px solid #ead9c2;
+    background: #fffaf2;
+    padding: 16px;
+  }
+  .identity-card.archived { opacity: 0.62; }
+  .identity-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+  .identity-name { font-weight: 800; font-size: 1rem; color: #1d3a2a; line-height: 1.35; }
+  .identity-meta { color: var(--muted); font-size: 0.78rem; line-height: 1.45; margin-top: 3px; }
+  .identity-status {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #d8c4a8;
+    background: #fff;
+    color: #8a641d;
+    padding: 4px 8px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+  .identity-member-list { display: grid; gap: 7px; margin: 12px 0; }
+  .identity-member-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    background: #fff;
+    border: 1px solid #ead9c2;
+    padding: 9px 10px;
+  }
+  .identity-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: #1d3a2a;
+    color: #fff;
+    font-family: 'Amiri', serif;
+    font-weight: 700;
+  }
+  .identity-member-name { color: var(--text); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .identity-member-meta { color: var(--muted); font-size: 0.73rem; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .identity-add-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) auto auto;
+    gap: 8px;
+    align-items: center;
+    margin-top: 12px;
+  }
+  .builder-muted-link {
+    color: var(--gold);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .builder-muted-link:hover { text-decoration: underline; }
+  @media (max-width: 860px) {
+    .builder-hero { grid-template-columns: 1fr; }
+    .builder-steps { justify-content: flex-start; }
+    .builder-grid, .identity-create { grid-template-columns: 1fr; }
+    .builder-form-grid { grid-template-columns: 1fr; }
+    .identity-add-row { grid-template-columns: 1fr; }
+  }
+
   /* TOAST */
   #toast {
     position: fixed; bottom: 24px; right: 24px;
@@ -585,110 +796,172 @@
     </div>
 
     <!-- FAMILY BUILDER PANEL -->
-    <div id="panel-familybuilder" class="panel">
-      <div class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-          <h2 style="margin:0">👪 New Family Builder</h2>
-          <button class="btn-sm" onclick="loadFamilyBuilder()" style="background:var(--gold);color:#fff;border:none;padding:7px 16px;cursor:pointer;font-size:0.85rem">↻ Refresh</button>
-        </div>
-        <div class="insight-note">
-          Use this for a family that does not yet exist in any GEDCOM. Create a new source family/GEDCOM, start with the earliest known ancestor, then continue building the tree in the Family Editor.
-        </div>
-        <h3 style="margin-top:18px">Create New Source Family / GEDCOM</h3>
-        <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:16px">
-          <input id="new-source-filename" placeholder="GEDCOM / source name, e.g. 203-New Family of Lar"/>
-          <input id="new-source-root-name" placeholder="Earliest known ancestor / root person"/>
-          <input id="new-source-root-place" placeholder="Root place"/>
-          <select id="new-source-root-gender">
-            <option value="">Gender unknown</option>
-            <option value="M">Male</option>
-            <option value="F">Female</option>
-          </select>
-        </div>
-        <textarea id="new-source-notes" placeholder="Notes about this new source family" style="margin-top:12px;min-height:80px"></textarea>
-        <button class="btn-gold" style="margin-top:12px" onclick="createSourceFamilyGedcom()">Create Source & Open Editor</button>
-        <div class="insight-note" style="margin-top:14px">
-          New people added from that editor workspace will inherit this new source family. Existing people from other GEDCOMs can still be found, linked, and marked as duplicate references.
-        </div>
-      </div>
+    <div id="panel-familybuilder" class="panel builder-panel">
+      <div class="builder-shell">
+        <section class="builder-hero">
+          <div class="builder-mark">👪</div>
+          <div>
+            <h2>Family Builder</h2>
+            <p>Create a new source GEDCOM, collect structured family submissions, and link known duplicate profiles without losing the original source records.</p>
+          </div>
+          <div class="builder-steps">
+            <span class="builder-pill">New GEDCOM</span>
+            <span class="builder-pill">Submissions</span>
+            <span class="builder-pill">Duplicate Links</span>
+          </div>
+        </section>
 
-      <div class="card">
-        <h2>Structured Family Submissions</h2>
-        <div class="insight-note">
-          Optional scratch area for collecting family details before converting them into a real source GEDCOM.
-        </div>
-        <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:16px">
-          <input id="family-root-name" placeholder="Root family / ancestor name"/>
-          <input id="family-root-place" placeholder="Root place"/>
-          <input id="family-submitter-name" placeholder="Submitter name"/>
-          <input id="family-submitter-mobile" placeholder="Submitter mobile"/>
-        </div>
-        <textarea id="family-notes" placeholder="Notes about this submitted family" style="margin-top:12px;min-height:90px"></textarea>
-        <button class="btn-gold" style="margin-top:12px" onclick="createCommunityFamilySubmission()">Create Family Submission</button>
-      </div>
+        <section class="builder-grid">
+          <div class="builder-card">
+            <div class="builder-section-title">
+              <h2>Create Source Family</h2>
+              <button class="btn-sm" onclick="loadFamilyBuilder()" style="background:var(--gold);color:#fff;border:none;padding:7px 16px;cursor:pointer;font-size:0.85rem">↻ Refresh</button>
+            </div>
+            <div class="builder-note">
+              Use this when a family does not yet exist in any GEDCOM. The earliest known ancestor becomes the root person, then the editor opens so the rest of the tree can be built cleanly.
+            </div>
+            <div class="builder-form-grid" style="margin-top:16px">
+              <div class="builder-field full">
+                <label for="new-source-filename">GEDCOM / Source Name</label>
+                <input id="new-source-filename" placeholder="e.g. 203-New Family of Lar"/>
+              </div>
+              <div class="builder-field">
+                <label for="new-source-root-name">Earliest Known Ancestor</label>
+                <input id="new-source-root-name" placeholder="Root person name"/>
+              </div>
+              <div class="builder-field">
+                <label for="new-source-root-place">Root Place</label>
+                <input id="new-source-root-place" placeholder="Village, district, country"/>
+              </div>
+              <div class="builder-field">
+                <label for="new-source-root-gender">Gender</label>
+                <select id="new-source-root-gender">
+                  <option value="">Gender unknown</option>
+                  <option value="M">Male</option>
+                  <option value="F">Female</option>
+                </select>
+              </div>
+              <div class="builder-field full">
+                <label for="new-source-notes">Source Notes</label>
+                <textarea id="new-source-notes" placeholder="Where this branch came from, gaps in records, oral history, or source notes"></textarea>
+              </div>
+            </div>
+            <div class="builder-actions">
+              <button class="btn-gold" onclick="createSourceFamilyGedcom()">Create Source & Open Editor</button>
+            </div>
+          </div>
 
-      <div class="card">
-        <h2>Family Submissions</h2>
-        <div id="family-submissions-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
-      </div>
+          <div class="builder-card warm">
+            <h3><span class="builder-icon">🧾</span> Structured Family Submissions</h3>
+            <div class="builder-help">A scratch area for family details before turning them into a real source GEDCOM.</div>
+            <div class="builder-form-grid">
+              <div class="builder-field">
+                <label for="family-root-name">Root Family</label>
+                <input id="family-root-name" placeholder="Ancestor or family name"/>
+              </div>
+              <div class="builder-field">
+                <label for="family-root-place">Root Place</label>
+                <input id="family-root-place" placeholder="Root place"/>
+              </div>
+              <div class="builder-field">
+                <label for="family-submitter-name">Submitter</label>
+                <input id="family-submitter-name" placeholder="Submitter name"/>
+              </div>
+              <div class="builder-field">
+                <label for="family-submitter-mobile">Mobile</label>
+                <input id="family-submitter-mobile" placeholder="Submitter mobile"/>
+              </div>
+              <div class="builder-field full">
+                <label for="family-notes">Submission Notes</label>
+                <textarea id="family-notes" placeholder="Notes about this submitted family"></textarea>
+              </div>
+            </div>
+            <div class="builder-actions">
+              <button class="btn-gold" onclick="createCommunityFamilySubmission()">Create Family Submission</button>
+            </div>
+          </div>
+        </section>
 
-      <div class="card">
-        <h2>Known Duplicate Profiles</h2>
-        <div class="insight-note">
-          Use this to mark profiles from different GEDCOM files as the same real person. This does not merge records yet; it creates a reviewable identity cluster.
-        </div>
-        <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px">
-          <input id="identity-display-name" placeholder="Real person display name"/>
-          <input id="identity-canonical-uid" placeholder="Canonical profile UID"/>
-        </div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
-          <button class="btn-outline" onclick="previewCanonicalIdentityUid()">Check Canonical UID</button>
-          <span id="identity-canonical-preview" style="font-size:0.82rem;color:var(--muted)"></span>
-        </div>
-        <textarea id="identity-notes" placeholder="Why these profiles should be linked" style="margin-top:12px;min-height:70px"></textarea>
-        <button class="btn-gold" style="margin-top:12px" onclick="createIdentityGroup()">Create Identity Group</button>
-        <div id="identity-groups-list" style="margin-top:18px"><div class="empty"><span class="spinner"></span> Loading…</div></div>
-      </div>
+        <section class="builder-card">
+          <div class="builder-section-title">
+            <h2>Family Submissions</h2>
+            <span class="builder-pill">Review Queue</span>
+          </div>
+          <div id="family-submissions-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+        </section>
 
-      <div class="card" id="family-detail-card" style="display:none">
-        <h2 id="family-detail-title">Selected Family</h2>
-        <div id="family-detail-meta" style="font-size:0.82rem;color:var(--muted);margin-bottom:16px"></div>
+        <section class="builder-card">
+          <div class="builder-section-title">
+            <h2>Known Duplicate Profiles</h2>
+            <span class="builder-pill">Identity Clusters</span>
+          </div>
+          <div class="builder-note">
+            Mark profiles from different GEDCOM files as the same real person. This creates a reviewable identity cluster; it does not merge or delete source records.
+          </div>
+          <div class="identity-create" style="margin-top:16px">
+            <div class="builder-field">
+              <label for="identity-display-name">Real Person Display Name</label>
+              <input id="identity-display-name" placeholder="e.g. Prof. Mohamad Akram urf Dr. Lari Azad"/>
+            </div>
+            <div class="builder-field">
+              <label for="identity-canonical-uid">Canonical Profile UID</label>
+              <input id="identity-canonical-uid" placeholder="Paste canonical profile UID"/>
+            </div>
+          </div>
+          <div class="builder-actions">
+            <button class="btn-outline" onclick="previewCanonicalIdentityUid()">Check Canonical UID</button>
+            <span id="identity-canonical-preview" class="identity-preview"></span>
+          </div>
+          <div class="builder-field" style="margin-top:12px">
+            <label for="identity-notes">Why these profiles should be linked</label>
+            <textarea id="identity-notes" placeholder="Example: same father, same spouse, one record comes from the in-laws GEDCOM"></textarea>
+          </div>
+          <div class="builder-actions">
+            <button class="btn-gold" onclick="createIdentityGroup()">Create Identity Group</button>
+          </div>
+          <div id="identity-groups-list" class="identity-groups"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+        </section>
 
-        <h3>Add Person</h3>
-        <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
-          <input id="family-person-name" placeholder="Person name"/>
-          <select id="family-person-gender">
-            <option value="">Gender unknown</option>
-            <option value="M">Male</option>
-            <option value="F">Female</option>
-          </select>
-          <input id="family-person-birth" placeholder="Birth date / year"/>
-          <input id="family-person-death" placeholder="Death date / year"/>
-          <input id="family-person-birth-place" placeholder="Birth place"/>
-          <input id="family-person-current-place" placeholder="Current place"/>
+        <div class="card" id="family-detail-card" style="display:none">
+          <h2 id="family-detail-title">Selected Family</h2>
+          <div id="family-detail-meta" style="font-size:0.82rem;color:var(--muted);margin-bottom:16px"></div>
+
+          <h3>Add Person</h3>
+          <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+            <input id="family-person-name" placeholder="Person name"/>
+            <select id="family-person-gender">
+              <option value="">Gender unknown</option>
+              <option value="M">Male</option>
+              <option value="F">Female</option>
+            </select>
+            <input id="family-person-birth" placeholder="Birth date / year"/>
+            <input id="family-person-death" placeholder="Death date / year"/>
+            <input id="family-person-birth-place" placeholder="Birth place"/>
+            <input id="family-person-current-place" placeholder="Current place"/>
+          </div>
+          <textarea id="family-person-notes" placeholder="Short notes about this person" style="margin-top:12px;min-height:70px"></textarea>
+          <button class="btn-green" style="margin-top:12px" onclick="createCommunityFamilyPerson()">Add Person</button>
+
+          <h3 style="margin-top:24px">People in This Submission</h3>
+          <div id="family-people-list"><div class="empty">Select a family submission.</div></div>
+
+          <h3 style="margin-top:24px">Add Relationship</h3>
+          <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+            <select id="family-rel-a"></select>
+            <select id="family-rel-type">
+              <option value="father">A is father of B</option>
+              <option value="mother">A is mother of B</option>
+              <option value="spouse">A is spouse of B</option>
+              <option value="son">A is son of B</option>
+              <option value="daughter">A is daughter of B</option>
+              <option value="sibling">A is sibling of B</option>
+            </select>
+            <select id="family-rel-b"></select>
+            <input id="family-rel-notes" placeholder="Relationship notes"/>
+          </div>
+          <button class="btn-gold" style="margin-top:12px" onclick="createCommunityFamilyRelationship()">Add Relationship</button>
+          <div id="family-relationships-list" style="margin-top:16px"></div>
         </div>
-        <textarea id="family-person-notes" placeholder="Short notes about this person" style="margin-top:12px;min-height:70px"></textarea>
-        <button class="btn-green" style="margin-top:12px" onclick="createCommunityFamilyPerson()">Add Person</button>
-
-        <h3 style="margin-top:24px">People in This Submission</h3>
-        <div id="family-people-list"><div class="empty">Select a family submission.</div></div>
-
-        <h3 style="margin-top:24px">Add Relationship</h3>
-        <div class="grid-2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
-          <select id="family-rel-a"></select>
-          <select id="family-rel-type">
-            <option value="father">A is father of B</option>
-            <option value="mother">A is mother of B</option>
-            <option value="spouse">A is spouse of B</option>
-            <option value="son">A is son of B</option>
-            <option value="daughter">A is daughter of B</option>
-            <option value="sibling">A is sibling of B</option>
-          </select>
-          <select id="family-rel-b"></select>
-          <input id="family-rel-notes" placeholder="Relationship notes"/>
-        </div>
-        <button class="btn-gold" style="margin-top:12px" onclick="createCommunityFamilyRelationship()">Add Relationship</button>
-        <div id="family-relationships-list" style="margin-top:16px"></div>
       </div>
     </div>
 
@@ -3507,7 +3780,37 @@ async function loadIdentityGroups() {
     return;
   }
   identityGroups = data || [];
+  await enrichIdentityGroupMembers();
   renderIdentityGroups();
+}
+
+async function enrichIdentityGroupMembers() {
+  const memberUids = Array.from(new Set(identityGroups.flatMap(g =>
+    (g.person_identity_members || []).map(m => m.person_uid).filter(Boolean)
+  )));
+  if (!memberUids.length) return;
+  const { data: people } = await sb.from('people')
+    .select('uid,name,birth_place,gedcom_id')
+    .in('uid', memberUids);
+  const peopleByUid = {};
+  (people || []).forEach(p => { peopleByUid[p.uid] = p; });
+  const gedcomIds = Array.from(new Set((people || []).map(p => p.gedcom_id).filter(Boolean)));
+  const uploadsById = {};
+  if (gedcomIds.length) {
+    const { data: uploads } = await sb.from('gedcom_uploads')
+      .select('id,filename')
+      .in('id', gedcomIds);
+    (uploads || []).forEach(u => { uploadsById[u.id] = u.filename; });
+  }
+  identityGroups.forEach(group => {
+    group._memberPeople = {};
+    (group.person_identity_members || []).forEach(member => {
+      const person = peopleByUid[member.person_uid] || null;
+      group._memberPeople[member.person_uid] = person
+        ? { ...person, source_filename: uploadsById[person.gedcom_id] || person.gedcom_id || '' }
+        : null;
+    });
+  });
 }
 
 function renderIdentityGroups() {
@@ -3517,17 +3820,44 @@ function renderIdentityGroups() {
     return;
   }
   container.innerHTML = identityGroups.map(g => `
-    <div class="forum-admin-item">
-      <div class="forum-admin-title">${escHtml(g.display_name)}</div>
-      <div class="forum-admin-meta">
-        Canonical: ${escHtml(g.canonical_person_uid || '-')} · ${escHtml(g.status)}
-        · ${Number(g.person_identity_members?.length || 0)} linked profile(s)
+    <div class="identity-card ${g.status === 'archived' ? 'archived' : ''}">
+      <div class="identity-head">
+        <div>
+          <div class="identity-name">${escHtml(g.display_name)}</div>
+          <div class="identity-meta">
+            Canonical: <a class="builder-muted-link" href="person.html?uid=${encodeURIComponent(g.canonical_person_uid || '')}" target="_blank">${escHtml(g.canonical_person_uid || '-')}</a>
+            · ${Number(g.person_identity_members?.length || 0)} linked profile(s)
+          </div>
+        </div>
+        <span class="identity-status">${escHtml(g.status || 'active')}</span>
       </div>
       ${g.notes ? `<div class="forum-admin-body">${escHtml(g.notes)}</div>` : ''}
-      <div class="forum-admin-actions">
-        <input id="identity-member-${g.id}" placeholder="Profile UID to add" style="min-width:260px;flex:1"/>
+      <div class="identity-member-list">
+        ${(g.person_identity_members || []).map(member => {
+          const person = g._memberPeople?.[member.person_uid];
+          const name = person?.name || member.person_uid || 'Linked profile';
+          const initial = (name || '?').trim().charAt(0).toUpperCase() || '?';
+          const source = person?.source_filename || 'Source not loaded';
+          const place = person?.birth_place ? ` · ${escHtml(person.birth_place)}` : '';
+          return `
+            <div class="identity-member-row">
+              <div class="identity-avatar">${escHtml(initial)}</div>
+              <div>
+                <div class="identity-member-name">
+                  <a class="builder-muted-link" href="person.html?uid=${encodeURIComponent(member.person_uid || '')}" target="_blank">${escHtml(name)}</a>
+                </div>
+                <div class="identity-member-meta">${escHtml(member.source_role || 'source_profile')} · ${escHtml(source)}${place}</div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <div class="identity-add-row">
+        <input id="identity-member-${g.id}" placeholder="Profile UID to add"/>
         <button class="btn-outline" onclick="previewIdentityMember('${g.id}')">Check UID</button>
         <button class="btn-green" onclick="addIdentityMember('${g.id}')">Add Profile</button>
+      </div>
+      <div class="forum-admin-actions">
         ${g.status !== 'archived' ? `<button class="btn-red" onclick="setIdentityGroupStatus('${g.id}', 'archived')">Archive</button>` : ''}
         ${g.status !== 'active' ? `<button class="btn-outline" onclick="setIdentityGroupStatus('${g.id}', 'active')">Reactivate</button>` : ''}
       </div>

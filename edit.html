@@ -239,14 +239,16 @@
         </div>
       </form>
 
-      <div class="section-title">Family Operations</div>
-      <div class="hint">
-        These controls write to the real genealogy tables. Browse Tree will reflect these family rows after refresh.
-      </div>
-      <div style="display:grid;gap:8px;margin-top:12px">
-        <button onclick="addParent('father')">Add / Set Father</button>
-        <button onclick="addParent('mother')">Add / Set Mother</button>
-        <button class="gold" onclick="addSpouseFamily()">Add Spouse / Partner Group</button>
+      <div id="family-ops-panel">
+        <div class="section-title">Family Operations</div>
+        <div class="hint">
+          These controls write to the real genealogy tables. Browse Tree will reflect these family rows after refresh.
+        </div>
+        <div style="display:grid;gap:8px;margin-top:12px">
+          <button onclick="addParent('father')">Add / Set Father</button>
+          <button onclick="addParent('mother')">Add / Set Mother</button>
+          <button class="gold" onclick="addSpouseFamily()">Add Spouse / Partner Group</button>
+        </div>
       </div>
     </aside>
   </div>
@@ -380,6 +382,14 @@ function requireRole(role, action = 'perform this action') {
   return false;
 }
 
+function canEditRelationships() {
+  return hasRole('admin');
+}
+
+function requireRelationshipEdit(action = 'change family relationships') {
+  return requireRole('admin', action);
+}
+
 async function logTreeChange(action, target, details = {}) {
   if (!hasRole('moderator')) return;
   const actor = currentUser || sessionStorage.getItem('akt_visitor_name') || `Admin (${currentUserRole})`;
@@ -407,16 +417,17 @@ async function logTreeChange(action, target, details = {}) {
 async function bootEditor() {
   currentUser = sessionStorage.getItem('akt_visitor_name') || '';
   currentUserRole = normalizeAccessRole(sessionStorage.getItem('akt_visitor_role'));
-  if (!hasRole('admin')) {
+  if (!hasRole('moderator')) {
     document.querySelector('main').innerHTML = `
       <div class="status" style="display:block;border-left-color:var(--red);color:var(--red);background:#fff4f3">
-        Admin access is required to use the family editor.
+        Moderator access is required to use the profile editor.
       </div>
       <a class="btn" href="archive.html">Back to archive</a>
     `;
     return;
   }
   setupUnsavedChangeGuard();
+  applyEditorRoleVisibility();
   await loadEditor();
 }
 
@@ -476,7 +487,13 @@ async function loadEditor() {
   await loadGedcomSources();
   await loadFamilyData();
   renderBoard();
+  applyEditorRoleVisibility();
   await selectPerson(focusUid);
+}
+
+function applyEditorRoleVisibility() {
+  const familyOps = document.getElementById('family-ops-panel');
+  if (familyOps) familyOps.style.display = canEditRelationships() ? '' : 'none';
 }
 
 async function refreshEditor() {
@@ -569,19 +586,20 @@ async function loadPeople(uids) {
 }
 
 function renderBoard() {
+  const relationshipActions = canEditRelationships();
   const spouseRows = spouseFamilies.map((fam, idx) => familySection(fam, idx)).join('');
   document.getElementById('family-board').innerHTML = `
     <div class="row">
-      ${father ? personCard(father, 'parent') : emptyCard('Add Father', "addParent('father')")}
-      ${mother ? personCard(mother, 'parent') : emptyCard('Add Mother', "addParent('mother')")}
+      ${father ? personCard(father, 'parent') : (relationshipActions ? emptyCard('Add Father', "addParent('father')") : emptyFamilySlot('Father not set'))}
+      ${mother ? personCard(mother, 'parent') : (relationshipActions ? emptyCard('Add Mother', "addParent('mother')") : emptyFamilySlot('Mother not set'))}
     </div>
     <div class="connector"></div>
     <div class="row center">
       ${personCard(focusPerson, 'focus')}
     </div>
     <div class="spouse-list">
-      ${spouseFamilies.length ? spouseFamilies.map(fam => spouseLine(fam)).join('<br>') : 'm. <button class="small" onclick="addSpouseFamily()">add spouse/partner</button>'}
-      ${spouseFamilies.length ? '<br>m. <button class="small" onclick="addSpouseFamily()">add spouse/partner</button>' : ''}
+      ${spouseFamilies.length ? spouseFamilies.map(fam => spouseLine(fam)).join('<br>') : (relationshipActions ? 'm. <button class="small" onclick="addSpouseFamily()">add spouse/partner</button>' : 'No spouse/partner family groups yet.')}
+      ${spouseFamilies.length && relationshipActions ? '<br>m. <button class="small" onclick="addSpouseFamily()">add spouse/partner</button>' : ''}
     </div>
     <div class="connector"></div>
     ${spouseRows || '<div class="family-box"><div class="family-title">No spouse/partner family groups yet.</div></div>'}
@@ -638,6 +656,10 @@ function emptyCard(text, action) {
   return `<button class="person-card empty" onclick="${action}">${esc(text)}</button>`;
 }
 
+function emptyFamilySlot(text) {
+  return `<div class="person-card empty" aria-disabled="true">${esc(text)}</div>`;
+}
+
 function spouseLine(fam) {
   const spouseUid = fam.husband_uid === focusUid ? fam.wife_uid : fam.husband_uid;
   const spouse = spouseUid ? peopleByUid[spouseUid] : null;
@@ -651,25 +673,27 @@ function familySection(fam, idx) {
   const spouseName = `${spouse?.name || 'spouse'}${spouse?.death_flag ? ' †' : ''}`;
   const title = `${focusPerson.name || 'Person'} and ${spouseName}'s children`;
   const children = fam.children || [];
+  const relationshipActions = canEditRelationships();
   return `
     <section class="family-box ${spouseUid ? 'has-spouse' : ''} ${moveModeActive ? 'move-target' : ''}" data-family-uid="${esc(fam.uid)}">
       <div class="family-title"><span style="color:var(--gold)">Family ${idx + 1}</span> &nbsp; ${esc(title)} (${children.length})</div>
-      <div class="family-actions">
+      ${relationshipActions ? `<div class="family-actions">
         <button class="small" onclick="moveExistingChildToFamily('${fam.uid}')">${moveModeActive ? 'Move mode active' : 'Move existing child here'}</button>
         <button class="small" onclick="editFamilyFacts('${fam.uid}')">Marriage details</button>
         ${!spouseUid && !children.length ? `<button class="small danger" onclick="deleteEmptyFamilyGroup('${fam.uid}')">Delete Empty Group</button>` : ''}
-      </div>
+      </div>` : ''}
       <div class="children-grid">
         ${children.map(child => personCard(child, 'child')).join('')}
-        <button class="person-card add-card" onclick="addChildToFamily('${fam.uid}')">
+        ${relationshipActions ? `<button class="person-card add-card" onclick="addChildToFamily('${fam.uid}')">
           <span class="plus-bubble">+</span><span>Add a child</span><span style="font-weight:400;color:var(--muted)">son or daughter</span>
-        </button>
+        </button>` : ''}
       </div>
     </section>
   `;
 }
 
 async function deleteEmptyFamilyGroup(familyUid) {
+  if (!requireRelationshipEdit('delete empty family groups')) return;
   const fam = spouseFamilies.find(f => f.uid === familyUid);
   if (!fam) return;
   const spouseUid = fam.husband_uid === focusUid ? fam.wife_uid : fam.husband_uid;
@@ -775,7 +799,7 @@ function toggleDeathFields() {
 
 async function savePerson(event) {
   event.preventDefault();
-  if (!requireRole('admin', 'save profile changes')) return;
+  if (!requireRole('moderator', 'save profile changes')) return;
   const uid = value('edit-uid');
   if (!uid) return;
   const deceased = value('edit-alive') === 'deceased';
@@ -905,10 +929,12 @@ async function cleanupEmptyFamilyContainers() {
 }
 
 async function addParent(type) {
+  if (!requireRelationshipEdit('set parents')) return;
   openRelationshipChooser(type);
 }
 
 async function setParent(type, parentUid) {
+  if (!requireRelationshipEdit('set parents')) return;
   let fam = parentFamily;
   if (!fam) {
     fam = await createFamily();
@@ -931,10 +957,12 @@ async function setParent(type, parentUid) {
 }
 
 async function addSpouseFamily() {
+  if (!requireRelationshipEdit('add spouse groups')) return;
   openRelationshipChooser('spouse');
 }
 
 async function createSpouseFamilyWith(spouseUid) {
+  if (!requireRelationshipEdit('add spouse groups')) return;
   const spouse = await getPerson(spouseUid);
   const fam = await createFamily();
   if (!fam) return;
@@ -960,10 +988,12 @@ async function createSpouseFamilyWith(spouseUid) {
 }
 
 async function addChildToFamily(familyUid) {
+  if (!requireRelationshipEdit('add children')) return;
   openChildSexChooser(familyUid);
 }
 
 async function moveExistingChildToFamily(familyUid) {
+  if (!requireRelationshipEdit('move children between family groups')) return;
   moveModeActive = true;
   renderBoard();
   markEditingCard();
@@ -1008,6 +1038,7 @@ function attachMoveModeHandlers() {
 }
 
 async function moveChildToFamily(childUid, familyUid) {
+  if (!requireRelationshipEdit('move children between family groups')) return;
   const currentFamilyUids = spouseFamilies.map(f => f.uid);
   if (currentFamilyUids.length) {
     await sb.from('family_members')
@@ -1037,12 +1068,14 @@ async function moveChildToFamily(childUid, familyUid) {
 }
 
 async function editFamilyFacts(familyUid) {
+  if (!requireRelationshipEdit('edit marriage details')) return;
   const fam = spouseFamilies.find(f => f.uid === familyUid);
   if (!fam) return;
   openMarriageModal(fam);
 }
 
 function openRelationshipChooser(kind, familyUid = '') {
+  if (!requireRelationshipEdit('change family relationships')) return;
   relationshipContext = { kind, familyUid };
   const label = RELATION_LABELS[kind] || 'Person';
   setRelationshipHeader('Step 1 of 2 - choose how', 'Add ' + label.toLowerCase(), relationshipContextText(kind, familyUid));
@@ -1066,6 +1099,7 @@ function openRelationshipChooser(kind, familyUid = '') {
 }
 
 function openChildSexChooser(familyUid = '') {
+  if (!requireRelationshipEdit('add children')) return;
   relationshipContext = { kind: 'child', familyUid, sexFilter: '' };
   setRelationshipHeader('Step 1 of 2 - choose child sex', 'Add a child', relationshipContextText('child', familyUid));
   document.getElementById('relationship-body').innerHTML = `
@@ -1088,6 +1122,7 @@ function openChildSexChooser(familyUid = '') {
 }
 
 function openRelationshipSearch(kind = relationshipContext?.kind || 'child', familyUid = relationshipContext?.familyUid || '', sexFilter = relationshipContext?.sexFilter || '') {
+  if (!requireRelationshipEdit('change family relationships')) return;
   relationshipContext = { kind, familyUid, sexFilter };
   relationshipSearchOffset = 0;
   relationshipSearchRows = [];
@@ -1122,6 +1157,7 @@ function openRelationshipSearch(kind = relationshipContext?.kind || 'child', fam
 }
 
 function openCreatePersonModal(kind = relationshipContext?.kind || 'child', familyUid = relationshipContext?.familyUid || '', sexFilter = relationshipContext?.sexFilter || '') {
+  if (!requireRelationshipEdit('create people through family relationships')) return;
   relationshipContext = { kind, familyUid, sexFilter };
   const label = RELATION_LABELS[kind] || 'Person';
   const sexDefault = defaultSexFor(kind);
@@ -1376,6 +1412,7 @@ async function selectExistingForRelationship(personUid) {
 }
 
 async function createAndAttachPerson() {
+  if (!requireRelationshipEdit('create people through family relationships')) return;
   const name = value('new-person-name');
   if (!name) return setStatus('Please enter a name before creating the profile.', true);
   const gedcomId = inferGedcomForNewPerson();
@@ -1405,6 +1442,7 @@ async function createAndAttachPerson() {
 }
 
 async function attachPersonToContext(personUid) {
+  if (!requireRelationshipEdit('change family relationships')) return;
   const ctx = relationshipContext;
   if (!ctx) return;
   closeRelationshipModal();
@@ -1432,6 +1470,7 @@ function inferGedcomForNewPerson() {
 }
 
 function openMarriageModal(fam) {
+  if (!requireRelationshipEdit('edit marriage details')) return;
   marriageContext = fam;
   const spouseUid = fam.husband_uid === focusUid ? fam.wife_uid : fam.husband_uid;
   const spouse = spouseUid ? peopleByUid[spouseUid] : null;
@@ -1470,6 +1509,7 @@ function closeMarriageModal() {
 }
 
 async function saveMarriageDetails() {
+  if (!requireRelationshipEdit('edit marriage details')) return;
   if (!marriageContext) return;
   const familyUid = marriageContext.uid;
   const gedcomId = marriageContext.gedcom_id || null;
@@ -1501,6 +1541,7 @@ async function saveMarriageDetails() {
 }
 
 async function createFamily() {
+  if (!requireRelationshipEdit('create family records')) return null;
   const identity = await nextGedcomIdentity(focusPerson?.gedcom_id || null, 'F');
   const { data, error } = await sb.from('families').insert({
     uid: identity.uid,
@@ -1551,6 +1592,7 @@ function normalizeGedcomXref(value) {
 }
 
 async function addFamilyMember(familyUid, personUid) {
+  if (!requireRelationshipEdit('add family members')) return;
   const { error } = await sb.from('family_members').upsert({
     family_uid: familyUid,
     person_uid: personUid,

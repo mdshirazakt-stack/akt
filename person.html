@@ -482,6 +482,14 @@
             Correction to: Children
             <textarea id="cf-corr-children" rows="2" placeholder="Missing or incorrect children"></textarea>
           </label>
+          <label class="form-field">
+            Possible duplicate profile
+            <input id="cf-duplicate-profile" placeholder="Paste duplicate profile UID or profile link"/>
+          </label>
+          <label class="form-field">
+            Duplicate note
+            <textarea id="cf-duplicate-note" rows="2" placeholder="Why do you think these profiles are the same person?"></textarea>
+          </label>
         </div>
 
         <!-- Remarks -->
@@ -1614,7 +1622,7 @@ async function renderPerson(uid, el) {
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <a class="btn-back" style="background:var(--green);color:#fff;border-color:var(--green)"
              href="archive.html?tree=${encodeURIComponent(p.uid)}">🌳 Browse Tree</a>
-          ${hasRole('admin') ? `<a class="btn-back" style="border-color:var(--green);color:var(--green)" href="edit.html?uid=${encodeURIComponent(p.uid)}">Edit Profile</a>` : ''}
+          ${hasRole('moderator') ? `<a class="btn-back" style="border-color:var(--green);color:var(--green)" href="edit.html?uid=${encodeURIComponent(p.uid)}">Edit Profile</a>` : ''}
           <button class="btn-back" onclick="shareProfile()" title="Copy link to this profile" id="share-btn">📤 Share</button>
           <button class="btn-back" style="border-color:var(--red);color:var(--red)"
                   onclick="openCorrectionForm()">✏️ Raise Corrections</button>
@@ -2070,7 +2078,7 @@ async function archiveCanonicalFamilyGroup(id) {
 
 function openEditProfile() {
   if (!currentPerson) return;
-  if (!requireRole('admin', 'edit profiles directly')) return;
+  if (!requireRole('moderator', 'edit profiles directly')) return;
   const overlay = currentProfileOverlay || {};
   const displayName = firstText(overlay.corrected_name, currentPerson.name, '');
   document.getElementById('edit-person-label').textContent = displayName || 'Selected person';
@@ -2120,7 +2128,7 @@ function toggleEditDeathFields() {
 async function submitProfileEdit(event) {
   event.preventDefault();
   if (!currentPerson) return;
-  if (!requireRole('admin', 'edit profiles directly')) return;
+  if (!requireRole('moderator', 'edit profiles directly')) return;
   const btn = document.getElementById('edit-save-btn');
   btn.disabled = true;
   btn.textContent = 'Saving...';
@@ -2257,6 +2265,8 @@ async function submitCorrection(event) {
   const corrCurrentLocation = document.getElementById('cf-corr-current-location').value.trim();
   const corrBirthOrder = document.getElementById('cf-corr-birth-order').value;
   const corrProfileNote = document.getElementById('cf-corr-profile-note').value.trim();
+  const duplicateProfile = document.getElementById('cf-duplicate-profile').value.trim();
+  const duplicateNote = document.getElementById('cf-duplicate-note').value.trim();
   const corrIsDeceased = document.getElementById('cf-corr-deceased').checked;
   const corrDeathDate = corrIsDeceased ? document.getElementById('cf-corr-death-date').value.trim() : '';
   const corrDeathLocation = corrIsDeceased ? document.getElementById('cf-corr-death-location').value.trim() : '';
@@ -2264,7 +2274,7 @@ async function submitCorrection(event) {
   if (!corrName && !corrParents && !corrSiblings && !corrSpouse && !corrChildren &&
       !corrBirthDate && !corrDeathDate && !corrMobile && !corrRootLocation &&
       !corrBirthLocation && !corrCurrentLocation && !corrBirthOrder && !corrIsDeceased &&
-      !corrDeathLocation && !corrProfileNote) {
+      !corrDeathLocation && !corrProfileNote && !duplicateProfile && !duplicateNote) {
     showStatus('Please fill in at least one correction field.', true);
     return;
   }
@@ -2298,6 +2308,9 @@ async function submitCorrection(event) {
     correction_current_location: corrCurrentLocation || null,
     correction_birth_order:  corrBirthOrder || null,
     correction_profile_note: corrProfileNote || null,
+    duplicate_profile_uid:   extractProfileUid(duplicateProfile) || null,
+    duplicate_profile_link:  duplicateProfile && /https?:\/\//i.test(duplicateProfile) ? duplicateProfile : null,
+    duplicate_profile_note:  duplicateNote || null,
     remarks:                 document.getElementById('cf-remarks').value.trim() || null,
     status: 'new'
   };
@@ -2316,13 +2329,25 @@ async function submitCorrection(event) {
   ['cf-corr-name','cf-corr-parents','cf-corr-siblings','cf-corr-spouse',
    'cf-corr-children','cf-corr-birth-date','cf-corr-death-date','cf-corr-mobile',
    'cf-corr-death-location','cf-corr-root-location','cf-corr-birth-location',
-   'cf-corr-current-location','cf-corr-birth-order','cf-corr-profile-note','cf-requester-mobile',
+   'cf-corr-current-location','cf-corr-birth-order','cf-corr-profile-note','cf-duplicate-profile',
+   'cf-duplicate-note','cf-requester-mobile',
    'cf-requester-father','cf-remarks'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
   document.getElementById('cf-corr-deceased').checked = false;
   toggleDeathFields();
+}
+
+function extractProfileUid(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  try {
+    const url = new URL(text);
+    return url.searchParams.get('uid') || text;
+  } catch {
+    return text;
+  }
 }
 
 function showStatus(msg, isError) {

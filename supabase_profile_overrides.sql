@@ -56,6 +56,9 @@ alter table public.correction_requests
   add column if not exists correction_current_location text,
   add column if not exists correction_birth_order text,
   add column if not exists correction_profile_note text,
+  add column if not exists duplicate_profile_uid text,
+  add column if not exists duplicate_profile_link text,
+  add column if not exists duplicate_profile_note text,
   add column if not exists applied_to_profile boolean default false,
   add column if not exists applied_at timestamptz;
 

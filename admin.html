@@ -23,7 +23,7 @@
     --header-bg: #1a1a1a;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Lato', sans-serif; min-height: 100vh; }
+  body { background: #e9e1d3; color: var(--text); font-family: 'Lato', sans-serif; min-height: 100vh; }
 
   /* LOGIN */
   #login-screen {
@@ -57,42 +57,116 @@
   .login-err { color: var(--red2); font-size: 0.85rem; margin-top: 12px; display: none; }
 
   /* LAYOUT */
-  #app { display: none; }
-  header {
-    background: #1a1a1a; border-bottom: 2px solid var(--gold2);
-    padding: 0 32px; display: flex; align-items: center;
-    justify-content: space-between; height: 60px;
-    position: sticky; top: 0; z-index: 100;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  #app {
+    display: none;
+    background: #ffffff;
+    border: 1px solid #d9c8ae;
+    border-radius: 10px;
+    box-shadow: 0 18px 45px rgba(42,33,25,0.14);
+    margin: 26px 28px;
+    min-height: calc(100vh - 52px);
+    overflow: hidden;
   }
-  header h1 { font-family: 'Amiri', serif; color: var(--gold2); font-size: 1.4rem; }
+  header {
+    background: #1c1713;
+    border-bottom: 2px solid var(--gold);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 54px;
+  }
+  header h1 {
+    color: #f7efe4;
+    font-family: 'Amiri', serif;
+    font-size: 1.08rem;
+    letter-spacing: 0;
+  }
+  .brand-leaf { color: #88a95f; margin-right: 8px; }
+  .admin-accent { color: var(--gold); }
   header .hright { display: flex; align-items: center; gap: 16px; }
-  header #hdr-stats { color: #aaaaaa !important; }
+  header #hdr-stats { color: #d5cbc0 !important; }
   .btn-sm {
-    padding: 7px 16px; border: 1px solid var(--border); background: transparent;
-    color: var(--muted); font-family: 'Lato', sans-serif; font-size: 0.8rem;
+    padding: 7px 14px; border: 1px solid rgba(255,255,255,0.2); background: transparent;
+    border-radius: 6px;
+    color: #f7efe4; font-family: 'Lato', sans-serif; font-size: 0.78rem;
     cursor: pointer; letter-spacing: 0.05em; transition: all 0.2s;
   }
   .btn-sm:hover { border-color: var(--gold); color: var(--gold); }
-  .btn-danger { border-color: var(--red); color: var(--red); }
-  .btn-danger:hover { background: var(--red); color: #fff; }
+  .btn-danger { border-color: var(--gold); color: var(--gold); }
+  .btn-danger:hover { background: var(--gold); color: #fff; }
 
+  .admin-layout {
+    display: grid;
+    grid-template-columns: 212px minmax(0, 1fr);
+    align-items: start;
+    min-height: calc(100vh - 108px);
+  }
   nav {
-    background: var(--surface2); border-bottom: 1px solid var(--border);
-    display: flex; gap: 0;
+    background: #2a221b;
+    border-right: 1px solid #3a3028;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-height: calc(100vh - 108px);
+    padding: 18px 10px;
+    overflow-y: auto;
+  }
+  .nav-section { display: grid; gap: 6px; }
+  .nav-section-label {
+    color: rgba(247,239,228,0.45);
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.28em;
+    padding: 0 10px 5px;
+    text-transform: uppercase;
   }
   .nav-tab {
-    padding: 14px 24px; font-size: 0.82rem; letter-spacing: 0.08em;
-    text-transform: uppercase; cursor: pointer; color: var(--muted);
-    border-bottom: 2px solid transparent; transition: all 0.2s;
-    background: none; border-top: none; border-left: none; border-right: none;
+    padding: 9px 11px; font-size: 0.78rem; letter-spacing: 0;
+    border-radius: 6px;
+    cursor: pointer; color: rgba(247,239,228,0.78);
+    border: 1px solid transparent; transition: all 0.2s;
+    background: none;
     font-family: 'Lato', sans-serif;
-    display: inline-flex; align-items: center; gap: 8px;
+    display: inline-flex; align-items: center; justify-content: flex-start; gap: 10px;
+    width: 100%;
+    text-align: left;
   }
-  .nav-tab:hover { color: var(--text); }
-  .nav-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+  .nav-tab:hover {
+    background: rgba(255,255,255,0.06);
+    color: #ffffff;
+  }
+  .nav-tab.active {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #ffffff;
+    box-shadow: 0 8px 18px rgba(232,132,74,0.22);
+  }
+  .nav-icon {
+    align-items: center;
+    display: inline-flex;
+    flex: 0 0 14px;
+    font-size: 0.82rem;
+    justify-content: center;
+    opacity: 0.9;
+  }
+  .nav-label { flex: 1 1 auto; }
+  .nav-badge {
+    background: rgba(255,255,255,0.24);
+    border-radius: 999px;
+    color: #ffffff;
+    font-size: 0.62rem;
+    font-weight: 800;
+    line-height: 1;
+    padding: 3px 6px;
+  }
 
-  main { padding: 32px; max-width: 1200px; margin: 0 auto; }
+  main {
+    background: #ffffff;
+    min-height: calc(100vh - 108px);
+    padding: 32px;
+    width: 100%;
+  }
   .panel { display: none; }
   .panel.active { display: block; }
 
@@ -112,8 +186,8 @@
   }
   .drop-zone:hover, .drop-zone.dragover { border-color: var(--gold); background: rgba(232,132,74,0.06); }
   .drop-zone .icon { font-size: 3rem; margin-bottom: 12px; }
-  .drop-zone p { color: var(--muted); font-size: 0.9rem; }
-  .drop-zone strong { color: var(--text); }
+  .drop-zone p { color: var(--muted); font-size: 0.9rem; overflow-wrap: anywhere; }
+  .drop-zone strong { color: var(--text); white-space: normal; }
   #file-input { display: none; }
 
   /* PROGRESS */
@@ -517,6 +591,49 @@
   }
   .builder-muted-link:hover { text-decoration: underline; }
   @media (max-width: 860px) {
+    #app {
+      border-radius: 0;
+      margin: 0;
+      min-height: 100vh;
+    }
+    header {
+      height: auto;
+      min-height: 60px;
+      padding: 12px 18px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    header .hright { gap: 8px; flex-wrap: wrap; }
+    .admin-layout { display: block; min-height: auto; }
+    nav {
+      border-right: none;
+      border-bottom: 1px solid #3a3028;
+      flex-direction: row;
+      gap: 12px;
+      height: auto;
+      min-height: auto;
+      padding: 14px 18px;
+      position: static;
+      top: 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+    .nav-section {
+      align-content: start;
+      flex: 0 0 180px;
+      gap: 5px;
+    }
+    .nav-section-label { padding-left: 4px; white-space: nowrap; }
+    .nav-tab { white-space: nowrap; }
+    main { min-width: 0; padding: 22px 18px; }
+    .card { min-width: 0; overflow: hidden; }
+    .drop-zone { padding: 40px 18px; }
+    .drop-zone p {
+      line-height: 1.45;
+      margin-left: auto;
+      margin-right: auto;
+      max-width: 240px;
+    }
     .builder-hero { grid-template-columns: 1fr; }
     .builder-steps { justify-content: flex-start; }
     .builder-grid, .identity-create { grid-template-columns: 1fr; }
@@ -561,7 +678,7 @@
 <!-- MAIN APP -->
 <div id="app">
   <header>
-    <h1>🌿 Apnon Ki Talash — Admin</h1>
+    <h1><span class="brand-leaf">🌿</span>Apnon Ki Talash — <span class="admin-accent">Admin</span></h1>
     <div class="hright">
       <span id="hdr-stats" style="font-size:0.8rem;color:var(--muted)"></span>
       <button class="btn-sm" onclick="loadAll()">↻ Refresh</button>
@@ -569,20 +686,33 @@
     </div>
   </header>
 
-  <nav>
-    <button class="nav-tab active" data-min-role="admin" onclick="switchTab('upload', this)">Upload GEDCOM</button>
-    <button class="nav-tab" data-min-role="admin" onclick="switchTab('uploads', this)">Uploads History</button>
-    <button class="nav-tab" data-min-role="admin" onclick="switchTab('visitors', this)">Visitors</button>
-    <button class="nav-tab" data-min-role="moderator" onclick="switchTab('activity', this)">Activity History</button>
-    <button class="nav-tab" data-min-role="moderator" onclick="switchTab('changelog', this)">Review & Merge</button>
-    <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('settings', this)">Import Stats</button>
-    <button class="nav-tab" data-min-role="moderator" onclick="switchTab('corrections', this)">📝 Corrections</button>
-    <button class="nav-tab" data-min-role="moderator" onclick="switchTab('suggestions', this)">💡 Suggestions</button>
-    <button class="nav-tab" data-min-role="admin" onclick="switchTab('familybuilder', this)"><span class="family-builder-icon" aria-hidden="true"></span> Family Builder</button>
-    <button class="nav-tab" data-min-role="moderator" onclick="switchTab('forum', this)">💬 Forum</button>
-  </nav>
+  <div class="admin-layout">
+    <nav aria-label="Admin sections">
+      <div class="nav-section">
+        <div class="nav-section-label">Imports</div>
+        <button class="nav-tab active" data-min-role="admin" onclick="switchTab('upload', this)"><span class="nav-icon" aria-hidden="true">↥</span><span class="nav-label">Upload GEDCOM</span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('uploads', this)"><span class="nav-icon" aria-hidden="true">↺</span><span class="nav-label">Uploads history</span></button>
+        <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('settings', this)"><span class="nav-icon" aria-hidden="true">⌁</span><span class="nav-label">Import stats</span></button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Review Queue</div>
+        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('changelog', this)"><span class="nav-icon" aria-hidden="true">⌘</span><span class="nav-label">Review & Merge</span></button>
+        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('corrections', this)"><span class="nav-icon" aria-hidden="true">✎</span><span class="nav-label">Corrections</span></button>
+        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('suggestions', this)"><span class="nav-icon" aria-hidden="true">♢</span><span class="nav-label">Suggestions</span></button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Tree</div>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('familybuilder', this)"><span class="nav-icon" aria-hidden="true">⌘</span><span class="nav-label">Family Builder</span></button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-label">Community</div>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('visitors', this)"><span class="nav-icon" aria-hidden="true">☷</span><span class="nav-label">Visitors</span></button>
+        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('activity', this)"><span class="nav-icon" aria-hidden="true">⌁</span><span class="nav-label">Activity history</span></button>
+        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('forum', this)"><span class="nav-icon" aria-hidden="true">◌</span><span class="nav-label">Forum</span></button>
+      </div>
+    </nav>
 
-  <main>
+    <main>
 
     <!-- UPLOAD PANEL -->
     <div id="panel-upload" class="panel active">
@@ -1049,7 +1179,8 @@
       </div>
     </div>
 
-  </main>
+    </main>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -1117,6 +1248,10 @@ function applyAdminRoleVisibility() {
     const allowed = hasAdminRole(tab.dataset.minRole || 'moderator');
     tab.style.display = allowed ? '' : 'none';
     if (!allowed) tab.classList.remove('active');
+  });
+  document.querySelectorAll('.nav-section').forEach(section => {
+    const hasVisibleTabs = Array.from(section.querySelectorAll('.nav-tab')).some(tab => tab.style.display !== 'none');
+    section.style.display = hasVisibleTabs ? '' : 'none';
   });
   const active = document.querySelector('.nav-tab.active:not([style*="display: none"])') || document.querySelector('.nav-tab:not([style*="display: none"])');
   if (active && !active.classList.contains('active')) {

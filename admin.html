@@ -220,18 +220,18 @@
   .export-page {
     background: #fffaf4;
     border: 1px solid #ead9c2;
-    border-radius: 18px;
+    border-radius: 12px;
     margin: -6px -6px 0;
     overflow: hidden;
   }
   .export-hero {
-    padding: 32px 34px 36px;
+    padding: 14px 20px 16px;
     border-bottom: 1px solid #ead9c2;
   }
   .export-breadcrumb {
     color: #a8947f;
-    font-size: 0.88rem;
-    margin-bottom: 16px;
+    font-size: 0.74rem;
+    margin-bottom: 7px;
   }
   .export-breadcrumb strong { color: #4a3a2d; }
   .export-title {
@@ -239,66 +239,68 @@
     color: #c96b3e;
     display: flex;
     font-family: 'Amiri', serif;
-    font-size: 2rem;
-    gap: 12px;
+    font-size: 1.25rem;
+    gap: 8px;
     line-height: 1.1;
-    margin-bottom: 14px;
+    margin-bottom: 7px;
   }
-  .export-title svg { height: 30px; width: 30px; }
+  .export-title svg { height: 19px; width: 19px; }
   .export-subtitle {
     color: #766553;
-    font-size: 1.02rem;
-    line-height: 1.55;
-    max-width: 880px;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    max-width: 1120px;
   }
   .export-subtitle code {
     background: #fff;
     border: 1px solid #ead9c2;
     border-radius: 6px;
     color: #4a3a2d;
+    font-size: 0.95em;
     padding: 1px 7px;
   }
   .export-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 28px;
+    gap: 8px;
+    margin-top: 12px;
   }
   .export-action {
     align-items: center;
     border-radius: 8px;
     display: inline-flex;
-    font-size: 0.95rem;
+    font-size: 0.78rem;
     font-weight: 800;
-    gap: 10px;
+    gap: 8px;
     letter-spacing: 0;
-    padding: 15px 22px;
+    padding: 8px 12px;
     text-transform: none;
     width: auto;
   }
-  .export-action svg, .export-row-action svg { height: 18px; width: 18px; }
+  .export-action svg, .export-row-action svg { height: 16px; width: 16px; }
   .export-action.primary {
     background: var(--gold);
     border-color: var(--gold);
     box-shadow: 0 9px 18px rgba(232,132,74,0.24);
     color: #fff;
   }
-  .export-body { padding: 28px 34px 36px; }
+  .export-body { padding: 16px 20px 22px; }
   .export-toolbar {
     align-items: center;
     background: #fffaf4;
     border: 1px solid #ead9c2;
     border-radius: 12px;
     display: grid;
-    gap: 14px;
+    gap: 12px;
     grid-template-columns: auto minmax(240px, 420px) auto 1fr auto;
-    margin-bottom: 18px;
-    padding: 14px 18px;
+    margin-bottom: 12px;
+    padding: 8px 12px;
   }
   .export-select-all {
     align-items: center;
     color: #2e2a25;
     display: inline-flex;
+    font-size: 0.86rem;
     font-weight: 800;
     gap: 10px;
     white-space: nowrap;
@@ -306,23 +308,25 @@
   .export-search {
     margin: 0;
     min-width: 0;
+    padding: 8px 10px;
   }
   .export-selected-pill {
     background: #fff1e6;
     border: 1px solid #f3b48a;
     border-radius: 999px;
     color: #c96b3e;
+    font-size: 0.82rem;
     font-weight: 800;
-    padding: 8px 14px;
+    padding: 6px 12px;
     white-space: nowrap;
   }
   .export-summary {
     color: #5e5043;
-    font-size: 0.92rem;
+    font-size: 0.84rem;
     justify-self: end;
     white-space: nowrap;
   }
-  .export-sort { color: #5e5043; white-space: nowrap; }
+  .export-sort { color: #5e5043; font-size: 0.84rem; white-space: nowrap; }
   .export-list {
     background: #fff;
     border: 1px solid #ead9c2;
@@ -333,9 +337,9 @@
     align-items: center;
     border-bottom: 1px solid #ead9c2;
     display: grid;
-    gap: 18px;
-    grid-template-columns: 34px 52px minmax(0, 1fr) auto;
-    padding: 20px 24px;
+    gap: 12px;
+    grid-template-columns: 26px 36px minmax(0, 1fr) auto;
+    padding: 9px 14px;
   }
   .export-source-row:last-child { border-bottom: none; }
   .export-source-row.selected {
@@ -349,14 +353,14 @@
     border-radius: 10px;
     color: #c96b3e;
     display: grid;
-    height: 44px;
+    height: 31px;
     justify-items: center;
-    width: 44px;
+    width: 31px;
   }
-  .export-file-icon svg { height: 22px; width: 22px; }
+  .export-file-icon svg { height: 16px; width: 16px; }
   .export-file-name {
     color: #302820;
-    font-size: 1.02rem;
+    font-size: 0.84rem;
     font-weight: 800;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -364,12 +368,12 @@
   }
   .export-file-meta {
     color: #7a6a58;
-    font-size: 0.88rem;
-    margin-top: 5px;
+    font-size: 0.74rem;
+    margin-top: 3px;
   }
   .export-row-actions {
     display: flex;
-    gap: 8px;
+    gap: 7px;
   }
   .export-row-action {
     align-items: center;
@@ -379,9 +383,9 @@
     color: #796855;
     cursor: pointer;
     display: inline-flex;
-    height: 38px;
+    height: 29px;
     justify-content: center;
-    width: 38px;
+    width: 29px;
   }
   .export-row-action:hover {
     border-color: var(--gold);
@@ -389,8 +393,8 @@
   }
   .export-checkbox {
     accent-color: var(--gold);
-    height: 18px;
-    width: 18px;
+    height: 16px;
+    width: 16px;
   }
 
   /* PROGRESS */
@@ -842,7 +846,7 @@
       margin: -22px -18px 0;
     }
     .export-hero, .export-body { padding: 24px 18px; }
-    .export-title { font-size: 1.7rem; }
+    .export-title { font-size: 1.4rem; }
     .export-toolbar {
       grid-template-columns: 1fr;
       justify-items: stretch;
@@ -2104,6 +2108,7 @@ async function exportAllNamesJson() {
 
 async function loadUploads() {
   const list = document.getElementById('uploads-list');
+  bindUploadListActions();
   list.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
   const { data, error } = await sb.from('gedcom_uploads').select('*').order('uploaded_at', { ascending: false });
   uploadedSources = data || [];
@@ -2155,8 +2160,6 @@ function renderUploads() {
 }
 
 function renderUploadSourceRow(source) {
-  const idArg = JSON.stringify(source.id);
-  const filenameArg = JSON.stringify(source.filename || '');
   const isSelected = selectedUploadIds.has(source.id);
   return `
     <div class="export-source-row${isSelected ? ' selected' : ''}">
@@ -2170,11 +2173,25 @@ function renderUploadSourceRow(source) {
         ${source.notes ? `<div class="export-file-meta">Note: ${escapeHtml(source.notes)}</div>` : ''}
       </div>
       <div class="export-row-actions">
-        <button class="export-row-action" title="Export GEDCOM" onclick="exportGedcomSource(${idArg}, ${filenameArg})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg></button>
-        <button class="export-row-action" title="Rename GEDCOM" onclick="renameGedcomSource(${idArg}, ${filenameArg})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-        <button class="export-row-action" title="Delete GEDCOM" onclick="deleteUpload(${idArg}, ${filenameArg})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 15H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
+        <button class="export-row-action" title="Export GEDCOM" data-action="export" data-id="${escapeHtml(source.id)}" data-filename="${escapeHtml(source.filename || '')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+        <button class="export-row-action" title="Rename GEDCOM" data-action="rename" data-id="${escapeHtml(source.id)}" data-filename="${escapeHtml(source.filename || '')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+        <button class="export-row-action" title="Delete GEDCOM" data-action="delete" data-id="${escapeHtml(source.id)}" data-filename="${escapeHtml(source.filename || '')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 15H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
       </div>
     </div>`;
+}
+
+function bindUploadListActions() {
+  const list = document.getElementById('uploads-list');
+  if (!list || list.dataset.boundActions === 'true') return;
+  list.dataset.boundActions = 'true';
+  list.addEventListener('click', event => {
+    const btn = event.target.closest('.export-row-action');
+    if (!btn || !list.contains(btn)) return;
+    const { action, id, filename } = btn.dataset;
+    if (action === 'export') exportGedcomSource(id, filename);
+    if (action === 'rename') renameGedcomSource(id, filename);
+    if (action === 'delete') deleteUpload(id, filename);
+  });
 }
 
 function handleUploadSelectionChange(cb) {

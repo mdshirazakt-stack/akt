@@ -969,6 +969,7 @@
       <div class="nav-section">
         <div class="nav-section-label">Community</div>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('visitors', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/><circle cx="17" cy="8" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5 4.5v1"/></svg></span><span class="nav-label">Visitors</span><span class="nav-badge" id="badge-visitors"></span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('registered', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></svg></span><span class="nav-label">Registered users</span><span class="nav-badge" id="badge-registered"></span></button>
         <button class="nav-tab" data-min-role="moderator" onclick="switchTab('activity', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-7 5 14 2.5-7h4"/></svg></span><span class="nav-label">Activity history</span></button>
         <button class="nav-tab" data-min-role="moderator" onclick="switchTab('forum', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-12.1 7.7L3 21l1.8-5.4A8.5 8.5 0 1 1 21 11.5Z"/></svg></span><span class="nav-label">Forum</span><span class="nav-badge" id="badge-forum"></span></button>
       </div>
@@ -1111,6 +1112,21 @@
             <tbody id="visitors-tbody"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- REGISTERED USERS -->
+    <div id="panel-registered" class="panel">
+      <div class="card">
+        <h2>Registered Users</h2>
+        <div class="flex-row" style="margin-bottom:16px">
+          <input class="search-bar" id="registered-search" placeholder="Search registered users, places, ancestor, email..." oninput="filterRegisteredUsers()" style="flex:1;margin:0"/>
+          <button class="btn-sm" onclick="loadRegisteredUsers()">↻ Refresh</button>
+        </div>
+        <div class="insight-note" style="margin-bottom:16px">
+          Shows signed-in users who completed the visitor form and accepted consent sections 6, 7, 8, and 18.
+        </div>
+        <div id="registered-users-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
       </div>
     </div>
 
@@ -1470,6 +1486,7 @@ let adminPassword = 'akt2024';
 let parsedData = null; // { people, families, familyMembers, filename }
 let dupDecisions = {}; // uid -> 'overwrite' | 'skip'
 let allVisitors = [];
+let registeredUsers = [];
 let visitorSort = { key: 'last_seen', dir: 'desc' };
 let forumAdminView = 'threads';
 let forumAdminThreads = [];
@@ -1612,6 +1629,7 @@ function switchTab(name, btn) {
   if (btn) btn.classList.add('active'); else event.target.classList.add('active');
   if (name === 'uploads') loadUploads();
   if (name === 'visitors') loadVisitors();
+  if (name === 'registered') loadRegisteredUsers();
   if (name === 'settings') loadDbStats();
   if (name === 'activity') loadActivity();
   if (name === 'changelog') loadChangeLog();
@@ -2726,7 +2744,110 @@ async function loadVisitors() {
   const { data } = await sb.from('visitors').select('*').order('last_seen', { ascending: false });
   allVisitors = data || [];
   setNavBadge('visitors', allVisitors.filter(v => visitorAccessStatus(v) === 'pending').length);
+  setNavBadge('registered', allVisitors.filter(v => v.visitor_form_completed || v.consent_terms_accepted || v.auth_user_id).length);
   renderVisitors(allVisitors);
+}
+
+async function loadRegisteredUsers() {
+  const box = document.getElementById('registered-users-list');
+  box.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+  const { data, error } = await sb.from('visitors')
+    .select('*')
+    .or('visitor_form_completed.eq.true,consent_terms_accepted.eq.true,auth_user_id.not.is.null,email.not.is.null')
+    .order('visitor_form_completed_at', { ascending: false, nullsFirst: false })
+    .order('updated_at', { ascending: false });
+  if (error) {
+    box.innerHTML = `<div class="empty" style="color:var(--red)">${escapeHtml(error.message)}<br>Run the latest supabase_access_gate.sql if the registered-user columns are missing.</div>`;
+    return;
+  }
+  registeredUsers = data || [];
+  setNavBadge('registered', registeredUsers.length);
+  renderRegisteredUsers(registeredUsers);
+}
+
+function filterRegisteredUsers() {
+  const q = document.getElementById('registered-search').value.toLowerCase();
+  if (!q) return renderRegisteredUsers(registeredUsers);
+  renderRegisteredUsers(registeredUsers.filter(user => registeredUserSearchText(user).includes(q)));
+}
+
+function registeredUserSearchText(user) {
+  return [
+    user.name_entered,
+    user.email,
+    user.mobile,
+    user.father_name,
+    user.root_place || user.family_reference,
+    user.current_place,
+    user.current_address,
+    user.oldest_ancestor,
+    user.heard_from_source,
+    user.heard_from_relative_name,
+    user.heard_from_relative_place,
+    user.heard_from_details,
+    user.access_status,
+    user.access_role
+  ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function renderRegisteredUsers(users) {
+  const box = document.getElementById('registered-users-list');
+  if (!users.length) {
+    box.innerHTML = '<div class="empty">No registered user records yet.</div>';
+    return;
+  }
+  box.innerHTML = users.map(user => {
+    const status = visitorAccessStatus(user);
+    const sections = Array.isArray(user.consent_sections) ? user.consent_sections.join(', ') : String(user.consent_sections || '');
+    const heard = registeredHeardFromText(user);
+    return `
+      <div style="border:1px solid var(--border);background:#fff;margin-bottom:12px;padding:16px">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px">
+          <div>
+            <div style="font-size:1rem;font-weight:800;color:var(--text)">${escapeHtml(user.name_entered || '(unnamed)')}</div>
+            <div style="font-size:0.78rem;color:var(--muted);margin-top:3px">${escapeHtml(user.email || 'No email captured')}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span class="badge" style="background:${status === 'approved' ? '#dcfce7' : status === 'blocked' ? '#fee2e2' : '#fef3c7'};color:${status === 'approved' ? '#166534' : status === 'blocked' ? '#991b1b' : '#92400e'}">${escapeHtml(status)}</span>
+            <span class="badge" style="background:#ede9fe;color:#5b21b6">${escapeHtml(user.access_role || 'visitor')}</span>
+            ${user.consent_terms_accepted ? '<span class="badge" style="background:#e0f2fe;color:#075985">consented</span>' : '<span class="badge" style="background:#fee2e2;color:#991b1b">no consent</span>'}
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
+          ${registeredField('Mobile', user.mobile)}
+          ${registeredField("Father's name", user.father_name)}
+          ${registeredField('Root place', user.root_place || user.family_reference)}
+          ${registeredField('Current place', user.current_place)}
+          ${registeredField('Current address', user.current_address)}
+          ${registeredField('Oldest known ancestor', user.oldest_ancestor)}
+          ${registeredField('Heard from', heard)}
+          ${registeredField('Consent sections', sections || '-')}
+          ${registeredField('Consent version', user.consent_version)}
+          ${registeredField('Consent accepted', user.consent_accepted_at ? formatIST(user.consent_accepted_at) : '')}
+          ${registeredField('Registered', user.visitor_form_completed_at ? formatIST(user.visitor_form_completed_at) : '')}
+          ${registeredField('Last seen', user.last_seen ? formatIST(user.last_seen) : '')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function registeredField(label, value) {
+  return `
+    <div style="background:var(--bg);border:1px solid var(--border);padding:9px 11px;min-height:58px">
+      <div style="font-size:0.66rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">${escapeHtml(label)}</div>
+      <div style="font-size:0.84rem;color:var(--text);white-space:pre-wrap;line-height:1.45">${escapeHtml(value || '-')}</div>
+    </div>
+  `;
+}
+
+function registeredHeardFromText(user) {
+  if (user.heard_from_source === 'relative') {
+    return `Via relative${user.heard_from_relative_name ? ': ' + user.heard_from_relative_name : ''}${user.heard_from_relative_place ? ' (' + user.heard_from_relative_place + ')' : ''}`;
+  }
+  const labels = { whatsapp: 'WhatsApp / community group', search: 'Search engine', social: 'Social media', other: 'Other' };
+  return [labels[user.heard_from_source] || user.heard_from_source, user.heard_from_details].filter(Boolean).join(' - ');
 }
 
 function renderVisitors(visitors) {
@@ -3715,7 +3836,7 @@ function updateForumBadge() {
 
 async function loadAttentionBadges() {
   const [visitors, corrections, suggestions, forumThreads, forumPosts, forumFlags, profileReviews, relationReviews, familyReviews] = await Promise.allSettled([
-    sb.from('visitors').select('id,access_status,is_blocked').limit(1000),
+    sb.from('visitors').select('id,access_status,is_blocked,visitor_form_completed,consent_terms_accepted,auth_user_id').limit(1000),
     sb.from('correction_requests').select('id,status').limit(1000),
     sb.from('suggestions').select('id,status').limit(1000),
     sb.from('forum_threads').select('id').eq('status', 'pending').limit(1000),
@@ -3727,7 +3848,9 @@ async function loadAttentionBadges() {
   ]);
 
   if (visitors.status === 'fulfilled' && !visitors.value.error) {
-    setNavBadge('visitors', (visitors.value.data || []).filter(v => visitorAccessStatus(v) === 'pending').length);
+    const visitorRows = visitors.value.data || [];
+    setNavBadge('visitors', visitorRows.filter(v => visitorAccessStatus(v) === 'pending').length);
+    setNavBadge('registered', visitorRows.filter(v => v.visitor_form_completed || v.consent_terms_accepted || v.auth_user_id).length);
   }
   if (corrections.status === 'fulfilled' && !corrections.value.error) {
     setNavBadge('corrections', (corrections.value.data || []).filter(r => ['new', 'in_progress'].includes(r.status || 'new')).length);

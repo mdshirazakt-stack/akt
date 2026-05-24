@@ -366,6 +366,41 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .export-rename-form {
+    align-items: center;
+    display: grid;
+    gap: 6px;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  .export-rename-input {
+    border: 1px solid #e1c7a6;
+    border-radius: 6px;
+    color: #302820;
+    font-family: 'Lato', sans-serif;
+    font-size: 0.84rem;
+    font-weight: 800;
+    min-width: 0;
+    padding: 6px 8px;
+    width: 100%;
+  }
+  .export-inline-action {
+    align-items: center;
+    background: #fff;
+    border: 1px solid #ead9c2;
+    border-radius: 7px;
+    color: #796855;
+    cursor: pointer;
+    display: inline-flex;
+    height: 30px;
+    justify-content: center;
+    width: 30px;
+  }
+  .export-inline-action.save {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #fff;
+  }
+  .export-inline-action svg { height: 15px; width: 15px; }
   .export-file-meta {
     color: #7a6a58;
     font-size: 0.74rem;
@@ -2162,13 +2197,13 @@ function renderUploads() {
 function renderUploadSourceRow(source) {
   const isSelected = selectedUploadIds.has(source.id);
   return `
-    <div class="export-source-row${isSelected ? ' selected' : ''}">
+    <div class="export-source-row${isSelected ? ' selected' : ''}" data-id="${escapeHtml(source.id)}">
       <input type="checkbox" class="upload-select export-checkbox" value="${escapeHtml(source.id)}" aria-label="Select ${escapeHtml(source.filename)}" onchange="handleUploadSelectionChange(this)" ${isSelected ? 'checked' : ''}/>
       <div class="export-file-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12"/><path d="M7 3h10l1 4H6l1-4Z"/><path d="M6 7h12v13H6z"/></svg>
       </div>
       <div>
-        <div class="export-file-name">${escapeHtml(source.filename)}</div>
+        <div class="export-file-name" data-filename-text>${escapeHtml(source.filename)}</div>
         <div class="export-file-meta">${Number(source.people_count || 0).toLocaleString()} people &nbsp;·&nbsp; ${Number(source.families_count || 0).toLocaleString()} families &nbsp;·&nbsp; ${formatDateTime(source.uploaded_at)}</div>
         ${source.notes ? `<div class="export-file-meta">Note: ${escapeHtml(source.notes)}</div>` : ''}
       </div>
@@ -2189,8 +2224,20 @@ function bindUploadListActions() {
     if (!btn || !list.contains(btn)) return;
     const { action, id, filename } = btn.dataset;
     if (action === 'export') exportGedcomSource(id, filename);
-    if (action === 'rename') renameGedcomSource(id, filename);
+    if (action === 'rename') startRenameGedcomSource(btn, id, filename);
     if (action === 'delete') deleteUpload(id, filename);
+  });
+  list.addEventListener('keydown', event => {
+    const form = event.target.closest('.export-rename-form');
+    if (!form || !list.contains(form)) return;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      submitInlineGedcomRename(form);
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelInlineGedcomRename(form);
+    }
   });
 }
 
@@ -2231,12 +2278,11 @@ async function exportGedcomSource(gedcomId, filename) {
 }
 
 async function renameGedcomSource(gedcomId, filename) {
-  const nextName = prompt('Rename GEDCOM file only. This will not change any people, families, or GEDCOM content.', filename);
-  if (!nextName) return;
-  const cleanName = nextName.trim();
+  const cleanName = String(filename || '').trim();
   if (!cleanName) return;
   const finalName = /\.ged$/i.test(cleanName) ? cleanName : cleanName + '.ged';
-  if (finalName === filename) return;
+  const current = uploadedSources.find(source => source.id === gedcomId);
+  if (current && finalName === current.filename) return;
 
   const { error } = await sb.from('gedcom_uploads')
     .update({ filename: finalName })
@@ -2248,6 +2294,53 @@ async function renameGedcomSource(gedcomId, filename) {
   uploadedSources = uploadedSources.map(source => source.id === gedcomId ? { ...source, filename: finalName } : source);
   renderUploads();
   toast(`GEDCOM renamed to "${finalName}"`);
+}
+
+function startRenameGedcomSource(btn, gedcomId, filename) {
+  const row = btn.closest('.export-source-row');
+  const nameEl = row?.querySelector('[data-filename-text]');
+  if (!row || !nameEl || row.querySelector('.export-rename-form')) return;
+
+  nameEl.dataset.originalName = filename;
+  nameEl.innerHTML = `
+    <div class="export-rename-form" data-id="${escapeHtml(gedcomId)}" data-original="${escapeHtml(filename)}">
+      <input class="export-rename-input" value="${escapeHtml(filename)}" aria-label="Rename GEDCOM filename"/>
+      <button class="export-inline-action save" type="button" title="Save rename" onclick="submitInlineGedcomRename(this.closest('.export-rename-form'))">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+      </button>
+      <button class="export-inline-action" type="button" title="Cancel rename" onclick="cancelInlineGedcomRename(this.closest('.export-rename-form'))">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>`;
+  const input = nameEl.querySelector('.export-rename-input');
+  input.focus();
+  input.select();
+}
+
+async function submitInlineGedcomRename(form) {
+  if (!form) return;
+  const input = form.querySelector('.export-rename-input');
+  const nextName = input?.value || '';
+  const original = form.dataset.original || '';
+  const id = form.dataset.id || '';
+  const cleanName = nextName.trim();
+  if (!cleanName) {
+    toast('GEDCOM filename cannot be empty.', true);
+    input?.focus();
+    return;
+  }
+  const finalName = /\.ged$/i.test(cleanName) ? cleanName : cleanName + '.ged';
+  if (finalName === original) {
+    cancelInlineGedcomRename(form);
+    return;
+  }
+  await renameGedcomSource(id, finalName);
+}
+
+function cancelInlineGedcomRename(form) {
+  if (!form) return;
+  const nameEl = form.closest('[data-filename-text]');
+  if (nameEl) nameEl.textContent = form.dataset.original || '';
 }
 
 async function buildGedcomSourceText(gedcomId, filename) {

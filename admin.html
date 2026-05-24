@@ -166,10 +166,14 @@
   .nav-icon {
     align-items: center;
     display: inline-flex;
-    flex: 0 0 14px;
-    font-size: 0.82rem;
+    flex: 0 0 18px;
     justify-content: center;
     opacity: 0.9;
+  }
+  .nav-icon svg {
+    display: block;
+    height: 18px;
+    width: 18px;
   }
   .nav-label { flex: 1 1 auto; }
   .nav-badge {
@@ -712,25 +716,25 @@
     <nav aria-label="Admin sections">
       <div class="nav-section">
         <div class="nav-section-label">Imports</div>
-        <button class="nav-tab active" data-min-role="admin" onclick="switchTab('upload', this)"><span class="nav-icon" aria-hidden="true">↥</span><span class="nav-label">Import GEDCOM</span></button>
-        <button class="nav-tab" data-min-role="admin" onclick="switchTab('uploads', this)"><span class="nav-icon" aria-hidden="true">↺</span><span class="nav-label">Export GEDCOM</span></button>
-        <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('settings', this)"><span class="nav-icon" aria-hidden="true">⌁</span><span class="nav-label">Import stats</span></button>
+        <button class="nav-tab active" data-min-role="admin" onclick="switchTab('upload', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="M7 8l5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg></span><span class="nav-label">Import GEDCOM</span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('uploads', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/><path d="M12 7v5l3 2"/></svg></span><span class="nav-label">Export GEDCOM</span></button>
+        <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('settings', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/></svg></span><span class="nav-label">Import stats</span></button>
       </div>
       <div class="nav-section">
         <div class="nav-section-label">Review Queue</div>
-        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('changelog', this)"><span class="nav-icon" aria-hidden="true">⌘</span><span class="nav-label">Review & Merge</span><span class="nav-badge" id="badge-changelog"></span></button>
-        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('corrections', this)"><span class="nav-icon" aria-hidden="true">✎</span><span class="nav-label">Corrections</span><span class="nav-badge" id="badge-corrections"></span></button>
-        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('suggestions', this)"><span class="nav-icon" aria-hidden="true">♢</span><span class="nav-label">Suggestions</span><span class="nav-badge" id="badge-suggestions"></span></button>
+        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('changelog', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="5" r="3"/><circle cx="18" cy="17" r="3"/><path d="M8 7.5l8 7"/><path d="M6 8v11"/></svg></span><span class="nav-label">Review & Merge</span><span class="nav-badge" id="badge-changelog"></span></button>
+        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('corrections', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17l3 3 5.5-5.5a4 4 0 0 0 5.2-5.2l-3 3-3-3 3-3Z"/></svg></span><span class="nav-label">Corrections</span><span class="nav-badge" id="badge-corrections"></span></button>
+        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('suggestions', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M8 14a6 6 0 1 1 8 0c-1 1-1 2-1 4H9c0-2 0-3-1-4Z"/></svg></span><span class="nav-label">Suggestions</span><span class="nav-badge" id="badge-suggestions"></span></button>
       </div>
       <div class="nav-section">
         <div class="nav-section-label">Tree</div>
-        <button class="nav-tab" data-min-role="admin" onclick="switchTab('familybuilder', this)"><span class="nav-icon" aria-hidden="true">⌘</span><span class="nav-label">Family Builder</span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('familybuilder', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="2.5"/><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M12 6.5v5"/><path d="M12 11.5 5 16.5"/><path d="m12 11.5 7 5"/></svg></span><span class="nav-label">Family Builder</span></button>
       </div>
       <div class="nav-section">
         <div class="nav-section-label">Community</div>
-        <button class="nav-tab" data-min-role="admin" onclick="switchTab('visitors', this)"><span class="nav-icon" aria-hidden="true">☷</span><span class="nav-label">Visitors</span><span class="nav-badge" id="badge-visitors"></span></button>
-        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('activity', this)"><span class="nav-icon" aria-hidden="true">⌁</span><span class="nav-label">Activity history</span></button>
-        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('forum', this)"><span class="nav-icon" aria-hidden="true">◌</span><span class="nav-label">Forum</span><span class="nav-badge" id="badge-forum"></span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('visitors', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/><circle cx="17" cy="8" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5 4.5v1"/></svg></span><span class="nav-label">Visitors</span><span class="nav-badge" id="badge-visitors"></span></button>
+        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('activity', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-7 5 14 2.5-7h4"/></svg></span><span class="nav-label">Activity history</span></button>
+        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('forum', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-12.1 7.7L3 21l1.8-5.4A8.5 8.5 0 1 1 21 11.5Z"/></svg></span><span class="nav-label">Forum</span><span class="nav-badge" id="badge-forum"></span></button>
       </div>
     </nav>
 

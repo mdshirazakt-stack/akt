@@ -1151,7 +1151,8 @@
         <h2>Activity History <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">(last 24 hours)</span></h2>
         <div class="activity-filters">
           <input class="search-bar" id="activity-search" placeholder="Search by visitor name…" oninput="filterActivity()" style="max-width:240px;margin:0;flex:1"/>
-          <button class="activity-filter-btn active" onclick="setActivityRange('today',this)">Today</button>
+          <button class="activity-filter-btn active" onclick="setActivityRange('last24',this)">Last 24h</button>
+          <button class="activity-filter-btn" onclick="setActivityRange('today',this)">Today</button>
           <button class="activity-filter-btn" onclick="setActivityRange('yesterday',this)">Yesterday</button>
           <button class="activity-filter-btn" onclick="setActivityRange('week',this)">This Week</button>
           <button class="btn-sm" onclick="loadActivity()">↻ Refresh</button>
@@ -3752,7 +3753,7 @@ async function confirmNuke() {
 }
 
 // ===================== ACTIVITY HISTORY =====================
-let activityRange = 'today';
+let activityRange = 'last24';
 let allActivity = [];
 
 function setActivityRange(range, btn) {
@@ -3779,7 +3780,6 @@ async function loadActivity() {
   } else if (activityRange === 'week') {
     fromDate = new Date(now); fromDate.setDate(fromDate.getDate() - 7); fromDate.setHours(0,0,0,0);
   } else {
-    // 24 hours default
     fromDate = new Date(now.getTime() - 24*60*60*1000);
   }
 
@@ -3812,11 +3812,19 @@ async function loadActivityLogs(fromDate, toDate) {
 
   if (!error) {
     allActivity = data || [];
+    if (!allActivity.length) {
+      await loadVisitorActivityFallback(fromDate, toDate);
+      return;
+    }
     renderActivity(allActivity);
     return;
   }
 
-  // Fallback for databases that have not created activity_logs yet.
+  await loadVisitorActivityFallback(fromDate, toDate);
+}
+
+async function loadVisitorActivityFallback(fromDate, toDate) {
+  const list = document.getElementById('activity-list');
   let visitorQuery = sb.from('visitors')
     .select('name_entered,last_seen,visit_count,first_seen,is_blocked,ip_hint')
     .gte('last_seen', fromDate.toISOString())

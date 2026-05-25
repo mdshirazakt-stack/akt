@@ -1979,9 +1979,7 @@ async function renderPerson(uid, el) {
   const displayBirthPlace = firstText(profileOverlay?.birth_location, p.birth_place);
   const displayRootLocation = firstText(profileOverlay?.root_location, p.root_place);
   const displayCurrentLocation = firstText(profileOverlay?.current_location, p.current_place);
-  const displayMobile = firstText(profileOverlay?.mobile_number);
   let displayBirthOrder = firstText(profileOverlay?.birth_order_text);
-  const displayEmail = firstText(profileOverlay?.email);
   const sourceNote = firstText(p.notes);
   const communityNote = firstText(profileOverlay?.profile_note);
   let displayDeceased = profileOverlay?.is_deceased === true || isMarkedDeceased(p);
@@ -2166,8 +2164,6 @@ async function renderPerson(uid, el) {
         ${displayCurrentLocation ? `<div class="detail-field"><div class="key">Current Location</div><div class="val">${escHtml(displayCurrentLocation)}</div></div>` : ''}
         ${displayBirthDate     ? `<div class="detail-field"><div class="key">Birth Date</div><div class="val">${escHtml(displayBirthDate)}</div></div>` : ''}
         ${displayDeathDate     ? `<div class="detail-field"><div class="key">Death Date</div><div class="val">${escHtml(displayDeathDate)}</div></div>` : ''}
-        ${displayMobile        ? `<div class="detail-field"><div class="key">Mobile</div><div class="val">${escHtml(displayMobile)}</div></div>` : ''}
-        ${displayEmail         ? `<div class="detail-field"><div class="key">Email</div><div class="val">${escHtml(displayEmail)}</div></div>` : ''}
         ${displayDeathLocation ? `<div class="detail-field"><div class="key">Death Place</div><div class="val">${escHtml(displayDeathLocation)}</div></div>` : ''}
         ${p.occupation   ? `<div class="detail-field"><div class="key">Occupation</div><div class="val">${escHtml(p.occupation)}</div></div>` : ''}
         <div class="detail-field"><div class="key">Father</div><div class="val">${fatherName}</div></div>

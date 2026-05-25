@@ -206,7 +206,6 @@
       await callbacks.onStart(name, role, { ...visitor, visit_count: visitCount });
     }
     await refreshProfileClaimBanner({ ...visitor, visit_count: visitCount });
-    renderRoleApplicationCallout({ ...visitor, visit_count: visitCount });
   }
 
   function removeProfileClaimBanner() {
@@ -437,7 +436,7 @@
       <div class="role-app-title">Interested in helping as a moderator or admin?</div>
       <div class="role-app-copy">
         These roles are for people with good community knowledge, enthusiasm to broaden that knowledge, and a serious interest in community work.
-        Moderators help with harmless reviews and profile cleanups. Admins have broader operational responsibilities.
+        Moderators focus on profile-detail corrections. Admins have broader operational responsibilities.
         Requests are carefully chosen after due diligence, and site owners reserve the right to approve or disapprove any request.
         Anyone not logging in for one continuous month may be barred from the role.
       </div>
@@ -468,7 +467,7 @@
         <h2 id="role-app-title">Apply for moderator or admin role</h2>
         <p>Apply only if you have good knowledge of the family/community context, want to broaden that knowledge, and can contribute consistently.</p>
         <ul>
-          <li><strong>Moderator:</strong> reviews corrections, duplicate flags, suggestions, and harmless profile edits without changing relationships or imports.</li>
+          <li><strong>Moderator:</strong> reviews corrections, duplicate flags, suggestions, and profile-detail edits such as names, dates, places, email, and mobile number.</li>
           <li><strong>Admin:</strong> helps manage users, GEDCOM operations, applied claims, reviews, and higher-trust operational work.</li>
           <li>Selections happen after due diligence. Site owners reserve full rights to approve or disapprove requests.</li>
           <li>Moderators/admins who do not log in for one continuous month may be removed from their role.</li>

@@ -605,11 +605,11 @@ function renderBoard() {
       ${personCard(focusPerson, 'focus')}
     </div>
     <div class="spouse-list">
-      ${spouseFamilies.length ? spouseFamilies.map(fam => spouseLine(fam)).join('<br>') : (relationshipActions ? 'm. <button class="small" onclick="addSpouseFamily()">add spouse/partner</button>' : 'No spouse/partner family groups yet.')}
-      ${spouseFamilies.length && relationshipActions ? '<br>m. <button class="small" onclick="addSpouseFamily()">add spouse/partner</button>' : ''}
+      ${spouseFamilies.length ? spouseFamilies.map(fam => spouseLine(fam)).join('<br>') : (relationshipActions ? 'm. <button class="small" onclick="addSpouseFamily()">add spouse/partner</button> <button class="small" onclick="addChildWithoutSpouse()">add child, spouse unknown</button>' : 'No spouse/partner family groups yet.')}
+      ${spouseFamilies.length && relationshipActions ? '<br>m. <button class="small" onclick="addSpouseFamily()">add spouse/partner</button> <button class="small" onclick="addChildWithoutSpouse()">add child, spouse unknown</button>' : ''}
     </div>
     <div class="connector"></div>
-    ${spouseRows || '<div class="family-box"><div class="family-title">No spouse/partner family groups yet.</div></div>'}
+    ${spouseRows || `<div class="family-box"><div class="family-title">No spouse/partner family groups yet.</div>${relationshipActions ? '<div class="family-actions"><button class="small" onclick="addChildWithoutSpouse()">Add a child with spouse unknown</button></div>' : ''}</div>`}
   `;
   document.getElementById('family-board').classList.toggle('move-mode', moveModeActive);
   document.getElementById('move-banner')?.classList.toggle('show', moveModeActive);
@@ -670,15 +670,15 @@ function emptyFamilySlot(text) {
 function spouseLine(fam) {
   const spouseUid = fam.husband_uid === focusUid ? fam.wife_uid : fam.husband_uid;
   const spouse = spouseUid ? peopleByUid[spouseUid] : null;
-  if (!spouseUid) return '';
+  if (!spouseUid) return 'm. <span style="color:var(--muted)">spouse not recorded</span>';
   return `m. <a href="edit.html?uid=${encodeURIComponent(spouseUid)}">${esc(spouse?.name || '(spouse not set)')}</a>${spouse?.death_flag ? '<span class="deceased-mark">†</span>' : ''}`;
 }
 
 function familySection(fam, idx) {
   const spouseUid = fam.husband_uid === focusUid ? fam.wife_uid : fam.husband_uid;
   const spouse = spouseUid ? peopleByUid[spouseUid] : null;
-  const spouseName = `${spouse?.name || 'spouse'}${spouse?.death_flag ? ' †' : ''}`;
-  const title = `${focusPerson.name || 'Person'} and ${spouseName}'s children`;
+  const spouseName = spouse ? `${spouse.name || 'spouse'}${spouse.death_flag ? ' †' : ''}` : 'spouse not recorded';
+  const title = spouse ? `${focusPerson.name || 'Person'} and ${spouseName}'s children` : `${focusPerson.name || 'Person'}'s children (${spouseName})`;
   const children = fam.children || [];
   const relationshipActions = canEditRelationships();
   return `
@@ -966,6 +966,39 @@ async function setParent(type, parentUid) {
 async function addSpouseFamily() {
   if (!requireRelationshipEdit('add spouse groups')) return;
   openRelationshipChooser('spouse');
+}
+
+async function addChildWithoutSpouse() {
+  if (!requireRelationshipEdit('add children')) return;
+  const fam = await createFamilyForFocusWithoutSpouse();
+  if (!fam) return;
+  spouseFamilies.push({ ...fam, children: [] });
+  renderBoard();
+  openChildSexChooser(fam.uid);
+}
+
+async function createFamilyForFocusWithoutSpouse() {
+  const fam = await createFamily();
+  if (!fam) return null;
+  const update = focusPerson.sex === 'F'
+    ? { wife_uid: focusUid }
+    : { husband_uid: focusUid };
+  const { data, error } = await sb.from('families')
+    .update(update)
+    .eq('uid', fam.uid)
+    .select('*')
+    .single();
+  if (error) {
+    setStatus(error.message, true);
+    return null;
+  }
+  await refreshGedcomCounts(data.gedcom_id);
+  await logTreeChange('tree_parent_only_family_created', 'Family group created with spouse not recorded', {
+    profile_uid: focusUid,
+    family_uid: data.uid,
+    gedcom_id: data.gedcom_id || null
+  });
+  return data;
 }
 
 async function createSpouseFamilyWith(spouseUid) {

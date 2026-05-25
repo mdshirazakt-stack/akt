@@ -36,14 +36,14 @@ drop policy if exists "Allow profile claims insert" on public.profile_claims;
 create policy "Allow profile claims insert"
   on public.profile_claims
   for insert
-  to anon
+  to public
   with check (true);
 
 drop policy if exists "Allow profile claims update" on public.profile_claims;
 create policy "Allow profile claims update"
   on public.profile_claims
   for update
-  to anon
+  to public
   using (true)
   with check (true);
 
@@ -51,5 +51,5 @@ drop policy if exists "Allow profile claims read" on public.profile_claims;
 create policy "Allow profile claims read"
   on public.profile_claims
   for select
-  to anon
+  to public
   using (true);

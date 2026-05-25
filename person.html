@@ -1127,6 +1127,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
 let currentUserRole = 'visitor';
+let currentVisitCount = 0;
 const ROLE_LEVELS = { visitor: 1, moderator: 2, admin: 3, superadmin: 4 };
 let gedcomUploads = [];
 let currentPerson = null; // cached person data
@@ -1210,12 +1211,13 @@ async function doEnter() {
   sessionStorage.setItem('akt_visitor_name', name);
   sessionStorage.setItem('akt_access_granted', '1');
   sessionStorage.setItem('akt_visitor_role', normalizeAccessRole(existing.access_role));
-  await startApp(name, existing.access_role);
+  await startApp(name, existing.access_role, { ...existing, visit_count: visitCount });
 }
 
-async function startApp(name, role = 'visitor') {
+async function startApp(name, role = 'visitor', visitorRecord = null) {
   currentUser = name;
   currentUserRole = normalizeAccessRole(role || sessionStorage.getItem('akt_visitor_role'));
+  currentVisitCount = Number(visitorRecord?.visit_count || currentVisitCount || 0);
   document.getElementById('user-display').textContent = name;
   updateAdminPanelLink(currentUserRole);
   document.getElementById('auth-gate').style.display = 'none';
@@ -1244,6 +1246,7 @@ AKT_AUTH.setup({
   onSignOut: () => {
     currentUser = null;
     currentUserRole = 'visitor';
+    currentVisitCount = 0;
     updateAdminPanelLink('visitor');
     document.getElementById('app').style.display = 'none';
     document.getElementById('auth-gate').style.display = 'flex';
@@ -2366,7 +2369,7 @@ async function renderPerson(uid, el) {
       visitor_name: currentUser,
       action: 'view_person',
       target: `Viewed: ${p.name || '(unnamed)'}`,
-      details: { person_uid: p.uid, source_id: p.gedcom_id || '' }
+      details: { person_uid: p.uid, source_id: p.gedcom_id || '', visit_count: currentVisitCount }
     }).then(() => {});
   }
 }

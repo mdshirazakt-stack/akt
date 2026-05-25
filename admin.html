@@ -4225,6 +4225,7 @@ async function confirmNuke() {
 // ===================== ACTIVITY HISTORY =====================
 let activityRange = 'last24';
 let allActivity = [];
+let activitySessionMap = {};
 
 function setActivityRange(range, btn) {
   activityRange = range;
@@ -4343,48 +4344,117 @@ async function loadVisitorActivityFallback(fromDate, toDate) {
 function renderActivity(items) {
   const list = document.getElementById('activity-list');
   if (!items.length) { list.innerHTML = '<div class="empty">No activity found for this period.</div>'; return; }
+  const sessions = buildActivitySessions(items);
+  if (!sessions.length) { list.innerHTML = '<div class="empty">No activity found for this period.</div>'; return; }
   list.innerHTML = `<table>
     <thead>
       <tr>
         <th>When</th>
         <th>Visitor</th>
         <th>Activity</th>
-        <th>Device / Location</th>
-        <th>Details</th>
+        <th>View Activity</th>
       </tr>
     </thead>
     <tbody>
-      ${items.map(item => {
-    const details = item.details || {};
-    const visitor = item.visitor_name || item.name_entered || 'Unknown visitor';
-    const title = item.target || describeActivity(item);
-    const device = item.device || formatVisitorHint(details.ip_hint || '');
-    const tz = item.timezone || details.timezone || parseVisitorHint(details.ip_hint || '').timezone || '';
-    const metaParts = [];
-    if (details.visit_count) metaParts.push(`Visit #${Number(details.visit_count).toLocaleString()}`);
-    const locationHint = item.location_hint || details.location_hint || '';
-    if (locationHint) metaParts.push(`Location: ${locationHint}`);
-    if (device) metaParts.push(device);
-    if (tz) metaParts.push(`Timezone: ${tz}`);
-    if (details.result_count !== undefined) metaParts.push(`${Number(details.result_count || 0).toLocaleString()} results`);
-    if (details.fallback) metaParts.push('visitor log fallback');
-    const visitorArg = encodeURIComponent(visitor);
-    const drillButton = visitor && visitor !== 'Unknown visitor'
-      ? `<button class="activity-drill-btn" type="button" onclick="openVisitorActivityDetail(decodeURIComponent('${visitorArg}'))">View activity</button>`
-      : '';
-    const activityLabel = details.fallback && visitor && visitor !== 'Unknown visitor'
-      ? `<button class="activity-drill-btn" type="button" onclick="openVisitorActivityDetail(decodeURIComponent('${visitorArg}'))" style="margin:0">${escapeHtml(describeActivity(item))}</button>`
-      : escapeHtml(describeActivity(item));
+      ${sessions.map(session => {
+    const sessionArg = encodeURIComponent(session.id);
     return `<tr>
-      <td>${formatIST(item.created_at || item.last_seen)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(item.created_at || item.last_seen)}</span></td>
-      <td><strong>${escapeHtml(visitor)}</strong>${item.is_blocked ? '<br><span style="color:var(--red2);font-size:0.72rem">blocked</span>' : ''}${drillButton}</td>
-      <td><span class="activity-icon">${activityIcon(item.action)}</span> ${activityLabel}<br><span style="font-size:0.76rem;color:var(--muted)">${escapeHtml(title)}</span></td>
-      <td>${escapeHtml([device, locationHint].filter(Boolean).join(' · ') || '-')}<br>${tz ? `<span style="font-size:0.72rem;color:var(--muted)">Timezone: ${escapeHtml(tz)}</span>` : ''}</td>
-      <td>${metaParts.length ? escapeHtml(metaParts.join(' · ')) : '-'}</td>
+      <td>${formatIST(session.lastAt)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(session.lastAt)}</span></td>
+      <td><strong>${escapeHtml(session.visitor)}</strong>${session.isBlocked ? '<br><span style="color:var(--red2);font-size:0.72rem">blocked</span>' : ''}</td>
+      <td><span class="activity-icon">${activityIcon(session.primaryAction)}</span> ${escapeHtml(session.title)}<br><span style="font-size:0.76rem;color:var(--muted)">${escapeHtml(session.subtitle)}</span></td>
+      <td><button class="activity-drill-btn" type="button" onclick="openActivitySessionDetail(decodeURIComponent('${sessionArg}'))">View activity</button></td>
     </tr>`;
   }).join('')}
     </tbody>
   </table>`;
+}
+
+function activityTimeValue(row) {
+  return new Date(row.created_at || row.last_seen || 0).getTime() || 0;
+}
+
+function activityVisitor(row) {
+  return row.visitor_name || row.name_entered || 'Unknown visitor';
+}
+
+function activityVisitCount(row) {
+  const count = row.details?.visit_count;
+  return count === undefined || count === null || count === '' ? '' : String(count);
+}
+
+function sessionDeviceInfo(rows) {
+  const row = rows.find(item => item.device || item.location_hint || item.details?.location_hint || item.timezone || item.details?.timezone || item.details?.ip_hint) || {};
+  const details = row.details || {};
+  const device = row.device || formatVisitorHint(details.ip_hint || '');
+  const locationHint = row.location_hint || details.location_hint || '';
+  const timezone = row.timezone || details.timezone || parseVisitorHint(details.ip_hint || '').timezone || '';
+  return { device, locationHint, timezone };
+}
+
+function summarizeActivitySession(id, rows) {
+  const sorted = [...rows].sort((a, b) => activityTimeValue(b) - activityTimeValue(a));
+  const latest = sorted[0] || {};
+  const visitor = activityVisitor(latest);
+  const visitCount = activityVisitCount(latest) || activityVisitCount(sorted.find(row => activityVisitCount(row)));
+  const realActions = sorted.filter(row => !row.details?.fallback && !['login', 'return_visit'].includes(row.action));
+  const primary = realActions[0] || sorted.find(row => !row.details?.fallback) || latest;
+  const actionCounts = sorted.reduce((acc, row) => {
+    if (row.details?.fallback) return acc;
+    acc[row.action || 'activity'] = (acc[row.action || 'activity'] || 0) + 1;
+    return acc;
+  }, {});
+  const compactCounts = Object.entries(actionCounts)
+    .filter(([action]) => !['login', 'return_visit'].includes(action))
+    .slice(0, 3)
+    .map(([action, count]) => `${describeActivity({ action }).toLowerCase()}: ${count}`)
+    .join(' · ');
+  const eventCount = sorted.filter(row => !row.details?.fallback).length || sorted.length;
+  return {
+    id,
+    rows: sorted,
+    visitor,
+    visitCount,
+    firstAt: new Date(Math.min(...sorted.map(activityTimeValue))).toISOString(),
+    lastAt: new Date(Math.max(...sorted.map(activityTimeValue))).toISOString(),
+    isBlocked: sorted.some(row => row.is_blocked),
+    primaryAction: primary.action || 'return_visit',
+    title: eventCount === 1 && latest.details?.fallback ? 'Visit recorded' : `Session activity (${eventCount.toLocaleString()} action${eventCount === 1 ? '' : 's'})`,
+    subtitle: compactCounts || (primary.target || (visitCount ? `Visit #${Number(visitCount).toLocaleString()}` : 'Open details for this session')),
+    deviceInfo: sessionDeviceInfo(sorted)
+  };
+}
+
+function buildActivitySessions(items) {
+  activitySessionMap = {};
+  const sorted = [...items].sort((a, b) => activityTimeValue(a) - activityTimeValue(b));
+  const groups = new Map();
+  const rolling = new Map();
+  sorted.forEach((row, idx) => {
+    const visitor = activityVisitor(row);
+    const visitorKey = visitor.toLowerCase();
+    const visitCount = activityVisitCount(row);
+    let key;
+    if (visitCount) {
+      key = `${visitorKey}|visit:${visitCount}`;
+    } else {
+      const time = activityTimeValue(row);
+      const current = rolling.get(visitorKey);
+      if (current && time - current.lastTime <= 45 * 60 * 1000) {
+        key = current.key;
+        current.lastTime = time;
+      } else {
+        key = `${visitorKey}|window:${time || idx}`;
+        rolling.set(visitorKey, { key, lastTime: time });
+      }
+    }
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  });
+  const sessions = [...groups.entries()]
+    .map(([id, rows]) => summarizeActivitySession(id, rows))
+    .sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt));
+  sessions.forEach(session => { activitySessionMap[session.id] = session; });
+  return sessions;
 }
 
 function filterActivity() {
@@ -4463,21 +4533,21 @@ function activityDetailsLine(row) {
   if (details.tab) parts.push(`Tab: ${details.tab}`);
   if (details.label) parts.push(`Label: ${details.label}`);
   if (details.page) parts.push(`Page: ${details.page}`);
-  const locationHint = row.location_hint || details.location_hint || '';
-  if (locationHint) parts.push(`Location: ${locationHint}`);
-  const device = row.device || '';
-  if (device) parts.push(device);
+  if (details.fallback) parts.push('visitor login record');
   return parts.join(' · ');
 }
 
-function renderVisitorActivityDetail(visitorName, rows) {
+function renderActivitySessionDetail(session) {
   const body = document.getElementById('activity-detail-body');
+  const rows = session?.rows || [];
+  const deviceParts = [
+    session?.visitCount ? `Visit #${Number(session.visitCount).toLocaleString()}` : '',
+    session?.deviceInfo?.device || '',
+    session?.deviceInfo?.locationHint ? `Location: ${session.deviceInfo.locationHint}` : '',
+    session?.deviceInfo?.timezone ? `Timezone: ${session.deviceInfo.timezone}` : ''
+  ].filter(Boolean);
   if (!rows.length) {
-    body.innerHTML = `
-      <div class="empty">
-        No detailed activity rows found for this visitor in the last 30 days.
-        <br><span style="font-size:0.78rem;color:var(--muted)">If this visitor only shows as a return visit, the site may only have their last_seen record from before detailed logging resumed.</span>
-      </div>`;
+    body.innerHTML = '<div class="empty">No activity rows found for this session.</div>';
     return;
   }
   const groups = rows.reduce((acc, row) => {
@@ -4486,7 +4556,13 @@ function renderVisitorActivityDetail(visitorName, rows) {
     acc[key].push(row);
     return acc;
   }, {});
-  body.innerHTML = Object.entries(groups).map(([day, dayRows]) => `
+  body.innerHTML = `
+    <div class="insight-note" style="margin-bottom:14px">
+      <strong>${escapeHtml(session.visitor)}</strong>
+      <br>${escapeHtml(formatIST(session.firstAt, false))} to ${escapeHtml(formatIST(session.lastAt, false))}
+      ${deviceParts.length ? `<br>${escapeHtml(deviceParts.join(' · '))}` : ''}
+    </div>
+    ${Object.entries(groups).map(([day, dayRows]) => `
     <div class="activity-day-group">
       <div class="activity-day-title">${escapeHtml(day)} · ${dayRows.length.toLocaleString()} action${dayRows.length === 1 ? '' : 's'}</div>
       ${dayRows.map(row => `
@@ -4500,41 +4576,19 @@ function renderVisitorActivityDetail(visitorName, rows) {
         </div>
       `).join('')}
     </div>
-  `).join('');
+  `).join('')}`;
 }
 
-async function openVisitorActivityDetail(visitorName) {
+function openActivitySessionDetail(sessionId) {
   const modal = ensureActivityDetailModal();
-  document.getElementById('activity-detail-title').textContent = visitorName;
-  document.getElementById('activity-detail-subtitle').textContent = 'Detailed actions from the last 30 days, grouped datewise';
-  document.getElementById('activity-detail-body').innerHTML = '<div class="empty"><span class="spinner"></span> Loading visitor activity…</div>';
+  const session = activitySessionMap[sessionId];
+  document.getElementById('activity-detail-title').textContent = session?.visitor || 'Visitor activity';
+  document.getElementById('activity-detail-subtitle').textContent = 'Actions in this session';
+  document.getElementById('activity-detail-body').innerHTML = session
+    ? ''
+    : '<div class="empty">This session is no longer available. Refresh activity history and try again.</div>';
   modal.classList.add('open');
-
-  const fromDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const selectWithLocation = 'id,visitor_name,action,target,details,device,timezone,location_hint,created_at';
-  const selectWithoutLocation = 'id,visitor_name,action,target,details,device,timezone,created_at';
-  let query = sb.from('activity_logs')
-    .select(selectWithLocation)
-    .eq('visitor_name', visitorName)
-    .gte('created_at', fromDate.toISOString())
-    .order('created_at', { ascending: false })
-    .limit(1000);
-  let { data, error } = await query;
-  if (error && String(error.message || '').includes('location_hint')) {
-    const retry = await sb.from('activity_logs')
-      .select(selectWithoutLocation)
-      .eq('visitor_name', visitorName)
-      .gte('created_at', fromDate.toISOString())
-      .order('created_at', { ascending: false })
-      .limit(1000);
-    data = retry.data;
-    error = retry.error;
-  }
-  if (error) {
-    document.getElementById('activity-detail-body').innerHTML = `<div class="empty" style="color:var(--red)">Could not load detailed activity.<br>${escapeHtml(error.message)}</div>`;
-    return;
-  }
-  renderVisitorActivityDetail(visitorName, data || []);
+  if (session) renderActivitySessionDetail(session);
 }
 
 // ===================== STAFF ACTIVITY =====================

@@ -1528,6 +1528,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentUser = null;
 let currentVisitCount = 0;
 let activityLogDisabled = false;
+let currentActivitySessionId = sessionStorage.getItem('akt_activity_session_id') || '';
 let locationHintPromise = null;
 let searchFilter = 'all';
 let sourceFilter = null; // gedcom_id UUID or null = all
@@ -1762,9 +1763,11 @@ function resetAuthUi() {
   sessionStorage.removeItem('akt_access_granted');
   sessionStorage.removeItem('akt_visitor_role');
   sessionStorage.removeItem('akt_auth_user_id');
+  sessionStorage.removeItem('akt_activity_session_id');
   currentUser = null;
   currentUserRole = 'visitor';
   currentVisitCount = 0;
+  currentActivitySessionId = '';
   accessRequestMode = false;
   document.getElementById('app').style.display = 'none';
   document.getElementById('auth-gate').style.display = 'flex';
@@ -1819,6 +1822,10 @@ function getLocationHint() {
 
 function logActivity(action, target, details) {
   if (!currentUser || activityLogDisabled) return;
+  if (!currentActivitySessionId) {
+    currentActivitySessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    sessionStorage.setItem('akt_activity_session_id', currentActivitySessionId);
+  }
   getLocationHint().then(locationHint => {
     const payload = {
       visitor_name: currentUser,
@@ -1826,6 +1833,7 @@ function logActivity(action, target, details) {
       target: target || '',
       details: {
         ...(details || {}),
+        session_id: currentActivitySessionId,
         visit_count: currentVisitCount,
         location_hint: locationHint,
         page: location.pathname || '/',

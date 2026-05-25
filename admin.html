@@ -4230,6 +4230,8 @@ async function confirmNuke() {
 let activityRange = 'last24';
 let allActivity = [];
 let activitySessionMap = {};
+let activityVisitorProfiles = [];
+let activitySort = { key: 'when', dir: 'desc' };
 
 function setActivityRange(range, btn) {
   activityRange = range;
@@ -4286,7 +4288,8 @@ async function loadActivityLogs(fromDate, toDate) {
   }
 
   if (!error) {
-    allActivity = await mergeVisitorActivityFallback(data || [], fromDate, toDate);
+    activityVisitorProfiles = await loadActivityVisitorProfiles(fromDate, toDate);
+    allActivity = enrichActivityRows(await mergeVisitorActivityFallback(data || [], fromDate, toDate));
     renderActivity(allActivity);
     return;
   }
@@ -4296,7 +4299,7 @@ async function loadActivityLogs(fromDate, toDate) {
 
 async function loadVisitorActivityRows(fromDate, toDate) {
   let visitorQuery = sb.from('visitors')
-    .select('name_entered,last_seen,visit_count,first_seen,is_blocked,ip_hint')
+    .select('name_entered,email,mobile,last_seen,visit_count,first_seen,is_blocked,ip_hint')
     .gte('last_seen', fromDate.toISOString())
     .order('last_seen', { ascending: false });
   if (toDate) visitorQuery = visitorQuery.lte('last_seen', toDate.toISOString());
@@ -4304,6 +4307,8 @@ async function loadVisitorActivityRows(fromDate, toDate) {
   if (visitorError) throw visitorError;
   return (visitors || []).map(v => ({
     visitor_name: v.name_entered,
+    visitor_email: v.email || '',
+    visitor_mobile: v.mobile || '',
     action: (new Date(v.last_seen) - new Date(v.first_seen)) < 60000 ? 'login' : 'return_visit',
     target: (new Date(v.last_seen) - new Date(v.first_seen)) < 60000 ? `Logged in: ${v.name_entered}` : `Return visit: ${v.name_entered}`,
     details: { visit_count: v.visit_count, fallback: true, ip_hint: v.ip_hint },
@@ -4312,6 +4317,50 @@ async function loadVisitorActivityRows(fromDate, toDate) {
     created_at: v.last_seen,
     is_blocked: v.is_blocked
   }));
+}
+
+async function loadActivityVisitorProfiles(fromDate, toDate) {
+  let visitorQuery = sb.from('visitors')
+    .select('name_entered,email,mobile,last_seen,visit_count,first_seen,is_blocked,ip_hint')
+    .order('last_seen', { ascending: false })
+    .limit(10000);
+  if (fromDate) visitorQuery = visitorQuery.gte('last_seen', fromDate.toISOString());
+  if (toDate) visitorQuery = visitorQuery.lte('last_seen', toDate.toISOString());
+  const { data, error } = await visitorQuery;
+  if (error) return [];
+  return data || [];
+}
+
+function activityIdentityKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function activityDigits(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function enrichActivityRows(rows) {
+  return (rows || []).map(row => {
+    const nameKey = activityIdentityKey(row.visitor_name || row.name_entered);
+    const emailKey = activityIdentityKey(row.visitor_email || row.email);
+    const mobileKey = activityDigits(row.visitor_mobile || row.mobile);
+    const profile = activityVisitorProfiles.find(visitor => {
+      const visitorName = activityIdentityKey(visitor.name_entered);
+      const visitorEmail = activityIdentityKey(visitor.email);
+      const visitorMobile = activityDigits(visitor.mobile);
+      return (emailKey && visitorEmail && emailKey === visitorEmail)
+        || (mobileKey && visitorMobile && mobileKey === visitorMobile)
+        || (nameKey && visitorName && nameKey === visitorName);
+    });
+    if (!profile) return row;
+    return {
+      ...row,
+      visitor_name: row.visitor_name || profile.name_entered,
+      visitor_email: row.visitor_email || profile.email || '',
+      visitor_mobile: row.visitor_mobile || profile.mobile || '',
+      is_blocked: row.is_blocked || profile.is_blocked
+    };
+  });
 }
 
 async function mergeVisitorActivityFallback(activityRows, fromDate, toDate) {
@@ -4337,7 +4386,8 @@ async function mergeVisitorActivityFallback(activityRows, fromDate, toDate) {
 async function loadVisitorActivityFallback(fromDate, toDate) {
   const list = document.getElementById('activity-list');
   try {
-    allActivity = await loadVisitorActivityRows(fromDate, toDate);
+    activityVisitorProfiles = await loadActivityVisitorProfiles(fromDate, toDate);
+    allActivity = enrichActivityRows(await loadVisitorActivityRows(fromDate, toDate));
   } catch (err) {
     list.innerHTML = '<div class="empty">Error loading activity.</div>';
     return;
@@ -4348,29 +4398,30 @@ async function loadVisitorActivityFallback(fromDate, toDate) {
 function renderActivity(items) {
   const list = document.getElementById('activity-list');
   if (!items.length) { list.innerHTML = '<div class="empty">No activity found for this period.</div>'; return; }
-  const sessions = buildActivitySessions(items);
+  const sessions = sortActivitySessions(buildActivitySessions(items));
   if (!sessions.length) { list.innerHTML = '<div class="empty">No activity found for this period.</div>'; return; }
   list.innerHTML = `<table>
     <thead>
       <tr>
-        <th>When</th>
-        <th>Visitor</th>
-        <th>Activity</th>
-        <th>View Activity</th>
+        <th class="sortable" onclick="sortActivityBy('when')">When (IST) <span class="sort-indicator" id="activity-sort-when"></span></th>
+        <th class="sortable" onclick="sortActivityBy('visitor')">Visitor <span class="sort-indicator" id="activity-sort-visitor"></span></th>
+        <th class="sortable" onclick="sortActivityBy('activity')">Activity <span class="sort-indicator" id="activity-sort-activity"></span></th>
+        <th class="sortable" onclick="sortActivityBy('count')">View Activity <span class="sort-indicator" id="activity-sort-count"></span></th>
       </tr>
     </thead>
     <tbody>
       ${sessions.map(session => {
     const sessionArg = encodeURIComponent(session.id);
     return `<tr>
-      <td>${formatIST(session.lastAt)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(session.lastAt)}</span></td>
-      <td><strong>${escapeHtml(session.visitor)}</strong>${session.isBlocked ? '<br><span style="color:var(--red2);font-size:0.72rem">blocked</span>' : ''}</td>
+      <td>${formatIST(session.lastAt, false)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(session.lastAt)}</span></td>
+      <td><strong>${escapeHtml(session.visitor)}</strong>${session.email ? `<br><span style="font-size:0.72rem;color:var(--muted)">${escapeHtml(session.email)}</span>` : ''}${session.isBlocked ? '<br><span style="color:var(--red2);font-size:0.72rem">blocked</span>' : ''}</td>
       <td><span class="activity-icon">${activityIcon(session.primaryAction)}</span> ${escapeHtml(session.title)}<br><span style="font-size:0.76rem;color:var(--muted)">${escapeHtml(session.subtitle)}</span></td>
       <td><button class="activity-drill-btn" type="button" onclick="openActivitySessionDetail(decodeURIComponent('${sessionArg}'))">View activity</button></td>
     </tr>`;
   }).join('')}
     </tbody>
   </table>`;
+  renderActivitySortIndicators();
 }
 
 function activityTimeValue(row) {
@@ -4379,6 +4430,15 @@ function activityTimeValue(row) {
 
 function activityVisitor(row) {
   return row?.visitor_name || row?.name_entered || 'Unknown visitor';
+}
+
+function activityVisitorEmail(row) {
+  return row?.visitor_email || row?.email || '';
+}
+
+function activitySessionId(row) {
+  const details = row?.details || {};
+  return details.session_id || details.sessionId || row?.session_id || '';
 }
 
 function activityVisitCount(row) {
@@ -4399,6 +4459,7 @@ function summarizeActivitySession(id, rows) {
   const sorted = [...rows].sort((a, b) => activityTimeValue(b) - activityTimeValue(a));
   const latest = sorted[0] || {};
   const visitor = activityVisitor(latest);
+  const email = activityVisitorEmail(sorted.find(row => activityVisitorEmail(row)) || latest);
   const visitCount = activityVisitCount(latest) || activityVisitCount(sorted.find(row => activityVisitCount(row)));
   const realActions = sorted.filter(row => !row.details?.fallback && !['login', 'return_visit'].includes(row.action));
   const primary = realActions[0] || sorted.find(row => !row.details?.fallback) || latest;
@@ -4417,11 +4478,13 @@ function summarizeActivitySession(id, rows) {
     id,
     rows: sorted,
     visitor,
+    email,
     visitCount,
     firstAt: new Date(Math.min(...sorted.map(activityTimeValue))).toISOString(),
     lastAt: new Date(Math.max(...sorted.map(activityTimeValue))).toISOString(),
     isBlocked: sorted.some(row => row.is_blocked),
     primaryAction: primary.action || 'return_visit',
+    eventCount,
     title: eventCount === 1 && latest.details?.fallback ? 'Visit recorded' : `Session activity (${eventCount.toLocaleString()} action${eventCount === 1 ? '' : 's'})`,
     subtitle: compactCounts || (primary.target || (visitCount ? `Visit #${Number(visitCount).toLocaleString()}` : 'Open details for this session')),
     deviceInfo: sessionDeviceInfo(sorted)
@@ -4435,15 +4498,15 @@ function buildActivitySessions(items) {
   const rolling = new Map();
   sorted.forEach((row, idx) => {
     const visitor = activityVisitor(row);
-    const visitorKey = visitor.toLowerCase();
-    const visitCount = activityVisitCount(row);
+    const visitorKey = activityIdentityKey(activityVisitorEmail(row) || visitor);
+    const explicitSession = activitySessionId(row);
     let key;
-    if (visitCount) {
-      key = `${visitorKey}|visit:${visitCount}`;
+    if (explicitSession) {
+      key = `${visitorKey}|session:${explicitSession}`;
     } else {
       const time = activityTimeValue(row);
       const current = rolling.get(visitorKey);
-      if (current && time - current.lastTime <= 45 * 60 * 1000) {
+      if (current && time - current.lastTime <= 60 * 60 * 1000) {
         key = current.key;
         current.lastTime = time;
       } else {
@@ -4461,12 +4524,57 @@ function buildActivitySessions(items) {
   return sessions;
 }
 
+function sortActivityBy(key) {
+  if (activitySort.key === key) {
+    activitySort.dir = activitySort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    activitySort.key = key;
+    activitySort.dir = key === 'visitor' ? 'asc' : 'desc';
+  }
+  renderActivity(allActivity);
+}
+
+function sortActivitySessions(sessions) {
+  const dir = activitySort.dir === 'asc' ? 1 : -1;
+  return [...sessions].sort((a, b) => {
+    let av;
+    let bv;
+    if (activitySort.key === 'visitor') {
+      av = `${a.visitor || ''} ${a.email || ''}`.toLowerCase();
+      bv = `${b.visitor || ''} ${b.email || ''}`.toLowerCase();
+      return av.localeCompare(bv) * dir;
+    }
+    if (activitySort.key === 'activity') {
+      av = `${a.primaryAction || ''} ${a.title || ''} ${a.subtitle || ''}`.toLowerCase();
+      bv = `${b.primaryAction || ''} ${b.title || ''} ${b.subtitle || ''}`.toLowerCase();
+      return av.localeCompare(bv) * dir;
+    }
+    if (activitySort.key === 'count') {
+      av = Number(a.eventCount || 0);
+      bv = Number(b.eventCount || 0);
+      return (av - bv) * dir;
+    }
+    av = new Date(a.lastAt || 0).getTime();
+    bv = new Date(b.lastAt || 0).getTime();
+    return (av - bv) * dir;
+  });
+}
+
+function renderActivitySortIndicators() {
+  ['when', 'visitor', 'activity', 'count'].forEach(key => {
+    const el = document.getElementById(`activity-sort-${key}`);
+    if (el) el.textContent = activitySort.key === key ? (activitySort.dir === 'asc' ? '▲' : '▼') : '';
+  });
+}
+
 function filterActivity() {
   const q = document.getElementById('activity-search').value.toLowerCase();
   renderActivity(allActivity.filter(v => {
     const haystack = [
       v.visitor_name,
+      v.visitor_email,
       v.name_entered,
+      v.email,
       v.action,
       v.target,
       v.device,
@@ -4563,6 +4671,7 @@ function renderActivitySessionDetail(session) {
   body.innerHTML = `
     <div class="insight-note" style="margin-bottom:14px">
       <strong>${escapeHtml(session.visitor)}</strong>
+      ${session.email ? `<br>${escapeHtml(session.email)}` : ''}
       <br>${escapeHtml(formatIST(session.firstAt, false))} to ${escapeHtml(formatIST(session.lastAt, false))}
       ${deviceParts.length ? `<br>${escapeHtml(deviceParts.join(' · '))}` : ''}
     </div>

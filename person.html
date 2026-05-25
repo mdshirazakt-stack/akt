@@ -1128,6 +1128,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentUser = null;
 let currentUserRole = 'visitor';
 let currentVisitCount = 0;
+let currentActivitySessionId = sessionStorage.getItem('akt_activity_session_id') || '';
 const ROLE_LEVELS = { visitor: 1, moderator: 2, admin: 3, superadmin: 4 };
 let gedcomUploads = [];
 let currentPerson = null; // cached person data
@@ -1244,9 +1245,11 @@ AKT_AUTH.setup({
   sb,
   onStart: startApp,
   onSignOut: () => {
+    sessionStorage.removeItem('akt_activity_session_id');
     currentUser = null;
     currentUserRole = 'visitor';
     currentVisitCount = 0;
+    currentActivitySessionId = '';
     updateAdminPanelLink('visitor');
     document.getElementById('app').style.display = 'none';
     document.getElementById('auth-gate').style.display = 'flex';
@@ -2365,11 +2368,15 @@ async function renderPerson(uid, el) {
 
   // Log the view
   if (currentUser) {
+    if (!currentActivitySessionId) {
+      currentActivitySessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      sessionStorage.setItem('akt_activity_session_id', currentActivitySessionId);
+    }
     sb.from('activity_logs').insert({
       visitor_name: currentUser,
       action: 'view_person',
       target: `Viewed: ${p.name || '(unnamed)'}`,
-      details: { person_uid: p.uid, source_id: p.gedcom_id || '', visit_count: currentVisitCount }
+      details: { person_uid: p.uid, source_id: p.gedcom_id || '', visit_count: currentVisitCount, session_id: currentActivitySessionId }
     }).then(() => {});
   }
 }

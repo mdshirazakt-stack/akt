@@ -176,6 +176,8 @@
   }
   .reg-step.active { color: var(--green); }
   .reg-step.active span { background: var(--green); color: #fff; }
+  .reg-step.complete { color: var(--green); }
+  .reg-step.complete span { background: #dfeadc; color: var(--green); }
   .registration-copy { margin: 0 auto 28px; max-width: 680px; text-align: center; }
   .registration-copy h2 { color: var(--green); font-family: 'Lato', sans-serif; font-size: 1.25rem; margin-bottom: 8px; }
   .registration-copy p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
@@ -191,7 +193,7 @@
     margin: 0 0 8px;
     text-transform: uppercase;
   }
-  .auth-shell.onboarding-mode .auth-box input,
+  .auth-shell.onboarding-mode .auth-box input:not([type="checkbox"]),
   .auth-shell.onboarding-mode .auth-box textarea,
   .auth-shell.onboarding-mode .auth-box select {
     background: rgba(255,255,255,0.76);
@@ -201,6 +203,7 @@
     text-align: left;
   }
   .auth-shell.onboarding-mode .auth-box textarea { min-height: 118px; }
+  .onboarding-step[hidden] { display: none !important; }
   .onboarding-block { display: grid; gap: 18px; }
   .privacy-card {
     align-items: center;
@@ -227,6 +230,38 @@
     width: 28px;
   }
   .consent-panel { background: rgba(255,250,240,0.84); border: 1px solid var(--border); margin-top: 6px; padding: 18px; }
+  .consent-panel .consent-list { gap: 12px; }
+  .consent-panel .consent-item {
+    align-items: flex-start;
+    background: rgba(255,255,255,0.52);
+    border: 1px solid rgba(216,201,181,0.78);
+    grid-template-columns: 22px 1fr;
+    padding: 12px;
+  }
+  .auth-shell.onboarding-mode .consent-item input[type="checkbox"] {
+    appearance: auto;
+    accent-color: var(--green);
+    height: 20px;
+    margin: 0;
+    min-height: 0;
+    width: 20px;
+  }
+  .consent-item span { display: block; }
+  .onboarding-actions { display: flex; gap: 12px; justify-content: center; margin-top: 14px; }
+  .onboarding-back {
+    align-items: center;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--green);
+    cursor: pointer;
+    display: none;
+    font-family: 'Lato', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    justify-content: center;
+    min-height: 58px;
+    padding: 0 24px;
+  }
   .auth-shell.onboarding-mode .btn-enter {
     align-items: center;
     display: inline-flex;
@@ -238,6 +273,7 @@
     min-height: 58px;
     text-transform: none;
   }
+  .onboarding-actions .btn-enter { margin: 0; }
   .submit-hint { color: var(--muted); font-size: 0.8rem; margin-top: 12px; text-align: center; }
   .trust-row {
     border-top: 1px solid rgba(201,168,76,0.28);
@@ -512,6 +548,7 @@
           <p>First-time registration form: please share these details once to continue to the private family tree archive.</p>
         </div>
         <div class="onboarding-block">
+          <section class="onboarding-step" data-step="1">
           <div class="reg-grid">
             <label class="reg-field">
               <span class="reg-field-title">Full Name</span>
@@ -538,6 +575,8 @@
               <input type="text" id="visitor-current-place" placeholder="Enter current place" maxlength="180"/>
             </label>
           </div>
+          </section>
+          <section class="onboarding-step" data-step="2" hidden>
           <div class="reg-grid single">
             <label class="reg-field">
               <span class="reg-field-title">Current Address (Optional)</span>
@@ -583,6 +622,8 @@
             <span class="privacy-icon">✓</span>
             <div><strong>Your privacy matters</strong><br/>Your information is secure and only used for genealogy, archive access, moderation, and community communication.</div>
           </div>
+          </section>
+          <section class="onboarding-step" data-step="3" hidden>
           <div class="consent-panel">
             <div class="auth-section-title">Consent</div>
             <div class="auth-note" style="text-align:left;margin:0 0 10px">Please read the <a href="terms.html" target="_blank" rel="noopener" style="color:var(--green);font-weight:700">Terms & Conditions and Privacy Policy</a> before accepting.</div>
@@ -593,8 +634,13 @@
               <label class="consent-item"><input id="consent-section-18" type="checkbox"/> <span>I accept the consent agreement, disclaimer, privacy policy, community guidelines, and the community-driven nature of the archive.</span></label>
             </div>
           </div>
+          </section>
         </div>
-        <button class="btn-enter" id="visitor-onboarding-submit" type="submit">Accept & Enter</button>
+        <div class="onboarding-actions">
+          <button class="onboarding-back" id="onboarding-back-btn" type="button" onclick="AKT_AUTH.prevOnboardingStep()">Back</button>
+          <button class="btn-enter" id="onboarding-next-btn" type="button" onclick="AKT_AUTH.nextOnboardingStep()">Continue</button>
+          <button class="btn-enter" id="visitor-onboarding-submit" type="submit">Accept & Enter</button>
+        </div>
         <div class="submit-hint">You can review and edit before submitting.</div>
         <div class="trust-row">Secure • Private • Trusted</div>
       </form>

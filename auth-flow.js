@@ -9,6 +9,7 @@
   let currentSession = null;
   let currentVisitor = null;
   let initialized = false;
+  let currentOnboardingStep = 1;
 
   function normalizeAccessRole(role) {
     return ROLE_LEVELS[role] ? role : 'visitor';
@@ -61,6 +62,7 @@
     if (signIn) signIn.style.display = view === 'signin' ? 'block' : 'none';
     if (form) form.style.display = view === 'onboarding' ? 'grid' : 'none';
     if (loading) loading.style.display = view === 'loading' ? 'block' : 'none';
+    if (view === 'onboarding') setOnboardingStep(1, false);
     const err = byId('auth-err');
     if (err && view !== 'message') err.style.display = 'none';
   }
@@ -274,17 +276,37 @@
     showMessage('Magic link sent. Please check your email and return through the link.', false);
   }
 
-  function validateOnboarding() {
-    const required = [
-      ['visitor-name', 'Name is required.'],
-      ['visitor-mobile', 'Mobile phone number is required.'],
-      ['visitor-father-name', "Father's name is required."],
-      ['visitor-root-place', 'Root place is required.'],
-      ['visitor-current-place', 'Current place is required.'],
-      ['visitor-current-address', 'Current address is required.'],
-      ['visitor-oldest-ancestor', 'Oldest known family ancestor is required.'],
-      ['visitor-heard-source', 'Please tell us where you heard about the website.']
-    ];
+  function hideMessage() {
+    const err = byId('auth-err');
+    if (err) err.style.display = 'none';
+  }
+
+  function setOnboardingStep(step, shouldFocus = true) {
+    currentOnboardingStep = Math.max(1, Math.min(3, Number(step) || 1));
+    document.querySelectorAll('.onboarding-step').forEach(section => {
+      section.hidden = Number(section.dataset.step || 0) !== currentOnboardingStep;
+    });
+    document.querySelectorAll('.reg-step').forEach((item, index) => {
+      const itemStep = index + 1;
+      item.classList.toggle('active', itemStep === currentOnboardingStep);
+      item.classList.toggle('complete', itemStep < currentOnboardingStep);
+    });
+    const backBtn = byId('onboarding-back-btn');
+    const nextBtn = byId('onboarding-next-btn');
+    const submitBtn = byId('visitor-onboarding-submit');
+    if (backBtn) backBtn.style.display = currentOnboardingStep > 1 ? 'inline-flex' : 'none';
+    if (nextBtn) nextBtn.style.display = currentOnboardingStep < 3 ? 'inline-flex' : 'none';
+    if (submitBtn) submitBtn.style.display = currentOnboardingStep === 3 ? 'inline-flex' : 'none';
+    hideMessage();
+    toggleHeardFromFields();
+    if (shouldFocus) {
+      document.querySelector('.auth-box')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      const firstField = document.querySelector(`.onboarding-step[data-step="${currentOnboardingStep}"] input:not([type="hidden"]), .onboarding-step[data-step="${currentOnboardingStep}"] select, .onboarding-step[data-step="${currentOnboardingStep}"] textarea`);
+      setTimeout(() => firstField?.focus(), 120);
+    }
+  }
+
+  function validateRequiredFields(required) {
     for (const [id, message] of required) {
       if (!value(id)) {
         showMessage(message);
@@ -292,14 +314,33 @@
         return false;
       }
     }
-    if (value('visitor-heard-source') === 'relative' && (!value('visitor-heard-relative-name') || !value('visitor-heard-relative-place'))) {
-      showMessage('Please add the relative name and place.');
-      return false;
+    return true;
+  }
+
+  function validateOnboardingStep(step = currentOnboardingStep) {
+    if (step === 1) {
+      return validateRequiredFields([
+        ['visitor-name', 'Name is required.'],
+        ['visitor-mobile', 'Mobile phone number is required.'],
+        ['visitor-father-name', "Father's name is required."],
+        ['visitor-root-place', 'Root place is required.'],
+        ['visitor-current-place', 'Current place is required.']
+      ]);
     }
-    if (value('visitor-heard-source') === 'other' && !value('visitor-heard-details')) {
-      showMessage('Please add where you heard about the website.');
-      return false;
+
+    if (step === 2) {
+      if (!validateRequiredFields([['visitor-heard-source', 'Please tell us where you heard about the website.']])) return false;
+      if (value('visitor-heard-source') === 'relative' && (!value('visitor-heard-relative-name') || !value('visitor-heard-relative-place'))) {
+        showMessage('Please add the relative name and place.');
+        return false;
+      }
+      if (value('visitor-heard-source') === 'other' && !value('visitor-heard-details')) {
+        showMessage('Please add where you heard about the website.');
+        return false;
+      }
+      return true;
     }
+
     for (const section of REQUIRED_CONSENT_SECTIONS) {
       if (!checked('consent-section-' + section)) {
         showMessage('Please accept consent section ' + section + ' to continue.');
@@ -307,6 +348,19 @@
       }
     }
     return true;
+  }
+
+  function validateOnboarding() {
+    return validateOnboardingStep(1) && validateOnboardingStep(2) && validateOnboardingStep(3);
+  }
+
+  function nextOnboardingStep() {
+    if (!validateOnboardingStep(currentOnboardingStep)) return;
+    setOnboardingStep(currentOnboardingStep + 1);
+  }
+
+  function prevOnboardingStep() {
+    setOnboardingStep(currentOnboardingStep - 1);
   }
 
   function formSnapshot() {
@@ -327,6 +381,10 @@
 
   async function submitOnboarding(event) {
     if (event) event.preventDefault();
+    if (currentOnboardingStep < 3) {
+      nextOnboardingStep();
+      return;
+    }
     if (!currentSession?.user) {
       showMessage('Please sign in first.');
       return;
@@ -470,6 +528,9 @@
     sendMagicLink,
     submitOnboarding,
     toggleHeardFromFields,
+    nextOnboardingStep,
+    prevOnboardingStep,
+    setOnboardingStep,
     signOut,
     normalizeAccessRole,
     CONSENT_VERSION

@@ -301,13 +301,20 @@
   .header-user { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
   .huser { font-size: 0.82rem; color: #c5d9b8; }
   .huser span { color: var(--gold2); }
+  .admin-panel-link,
   .logout-btn {
+    align-items: center;
+    display: inline-flex;
+    min-height: 29px;
     padding: 6px 10px; border: 1px solid rgba(201,168,76,0.45);
     background: rgba(250,247,242,0.08); color: #fff9ef;
     font-family: 'Lato', sans-serif; font-size: 0.72rem; font-weight: 700;
-    letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
+    justify-content: center; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
+    text-decoration: none;
   }
-  .logout-btn:hover { background: rgba(201,168,76,0.18); border-color: var(--gold2); }
+  .admin-panel-link { display: none; border-color: rgba(201,168,76,0.62); color: var(--gold2); }
+  .admin-panel-link.is-visible { display: inline-flex; }
+  .admin-panel-link:hover, .logout-btn:hover { background: rgba(201,168,76,0.18); border-color: var(--gold2); }
   .site-footer { padding: 22px 20px; text-align: center; color: var(--muted); font-size: 0.78rem; border-top: 1px solid var(--border); margin-top: 36px; }
   .site-footer a { color: var(--gold); text-decoration: none; font-weight: 700; margin: 0 8px; }
   .site-footer a:hover { text-decoration: underline; }
@@ -872,7 +879,7 @@
     .logo { gap: 10px; }
     .header-user { gap: 6px; }
     .huser { font-size: 0.72rem; }
-    .logout-btn { padding: 5px 8px; font-size: 0.65rem; }
+    .admin-panel-link, .logout-btn { padding: 5px 8px; font-size: 0.65rem; }
   }
 </style>
 </head>
@@ -1027,6 +1034,7 @@
     </div>
     <div class="header-user">
       <div class="huser">Welcome, <span id="user-display"></span></div>
+      <a class="admin-panel-link" id="admin-panel-link" href="admin.html">Admin Panel</a>
       <button class="logout-btn" type="button" onclick="doLogout()">Logout</button>
     </div>
   </header>
@@ -1613,6 +1621,7 @@ async function startApp(name, role = 'visitor', visitorRecord = null) {
   currentUserRole = normalizeAccessRole(role || sessionStorage.getItem('akt_visitor_role'));
   currentVisitCount = Number(visitorRecord?.visit_count || currentVisitCount || 0);
   document.getElementById('user-display').textContent = name;
+  updateAdminPanelLink(currentUserRole);
   document.getElementById('auth-gate').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   await loadGedcomSources();
@@ -1661,6 +1670,12 @@ async function startApp(name, role = 'visitor', visitorRecord = null) {
   loadSearch(restoredQuery);
 }
 
+function updateAdminPanelLink(role) {
+  const link = document.getElementById('admin-panel-link');
+  if (!link) return;
+  link.classList.toggle('is-visible', ['admin', 'superadmin'].includes(normalizeAccessRole(role)));
+}
+
 function doLogout() {
   if (window.AKT_AUTH) {
     AKT_AUTH.signOut();
@@ -1678,6 +1693,7 @@ function resetAuthUi() {
   currentUser = null;
   currentUserRole = 'visitor';
   currentVisitCount = 0;
+  updateAdminPanelLink('visitor');
   accessRequestMode = false;
   document.getElementById('app').style.display = 'none';
   document.getElementById('auth-gate').style.display = 'flex';

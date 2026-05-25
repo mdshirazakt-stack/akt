@@ -274,12 +274,19 @@
   .header-user { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
   .huser { font-size: 0.82rem; color: #c5d9b8; }
   .huser span { color: var(--gold2); }
+  .admin-panel-link,
   .logout-btn {
+    align-items: center;
+    display: inline-flex;
+    justify-content: center;
+    min-height: 31px;
     padding: 7px 12px; border: 1px solid rgba(201,168,76,0.65); background: rgba(0,0,0,0.08);
     color: #fff9ef; font-family: 'Lato', sans-serif; font-size: 0.72rem; font-weight: 700;
-    letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer;
+    letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; text-decoration: none;
   }
-  .logout-btn:hover { background: rgba(201,168,76,0.18); border-color: var(--gold2); }
+  .admin-panel-link { display: none; color: var(--gold2); }
+  .admin-panel-link.is-visible { display: inline-flex; }
+  .admin-panel-link:hover, .logout-btn:hover { background: rgba(201,168,76,0.18); border-color: var(--gold2); }
 
   main { padding: 28px 32px; max-width: 860px; margin: 0 auto; }
 
@@ -613,6 +620,7 @@
     </a>
     <div class="header-user">
       <div class="huser">Viewing as <span id="user-display"></span></div>
+      <a class="admin-panel-link" id="admin-panel-link" href="admin.html">Admin Panel</a>
       <button class="logout-btn" type="button" onclick="doLogout()">Logout</button>
     </div>
   </header>
@@ -1131,6 +1139,7 @@ async function startApp(name, role = 'visitor') {
   currentUser = name;
   currentUserRole = normalizeAccessRole(role || sessionStorage.getItem('akt_visitor_role'));
   document.getElementById('user-display').textContent = name;
+  updateAdminPanelLink(currentUserRole);
   document.getElementById('auth-gate').style.display = 'none';
   document.getElementById('app').style.display = 'block';
 
@@ -1145,12 +1154,19 @@ function doLogout() {
   AKT_AUTH.signOut();
 }
 
+function updateAdminPanelLink(role) {
+  const link = document.getElementById('admin-panel-link');
+  if (!link) return;
+  link.classList.toggle('is-visible', ['admin', 'superadmin'].includes(normalizeAccessRole(role)));
+}
+
 AKT_AUTH.setup({
   sb,
   onStart: startApp,
   onSignOut: () => {
     currentUser = null;
     currentUserRole = 'visitor';
+    updateAdminPanelLink('visitor');
     document.getElementById('app').style.display = 'none';
     document.getElementById('auth-gate').style.display = 'flex';
   }

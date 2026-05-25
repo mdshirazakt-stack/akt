@@ -206,6 +206,7 @@
       await callbacks.onStart(name, role, { ...visitor, visit_count: visitCount });
     }
     await refreshProfileClaimBanner({ ...visitor, visit_count: visitCount });
+    renderRoleApplicationCallout({ ...visitor, visit_count: visitCount });
   }
 
   function removeProfileClaimBanner() {
@@ -344,6 +345,191 @@
       return;
     }
     renderProfileClaimBanner(visitor);
+  }
+
+  function ensureRoleApplicationStyles() {
+    if (document.getElementById('role-application-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'role-application-styles';
+    style.textContent = `
+      #role-application-callout {
+        background: #f7fbf6;
+        border: 1px solid rgba(46,110,74,0.28);
+        border-left: 4px solid #2e6e4a;
+        color: #4f4435;
+        font-family: 'Lato', sans-serif;
+        margin: 12px auto 0;
+        max-width: min(1120px, calc(100% - 36px));
+        padding: 14px 16px;
+      }
+      #role-application-callout .role-app-title { color: #2e6e4a; font-size: 0.88rem; font-weight: 700; margin-bottom: 5px; }
+      #role-application-callout .role-app-copy { font-size: 0.8rem; line-height: 1.55; }
+      #role-application-callout .role-app-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+      #role-application-callout button,
+      .role-app-modal button {
+        background: #2e6e4a;
+        border: 1px solid #2e6e4a;
+        color: #fff;
+        cursor: pointer;
+        font-family: 'Lato', sans-serif;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        padding: 7px 11px;
+        text-transform: uppercase;
+      }
+      #role-application-callout button.secondary,
+      .role-app-modal button.secondary { background: transparent; color: #7a6e5e; border-color: rgba(122,110,94,0.35); }
+      .role-app-modal-backdrop {
+        align-items: center;
+        background: rgba(42,35,24,0.48);
+        display: flex;
+        inset: 0;
+        justify-content: center;
+        padding: 24px;
+        position: fixed;
+        z-index: 9999;
+      }
+      .role-app-modal {
+        background: #fffaf3;
+        border: 1px solid rgba(201,168,76,0.45);
+        box-shadow: 0 24px 80px rgba(42,35,24,0.25);
+        color: #2a2318;
+        max-width: 680px;
+        padding: 22px;
+        width: min(680px, 100%);
+      }
+      .role-app-modal h2 { color: #2e6e4a; font-size: 1.2rem; margin-bottom: 8px; }
+      .role-app-modal p, .role-app-modal li { color: #5f5547; font-size: 0.84rem; line-height: 1.55; }
+      .role-app-modal ul { margin: 12px 0 14px 18px; }
+      .role-app-modal label { color: #6f5935; display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; margin: 12px 0 6px; text-transform: uppercase; }
+      .role-app-modal select,
+      .role-app-modal textarea {
+        background: #fff;
+        border: 1px solid #d9cdbb;
+        color: #2a2318;
+        font-family: 'Lato', sans-serif;
+        font-size: 0.9rem;
+        outline: none;
+        padding: 10px 11px;
+        width: 100%;
+      }
+      .role-app-modal textarea { min-height: 112px; resize: vertical; }
+      .role-app-modal .role-app-status { color: #7a6e5e; font-size: 0.78rem; margin-top: 10px; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function removeRoleApplicationCallout() {
+    document.getElementById('role-application-callout')?.remove();
+  }
+
+  function renderRoleApplicationCallout(visitor) {
+    if (!visitor || normalizeAccessRole(visitor.access_role) === 'superadmin') {
+      removeRoleApplicationCallout();
+      return;
+    }
+    ensureRoleApplicationStyles();
+    removeRoleApplicationCallout();
+    const callout = document.createElement('div');
+    callout.id = 'role-application-callout';
+    callout.innerHTML = `
+      <div class="role-app-title">Interested in helping as a moderator or admin?</div>
+      <div class="role-app-copy">
+        These roles are for people with good community knowledge, enthusiasm to broaden that knowledge, and a serious interest in community work.
+        Moderators help with harmless reviews and profile cleanups. Admins have broader operational responsibilities.
+        Requests are carefully chosen after due diligence, and site owners reserve the right to approve or disapprove any request.
+        Anyone not logging in for one continuous month may be barred from the role.
+      </div>
+      <div class="role-app-actions">
+        <button type="button" onclick="window.AKT_AUTH?.openRoleApplicationModal?.()">Apply for role</button>
+        <button class="secondary" type="button" onclick="document.getElementById('role-application-callout')?.remove()">Dismiss</button>
+      </div>
+    `;
+    const app = document.getElementById('app') || document.body;
+    const claimBanner = document.getElementById('profile-claim-reminder');
+    if (claimBanner?.nextSibling) {
+      app.insertBefore(callout, claimBanner.nextSibling);
+    } else {
+      const header = app.querySelector('header');
+      if (header?.nextSibling) app.insertBefore(callout, header.nextSibling);
+      else app.prepend(callout);
+    }
+  }
+
+  async function openRoleApplicationModal() {
+    ensureRoleApplicationStyles();
+    document.getElementById('role-application-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'role-application-modal';
+    modal.className = 'role-app-modal-backdrop';
+    modal.innerHTML = `
+      <div class="role-app-modal" role="dialog" aria-modal="true" aria-labelledby="role-app-title">
+        <h2 id="role-app-title">Apply for moderator or admin role</h2>
+        <p>Apply only if you have good knowledge of the family/community context, want to broaden that knowledge, and can contribute consistently.</p>
+        <ul>
+          <li><strong>Moderator:</strong> reviews corrections, duplicate flags, suggestions, and harmless profile edits without changing relationships or imports.</li>
+          <li><strong>Admin:</strong> helps manage users, GEDCOM operations, applied claims, reviews, and higher-trust operational work.</li>
+          <li>Selections happen after due diligence. Site owners reserve full rights to approve or disapprove requests.</li>
+          <li>Moderators/admins who do not log in for one continuous month may be removed from their role.</li>
+        </ul>
+        <label for="role-app-role">Role requested</label>
+        <select id="role-app-role">
+          <option value="moderator">Moderator</option>
+          <option value="admin">Admin</option>
+        </select>
+        <label for="role-app-note">Why should we consider you?</label>
+        <textarea id="role-app-note" placeholder="Share your community knowledge, availability, and how you can help responsibly."></textarea>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+          <button type="button" onclick="window.AKT_AUTH?.submitRoleApplication?.()">Submit request</button>
+          <button class="secondary" type="button" onclick="window.AKT_AUTH?.closeRoleApplicationModal?.()">Cancel</button>
+        </div>
+        <div class="role-app-status" id="role-app-status"></div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById('role-app-note')?.focus();
+  }
+
+  function closeRoleApplicationModal() {
+    document.getElementById('role-application-modal')?.remove();
+  }
+
+  function setRoleApplicationStatus(message, isError = false) {
+    const el = document.getElementById('role-app-status');
+    if (!el) return;
+    el.textContent = message;
+    el.style.color = isError ? '#8b2e2e' : '#2e6e4a';
+  }
+
+  async function submitRoleApplication() {
+    const requestedRole = byId('role-app-role')?.value || 'moderator';
+    const note = value('role-app-note');
+    if (!['moderator', 'admin'].includes(requestedRole)) return setRoleApplicationStatus('Please select a valid role.', true);
+    if (note.length < 30) return setRoleApplicationStatus('Please share a little more context before submitting.', true);
+    const visitor = currentVisitor || {};
+    const payload = {
+      visitor_id: visitor.id || null,
+      auth_user_id: currentSession?.user?.id || visitor.auth_user_id || sessionStorage.getItem('akt_auth_user_id') || null,
+      applicant_name: visitor.name_entered || sessionStorage.getItem('akt_visitor_name') || userName(currentSession?.user) || null,
+      applicant_email: userEmail(currentSession?.user) || visitor.email || null,
+      applicant_mobile: visitor.mobile || sessionStorage.getItem('akt_visitor_mobile') || null,
+      current_role: normalizeAccessRole(visitor.access_role || sessionStorage.getItem('akt_visitor_role')),
+      requested_role: requestedRole,
+      application_note: note,
+      status: 'new',
+      updated_at: new Date().toISOString()
+    };
+    setRoleApplicationStatus('Submitting request...');
+    const { error } = await sb.from('role_applications').insert(payload);
+    if (error) {
+      if (/does not exist|schema cache|relation/i.test(error.message || '')) {
+        return setRoleApplicationStatus('Role applications are not ready yet. Please ask admin to run supabase_role_applications.sql.', true);
+      }
+      return setRoleApplicationStatus(error.message, true);
+    }
+    setRoleApplicationStatus('Request submitted. Site owners will review it after due diligence.');
+    setTimeout(closeRoleApplicationModal, 1400);
   }
 
   async function handleSession(session) {
@@ -628,6 +814,8 @@
 
   async function signOut() {
     removeProfileClaimBanner();
+    removeRoleApplicationCallout();
+    closeRoleApplicationModal();
     sessionStorage.removeItem('akt_visitor_name');
     sessionStorage.removeItem('akt_visitor_mobile');
     sessionStorage.removeItem('akt_access_granted');
@@ -673,6 +861,9 @@
     setOnboardingStep,
     signOut,
     refreshProfileClaimBanner,
+    openRoleApplicationModal,
+    closeRoleApplicationModal,
+    submitRoleApplication,
     normalizeAccessRole,
     CONSENT_VERSION
   };

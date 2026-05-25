@@ -985,6 +985,7 @@
       <div class="nav-section">
         <div class="nav-section-label">Community</div>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('visitors', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/><circle cx="17" cy="8" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5 4.5v1"/></svg></span><span class="nav-label">Users</span><span class="nav-badge" id="badge-visitors"></span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('roleapps', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l3 6 6 .9-4.5 4.4 1.1 6.2L12 17.5 6.4 20.5l1.1-6.2L3 9.9 9 9z"/></svg></span><span class="nav-label">Role applications</span><span class="nav-badge" id="badge-roleapps"></span></button>
         <button class="nav-tab" data-min-role="moderator" onclick="switchTab('activity', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-7 5 14 2.5-7h4"/></svg></span><span class="nav-label">Visitor activity</span></button>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('staffactivity', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span class="nav-label">Staff activity</span></button>
         <button class="nav-tab" data-min-role="moderator" onclick="switchTab('forum', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-12.1 7.7L3 21l1.8-5.4A8.5 8.5 0 1 1 21 11.5Z"/></svg></span><span class="nav-label">Forum</span><span class="nav-badge" id="badge-forum"></span></button>
@@ -1133,6 +1134,30 @@
             <tbody id="visitors-tbody"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- ROLE APPLICATIONS -->
+    <div id="panel-roleapps" class="panel">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:10px;flex-wrap:wrap">
+          <h2 style="margin:0">Role Applications</h2>
+          <button class="btn-sm" onclick="loadRoleApplications()">↻ Refresh</button>
+        </div>
+        <div class="insight-note" style="margin-bottom:16px">
+          Moderator/admin requests should be approved only after due diligence. Anyone not logging in for one continuous month may be removed from the role.
+        </div>
+        <div class="flex-row" style="margin-bottom:16px">
+          <input class="search-bar" id="role-app-search" placeholder="Search applicants, notes, requested role..." oninput="filterRoleApplications()" style="flex:1;margin:0"/>
+          <select id="role-app-status-filter" onchange="filterRoleApplications()" style="max-width:180px">
+            <option value="">All statuses</option>
+            <option value="new">New</option>
+            <option value="reviewing">Reviewing</option>
+            <option value="approved">Approved</option>
+            <option value="declined">Declined</option>
+          </select>
+        </div>
+        <div id="role-applications-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
       </div>
     </div>
 
@@ -1516,6 +1541,7 @@ let registeredUsers = [];
 let registeredSort = { key: 'registered', dir: 'desc' };
 let visitorSort = { key: 'last_seen', dir: 'desc' };
 let allProfileClaims = [];
+let roleApplications = [];
 let staffActivityRows = [];
 let staffActivityRange = 'last24';
 let forumAdminView = 'threads';
@@ -1681,6 +1707,7 @@ function switchTab(name, btn) {
   if (btn) btn.classList.add('active'); else event.target.classList.add('active');
   if (name === 'uploads') loadUploads();
   if (name === 'visitors') loadVisitors();
+  if (name === 'roleapps') loadRoleApplications();
   if (name === 'settings') loadDbStats();
   if (name === 'activity') loadActivity();
   if (name === 'staffactivity') loadStaffActivity();
@@ -3352,6 +3379,164 @@ async function rejectVisitor(id) {
   loadVisitors();
 }
 
+// ===================== ROLE APPLICATIONS =====================
+async function loadRoleApplications() {
+  const list = document.getElementById('role-applications-list');
+  if (!list) return;
+  list.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+  const { data, error } = await sb.from('role_applications')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(500);
+  if (error) {
+    list.innerHTML = `<div class="empty" style="color:var(--red)">Could not load role applications. Run supabase_role_applications.sql first.<br>${escapeHtml(error.message)}</div>`;
+    return;
+  }
+  roleApplications = data || [];
+  setNavBadge('roleapps', roleApplications.filter(app => ['new', 'reviewing'].includes(app.status || 'new')).length);
+  renderRoleApplications(roleApplications);
+}
+
+function filterRoleApplications() {
+  const q = (document.getElementById('role-app-search')?.value || '').toLowerCase();
+  const status = document.getElementById('role-app-status-filter')?.value || '';
+  renderRoleApplications(roleApplications.filter(app => {
+    if (status && (app.status || 'new') !== status) return false;
+    const haystack = [
+      app.applicant_name,
+      app.applicant_email,
+      app.applicant_mobile,
+      app.current_role,
+      app.requested_role,
+      app.application_note,
+      app.status,
+      app.admin_notes
+    ].filter(Boolean).join(' ').toLowerCase();
+    return haystack.includes(q);
+  }));
+}
+
+function renderRoleApplications(apps) {
+  const list = document.getElementById('role-applications-list');
+  if (!apps.length) {
+    list.innerHTML = '<div class="empty">No role applications found.</div>';
+    return;
+  }
+  const statusColors = {
+    new: 'background:#fef3c7;color:#92400e',
+    reviewing: 'background:#dbeafe;color:#1d4ed8',
+    approved: 'background:#dcfce7;color:#166534',
+    declined: 'background:#fee2e2;color:#991b1b'
+  };
+  list.innerHTML = `<table>
+    <thead>
+      <tr>
+        <th>Applicant</th>
+        <th>Requested</th>
+        <th>Why</th>
+        <th>Status</th>
+        <th>Admin Notes</th>
+        <th>Applied</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${apps.map(app => `
+        <tr>
+          <td>
+            <strong>${escapeHtml(app.applicant_name || '(unnamed)')}</strong>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:3px">${escapeHtml(app.applicant_email || '-')}</div>
+            <div style="font-size:0.72rem;color:var(--muted)">${escapeHtml(app.applicant_mobile || '')}</div>
+          </td>
+          <td>
+            <span class="badge" style="background:#ede9fe;color:#5b21b6">${escapeHtml(app.requested_role || '-')}</span>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">Current: ${escapeHtml(app.current_role || 'visitor')}</div>
+          </td>
+          <td style="white-space:normal;min-width:320px">${escapeHtml(app.application_note || '-')}</td>
+          <td><span class="badge" style="${statusColors[app.status || 'new'] || statusColors.new}">${escapeHtml(app.status || 'new')}</span></td>
+          <td style="min-width:220px">
+            <textarea rows="2" style="width:100%;padding:8px 10px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:0.82rem;resize:vertical" onchange="saveRoleApplicationNotes('${app.id}', this.value)">${escapeHtml(app.admin_notes || '')}</textarea>
+          </td>
+          <td>${formatIST(app.created_at, false)}</td>
+          <td style="min-width:220px">
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              ${['new','reviewing','approved','declined'].map(status => `<button class="btn-sm" onclick="setRoleApplicationStatus('${app.id}', '${status}')">${status}</button>`).join('')}
+              <button class="btn-sm" style="border-color:var(--green);color:var(--green)" onclick="approveRoleApplication('${app.id}')">Approve + Set Role</button>
+            </div>
+          </td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>`;
+}
+
+async function setRoleApplicationStatus(id, status) {
+  const { error } = await sb.from('role_applications')
+    .update({ status, reviewed_by: currentStaffName(), reviewed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) { toast(error.message, true); return; }
+  const app = roleApplications.find(row => row.id === id);
+  if (app) {
+    app.status = status;
+    app.reviewed_by = currentStaffName();
+    app.reviewed_at = new Date().toISOString();
+  }
+  logStaffActivity('role_application_status_changed', app?.applicant_name || id, { application_id: id, status });
+  toast('Role application updated: ' + status);
+  filterRoleApplications();
+  setNavBadge('roleapps', roleApplications.filter(row => ['new', 'reviewing'].includes(row.status || 'new')).length);
+}
+
+async function saveRoleApplicationNotes(id, notes) {
+  const { error } = await sb.from('role_applications')
+    .update({ admin_notes: notes, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) { toast(error.message, true); return; }
+  const app = roleApplications.find(row => row.id === id);
+  if (app) app.admin_notes = notes;
+  logStaffActivity('role_application_notes_updated', app?.applicant_name || id, { application_id: id });
+}
+
+async function approveRoleApplication(id) {
+  const app = roleApplications.find(row => row.id === id);
+  if (!app) return toast('Application not found.', true);
+  if (!['moderator', 'admin'].includes(app.requested_role)) return toast('Invalid requested role.', true);
+  if (app.requested_role === 'admin' && !hasAdminRole('superadmin')) {
+    toast('Only superadmin can approve admin role requests.', true);
+    return;
+  }
+  const ok = confirm(`Approve ${app.applicant_name || 'this user'} as ${app.requested_role}?`);
+  if (!ok) return;
+  let visitorError = null;
+  if (app.visitor_id) {
+    const result = await sb.from('visitors')
+      .update({ access_role: app.requested_role, access_status: 'approved', is_blocked: false, updated_at: new Date().toISOString() })
+      .eq('id', app.visitor_id);
+    visitorError = result.error;
+  } else if (app.auth_user_id) {
+    const result = await sb.from('visitors')
+      .update({ access_role: app.requested_role, access_status: 'approved', is_blocked: false, updated_at: new Date().toISOString() })
+      .eq('auth_user_id', app.auth_user_id);
+    visitorError = result.error;
+  } else if (app.applicant_email) {
+    const result = await sb.from('visitors')
+      .update({ access_role: app.requested_role, access_status: 'approved', is_blocked: false, updated_at: new Date().toISOString() })
+      .ilike('email', app.applicant_email);
+    visitorError = result.error;
+  }
+  if (visitorError) {
+    toast('Could not set user role: ' + visitorError.message, true);
+    return;
+  }
+  await setRoleApplicationStatus(id, 'approved');
+  logStaffActivity('role_application_approved_and_role_set', app.applicant_name || id, {
+    application_id: id,
+    requested_role: app.requested_role,
+    visitor_id: app.visitor_id || null
+  });
+  toast(`Approved and set role to ${app.requested_role}.`);
+}
+
 // ===================== SETTINGS =====================
 async function loadDbStats() {
   const el = document.getElementById('db-stats');
@@ -4232,9 +4417,10 @@ function updateForumBadge() {
 }
 
 async function loadAttentionBadges() {
-  const [visitors, profileClaims, corrections, suggestions, forumThreads, forumPosts, forumFlags, profileReviews, relationReviews, familyReviews] = await Promise.allSettled([
+  const [visitors, profileClaims, roleApps, corrections, suggestions, forumThreads, forumPosts, forumFlags, profileReviews, relationReviews, familyReviews] = await Promise.allSettled([
     sb.from('visitors').select('id,name_entered,email,mobile,auth_user_id,access_status,is_blocked,visitor_form_completed,visitor_form_completed_at,consent_terms_accepted,first_seen,last_seen,updated_at').limit(1000),
     sb.from('profile_claims').select('id,person_uid,person_name,claimant_name,claimant_email,claimant_mobile,auth_user_id,claimed_at').limit(10000),
+    sb.from('role_applications').select('id,status').limit(1000),
     sb.from('correction_requests').select('id,status').limit(1000),
     sb.from('suggestions').select('id,status').limit(1000),
     sb.from('forum_threads').select('id').eq('status', 'pending').limit(1000),
@@ -4265,6 +4451,9 @@ async function loadAttentionBadges() {
   }
   if (suggestions.status === 'fulfilled' && !suggestions.value.error) {
     setNavBadge('suggestions', (suggestions.value.data || []).filter(r => (r.status || 'new') === 'new').length);
+  }
+  if (roleApps.status === 'fulfilled' && !roleApps.value.error) {
+    setNavBadge('roleapps', (roleApps.value.data || []).filter(r => ['new', 'reviewing'].includes(r.status || 'new')).length);
   }
   const forumCount = [forumThreads, forumPosts, forumFlags].reduce((sum, result) => {
     if (result.status !== 'fulfilled' || result.value.error) return sum;

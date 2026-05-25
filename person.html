@@ -1138,6 +1138,21 @@ let relationshipSearchRows = [];
 let currentAssignableChildren = [];
 let selectedFamilyGroupSpouse = null;
 let familyGroupSpouseRows = [];
+const PRIVATE_BIRTH_YEAR_CUTOFF = 1990;
+
+function extractBirthYear(value) {
+  const match = String(value || '').match(/\b(?:18|19|20)\d{2}\b/);
+  return match ? Number(match[0]) : null;
+}
+
+function shouldHidePublicBirthDate(value) {
+  const year = extractBirthYear(value);
+  return year !== null && year > PRIVATE_BIRTH_YEAR_CUTOFF;
+}
+
+function publicBirthDate(value) {
+  return shouldHidePublicBirthDate(value) ? '' : value;
+}
 
 // ===== AUTH =====
 function normalizeAccessRole(role) {
@@ -1974,7 +1989,7 @@ async function renderPerson(uid, el) {
   currentProfileClaim = await loadProfileClaim(uid);
   const displayName = firstText(profileOverlay?.corrected_name, p.name, '(unnamed)');
   const displayGender = firstText(profileOverlay?.corrected_gender, p.sex);
-  const displayBirthDate = firstText(profileOverlay?.birth_date_text, p.birth_date);
+  const displayBirthDate = publicBirthDate(firstText(profileOverlay?.birth_date_text, p.birth_date));
   const displayDeathDate = firstText(profileOverlay?.death_date_text, p.death_date);
   const displayDeathLocation = firstText(profileOverlay?.death_location, p.death_place);
   const displayBirthPlace = firstText(profileOverlay?.birth_location, p.birth_place);

@@ -1570,6 +1570,7 @@ let currentUserRole = 'visitor';
 const ROLE_LEVELS = { visitor: 1, moderator: 2, admin: 3, superadmin: 4 };
 const SEARCH_STATE_KEY = 'akt_search_state_v2';
 const SEARCH_COLUMNS_KEY = 'akt_search_columns_v1';
+const PRIVATE_BIRTH_YEAR_CUTOFF = 1990;
 const SEARCH_COLUMNS = [
   { key: 'name', label: 'Name', required: true },
   { key: 'sex', label: 'Sex' },
@@ -1579,6 +1580,20 @@ const SEARCH_COLUMNS = [
   { key: 'source', label: 'Source' }
 ];
 let selectedSearchColumns = new Set(['name', 'birth_place', 'source']);
+
+function extractBirthYear(value) {
+  const match = String(value || '').match(/\b(?:18|19|20)\d{2}\b/);
+  return match ? Number(match[0]) : null;
+}
+
+function shouldHidePublicBirthDate(value) {
+  const year = extractBirthYear(value);
+  return year !== null && year > PRIVATE_BIRTH_YEAR_CUTOFF;
+}
+
+function publicBirthDate(value) {
+  return shouldHidePublicBirthDate(value) ? '' : value;
+}
 
 // ===== AUTH =====
 function normalizeAccessRole(role) {
@@ -3039,6 +3054,7 @@ async function renderPersonDetail(uid, el) {
   });
 
   const allChildren = Object.values(childrenMap);
+  const visibleBirthDate = publicBirthDate(p.birth_date);
 
   el.innerHTML = `
     <div class="person-detail">
@@ -3062,7 +3078,7 @@ async function renderPersonDetail(uid, el) {
       <div class="detail-grid">
         <div class="detail-field"><div class="key">Given Name</div><div class="val">${p.given_name || p.name || '—'}</div></div>
         ${p.birth_place ? `<div class="detail-field"><div class="key">Birth Place</div><div class="val">${p.birth_place}</div></div>` : ''}
-        ${p.birth_date ? `<div class="detail-field"><div class="key">Birth Date</div><div class="val">${p.birth_date}</div></div>` : ''}
+        ${visibleBirthDate ? `<div class="detail-field"><div class="key">Birth Date</div><div class="val">${visibleBirthDate}</div></div>` : ''}
         ${p.death_date ? `<div class="detail-field"><div class="key">Death Date</div><div class="val">${p.death_date}</div></div>` : ''}
         ${p.death_place ? `<div class="detail-field"><div class="key">Death Place</div><div class="val">${p.death_place}</div></div>` : ''}
         ${p.occupation ? `<div class="detail-field"><div class="key">Occupation</div><div class="val">${p.occupation}</div></div>` : ''}
@@ -3212,7 +3228,8 @@ async function loadTree(uid) {
     if (!p) return '<div class="tree-box ' + cls + '" style="min-width:110px;opacity:0.35"><div class="tname" style="font-style:italic;color:var(--muted)">\u2014</div></div>';
     var parts = [];
     if (p.sex) parts.push(p.sex);
-    if (p.birth_date) parts.push(p.birth_date);
+    var birthDate = publicBirthDate(p.birth_date);
+    if (birthDate) parts.push(birthDate);
     if (p.birth_place) parts.push(p.birth_place);
     if (p.death_flag) parts.push('\u2020');
     var meta = parts.join(' \u00b7 ');

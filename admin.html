@@ -1123,6 +1123,7 @@
               <th>Current Place</th>
               <th>Heard From</th>
               <th class="sortable" onclick="sortVisitorsBy('registered')">Registration <span class="sort-indicator" id="sort-registered"></span></th>
+              <th class="sortable" onclick="sortVisitorsBy('claim')">Profile Claim <span class="sort-indicator" id="sort-claim"></span></th>
               <th class="sortable" onclick="sortVisitorsBy('visit_count')">Visits <span class="sort-indicator" id="sort-visit_count"></span></th>
               <th class="sortable" onclick="sortVisitorsBy('last_seen')">Last Seen (IST) <span class="sort-indicator" id="sort-last_seen"></span></th>
               <th class="sortable" onclick="sortVisitorsBy('status')">Status <span class="sort-indicator" id="sort-status"></span></th>
@@ -1514,6 +1515,7 @@ let allVisitors = [];
 let registeredUsers = [];
 let registeredSort = { key: 'registered', dir: 'desc' };
 let visitorSort = { key: 'last_seen', dir: 'desc' };
+let allProfileClaims = [];
 let staffActivityRows = [];
 let staffActivityRange = 'last24';
 let forumAdminView = 'threads';
@@ -2802,10 +2804,17 @@ async function deleteUpload(id, name) {
 // ===================== VISITORS =====================
 async function loadVisitors() {
   const tbody = document.getElementById('visitors-tbody');
-  tbody.innerHTML = '<tr><td colspan="11" class="empty"><span class="spinner"></span> Loading…</td></tr>';
-  const { data } = await sb.from('visitors').select('*').order('last_seen', { ascending: false });
-  allVisitors = data || [];
-  setNavBadge('visitors', allVisitors.filter(v => visitorAccessStatus(v) === 'pending').length);
+  tbody.innerHTML = '<tr><td colspan="12" class="empty"><span class="spinner"></span> Loading…</td></tr>';
+  const [visitorResult, claimResult] = await Promise.all([
+    sb.from('visitors').select('*').order('last_seen', { ascending: false }),
+    sb.from('profile_claims').select('*').order('claimed_at', { ascending: false }).limit(10000)
+  ]);
+  allVisitors = visitorResult.data || [];
+  allProfileClaims = claimResult.error ? [] : (claimResult.data || []);
+  if (claimResult.error && !/does not exist|schema cache|relation/i.test(claimResult.error.message || '')) {
+    console.warn('Profile claims could not be loaded:', claimResult.error.message);
+  }
+  setNavBadge('visitors', allVisitors.filter(v => visitorAccessStatus(v) === 'pending' || visitorClaimNeedsAttention(v)).length);
   setNavBadge('registered', allVisitors.filter(v => v.visitor_form_completed || v.consent_terms_accepted || v.auth_user_id).length);
   renderVisitors(allVisitors);
 }
@@ -2891,7 +2900,11 @@ function registeredUserSearchText(user) {
     user.heard_from_relative_place,
     user.heard_from_details,
     user.access_status,
-    user.access_role
+    user.access_role,
+    profileClaimForVisitor(user)?.person_name,
+    profileClaimForVisitor(user)?.person_uid,
+    visitorClaimIsOverdue(user) ? 'claim overdue' : '',
+    isRegisteredVisitor(user) && !profileClaimForVisitor(user) ? 'claim needed unclaimed' : ''
   ].filter(Boolean).join(' ').toLowerCase();
 }
 
@@ -2966,15 +2979,60 @@ function registeredHeardFromText(user) {
   return [labels[user.heard_from_source] || user.heard_from_source, user.heard_from_details].filter(Boolean).join(' - ');
 }
 
+function profileClaimForVisitor(visitor) {
+  return (allProfileClaims || []).find(claim =>
+    (visitor.auth_user_id && claim.auth_user_id === visitor.auth_user_id) ||
+    (visitor.email && claim.claimant_email && String(claim.claimant_email).toLowerCase() === String(visitor.email).toLowerCase()) ||
+    (visitor.mobile && claim.claimant_mobile && String(claim.claimant_mobile).replace(/\D/g, '') === String(visitor.mobile).replace(/\D/g, '')) ||
+    (visitor.name_entered && claim.claimant_name && String(claim.claimant_name).toLowerCase() === String(visitor.name_entered).toLowerCase())
+  ) || null;
+}
+
+function visitorClaimDeadline(visitor) {
+  const basis = visitor.visitor_form_completed_at || visitor.created_at || visitor.first_seen || visitor.updated_at || visitor.last_seen;
+  const time = new Date(basis || 0).getTime();
+  return time ? new Date(time + 72 * 60 * 60 * 1000) : null;
+}
+
+function visitorClaimNeedsAttention(visitor) {
+  if (!isRegisteredVisitor(visitor) || profileClaimForVisitor(visitor)) return false;
+  return true;
+}
+
+function visitorClaimIsOverdue(visitor) {
+  const deadline = visitorClaimDeadline(visitor);
+  return Boolean(deadline && Date.now() > deadline.getTime());
+}
+
+function profileClaimStatusHtml(visitor, claim) {
+  if (claim) {
+    return `
+      <span class="badge" style="background:#dcfce7;color:#166534">claimed</span>
+      <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">${escapeHtml(claim.person_name || claim.person_uid || '')}</div>
+      <div style="font-size:0.68rem;color:var(--muted)">${formatIST(claim.claimed_at, false)}</div>
+    `;
+  }
+  if (!isRegisteredVisitor(visitor)) {
+    return '<span class="badge" style="background:#f3f4f6;color:#6b7280">not registered</span>';
+  }
+  const overdue = visitorClaimIsOverdue(visitor);
+  const deadline = visitorClaimDeadline(visitor);
+  return `
+    <span class="badge" style="background:${overdue ? '#fee2e2' : '#fef3c7'};color:${overdue ? '#991b1b' : '#92400e'}">${overdue ? 'claim overdue' : 'claim needed'}</span>
+    ${deadline ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:4px">Deadline: ${formatIST(deadline, false)}</div>` : ''}
+  `;
+}
+
 function renderVisitors(visitors) {
   const tbody = document.getElementById('visitors-tbody');
-  if (!visitors.length) { tbody.innerHTML = '<tr><td colspan="11" class="empty">No users yet.</td></tr>'; return; }
+  if (!visitors.length) { tbody.innerHTML = '<tr><td colspan="12" class="empty">No users yet.</td></tr>'; return; }
   updateVisitorSortIndicators();
   const sortedVisitors = sortVisitorRows(visitors);
   tbody.innerHTML = sortedVisitors.map(v => {
     const status = visitorAccessStatus(v);
     const registeredAt = v.visitor_form_completed_at || v.updated_at || v.first_seen;
     const consentSections = Array.isArray(v.consent_sections) ? v.consent_sections.join(', ') : String(v.consent_sections || '');
+    const claim = profileClaimForVisitor(v);
     const statusStyles = {
       pending: 'background:rgba(243,156,18,0.18);color:#b8860b',
       approved: 'background:rgba(39,174,96,0.18);color:#166534',
@@ -3006,6 +3064,7 @@ function renderVisitors(visitors) {
         <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">${formatIST(registeredAt, false)}</div>
         ${consentSections ? `<div style="font-size:0.68rem;color:var(--muted)">Sections ${escapeHtml(consentSections)}</div>` : ''}
       </td>
+      <td>${profileClaimStatusHtml(v, claim)}</td>
       <td><strong>${Number(v.visit_count || 0).toLocaleString()}</strong></td>
       <td>${formatIST(v.last_seen, false)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(v.last_seen)}</span><br><span style="font-size:0.68rem;color:var(--muted)">${formatVisitorTimezone(v.ip_hint)}</span></td>
       <td><span class="badge" style="${statusStyles[status] || statusStyles.pending}">${escapeHtml(status)}</span></td>
@@ -3039,7 +3098,7 @@ function sortVisitorsBy(key) {
     visitorSort.dir = visitorSort.dir === 'asc' ? 'desc' : 'asc';
   } else {
     visitorSort.key = key;
-    visitorSort.dir = ['visit_count', 'first_seen', 'last_seen', 'registered'].includes(key) ? 'desc' : 'asc';
+    visitorSort.dir = ['visit_count', 'first_seen', 'last_seen', 'registered', 'claim'].includes(key) ? 'desc' : 'asc';
   }
   filterVisitors();
 }
@@ -3058,6 +3117,10 @@ function sortVisitorRows(visitors) {
     } else if (visitorSort.key === 'registered') {
       av = new Date(a.visitor_form_completed_at || a.updated_at || a.first_seen || 0).getTime();
       bv = new Date(b.visitor_form_completed_at || b.updated_at || b.first_seen || 0).getTime();
+    } else if (visitorSort.key === 'claim') {
+      const claimRank = visitor => profileClaimForVisitor(visitor) ? 0 : (visitorClaimIsOverdue(visitor) ? 3 : (isRegisteredVisitor(visitor) ? 2 : 1));
+      av = claimRank(a);
+      bv = claimRank(b);
     } else if (visitorSort.key === 'mobile') {
       av = String(a.mobile || '').toLowerCase();
       bv = String(b.mobile || '').toLowerCase();
@@ -4105,8 +4168,9 @@ function updateForumBadge() {
 }
 
 async function loadAttentionBadges() {
-  const [visitors, corrections, suggestions, forumThreads, forumPosts, forumFlags, profileReviews, relationReviews, familyReviews] = await Promise.allSettled([
-    sb.from('visitors').select('id,access_status,is_blocked,visitor_form_completed,consent_terms_accepted,auth_user_id').limit(1000),
+  const [visitors, profileClaims, corrections, suggestions, forumThreads, forumPosts, forumFlags, profileReviews, relationReviews, familyReviews] = await Promise.allSettled([
+    sb.from('visitors').select('id,name_entered,email,mobile,auth_user_id,access_status,is_blocked,visitor_form_completed,visitor_form_completed_at,consent_terms_accepted,first_seen,last_seen,updated_at').limit(1000),
+    sb.from('profile_claims').select('id,person_uid,person_name,claimant_name,claimant_email,claimant_mobile,auth_user_id,claimed_at').limit(10000),
     sb.from('correction_requests').select('id,status').limit(1000),
     sb.from('suggestions').select('id,status').limit(1000),
     sb.from('forum_threads').select('id').eq('status', 'pending').limit(1000),
@@ -4119,7 +4183,17 @@ async function loadAttentionBadges() {
 
   if (visitors.status === 'fulfilled' && !visitors.value.error) {
     const visitorRows = visitors.value.data || [];
-    setNavBadge('visitors', visitorRows.filter(v => visitorAccessStatus(v) === 'pending').length);
+    const claimRows = profileClaims.status === 'fulfilled' && !profileClaims.value.error ? (profileClaims.value.data || []) : [];
+    const pendingOrUnclaimed = visitorRows.filter(v =>
+      visitorAccessStatus(v) === 'pending' ||
+      (isRegisteredVisitor(v) && !claimRows.some(claim =>
+        (v.auth_user_id && claim.auth_user_id === v.auth_user_id) ||
+        (v.email && claim.claimant_email && String(claim.claimant_email).toLowerCase() === String(v.email).toLowerCase()) ||
+        (v.mobile && claim.claimant_mobile && String(claim.claimant_mobile).replace(/\D/g, '') === String(v.mobile).replace(/\D/g, '')) ||
+        (v.name_entered && claim.claimant_name && String(claim.claimant_name).toLowerCase() === String(v.name_entered).toLowerCase())
+      ))
+    ).length;
+    setNavBadge('visitors', pendingOrUnclaimed);
     setNavBadge('registered', visitorRows.filter(v => v.visitor_form_completed || v.consent_terms_accepted || v.auth_user_id).length);
   }
   if (corrections.status === 'fulfilled' && !corrections.value.error) {

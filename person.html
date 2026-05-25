@@ -336,6 +336,22 @@
   .detail-header .meta { color: var(--muted); font-size: 0.82rem; margin-top: 4px; }
   .btn-back { padding: 8px 18px; border: 1px solid var(--border); background: none; font-family: 'Lato', sans-serif; font-size: 0.8rem; color: var(--muted); cursor: pointer; transition: all 0.2s; text-decoration: none; display: inline-block; }
   .btn-back:hover { border-color: var(--gold); color: var(--gold); }
+  .claim-btn.claimed { background: #e7f3ea; border-color: rgba(46,110,74,0.35); color: var(--green); cursor: default; }
+  .profile-claim-box {
+    background: #fffaf0; border: 1px solid rgba(201,168,76,0.45); border-left: 3px solid var(--gold2);
+    display: none; margin: -8px 0 20px; padding: 16px;
+  }
+  .profile-claim-box.is-open { display: block; }
+  .profile-claim-box h3 { color: var(--green); font-size: 0.95rem; margin-bottom: 6px; }
+  .profile-claim-box p { color: var(--muted); font-size: 0.82rem; line-height: 1.55; margin-bottom: 12px; }
+  .profile-claim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .profile-claim-grid input {
+    background: #fff; border: 1px solid var(--border); color: var(--ink);
+    font-family: 'Lato', sans-serif; font-size: 0.9rem; outline: none; padding: 11px 12px;
+  }
+  .profile-claim-grid input:focus { border-color: var(--gold2); box-shadow: 0 0 0 3px rgba(201,168,76,0.12); }
+  .claim-status-note { color: var(--muted); font-size: 0.78rem; margin-top: 10px; }
+  @media(max-width:600px){ .profile-claim-grid { grid-template-columns: 1fr; } }
   .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
   @media(max-width:600px){ .detail-grid { grid-template-columns: 1fr; } }
   .detail-field { padding: 12px 14px; background: var(--bg); border: 1px solid var(--border); }
@@ -1115,6 +1131,7 @@ const ROLE_LEVELS = { visitor: 1, moderator: 2, admin: 3, superadmin: 4 };
 let gedcomUploads = [];
 let currentPerson = null; // cached person data
 let currentProfileOverlay = null;
+let currentProfileClaim = null;
 let selectedRelationshipType = '';
 let selectedRelationshipPerson = null;
 let relationshipSearchRows = [];
@@ -1791,6 +1808,150 @@ async function lookupPersonByUid(uid) {
   return data;
 }
 
+async function loadProfileClaim(uid) {
+  const { data, error } = await sb.from('profile_claims')
+    .select('*')
+    .eq('person_uid', uid)
+    .maybeSingle();
+  if (error) {
+    if (!/does not exist|schema cache|relation/i.test(error.message || '')) {
+      console.warn('Profile claim lookup failed:', error.message);
+    }
+    return null;
+  }
+  return data || null;
+}
+
+function profileClaimButtonHtml(uid, claim) {
+  if (claim) {
+    return '<button class="btn-back claim-btn claimed" disabled>Claimed</button>';
+  }
+  return `<button class="btn-back claim-btn" style="border-color:var(--green);color:var(--green)" onclick="openProfileClaimBox('${escHtml(uid)}')">Claim this profile as yours</button>`;
+}
+
+function profileClaimBoxHtml(displayName) {
+  return `
+    <div class="profile-claim-box" id="profile-claim-box">
+      <h3>Claim this profile</h3>
+      <p>Confirm that this profile is yours. Your email and mobile number are saved privately for admin verification and will not be shown on the public profile.</p>
+      <div class="profile-claim-grid">
+        <input id="claim-mobile" type="tel" placeholder="Mobile number" autocomplete="tel"/>
+        <input id="claim-email" type="email" placeholder="Email address" autocomplete="email"/>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn-back" style="background:var(--green);border-color:var(--green);color:#fff" onclick="submitProfileClaim()">Submit Claim</button>
+        <button class="btn-back" onclick="closeProfileClaimBox()">Cancel</button>
+      </div>
+      <div class="claim-status-note" id="profile-claim-status">Claiming: ${escHtml(displayName)}</div>
+    </div>
+  `;
+}
+
+async function openProfileClaimBox(uid) {
+  if (!currentPerson || currentPerson.uid !== uid) return;
+  const box = document.getElementById('profile-claim-box');
+  if (!box) return;
+  box.classList.add('is-open');
+  const { data } = await sb.auth.getSession();
+  const user = data?.session?.user;
+  const email = user?.email || user?.user_metadata?.email || '';
+  const mobile = sessionStorage.getItem('akt_visitor_mobile') || '';
+  const emailInput = document.getElementById('claim-email');
+  const mobileInput = document.getElementById('claim-mobile');
+  if (emailInput && !emailInput.value) emailInput.value = email;
+  if (mobileInput && !mobileInput.value) mobileInput.value = mobile;
+  (mobileInput || emailInput)?.focus();
+}
+
+function closeProfileClaimBox() {
+  document.getElementById('profile-claim-box')?.classList.remove('is-open');
+}
+
+function setProfileClaimStatus(message, isError = false) {
+  const el = document.getElementById('profile-claim-status');
+  if (!el) return;
+  el.textContent = message;
+  el.style.color = isError ? 'var(--red)' : 'var(--green)';
+}
+
+async function findCurrentVisitorForClaim(authUserId, email) {
+  if (authUserId) {
+    const byAuth = await sb.from('visitors')
+      .select('id,name_entered,mobile,email,auth_user_id')
+      .eq('auth_user_id', authUserId)
+      .order('last_seen', { ascending: false })
+      .limit(1);
+    if (!byAuth.error && byAuth.data?.length) return byAuth.data[0];
+  }
+  if (email) {
+    const byEmail = await sb.from('visitors')
+      .select('id,name_entered,mobile,email,auth_user_id')
+      .ilike('email', email)
+      .order('last_seen', { ascending: false })
+      .limit(1);
+    if (!byEmail.error && byEmail.data?.length) return byEmail.data[0];
+  }
+  const name = sessionStorage.getItem('akt_visitor_name') || currentUser || '';
+  if (name) {
+    const byName = await sb.from('visitors')
+      .select('id,name_entered,mobile,email,auth_user_id')
+      .ilike('name_entered', name)
+      .order('last_seen', { ascending: false })
+      .limit(1);
+    if (!byName.error && byName.data?.length) return byName.data[0];
+  }
+  return null;
+}
+
+async function submitProfileClaim() {
+  if (!currentPerson?.uid) return;
+  const mobile = document.getElementById('claim-mobile')?.value.trim() || '';
+  const email = (document.getElementById('claim-email')?.value.trim() || '').toLowerCase();
+  if (!mobile) return setProfileClaimStatus('Please enter your mobile number.', true);
+  if (!email || !email.includes('@')) return setProfileClaimStatus('Please enter a valid email address.', true);
+
+  setProfileClaimStatus('Submitting claim...');
+  const { data: sessionData } = await sb.auth.getSession();
+  const user = sessionData?.session?.user || null;
+  const visitor = await findCurrentVisitorForClaim(user?.id || sessionStorage.getItem('akt_auth_user_id') || '', email);
+  const claimantName = visitor?.name_entered || currentUser || sessionStorage.getItem('akt_visitor_name') || user?.user_metadata?.full_name || email;
+
+  const payload = {
+    person_uid: currentPerson.uid,
+    person_name: currentPerson.name || null,
+    visitor_id: visitor?.id || null,
+    auth_user_id: user?.id || visitor?.auth_user_id || sessionStorage.getItem('akt_auth_user_id') || null,
+    claimant_name: claimantName,
+    claimant_email: email,
+    claimant_mobile: mobile,
+    status: 'claimed',
+    claimed_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  const { data, error } = await sb.from('profile_claims')
+    .insert(payload)
+    .select()
+    .single();
+  if (error) {
+    if (/duplicate key|unique/i.test(error.message || '')) {
+      currentProfileClaim = await loadProfileClaim(currentPerson.uid);
+      closeProfileClaimBox();
+      await renderPerson(currentPerson.uid, document.getElementById('person-container'));
+      return;
+    }
+    if (/does not exist|schema cache|relation/i.test(error.message || '')) {
+      setProfileClaimStatus('Profile claiming is not ready yet. Please ask admin to run supabase_profile_claims.sql.', true);
+    } else {
+      setProfileClaimStatus(error.message, true);
+    }
+    return;
+  }
+  currentProfileClaim = data;
+  closeProfileClaimBox();
+  await renderPerson(currentPerson.uid, document.getElementById('person-container'));
+}
+
 // ===== RENDER PERSON DETAIL =====
 async function renderPerson(uid, el) {
   el.innerHTML = `<div class="empty-state"><span class="spinner"></span> Loading…</div>`;
@@ -1809,6 +1970,7 @@ async function renderPerson(uid, el) {
     .maybeSingle();
   const profileOverlay = overlayError ? null : overlay;
   currentProfileOverlay = profileOverlay;
+  currentProfileClaim = await loadProfileClaim(uid);
   const displayName = firstText(profileOverlay?.corrected_name, p.name, '(unnamed)');
   const displayGender = firstText(profileOverlay?.corrected_gender, p.sex);
   const displayBirthDate = firstText(profileOverlay?.birth_date_text, p.birth_date);
@@ -1988,11 +2150,14 @@ async function renderPerson(uid, el) {
           <a class="btn-back" style="background:var(--green);color:#fff;border-color:var(--green)"
              href="index.html?tree=${encodeURIComponent(p.uid)}">🌳 Browse Tree</a>
           ${hasRole('moderator') ? `<a class="btn-back" style="border-color:var(--green);color:var(--green)" href="edit.html?uid=${encodeURIComponent(p.uid)}">Edit Profile</a>` : ''}
+          ${profileClaimButtonHtml(p.uid, currentProfileClaim)}
           <button class="btn-back" onclick="shareProfile()" title="Copy link to this profile" id="share-btn">📤 Share</button>
           <button class="btn-back" style="border-color:var(--red);color:var(--red)"
                   onclick="openCorrectionForm()">✏️ Raise Corrections</button>
         </div>
       </div>
+
+      ${profileClaimBoxHtml(displayName)}
 
       <div class="detail-grid">
         <div class="detail-field"><div class="key">Given Name</div><div class="val">${escHtml(displayName || p.given_name || '—')}</div></div>

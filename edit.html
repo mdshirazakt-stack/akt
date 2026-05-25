@@ -153,8 +153,8 @@
     <div class="sub" id="page-subtitle">Loading family workspace...</div>
   </div>
   <div class="toolbar">
-    <a class="btn small" id="profile-link" href="archive.html">Back</a>
-    <a class="btn small" id="tree-link" href="archive.html">Browse Tree</a>
+    <a class="btn small" id="profile-link" href="index.html">Back</a>
+    <a class="btn small" id="tree-link" href="index.html">Browse Tree</a>
     <button class="small" onclick="refreshEditor()">Refresh</button>
   </div>
 </header>
@@ -429,7 +429,7 @@ async function bootEditor() {
       <div class="status" style="display:block;border-left-color:var(--red);color:var(--red);background:#fff4f3">
         Moderator access is required to use the profile editor.
       </div>
-      <a class="btn" href="archive.html">Back to archive</a>
+      <a class="btn" href="index.html">Back to archive</a>
     `;
     return;
   }
@@ -490,7 +490,7 @@ async function loadEditor() {
   document.title = 'Edit ' + (focusPerson.name || 'Profile') + ' - Apno Ki Talash';
   document.getElementById('page-subtitle').textContent = focusPerson.name || '(unnamed)';
   document.getElementById('profile-link').href = 'person.html?uid=' + encodeURIComponent(focusUid);
-  document.getElementById('tree-link').href = 'archive.html?tree=' + encodeURIComponent(focusUid);
+  document.getElementById('tree-link').href = 'index.html?tree=' + encodeURIComponent(focusUid);
   await loadGedcomSources();
   await loadFamilyData();
   renderBoard();
@@ -906,7 +906,7 @@ async function deletePerson(uid) {
   });
 
   if (uid === focusUid) {
-    location.href = 'archive.html';
+    location.href = 'index.html';
     return;
   }
   delete peopleByUid[uid];

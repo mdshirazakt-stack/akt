@@ -604,7 +604,7 @@
 <!-- ===== MAIN APP ===== -->
 <div id="app">
   <header>
-    <a class="logo" href="archive.html">
+    <a class="logo" href="index.html">
       <div class="header-mark"><img src="apnonkitalash-logo-favicon.png" alt="Logo"/></div>
       <div>
         <div class="logo-urdu">اپنوں کی تلاش</div>
@@ -1183,7 +1183,7 @@ async function loadPerson() {
     return;
   }
   if (!uid) {
-    container.innerHTML = `<div class="empty-state">No person specified. <a href="archive.html" style="color:var(--gold)">Go back to search</a>.</div>`;
+    container.innerHTML = `<div class="empty-state">No person specified. <a href="index.html" style="color:var(--gold)">Go back to search</a>.</div>`;
     return;
   }
 
@@ -1213,7 +1213,7 @@ async function renderRelationshipOverlayPerson(relId, el) {
     .eq('id', relId)
     .maybeSingle();
   if (error || !rel || rel.status !== 'approved') {
-    el.innerHTML = `<div class="empty-state">Linked record not found. <a href="archive.html" style="color:var(--gold)">Go back to search</a>.</div>`;
+    el.innerHTML = `<div class="empty-state">Linked record not found. <a href="index.html" style="color:var(--gold)">Go back to search</a>.</div>`;
     return;
   }
   if (rel.related_person_uid) {
@@ -1225,7 +1225,7 @@ async function renderRelationshipOverlayPerson(relId, el) {
     .eq('uid', rel.source_person_uid)
     .maybeSingle();
   const sourceChildren = await loadRelationshipOverlayChildren(rel);
-  const backLink = source?.uid ? `person.html?uid=${encodeURIComponent(source.uid)}` : 'archive.html';
+  const backLink = source?.uid ? `person.html?uid=${encodeURIComponent(source.uid)}` : 'index.html';
   const sourceLabel = relationshipSourceLabel(rel.relationship_type);
   const childSectionTitle = rel.relationship_type === 'spouse' ? 'Children from this marriage' : 'Children from linked family';
   document.title = `${rel.related_name || 'Linked Record'} — Apno Ki Talash`;
@@ -1296,7 +1296,7 @@ async function renderFamilyGroupOverlaySpouse(groupId, el) {
     .eq('id', groupId)
     .maybeSingle();
   if (error || !group || group.status !== 'approved') {
-    el.innerHTML = `<div class="empty-state">Family group not found. <a href="archive.html" style="color:var(--gold)">Go back to search</a>.</div>`;
+    el.innerHTML = `<div class="empty-state">Family group not found. <a href="index.html" style="color:var(--gold)">Go back to search</a>.</div>`;
     return;
   }
   if (group.spouse_person_uid) {
@@ -1735,7 +1735,7 @@ async function renderPerson(uid, el) {
 
   const { data: p } = await sb.from('people').select('*').eq('uid', uid).single();
   if (!p) {
-    el.innerHTML = `<div class="empty-state">Person not found. <a href="archive.html" style="color:var(--gold)">Go back to search</a>.</div>`;
+    el.innerHTML = `<div class="empty-state">Person not found. <a href="index.html" style="color:var(--gold)">Go back to search</a>.</div>`;
     return;
   }
 
@@ -1910,7 +1910,7 @@ async function renderPerson(uid, el) {
 
   el.innerHTML = `
     <div style="margin-bottom:16px">
-      <a class="btn-back" href="archive.html">← Back to Search</a>
+      <a class="btn-back" href="index.html">← Back to Search</a>
     </div>
     <div class="person-detail">
       <div class="detail-header">
@@ -1924,7 +1924,7 @@ async function renderPerson(uid, el) {
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <a class="btn-back" style="background:var(--green);color:#fff;border-color:var(--green)"
-             href="archive.html?tree=${encodeURIComponent(p.uid)}">🌳 Browse Tree</a>
+             href="index.html?tree=${encodeURIComponent(p.uid)}">🌳 Browse Tree</a>
           ${hasRole('moderator') ? `<a class="btn-back" style="border-color:var(--green);color:var(--green)" href="edit.html?uid=${encodeURIComponent(p.uid)}">Edit Profile</a>` : ''}
           <button class="btn-back" onclick="shareProfile()" title="Copy link to this profile" id="share-btn">📤 Share</button>
           <button class="btn-back" style="border-color:var(--red);color:var(--red)"
@@ -2108,7 +2108,7 @@ async function renderPerson(uid, el) {
 
       ${srcLabel ? `
         <div style="margin-top:22px;padding-top:12px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--muted)">
-          📁 Source: <a href="archive.html?byfile=${encodeURIComponent(p.gedcom_id)}" style="font-size:0.78rem;color:#2563eb;text-decoration:underline;cursor:pointer">${escHtml(srcLabel)}</a>
+          📁 Source: <a href="index.html?byfile=${encodeURIComponent(p.gedcom_id)}" style="font-size:0.78rem;color:#2563eb;text-decoration:underline;cursor:pointer">${escHtml(srcLabel)}</a>
         </div>
       ` : ''}
     </div>

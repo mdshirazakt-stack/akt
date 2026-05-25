@@ -528,6 +528,15 @@
   .visitor-row.blocked td, .visitor-row.blocked { opacity: 0.5; }
   .search-bar { width: 100%; padding: 10px 14px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: 'Lato', sans-serif; font-size: 0.9rem; margin-bottom: 16px; outline: none; }
   .search-bar:focus { border-color: var(--gold); }
+  .registered-expand-btn { align-items: center; background: var(--surface); border: 1px solid var(--border); color: var(--gold); cursor: pointer; display: inline-flex; font-size: 1rem; height: 30px; justify-content: center; width: 30px; }
+  .registered-expand-btn[aria-expanded="true"] { background: #fff8ef; border-color: var(--gold); }
+  .registered-details-row { display: none; }
+  .registered-details-row.open { display: table-row; }
+  .registered-detail-panel { background: #fffaf4; border-top: 1px solid var(--border); padding: 16px 18px; }
+  .registered-detail-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+  .registered-detail-item { background: var(--surface); border: 1px solid var(--border); padding: 10px 12px; }
+  .registered-detail-item .k { color: var(--muted); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .registered-detail-item .v { color: var(--text); font-size: 0.86rem; line-height: 1.45; margin-top: 4px; white-space: normal; }
 
   /* SETTINGS */
   .setting-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
@@ -2926,6 +2935,7 @@ function registeredSortValue(user, key) {
   if (key === 'heard_from') return registeredHeardFromText(user).toLowerCase();
   if (key === 'status') return visitorAccessStatus(user);
   if (key === 'role') return ACCESS_ROLES.indexOf(user.access_role || 'visitor');
+  if (key === 'claim') return profileClaimForVisitor(user) ? 0 : (visitorClaimIsOverdue(user) ? 3 : (isRegisteredVisitor(user) ? 2 : 1));
   if (key === 'consent') return user.consent_terms_accepted ? 1 : 0;
   if (key === 'consent_accepted_at') return new Date(user.consent_accepted_at || 0).getTime();
   if (key === 'last_seen') return new Date(user.last_seen || 0).getTime();
@@ -2964,50 +2974,56 @@ function renderRegisteredUsers(users) {
   const rows = sortRegisteredRows(users);
   box.innerHTML = `
     <div style="overflow:auto;border:1px solid var(--border);background:#fff">
-      <table style="min-width:1680px">
+      <table style="min-width:980px">
         <thead>
           <tr>
+            <th style="width:44px"></th>
             <th class="sortable" onclick="sortRegisteredUsersBy('name')">Name <span class="sort-indicator" id="registered-sort-name"></span></th>
             <th class="sortable" onclick="sortRegisteredUsersBy('email')">Email <span class="sort-indicator" id="registered-sort-email"></span></th>
-            <th class="sortable" onclick="sortRegisteredUsersBy('mobile')">Mobile <span class="sort-indicator" id="registered-sort-mobile"></span></th>
-            <th>Father</th>
-            <th class="sortable" onclick="sortRegisteredUsersBy('root_place')">Root Place <span class="sort-indicator" id="registered-sort-root_place"></span></th>
-            <th class="sortable" onclick="sortRegisteredUsersBy('current_place')">Current Place <span class="sort-indicator" id="registered-sort-current_place"></span></th>
-            <th>Address</th>
-            <th class="sortable" onclick="sortRegisteredUsersBy('ancestor')">Oldest Ancestor <span class="sort-indicator" id="registered-sort-ancestor"></span></th>
-            <th class="sortable" onclick="sortRegisteredUsersBy('heard_from')">Heard From <span class="sort-indicator" id="registered-sort-heard_from"></span></th>
-            <th class="sortable" onclick="sortRegisteredUsersBy('status')">Status <span class="sort-indicator" id="registered-sort-status"></span></th>
             <th class="sortable" onclick="sortRegisteredUsersBy('role')">Role <span class="sort-indicator" id="registered-sort-role"></span></th>
-            <th class="sortable" onclick="sortRegisteredUsersBy('consent')">Consent <span class="sort-indicator" id="registered-sort-consent"></span></th>
-            <th class="sortable" onclick="sortRegisteredUsersBy('registered')">Registered <span class="sort-indicator" id="registered-sort-registered"></span></th>
+            <th class="sortable" onclick="sortRegisteredUsersBy('claim')">Profile Claim <span class="sort-indicator" id="registered-sort-claim"></span></th>
             <th class="sortable" onclick="sortRegisteredUsersBy('last_seen')">Last Seen <span class="sort-indicator" id="registered-sort-last_seen"></span></th>
           </tr>
         </thead>
         <tbody>
-          ${rows.map(user => {
+          ${rows.map((user, idx) => {
     const status = visitorAccessStatus(user);
     const sections = Array.isArray(user.consent_sections) ? user.consent_sections.join(', ') : String(user.consent_sections || '');
     const heard = registeredHeardFromText(user);
+    const claim = profileClaimForVisitor(user);
+    const rowId = `registered-details-${idx}`;
     return `
       <tr>
+        <td><button class="registered-expand-btn" type="button" aria-expanded="false" aria-controls="${rowId}" onclick="toggleRegisteredDetails('${rowId}', this)">▸</button></td>
         <td><strong>${escapeHtml(user.name_entered || '(unnamed)')}</strong></td>
         <td>${escapeHtml(user.email || '-')}</td>
-        <td>${escapeHtml(user.mobile || '-')}</td>
-        <td>${escapeHtml(user.father_name || '-')}</td>
-        <td>${escapeHtml(user.root_place || user.family_reference || '-')}</td>
-        <td>${escapeHtml(user.current_place || '-')}</td>
-        <td style="white-space:normal;min-width:220px">${escapeHtml(user.current_address || '-')}</td>
-        <td>${escapeHtml(user.oldest_ancestor || '-')}</td>
-        <td style="white-space:normal;min-width:220px">${escapeHtml(heard || '-')}</td>
-        <td><span class="badge" style="background:${status === 'approved' ? '#dcfce7' : status === 'blocked' ? '#fee2e2' : '#fef3c7'};color:${status === 'approved' ? '#166534' : status === 'blocked' ? '#991b1b' : '#92400e'}">${escapeHtml(status)}</span></td>
         <td><span class="badge" style="background:#ede9fe;color:#5b21b6">${escapeHtml(user.access_role || 'visitor')}</span></td>
-        <td>
-          ${user.consent_terms_accepted ? '<span class="badge" style="background:#e0f2fe;color:#075985">yes</span>' : '<span class="badge" style="background:#fee2e2;color:#991b1b">no</span>'}
-          <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">${escapeHtml(sections || '-')}</div>
-          <div style="font-size:0.68rem;color:var(--muted)">${escapeHtml(user.consent_version || '')}</div>
-        </td>
-        <td>${user.visitor_form_completed_at ? formatIST(user.visitor_form_completed_at, false) : '-'}</td>
+        <td>${profileClaimSummaryHtml(user, claim)}</td>
         <td>${user.last_seen ? formatIST(user.last_seen, false) : '-'}</td>
+      </tr>
+      <tr class="registered-details-row" id="${rowId}">
+        <td colspan="6">
+          <div class="registered-detail-panel">
+            <div class="registered-detail-grid">
+              <div class="registered-detail-item"><div class="k">Mobile</div><div class="v">${escapeHtml(user.mobile || '-')}</div></div>
+              <div class="registered-detail-item"><div class="k">Family Details</div><div class="v">
+                ${user.father_name ? `Father: ${escapeHtml(user.father_name)}<br>` : ''}
+                Root: ${escapeHtml(user.root_place || user.family_reference || '-')}<br>
+                Current: ${escapeHtml(user.current_place || '-')}<br>
+                Address: ${escapeHtml(user.current_address || '-')}<br>
+                Oldest ancestor: ${escapeHtml(user.oldest_ancestor || '-')}
+              </div></div>
+              <div class="registered-detail-item"><div class="k">Heard From</div><div class="v">${escapeHtml(heard || '-')}</div></div>
+              <div class="registered-detail-item"><div class="k">Registration Info</div><div class="v">
+                Registered: ${user.visitor_form_completed_at ? formatIST(user.visitor_form_completed_at, false) : '-'}<br>
+                Consent: ${user.consent_terms_accepted ? 'yes' : 'no'}${sections ? ` · Sections ${escapeHtml(sections)}` : ''}<br>
+                Version: ${escapeHtml(user.consent_version || '-')}
+              </div></div>
+              <div class="registered-detail-item"><div class="k">Status</div><div class="v"><span class="badge" style="background:${status === 'approved' ? '#dcfce7' : status === 'blocked' ? '#fee2e2' : '#fef3c7'};color:${status === 'approved' ? '#166534' : status === 'blocked' ? '#991b1b' : '#92400e'}">${escapeHtml(status)}</span></div></div>
+              <div class="registered-detail-item"><div class="k">Profile Claim Details</div><div class="v">${profileClaimStatusHtml(user, claim)}</div></div>
+            </div>
+          </div>
+        </td>
       </tr>
     `;
   }).join('')}
@@ -3016,6 +3032,26 @@ function renderRegisteredUsers(users) {
     </div>
   `;
   updateRegisteredSortIndicators();
+}
+
+function profileClaimSummaryHtml(visitor, claim) {
+  if (claim) {
+    const applied = claim.status === 'applied' || claim.applied_at;
+    return `<span class="badge" style="background:#dcfce7;color:#166534">${applied ? 'applied' : 'claimed'}</span>`;
+  }
+  if (!isRegisteredVisitor(visitor)) return '<span class="badge" style="background:#f3f4f6;color:#6b7280">not registered</span>';
+  const overdue = visitorClaimIsOverdue(visitor);
+  return `<span class="badge" style="background:${overdue ? '#fee2e2' : '#fef3c7'};color:${overdue ? '#991b1b' : '#92400e'}">${overdue ? 'claim overdue' : 'claim needed'}</span>`;
+}
+
+function toggleRegisteredDetails(rowId, button) {
+  const row = document.getElementById(rowId);
+  if (!row) return;
+  const isOpen = row.classList.toggle('open');
+  if (button) {
+    button.setAttribute('aria-expanded', String(isOpen));
+    button.textContent = isOpen ? '▾' : '▸';
+  }
 }
 
 function registeredHeardFromText(user) {

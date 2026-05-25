@@ -1145,15 +1145,10 @@
           <button class="btn-sm btn-danger" onclick="clearPublicVisitors()">Clear Public Visitors</button>
         </div>
         <div id="visitors-table-wrap">
-          <table style="min-width:1680px">
+          <table style="min-width:1120px">
             <thead><tr>
+              <th style="width:44px"></th>
               <th class="sortable" onclick="sortVisitorsBy('name_entered')">Name / Email <span class="sort-indicator" id="sort-name_entered"></span></th>
-              <th class="sortable" onclick="sortVisitorsBy('mobile')">Mobile <span class="sort-indicator" id="sort-mobile"></span></th>
-              <th>Family Details</th>
-              <th>Current Place</th>
-              <th>Heard From</th>
-              <th class="sortable" onclick="sortVisitorsBy('registered')">Registration <span class="sort-indicator" id="sort-registered"></span></th>
-              <th class="sortable" onclick="sortVisitorsBy('claim')">Profile Claim <span class="sort-indicator" id="sort-claim"></span></th>
               <th class="sortable" onclick="sortVisitorsBy('visit_count')">Visits <span class="sort-indicator" id="sort-visit_count"></span></th>
               <th class="sortable" onclick="sortVisitorsBy('last_seen')">Last Seen (IST) <span class="sort-indicator" id="sort-last_seen"></span></th>
               <th class="sortable" onclick="sortVisitorsBy('status')">Status <span class="sort-indicator" id="sort-status"></span></th>
@@ -3172,14 +3167,15 @@ async function applyProfileClaimToPerson(claimId) {
 
 function renderVisitors(visitors) {
   const tbody = document.getElementById('visitors-tbody');
-  if (!visitors.length) { tbody.innerHTML = '<tr><td colspan="12" class="empty">No users yet.</td></tr>'; return; }
+  if (!visitors.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No users yet.</td></tr>'; return; }
   updateVisitorSortIndicators();
   const sortedVisitors = sortVisitorRows(visitors);
-  tbody.innerHTML = sortedVisitors.map(v => {
+  tbody.innerHTML = sortedVisitors.map((v, idx) => {
     const status = visitorAccessStatus(v);
     const registeredAt = v.visitor_form_completed_at || v.updated_at || v.first_seen;
     const consentSections = Array.isArray(v.consent_sections) ? v.consent_sections.join(', ') : String(v.consent_sections || '');
     const claim = profileClaimForVisitor(v);
+    const rowId = `visitor-details-${idx}`;
     const statusStyles = {
       pending: 'background:rgba(243,156,18,0.18);color:#b8860b',
       approved: 'background:rgba(39,174,96,0.18);color:#166534',
@@ -3188,30 +3184,12 @@ function renderVisitors(visitors) {
     };
     return `
     <tr class="${v.is_blocked ? 'blocked' : ''}">
+      <td><button class="registered-expand-btn" type="button" aria-expanded="false" aria-controls="${rowId}" onclick="toggleRegisteredDetails('${rowId}', this)">▸</button></td>
       <td>
         <strong>${escapeHtml(v.name_entered || '(unnamed)')}</strong>
         ${v.email ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:3px">${escapeHtml(v.email)}</div>` : ''}
         ${v.admin_notes ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:3px">Note: ${escapeHtml(v.admin_notes)}</div>` : ''}
       </td>
-      <td>${escapeHtml(v.mobile || '-')}</td>
-      <td style="font-size:0.78rem;color:var(--muted);white-space:normal;min-width:220px">
-        ${v.father_name ? `Father: ${escapeHtml(v.father_name)}<br>` : ''}
-        ${v.root_place || v.family_reference ? `Root: ${escapeHtml(v.root_place || v.family_reference)}<br>` : ''}
-        ${v.oldest_ancestor ? `Ancestor: ${escapeHtml(v.oldest_ancestor)}<br>` : ''}
-        ${!v.father_name && !v.root_place && !v.family_reference && !v.oldest_ancestor ? '-' : ''}
-      </td>
-      <td style="font-size:0.78rem;color:var(--muted);white-space:normal;min-width:200px">
-        ${v.current_place ? `<strong style="color:var(--text)">${escapeHtml(v.current_place)}</strong><br>` : ''}
-        ${v.current_address ? escapeHtml(v.current_address) : (!v.current_place ? '-' : '')}
-      </td>
-      <td style="font-size:0.78rem;color:var(--muted);white-space:normal;min-width:220px">${escapeHtml(registeredHeardFromText(v) || '-')}</td>
-      <td>
-        ${v.visitor_form_completed ? '<span class="badge" style="background:#dcfce7;color:#166534">form</span>' : '<span class="badge" style="background:#fef3c7;color:#92400e">partial</span>'}
-        ${v.consent_terms_accepted ? '<span class="badge" style="background:#e0f2fe;color:#075985;margin-left:4px">consent</span>' : ''}
-        <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">${formatIST(registeredAt, false)}</div>
-        ${consentSections ? `<div style="font-size:0.68rem;color:var(--muted)">Sections ${escapeHtml(consentSections)}</div>` : ''}
-      </td>
-      <td>${profileClaimStatusHtml(v, claim)}</td>
       <td><strong>${Number(v.visit_count || 0).toLocaleString()}</strong></td>
       <td>${formatIST(v.last_seen, false)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(v.last_seen)}</span><br><span style="font-size:0.68rem;color:var(--muted)">${formatVisitorTimezone(v.ip_hint)}</span></td>
       <td><span class="badge" style="${statusStyles[status] || statusStyles.pending}">${escapeHtml(status)}</span></td>
@@ -3230,7 +3208,32 @@ function renderVisitors(visitors) {
           }
         </div>
       </td>
-    </tr>`;
+    </tr>
+      <tr class="registered-details-row" id="${rowId}">
+        <td colspan="7">
+          <div class="registered-detail-panel">
+            <div class="registered-detail-grid">
+              <div class="registered-detail-item"><div class="k">Mobile</div><div class="v">${escapeHtml(v.mobile || '-')}</div></div>
+              <div class="registered-detail-item"><div class="k">Family Details</div><div class="v">
+                ${v.father_name ? `Father: ${escapeHtml(v.father_name)}<br>` : ''}
+                Root: ${escapeHtml(v.root_place || v.family_reference || '-')}<br>
+                Current: ${escapeHtml(v.current_place || '-')}<br>
+                Address: ${escapeHtml(v.current_address || '-')}<br>
+                Oldest ancestor: ${escapeHtml(v.oldest_ancestor || '-')}
+              </div></div>
+              <div class="registered-detail-item"><div class="k">Heard From</div><div class="v">${escapeHtml(registeredHeardFromText(v) || '-')}</div></div>
+              <div class="registered-detail-item"><div class="k">Registration</div><div class="v">
+                ${v.visitor_form_completed ? '<span class="badge" style="background:#dcfce7;color:#166534">form</span>' : '<span class="badge" style="background:#fef3c7;color:#92400e">partial</span>'}
+                ${v.consent_terms_accepted ? '<span class="badge" style="background:#e0f2fe;color:#075985;margin-left:4px">consent</span>' : ''}
+                <br>${formatIST(registeredAt, false)}
+                ${consentSections ? `<br>Sections ${escapeHtml(consentSections)}` : ''}
+              </div></div>
+              <div class="registered-detail-item"><div class="k">Profile Claim</div><div class="v">${profileClaimStatusHtml(v, claim)}</div></div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    `;
   }).join('');
 }
 

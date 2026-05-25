@@ -564,6 +564,26 @@
   .activity-name { font-weight: 700; color: var(--text); min-width: 140px; }
   .activity-action { color: var(--muted); flex: 1; }
   .activity-badge { display: inline-block; padding: 1px 7px; font-size: 0.68rem; border-radius: 2px; font-weight: 700; text-transform: uppercase; background: #eaf0f8; color: #5a8ab0; }
+  .activity-drill-btn { border: 1px solid var(--gold); background: #fff8ef; color: var(--gold); cursor: pointer; font-family: 'Lato', sans-serif; font-size: 0.74rem; font-weight: 700; margin-top: 7px; padding: 5px 9px; }
+  .activity-drill-btn:hover { background: #fdf0df; }
+  .activity-detail-backdrop { position: fixed; inset: 0; background: rgba(22,17,12,0.42); z-index: 9998; display: none; align-items: center; justify-content: center; padding: 20px; }
+  .activity-detail-backdrop.open { display: flex; }
+  .activity-detail-modal { background: var(--surface); border: 1px solid var(--border); box-shadow: 0 24px 80px rgba(0,0,0,0.24); max-height: 86vh; max-width: 900px; overflow: auto; width: min(900px, 100%); }
+  .activity-detail-head { align-items: flex-start; border-bottom: 1px solid var(--border); display: flex; gap: 12px; justify-content: space-between; padding: 18px 20px; }
+  .activity-detail-head h3 { color: var(--gold); font-family: 'Amiri', serif; font-size: 1.35rem; margin: 0; }
+  .activity-detail-head p { color: var(--muted); font-size: 0.78rem; margin-top: 4px; }
+  .activity-detail-close { background: none; border: 1px solid var(--border); color: var(--muted); cursor: pointer; font-size: 1.1rem; height: 34px; line-height: 1; width: 34px; }
+  .activity-detail-body { padding: 18px 20px 22px; }
+  .activity-day-group { border: 1px solid var(--border); margin-bottom: 14px; }
+  .activity-day-title { background: var(--bg); border-bottom: 1px solid var(--border); color: var(--text); font-weight: 700; padding: 9px 12px; }
+  .activity-detail-item { border-bottom: 1px solid var(--border); display: grid; gap: 8px; grid-template-columns: 112px 1fr; padding: 10px 12px; }
+  .activity-detail-item:last-child { border-bottom: none; }
+  .activity-detail-time { color: var(--muted); font-size: 0.78rem; }
+  .activity-detail-title { color: var(--text); font-weight: 700; }
+  .activity-detail-meta { color: var(--muted); font-size: 0.76rem; margin-top: 3px; line-height: 1.45; }
+  @media(max-width: 700px) {
+    .activity-detail-item { grid-template-columns: 1fr; }
+  }
 
   /* FORUM MODERATION */
   .forum-admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
@@ -4312,10 +4332,17 @@ function renderActivity(items) {
     if (tz) metaParts.push(`Timezone: ${tz}`);
     if (details.result_count !== undefined) metaParts.push(`${Number(details.result_count || 0).toLocaleString()} results`);
     if (details.fallback) metaParts.push('visitor log fallback');
+    const visitorArg = encodeURIComponent(visitor);
+    const drillButton = visitor && visitor !== 'Unknown visitor'
+      ? `<button class="activity-drill-btn" type="button" onclick="openVisitorActivityDetail(decodeURIComponent('${visitorArg}'))">View activity</button>`
+      : '';
+    const activityLabel = details.fallback && visitor && visitor !== 'Unknown visitor'
+      ? `<button class="activity-drill-btn" type="button" onclick="openVisitorActivityDetail(decodeURIComponent('${visitorArg}'))" style="margin:0">${escapeHtml(describeActivity(item))}</button>`
+      : escapeHtml(describeActivity(item));
     return `<tr>
       <td>${formatIST(item.created_at || item.last_seen)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(item.created_at || item.last_seen)}</span></td>
-      <td><strong>${escapeHtml(visitor)}</strong>${item.is_blocked ? '<br><span style="color:var(--red2);font-size:0.72rem">blocked</span>' : ''}</td>
-      <td><span class="activity-icon">${activityIcon(item.action)}</span> ${escapeHtml(describeActivity(item))}<br><span style="font-size:0.76rem;color:var(--muted)">${escapeHtml(title)}</span></td>
+      <td><strong>${escapeHtml(visitor)}</strong>${item.is_blocked ? '<br><span style="color:var(--red2);font-size:0.72rem">blocked</span>' : ''}${drillButton}</td>
+      <td><span class="activity-icon">${activityIcon(item.action)}</span> ${activityLabel}<br><span style="font-size:0.76rem;color:var(--muted)">${escapeHtml(title)}</span></td>
       <td>${escapeHtml([device, locationHint].filter(Boolean).join(' · ') || '-')}<br>${tz ? `<span style="font-size:0.72rem;color:var(--muted)">Timezone: ${escapeHtml(tz)}</span>` : ''}</td>
       <td>${metaParts.length ? escapeHtml(metaParts.join(' · ')) : '-'}</td>
     </tr>`;
@@ -4337,6 +4364,141 @@ function filterActivity() {
     ].join(' ').toLowerCase();
     return haystack.includes(q);
   }));
+}
+
+function activityDetailDateKey(value) {
+  const date = new Date(value || 0);
+  if (!date.getTime()) return 'Unknown date';
+  return date.toLocaleDateString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
+}
+
+function activityDetailTime(value) {
+  const date = new Date(value || 0);
+  if (!date.getTime()) return '-';
+  return date.toLocaleTimeString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function ensureActivityDetailModal() {
+  let modal = document.getElementById('activity-detail-backdrop');
+  if (modal) return modal;
+  modal = document.createElement('div');
+  modal.id = 'activity-detail-backdrop';
+  modal.className = 'activity-detail-backdrop';
+  modal.onclick = (event) => {
+    if (event.target === modal) closeVisitorActivityDetail();
+  };
+  modal.innerHTML = `
+    <div class="activity-detail-modal" role="dialog" aria-modal="true" aria-labelledby="activity-detail-title">
+      <div class="activity-detail-head">
+        <div>
+          <h3 id="activity-detail-title">Visitor activity</h3>
+          <p id="activity-detail-subtitle">Recent detailed actions</p>
+        </div>
+        <button class="activity-detail-close" type="button" onclick="closeVisitorActivityDetail()" aria-label="Close">×</button>
+      </div>
+      <div class="activity-detail-body" id="activity-detail-body"></div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  return modal;
+}
+
+function closeVisitorActivityDetail() {
+  document.getElementById('activity-detail-backdrop')?.classList.remove('open');
+}
+
+function activityDetailsLine(row) {
+  const details = row.details || {};
+  const parts = [];
+  if (details.query) parts.push(`Query: ${details.query}`);
+  if (details.result_count !== undefined) parts.push(`${Number(details.result_count || 0).toLocaleString()} results`);
+  if (details.person_uid) parts.push(`Person: ${details.person_uid}`);
+  if (details.source_id) parts.push(`Source: ${details.source_id}`);
+  if (details.thread_id) parts.push(`Thread: ${details.thread_id}`);
+  if (details.tab) parts.push(`Tab: ${details.tab}`);
+  if (details.label) parts.push(`Label: ${details.label}`);
+  if (details.page) parts.push(`Page: ${details.page}`);
+  const locationHint = row.location_hint || details.location_hint || '';
+  if (locationHint) parts.push(`Location: ${locationHint}`);
+  const device = row.device || '';
+  if (device) parts.push(device);
+  return parts.join(' · ');
+}
+
+function renderVisitorActivityDetail(visitorName, rows) {
+  const body = document.getElementById('activity-detail-body');
+  if (!rows.length) {
+    body.innerHTML = `
+      <div class="empty">
+        No detailed activity rows found for this visitor in the last 30 days.
+        <br><span style="font-size:0.78rem;color:var(--muted)">If this visitor only shows as a return visit, the site may only have their last_seen record from before detailed logging resumed.</span>
+      </div>`;
+    return;
+  }
+  const groups = rows.reduce((acc, row) => {
+    const key = activityDetailDateKey(row.created_at);
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(row);
+    return acc;
+  }, {});
+  body.innerHTML = Object.entries(groups).map(([day, dayRows]) => `
+    <div class="activity-day-group">
+      <div class="activity-day-title">${escapeHtml(day)} · ${dayRows.length.toLocaleString()} action${dayRows.length === 1 ? '' : 's'}</div>
+      ${dayRows.map(row => `
+        <div class="activity-detail-item">
+          <div class="activity-detail-time">${activityDetailTime(row.created_at)}<br><span>${timeAgo(row.created_at)}</span></div>
+          <div>
+            <div class="activity-detail-title">${activityIcon(row.action)} ${escapeHtml(describeActivity(row))}</div>
+            <div class="activity-detail-meta">${escapeHtml(row.target || '')}</div>
+            ${activityDetailsLine(row) ? `<div class="activity-detail-meta">${escapeHtml(activityDetailsLine(row))}</div>` : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+async function openVisitorActivityDetail(visitorName) {
+  const modal = ensureActivityDetailModal();
+  document.getElementById('activity-detail-title').textContent = visitorName;
+  document.getElementById('activity-detail-subtitle').textContent = 'Detailed actions from the last 30 days, grouped datewise';
+  document.getElementById('activity-detail-body').innerHTML = '<div class="empty"><span class="spinner"></span> Loading visitor activity…</div>';
+  modal.classList.add('open');
+
+  const fromDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const selectWithLocation = 'id,visitor_name,action,target,details,device,timezone,location_hint,created_at';
+  const selectWithoutLocation = 'id,visitor_name,action,target,details,device,timezone,created_at';
+  let query = sb.from('activity_logs')
+    .select(selectWithLocation)
+    .eq('visitor_name', visitorName)
+    .gte('created_at', fromDate.toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1000);
+  let { data, error } = await query;
+  if (error && String(error.message || '').includes('location_hint')) {
+    const retry = await sb.from('activity_logs')
+      .select(selectWithoutLocation)
+      .eq('visitor_name', visitorName)
+      .gte('created_at', fromDate.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1000);
+    data = retry.data;
+    error = retry.error;
+  }
+  if (error) {
+    document.getElementById('activity-detail-body').innerHTML = `<div class="empty" style="color:var(--red)">Could not load detailed activity.<br>${escapeHtml(error.message)}</div>`;
+    return;
+  }
+  renderVisitorActivityDetail(visitorName, data || []);
 }
 
 // ===================== STAFF ACTIVITY =====================

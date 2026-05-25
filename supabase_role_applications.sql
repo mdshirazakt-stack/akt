@@ -8,7 +8,7 @@ create table if not exists public.role_applications (
   applicant_name text,
   applicant_email text,
   applicant_mobile text,
-  current_role text not null default 'visitor',
+  current_access_role text not null default 'visitor',
   requested_role text not null check (requested_role in ('moderator', 'admin')),
   application_note text not null,
   status text not null default 'new' check (status in ('new', 'reviewing', 'approved', 'declined')),

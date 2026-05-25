@@ -3406,7 +3406,7 @@ function filterRoleApplications() {
       app.applicant_name,
       app.applicant_email,
       app.applicant_mobile,
-      app.current_role,
+      app.current_access_role,
       app.requested_role,
       app.application_note,
       app.status,
@@ -3450,7 +3450,7 @@ function renderRoleApplications(apps) {
           </td>
           <td>
             <span class="badge" style="background:#ede9fe;color:#5b21b6">${escapeHtml(app.requested_role || '-')}</span>
-            <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">Current: ${escapeHtml(app.current_role || 'visitor')}</div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">Current: ${escapeHtml(app.current_access_role || 'visitor')}</div>
           </td>
           <td style="white-space:normal;min-width:320px">${escapeHtml(app.application_note || '-')}</td>
           <td><span class="badge" style="${statusColors[app.status || 'new'] || statusColors.new}">${escapeHtml(app.status || 'new')}</span></td>

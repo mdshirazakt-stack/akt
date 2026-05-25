@@ -514,7 +514,7 @@
       applicant_name: visitor.name_entered || sessionStorage.getItem('akt_visitor_name') || userName(currentSession?.user) || null,
       applicant_email: userEmail(currentSession?.user) || visitor.email || null,
       applicant_mobile: visitor.mobile || sessionStorage.getItem('akt_visitor_mobile') || null,
-      current_role: normalizeAccessRole(visitor.access_role || sessionStorage.getItem('akt_visitor_role')),
+      current_access_role: normalizeAccessRole(visitor.access_role || sessionStorage.getItem('akt_visitor_role')),
       requested_role: requestedRole,
       application_note: note,
       status: 'new',

@@ -205,6 +205,145 @@
     if (typeof callbacks.onStart === 'function') {
       await callbacks.onStart(name, role, { ...visitor, visit_count: visitCount });
     }
+    await refreshProfileClaimBanner({ ...visitor, visit_count: visitCount });
+  }
+
+  function removeProfileClaimBanner() {
+    document.getElementById('profile-claim-reminder')?.remove();
+  }
+
+  function profileClaimDeadline(visitor, days) {
+    const basis = visitor?.visitor_form_completed_at || visitor?.created_at || visitor?.first_seen || visitor?.updated_at || visitor?.last_seen;
+    const time = new Date(basis || 0).getTime();
+    return time ? new Date(time + days * 24 * 60 * 60 * 1000) : null;
+  }
+
+  function formatClaimDeadline(date) {
+    if (!date) return '';
+    return date.toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  async function hasProfileClaim(visitor) {
+    const email = userEmail(currentSession?.user) || visitor?.email || '';
+    const mobile = visitor?.mobile || sessionStorage.getItem('akt_visitor_mobile') || '';
+    const authId = currentSession?.user?.id || visitor?.auth_user_id || sessionStorage.getItem('akt_auth_user_id') || '';
+    const clauses = [];
+    if (authId) clauses.push(`auth_user_id.eq.${authId}`);
+    if (email) clauses.push(`claimant_email.eq.${email}`);
+    if (mobile) clauses.push(`claimant_mobile.eq.${mobile}`);
+    if (!clauses.length) return false;
+    const { data, error } = await sb.from('profile_claims')
+      .select('id')
+      .or(clauses.join(','))
+      .limit(1);
+    if (error) {
+      if (!/does not exist|schema cache|relation/i.test(error.message || '')) {
+        console.warn('Profile claim reminder lookup failed:', error.message);
+      }
+      return false;
+    }
+    return Boolean(data && data.length);
+  }
+
+  function ensureProfileClaimBannerStyles() {
+    if (document.getElementById('profile-claim-reminder-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'profile-claim-reminder-styles';
+    style.textContent = `
+      #profile-claim-reminder {
+        background: #fff7e8;
+        border: 1px solid rgba(201,168,76,0.55);
+        border-left: 4px solid #c9a84c;
+        color: #4f4435;
+        font-family: 'Lato', sans-serif;
+        margin: 18px auto 0;
+        max-width: min(1120px, calc(100% - 36px));
+        padding: 14px 16px;
+      }
+      #profile-claim-reminder strong { color: #2e6e4a; }
+      #profile-claim-reminder .claim-reminder-title {
+        font-size: 0.88rem;
+        font-weight: 700;
+        margin-bottom: 5px;
+      }
+      #profile-claim-reminder .claim-reminder-copy {
+        font-size: 0.8rem;
+        line-height: 1.55;
+      }
+      #profile-claim-reminder .claim-reminder-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      #profile-claim-reminder a,
+      #profile-claim-reminder button {
+        background: #2e6e4a;
+        border: 1px solid #2e6e4a;
+        color: #fff;
+        cursor: pointer;
+        font-family: 'Lato', sans-serif;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        padding: 7px 11px;
+        text-decoration: none;
+        text-transform: uppercase;
+      }
+      #profile-claim-reminder button {
+        background: transparent;
+        color: #7a6e5e;
+        border-color: rgba(122,110,94,0.35);
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function renderProfileClaimBanner(visitor) {
+    ensureProfileClaimBannerStyles();
+    removeProfileClaimBanner();
+    const claimBy = profileClaimDeadline(visitor, 3);
+    const addBy = profileClaimDeadline(visitor, 7);
+    const banner = document.createElement('div');
+    banner.id = 'profile-claim-reminder';
+    banner.innerHTML = `
+      <div class="claim-reminder-title">Please claim your family profile</div>
+      <div class="claim-reminder-copy">
+        If your profile already exists, claim it within <strong>72 hours</strong>${claimBy ? `, by <strong>${formatClaimDeadline(claimBy)} IST</strong>` : ''}, before access may be blocked.
+        If your profile is missing, raise a correction/request to get yourself added and claim it within <strong>one week</strong>${addBy ? `, by <strong>${formatClaimDeadline(addBy)} IST</strong>` : ''} from your first login.
+      </div>
+      <div class="claim-reminder-actions">
+        <a href="index.html">Find my profile</a>
+        <a href="index.html#corrections">Raise correction</a>
+        <button type="button" onclick="document.getElementById('profile-claim-reminder')?.remove()">Dismiss</button>
+      </div>
+    `;
+    const app = document.getElementById('app') || document.body;
+    const header = app.querySelector('header');
+    if (header?.nextSibling) {
+      app.insertBefore(banner, header.nextSibling);
+    } else {
+      app.prepend(banner);
+    }
+  }
+
+  async function refreshProfileClaimBanner(visitor = currentVisitor) {
+    if (!visitor || !isOnboardingComplete(visitor)) {
+      removeProfileClaimBanner();
+      return;
+    }
+    if (await hasProfileClaim(visitor)) {
+      removeProfileClaimBanner();
+      return;
+    }
+    renderProfileClaimBanner(visitor);
   }
 
   async function handleSession(session) {
@@ -488,6 +627,7 @@
   }
 
   async function signOut() {
+    removeProfileClaimBanner();
     sessionStorage.removeItem('akt_visitor_name');
     sessionStorage.removeItem('akt_visitor_mobile');
     sessionStorage.removeItem('akt_access_granted');
@@ -532,6 +672,7 @@
     prevOnboardingStep,
     setOnboardingStep,
     signOut,
+    refreshProfileClaimBanner,
     normalizeAccessRole,
     CONSENT_VERSION
   };

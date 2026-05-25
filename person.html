@@ -1949,6 +1949,7 @@ async function submitProfileClaim() {
   }
   currentProfileClaim = data;
   closeProfileClaimBox();
+  window.AKT_AUTH?.refreshProfileClaimBanner?.();
   await renderPerson(currentPerson.uid, document.getElementById('person-container'));
 }
 

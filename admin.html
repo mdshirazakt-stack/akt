@@ -4370,15 +4370,15 @@ function renderActivity(items) {
 }
 
 function activityTimeValue(row) {
-  return new Date(row.created_at || row.last_seen || 0).getTime() || 0;
+  return new Date(row?.created_at || row?.last_seen || 0).getTime() || 0;
 }
 
 function activityVisitor(row) {
-  return row.visitor_name || row.name_entered || 'Unknown visitor';
+  return row?.visitor_name || row?.name_entered || 'Unknown visitor';
 }
 
 function activityVisitCount(row) {
-  const count = row.details?.visit_count;
+  const count = row?.details?.visit_count;
   return count === undefined || count === null || count === '' ? '' : String(count);
 }
 

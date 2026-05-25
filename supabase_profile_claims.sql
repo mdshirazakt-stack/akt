@@ -12,8 +12,14 @@ create table if not exists public.profile_claims (
   claimant_mobile text not null,
   status text not null default 'claimed',
   claimed_at timestamptz not null default now(),
+  applied_at timestamptz,
+  applied_by text,
   updated_at timestamptz not null default now()
 );
+
+alter table public.profile_claims
+  add column if not exists applied_at timestamptz,
+  add column if not exists applied_by text;
 
 create index if not exists idx_profile_claims_auth_user_id
   on public.profile_claims (auth_user_id);

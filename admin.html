@@ -3006,10 +3006,14 @@ function visitorClaimIsOverdue(visitor) {
 
 function profileClaimStatusHtml(visitor, claim) {
   if (claim) {
+    const applied = claim.status === 'applied' || claim.applied_at;
     return `
-      <span class="badge" style="background:#dcfce7;color:#166534">claimed</span>
+      <span class="badge" style="background:#dcfce7;color:#166534">${applied ? 'applied' : 'claimed'}</span>
       <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">${escapeHtml(claim.person_name || claim.person_uid || '')}</div>
+      <div style="font-size:0.68rem;color:var(--muted);margin-top:3px">${escapeHtml(claim.claimant_email || '')}</div>
+      <div style="font-size:0.68rem;color:var(--muted)">${escapeHtml(claim.claimant_mobile || '')}</div>
       <div style="font-size:0.68rem;color:var(--muted)">${formatIST(claim.claimed_at, false)}</div>
+      ${hasAdminRole('admin') && !applied ? `<button class="btn-sm" style="margin-top:7px;border-color:var(--green);color:var(--green)" onclick="applyProfileClaimToPerson('${claim.id}')">Apply to record</button>` : ''}
     `;
   }
   if (!isRegisteredVisitor(visitor)) {
@@ -3021,6 +3025,66 @@ function profileClaimStatusHtml(visitor, claim) {
     <span class="badge" style="background:${overdue ? '#fee2e2' : '#fef3c7'};color:${overdue ? '#991b1b' : '#92400e'}">${overdue ? 'claim overdue' : 'claim needed'}</span>
     ${deadline ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:4px">Deadline: ${formatIST(deadline, false)}</div>` : ''}
   `;
+}
+
+async function applyProfileClaimToPerson(claimId) {
+  if (!hasAdminRole('admin')) {
+    toast('Only admin and superadmin can apply profile claims.', true);
+    return;
+  }
+  const claim = allProfileClaims.find(row => row.id === claimId);
+  if (!claim || !claim.person_uid) {
+    toast('Claim record not found.', true);
+    return;
+  }
+  const ok = confirm(`Associate this private contact with the actual person record?\n\nProfile: ${claim.person_name || claim.person_uid}\nEmail: ${claim.claimant_email || '-'}\nMobile: ${claim.claimant_mobile || '-'}`);
+  if (!ok) return;
+
+  const { error: personError } = await sb.from('people')
+    .update({
+      email: claim.claimant_email || null,
+      contact_address: claim.claimant_mobile || null,
+      updated_at: new Date().toISOString()
+    })
+    .eq('uid', claim.person_uid);
+  if (personError) {
+    if (/schema cache|contact_address|email/i.test(personError.message || '')) {
+      toast('Person contact fields are missing. Run the latest family editor/profile fields SQL first.', true);
+    } else {
+      toast('Could not update person record: ' + personError.message, true);
+    }
+    return;
+  }
+
+  const appliedAt = new Date().toISOString();
+  let { data, error: claimError } = await sb.from('profile_claims')
+    .update({ status: 'applied', applied_at: appliedAt, applied_by: currentStaffName(), updated_at: appliedAt })
+    .eq('id', claimId)
+    .select()
+    .single();
+  if (claimError && /schema cache|applied_at|applied_by/i.test(claimError.message || '')) {
+    const fallback = await sb.from('profile_claims')
+      .update({ status: 'applied', updated_at: appliedAt })
+      .eq('id', claimId)
+      .select()
+      .single();
+    data = fallback.data;
+    claimError = fallback.error;
+  }
+  if (claimError) {
+    toast('Person record updated, but claim status could not be marked applied: ' + claimError.message, true);
+  } else {
+    allProfileClaims = allProfileClaims.map(row => row.id === claimId ? data : row);
+  }
+
+  logStaffActivity('profile_claim_applied_to_person', claim.person_name || claim.person_uid, {
+    claim_id: claimId,
+    person_uid: claim.person_uid,
+    email: claim.claimant_email || null,
+    mobile_present: Boolean(claim.claimant_mobile)
+  });
+  toast('Claim contact associated with person record.');
+  filterVisitors();
 }
 
 function renderVisitors(visitors) {

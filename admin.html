@@ -4225,11 +4225,7 @@ async function loadActivityLogs(fromDate, toDate) {
   }
 
   if (!error) {
-    allActivity = data || [];
-    if (!allActivity.length) {
-      await loadVisitorActivityFallback(fromDate, toDate);
-      return;
-    }
+    allActivity = await mergeVisitorActivityFallback(data || [], fromDate, toDate);
     renderActivity(allActivity);
     return;
   }
@@ -4237,16 +4233,15 @@ async function loadActivityLogs(fromDate, toDate) {
   await loadVisitorActivityFallback(fromDate, toDate);
 }
 
-async function loadVisitorActivityFallback(fromDate, toDate) {
-  const list = document.getElementById('activity-list');
+async function loadVisitorActivityRows(fromDate, toDate) {
   let visitorQuery = sb.from('visitors')
     .select('name_entered,last_seen,visit_count,first_seen,is_blocked,ip_hint')
     .gte('last_seen', fromDate.toISOString())
     .order('last_seen', { ascending: false });
   if (toDate) visitorQuery = visitorQuery.lte('last_seen', toDate.toISOString());
   const { data: visitors, error: visitorError } = await visitorQuery;
-  if (visitorError) { list.innerHTML = '<div class="empty">Error loading activity.</div>'; return; }
-  allActivity = (visitors || []).map(v => ({
+  if (visitorError) throw visitorError;
+  return (visitors || []).map(v => ({
     visitor_name: v.name_entered,
     action: (new Date(v.last_seen) - new Date(v.first_seen)) < 60000 ? 'login' : 'return_visit',
     target: (new Date(v.last_seen) - new Date(v.first_seen)) < 60000 ? `Logged in: ${v.name_entered}` : `Return visit: ${v.name_entered}`,
@@ -4256,6 +4251,36 @@ async function loadVisitorActivityFallback(fromDate, toDate) {
     created_at: v.last_seen,
     is_blocked: v.is_blocked
   }));
+}
+
+async function mergeVisitorActivityFallback(activityRows, fromDate, toDate) {
+  let visitorRows = [];
+  try {
+    visitorRows = await loadVisitorActivityRows(fromDate, toDate);
+  } catch (err) {
+    return activityRows;
+  }
+  const hasNearbyActivity = (fallbackRow) => activityRows.some(row => {
+    const sameVisitor = String(row.visitor_name || '').toLowerCase() === String(fallbackRow.visitor_name || '').toLowerCase();
+    if (!sameVisitor) return false;
+    const rowTime = new Date(row.created_at || row.last_seen || 0).getTime();
+    const fallbackTime = new Date(fallbackRow.created_at || 0).getTime();
+    return rowTime && fallbackTime && Math.abs(rowTime - fallbackTime) < 2 * 60 * 1000;
+  });
+  return [
+    ...activityRows,
+    ...visitorRows.filter(row => !hasNearbyActivity(row))
+  ].sort((a, b) => new Date(b.created_at || b.last_seen || 0) - new Date(a.created_at || a.last_seen || 0));
+}
+
+async function loadVisitorActivityFallback(fromDate, toDate) {
+  const list = document.getElementById('activity-list');
+  try {
+    allActivity = await loadVisitorActivityRows(fromDate, toDate);
+  } catch (err) {
+    list.innerHTML = '<div class="empty">Error loading activity.</div>';
+    return;
+  }
   renderActivity(allActivity);
 }
 

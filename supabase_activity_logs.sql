@@ -28,12 +28,12 @@ drop policy if exists "Allow public activity insert" on public.activity_logs;
 create policy "Allow public activity insert"
   on public.activity_logs
   for insert
-  to anon
+  to anon, authenticated
   with check (true);
 
 drop policy if exists "Allow public activity read" on public.activity_logs;
 create policy "Allow public activity read"
   on public.activity_logs
   for select
-  to anon
+  to anon, authenticated
   using (true);

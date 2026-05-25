@@ -402,6 +402,7 @@
       .role-app-modal p, .role-app-modal li { color: #5f5547; font-size: 0.84rem; line-height: 1.55; }
       .role-app-modal ul { margin: 12px 0 14px 18px; }
       .role-app-modal label { color: #6f5935; display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; margin: 12px 0 6px; text-transform: uppercase; }
+      .role-app-modal input,
       .role-app-modal select,
       .role-app-modal textarea {
         background: #fff;
@@ -477,6 +478,10 @@
           <option value="moderator">Moderator</option>
           <option value="admin">Admin</option>
         </select>
+        <label for="role-app-mobile">Mobile number for follow-up</label>
+        <input id="role-app-mobile" type="tel" placeholder="Mobile number"/>
+        <label for="role-app-profile-link">Your profile link in the shajra</label>
+        <input id="role-app-profile-link" placeholder="Paste your profile link from Apno Ki Talash"/>
         <label for="role-app-note">Why should we consider you?</label>
         <textarea id="role-app-note" placeholder="Share your community knowledge, availability, and how you can help responsibly."></textarea>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
@@ -487,6 +492,8 @@
       </div>
     `;
     document.body.appendChild(modal);
+    const visitor = currentVisitor || {};
+    if (byId('role-app-mobile')) byId('role-app-mobile').value = visitor.mobile || sessionStorage.getItem('akt_visitor_mobile') || '';
     document.getElementById('role-app-note')?.focus();
   }
 
@@ -503,8 +510,12 @@
 
   async function submitRoleApplication() {
     const requestedRole = byId('role-app-role')?.value || 'moderator';
+    const mobile = value('role-app-mobile');
+    const profileLink = value('role-app-profile-link');
     const note = value('role-app-note');
     if (!['moderator', 'admin'].includes(requestedRole)) return setRoleApplicationStatus('Please select a valid role.', true);
+    if (!mobile) return setRoleApplicationStatus('Please share your mobile number for follow-up.', true);
+    if (!profileLink) return setRoleApplicationStatus('Please paste your existing shajra profile link.', true);
     if (note.length < 30) return setRoleApplicationStatus('Please share a little more context before submitting.', true);
     const visitor = currentVisitor || {};
     const payload = {
@@ -512,7 +523,8 @@
       auth_user_id: currentSession?.user?.id || visitor.auth_user_id || sessionStorage.getItem('akt_auth_user_id') || null,
       applicant_name: visitor.name_entered || sessionStorage.getItem('akt_visitor_name') || userName(currentSession?.user) || null,
       applicant_email: userEmail(currentSession?.user) || visitor.email || null,
-      applicant_mobile: visitor.mobile || sessionStorage.getItem('akt_visitor_mobile') || null,
+      applicant_mobile: mobile,
+      applicant_profile_link: profileLink,
       current_access_role: normalizeAccessRole(visitor.access_role || sessionStorage.getItem('akt_visitor_role')),
       requested_role: requestedRole,
       application_note: note,

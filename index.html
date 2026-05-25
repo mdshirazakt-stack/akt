@@ -1116,7 +1116,7 @@
     <button class="nav-tab" onclick="switchTab('forum', this)"><span class="tab-icon">💬</span><span class="tab-label">Discussions</span></button>
     <button class="nav-tab" onclick="switchTab('suggestions', this)"><span class="tab-icon">💡</span><span class="tab-label">Suggestions</span></button>
     <button class="nav-tab" onclick="switchTab('corrections', this)"><span class="tab-icon">✏️</span><span class="tab-label">Add / Correct Family</span></button>
-    <button class="nav-tab" onclick="switchTab('help', this)"><span class="tab-icon">?</span><span class="tab-label">HELP</span></button>
+    <button class="nav-tab" onclick="switchTab('contribution', this)"><span class="tab-icon">+</span><span class="tab-label">Contribution</span></button>
   </nav>
 
   <main>
@@ -1191,11 +1191,11 @@
       </div>
     </div>
 
-    <!-- HELP PANEL -->
-    <div id="panel-help" class="panel">
+    <!-- CONTRIBUTION PANEL -->
+    <div id="panel-contribution" class="panel">
       <div class="help-page">
-        <h2>Community Help & Access Roles</h2>
-        <p class="help-lead">Apno Ki Talash is a private family archive. Every contribution should protect family dignity, improve accuracy, and avoid changes that create confusion in relationships or source history.</p>
+        <h2>Contribute to the Family Archive</h2>
+        <p class="help-lead">Apno Ki Talash grows through careful community contribution. Every update should protect family dignity, improve accuracy, and avoid changes that create confusion in relationships or source history.</p>
 
         <div class="help-grid">
           <div class="help-card">
@@ -1226,6 +1226,12 @@
             <li>Merging duplicate profiles or deciding which record should be treated as the primary profile.</li>
             <li>Importing new GEDCOM files, deleting sources, or applying changes that alter a large part of the archive.</li>
           </ul>
+        </div>
+
+        <div class="help-section">
+          <h3>Other ways to contribute</h3>
+          <p>People who maintain their own shajra, know families that are not yet represented here, or can identify incomplete branches are welcome to contribute further. The most useful contribution is genuine, correct, and traceable data: names, family links, places, dates, source context, and corrections that can be reviewed responsibly.</p>
+          <p style="margin-top:8px">If you know a missing branch or have a structured family dataset, use the correction tools or apply for a role if you can help with ongoing review work.</p>
         </div>
 
         <div class="help-section">
@@ -2397,7 +2403,7 @@ function switchTab(name, btn) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   if (btn) btn.classList.add('active');
-  const labels = { search: 'Search', tree: 'Browse Tree', stats: 'Stats', byfile: 'Index', allnames: 'All Names', corrections: 'Corrections', suggestions: 'Suggestions', findsomeone: 'Find Someone', forum: 'Discussions', help: 'Help' };
+  const labels = { search: 'Search', tree: 'Browse Tree', stats: 'Stats', byfile: 'Index', allnames: 'All Names', corrections: 'Corrections', suggestions: 'Suggestions', findsomeone: 'Find Someone', forum: 'Discussions', contribution: 'Contribution' };
   logActivity('open_tab', `Opened ${labels[name] || name}`, { tab: name });
   if (name === 'stats') loadStats();
   if (name === 'byfile') loadByFile();

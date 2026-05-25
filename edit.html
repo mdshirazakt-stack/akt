@@ -1436,7 +1436,12 @@ async function createAndAttachPerson() {
     raw_gedcom_id: identity.raw,
     updated_at: new Date().toISOString()
   };
-  const { error } = await sb.from('people').insert(payload);
+  let { error } = await sb.from('people').insert(payload);
+  if (error && /duplicate key|people_pkey/i.test(error.message || '')) {
+    payload.uid = crypto.randomUUID();
+    payload.raw_gedcom_id = `@I${Date.now()}@`;
+    error = (await sb.from('people').insert(payload)).error;
+  }
   if (error) return setStatus(error.message, true);
   peopleByUid[payload.uid] = payload;
   await refreshGedcomCounts(payload.gedcom_id);
@@ -1550,11 +1555,19 @@ async function saveMarriageDetails() {
 async function createFamily() {
   if (!requireRelationshipEdit('create family records')) return null;
   const identity = await nextGedcomIdentity(focusPerson?.gedcom_id || null, 'F');
-  const { data, error } = await sb.from('families').insert({
+  const payload = {
     uid: identity.uid,
     gedcom_id: focusPerson?.gedcom_id || null,
     raw_gedcom_id: identity.raw
-  }).select('*').single();
+  };
+  let { data, error } = await sb.from('families').insert(payload).select('*').single();
+  if (error && /duplicate key|families_pkey/i.test(error.message || '')) {
+    payload.uid = crypto.randomUUID();
+    payload.raw_gedcom_id = `@F${Date.now()}@`;
+    const retry = await sb.from('families').insert(payload).select('*').single();
+    data = retry.data;
+    error = retry.error;
+  }
   if (error) {
     setStatus(error.message, true);
     return null;
@@ -1582,7 +1595,7 @@ async function nextGedcomIdentity(gedcomId, prefix) {
   let next = 1;
   while (used.has(next)) next += 1;
   const raw = `@${prefix}${next}@`;
-  const uid = `${String(gedcomId).slice(0, 8)}_${prefix}${next}`;
+  const uid = crypto.randomUUID();
   return { raw, uid };
 }
 

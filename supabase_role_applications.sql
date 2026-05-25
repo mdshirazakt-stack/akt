@@ -8,6 +8,7 @@ create table if not exists public.role_applications (
   applicant_name text,
   applicant_email text,
   applicant_mobile text,
+  applicant_profile_link text,
   current_access_role text not null default 'visitor',
   requested_role text not null check (requested_role in ('moderator', 'admin')),
   application_note text not null,
@@ -18,6 +19,9 @@ create table if not exists public.role_applications (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.role_applications
+  add column if not exists applicant_profile_link text;
 
 create index if not exists idx_role_applications_status
   on public.role_applications (status);

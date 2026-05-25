@@ -3406,6 +3406,7 @@ function filterRoleApplications() {
       app.applicant_name,
       app.applicant_email,
       app.applicant_mobile,
+      app.applicant_profile_link,
       app.current_access_role,
       app.requested_role,
       app.application_note,
@@ -3447,6 +3448,7 @@ function renderRoleApplications(apps) {
             <strong>${escapeHtml(app.applicant_name || '(unnamed)')}</strong>
             <div style="font-size:0.72rem;color:var(--muted);margin-top:3px">${escapeHtml(app.applicant_email || '-')}</div>
             <div style="font-size:0.72rem;color:var(--muted)">${escapeHtml(app.applicant_mobile || '')}</div>
+            ${app.applicant_profile_link ? `<div style="font-size:0.72rem;margin-top:4px"><a href="${escapeHtml(app.applicant_profile_link)}" target="_blank" rel="noopener" style="color:#2563eb;text-decoration:underline">Profile link</a></div>` : ''}
           </td>
           <td>
             <span class="badge" style="background:#ede9fe;color:#5b21b6">${escapeHtml(app.requested_role || '-')}</span>

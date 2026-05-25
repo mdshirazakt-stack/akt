@@ -1063,6 +1063,7 @@
     <button class="nav-tab" onclick="switchTab('suggestions', this)"><span class="tab-icon">💡</span><span class="tab-label">Suggestions</span></button>
     <button class="nav-tab" onclick="switchTab('corrections', this)"><span class="tab-icon">✏️</span><span class="tab-label">Add / Correct Family</span></button>
     <button class="nav-tab" onclick="switchTab('contribution', this)"><span class="tab-icon">+</span><span class="tab-label">Contribution</span></button>
+    <button class="nav-tab" onclick="switchTab('guide', this)"><span class="tab-icon">?</span><span class="tab-label">User Guide</span></button>
   </nav>
 
   <main>
@@ -1185,6 +1186,50 @@
           <p>Apply only if you have meaningful knowledge of the community, a sincere interest in learning more, and enough time to help carefully. Requests are reviewed by the site owners. Approval is not automatic, and the owners may approve, decline, pause, or remove access whenever needed to protect the archive.</p>
           <p style="margin-top:8px">A moderator or admin who does not log in for one continuous month may lose that role. This keeps sensitive access limited to people who are actively helping.</p>
           <button class="help-apply-btn" type="button" onclick="window.AKT_AUTH?.openRoleApplicationModal?.()">Apply for Moderator or Admin</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- USER GUIDE PANEL -->
+    <div id="panel-guide" class="panel">
+      <div class="help-page">
+        <h2>User Guide</h2>
+        <p class="help-lead">This archive is private and community maintained. Use it slowly, verify what you find, and send corrections when you see missing or doubtful information.</p>
+
+        <div class="help-grid">
+          <div class="help-card">
+            <h4>First visit</h4>
+            <p>Sign in, complete the registration and consent form, then search for your own profile. Claim only your own profile so admins can privately connect your email and mobile number with the correct record.</p>
+          </div>
+          <div class="help-card">
+            <h4>Finding family</h4>
+            <p>Use Search for names, places, and source families. Open a profile to view details, then use Browse Tree to understand parents, spouses, and children around that profile.</p>
+          </div>
+        </div>
+
+        <div class="help-section">
+          <h3>How to search effectively</h3>
+          <ul>
+            <li>Try spelling variations, short name fragments, and family place names.</li>
+            <li>Use source-family labels to understand which GEDCOM file a profile came from.</li>
+            <li>If a name is missing, use Add / Correct Family rather than creating duplicate assumptions.</li>
+            <li>If two profiles look like the same person, raise a duplicate-profile correction and paste the other profile link.</li>
+          </ul>
+        </div>
+
+        <div class="help-section">
+          <h3>Corrections and missing people</h3>
+          <p>Use Add / Correct Family for spelling issues, place corrections, missing dates, missing relatives, duplicate profiles, and requests to add a person who is not yet represented. Include enough context for an admin to verify the request: names, places, approximate dates, and known family links.</p>
+        </div>
+
+        <div class="help-section">
+          <h3>Profile claims</h3>
+          <p>Claiming a profile is for your own profile only. Ancestors and shared relatives should not be claimed as personal profiles. If an ancestor is relevant to your line, mention that in corrections or contribution notes so admins can review the lineage context.</p>
+        </div>
+
+        <div class="help-section">
+          <h3>Contacting site admins</h3>
+          <p>For access problems, incorrect records, blocked accounts, urgent privacy concerns, or large shajra datasets, use Add / Correct Family with clear details. If you want to help review data regularly, use the Contribution tab to apply for a moderator or admin role.</p>
         </div>
       </div>
     </div>
@@ -2364,7 +2409,7 @@ function switchTab(name, btn) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   if (btn) btn.classList.add('active');
-  const labels = { search: 'Search', tree: 'Browse Tree', stats: 'Stats', byfile: 'Index', allnames: 'All Names', corrections: 'Corrections', suggestions: 'Suggestions', findsomeone: 'Find Someone', forum: 'Discussions', contribution: 'Contribution' };
+  const labels = { search: 'Search', tree: 'Browse Tree', stats: 'Stats', byfile: 'Index', allnames: 'All Names', corrections: 'Corrections', suggestions: 'Suggestions', findsomeone: 'Find Someone', forum: 'Discussions', contribution: 'Contribution', guide: 'User Guide' };
   logActivity('open_tab', `Opened ${labels[name] || name}`, { tab: name });
   if (name === 'stats') loadStats();
   if (name === 'byfile') loadByFile();

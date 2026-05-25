@@ -27,8 +27,14 @@ Current git state at handoff:
 ```text
 Branch: main
 Working tree before this handoff edit: clean
-Pending handoff/admin UI changes in this turn: admin.html, PROJECT_HANDOFF.md
-Latest pushed commit before this handoff edit: 6ea6c9a Compact users access table
+Pending MVP wrap-up changes in this turn: index.html, archive.html, SECURITY_REVIEW.md, PROJECT_HANDOFF.md
+Latest pushed commit before this handoff edit: cc3fcf4 Link claimed profiles in users table
+```
+
+MVP status:
+
+```text
+First MVP is mostly complete and usable for authenticated community access, search, profile viewing, corrections, profile claiming, admin review, imports/exports, and native family editing.
 ```
 
 Recent major AKT work completed:
@@ -46,6 +52,8 @@ Recent major AKT work completed:
 - Visitor Activity is session-oriented: one row per visitor session, with a `View Activity` button opening detailed datewise activity for that session. Device/location/timezone are shown once in the popup, not repeated in the table.
 - `supabase_activity_logs.sql` now grants `activity_logs` read/insert to both `anon` and `authenticated`; run the latest SQL if detailed activity logs stop appearing for signed-in users.
 - Role contribution guidance lives in the `Contribution` tab, and role applications collect requested role, mobile number, profile link, and notes.
+- A `User Guide` tab has been added after `Contribution` to explain first visit, profile claiming, searching, corrections, duplicate flags, and how to contact admins.
+- `SECURITY_REVIEW.md` now tracks MVP security hardening work, especially RLS policy tightening, admin-only writes, private contact protection, and audit logging.
 - Mobile search UX has been redesigned and pushed.
 - Mobile filters now open as a compact sheet with collapsed filter sections.
 - "Filter" was renamed to "Filter Search Results".
@@ -56,6 +64,9 @@ Recent major AKT work completed:
 - Print tree no longer prints the large search/index result list.
 - Admin visitors/activity tracking was enriched with IST timestamps, visit counts, device/timezone, and location hints.
 - Admin visitor table got sortable columns and cleaner mobile-unfriendly metadata was removed.
+- Visitor Activity is now grouped by browser session where a `session_id` is available; older logs fall back to same-user time-window grouping.
+- New activity logs from `index.html`, `archive.html`, and `person.html` include `details.session_id` so `View Activity` can show session movements more cleanly.
+- Admin Users profile-claim column now includes a compact link to the claimed profile when a claim exists or has been applied.
 - GEDCOM duplicate protection was changed to a filename warning instead of person-level duplicate blocking.
 - Profile correction workflow was introduced on `person.html`.
 - Admin can review correction requests and apply harmless profile fields.
@@ -170,6 +181,7 @@ Important behavior:
 
 Known limitations / next fixes:
 
+- Security hardening is the highest priority before broad public rollout. Start with `SECURITY_REVIEW.md`.
 - `edit.html` still has a few prompt/confirm paths, especially deleting empty groups; most core add/search/create flows now use modals.
 - Permission gating now allows moderators into profile editing while relationship/family graph operations remain admin-only in the UI guards.
 - Relationship overlays still exist and can confuse users if mixed with native edits. Decide whether to hide, migrate, or archive overlay relationship tools.

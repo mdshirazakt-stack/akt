@@ -464,6 +464,7 @@
   .stat-chip .lbl { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
 
   table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  #visitors-table-wrap { overflow-x: auto; border: 1px solid var(--border); background: #fff; }
   th { background: var(--bg); color: var(--muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.08em; padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
   th.sortable { cursor: pointer; user-select: none; transition: color 0.2s; }
   th.sortable:hover { color: var(--gold); }
@@ -969,7 +970,7 @@
         <div class="nav-section-label">Imports</div>
         <button class="nav-tab active" data-min-role="admin" onclick="switchTab('upload', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="M7 8l5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg></span><span class="nav-label">Import GEDCOM</span></button>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('uploads', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/><path d="M12 7v5l3 2"/></svg></span><span class="nav-label">Export GEDCOM</span></button>
-        <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('settings', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/></svg></span><span class="nav-label">Import stats</span></button>
+        <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('settings', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/></svg></span><span class="nav-label">Site stats</span></button>
       </div>
       <div class="nav-section">
         <div class="nav-section-label">Review Queue</div>
@@ -983,9 +984,9 @@
       </div>
       <div class="nav-section">
         <div class="nav-section-label">Community</div>
-        <button class="nav-tab" data-min-role="admin" onclick="switchTab('visitors', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/><circle cx="17" cy="8" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5 4.5v1"/></svg></span><span class="nav-label">Visitors</span><span class="nav-badge" id="badge-visitors"></span></button>
-        <button class="nav-tab" data-min-role="admin" onclick="switchTab('registered', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></svg></span><span class="nav-label">Registered users</span><span class="nav-badge" id="badge-registered"></span></button>
-        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('activity', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-7 5 14 2.5-7h4"/></svg></span><span class="nav-label">Activity history</span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('visitors', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/><circle cx="17" cy="8" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5 4.5v1"/></svg></span><span class="nav-label">Users</span><span class="nav-badge" id="badge-visitors"></span></button>
+        <button class="nav-tab" data-min-role="moderator" onclick="switchTab('activity', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-7 5 14 2.5-7h4"/></svg></span><span class="nav-label">Visitor activity</span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('staffactivity', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span class="nav-label">Staff activity</span></button>
         <button class="nav-tab" data-min-role="moderator" onclick="switchTab('forum', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-12.1 7.7L3 21l1.8-5.4A8.5 8.5 0 1 1 21 11.5Z"/></svg></span><span class="nav-label">Forum</span><span class="nav-badge" id="badge-forum"></span></button>
       </div>
     </nav>
@@ -1104,21 +1105,25 @@
     <!-- VISITORS -->
     <div id="panel-visitors" class="panel">
       <div class="card">
-        <h2>Site Visitors</h2>
+        <h2>Users</h2>
         <div class="flex-row" style="margin-bottom:16px">
-          <input class="search-bar" id="visitor-search" placeholder="Search by name…" oninput="filterVisitors()" style="flex:1;margin:0"/>
+          <input class="search-bar" id="visitor-search" placeholder="Search users by name, email, mobile, places, ancestor..." oninput="filterVisitors()" style="flex:1;margin:0"/>
           <button class="btn-sm" onclick="loadVisitors()">↻ Refresh</button>
         </div>
         <div class="insight-note" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px">
-          <span>Reset public access before relaunch. This keeps only admin and superadmin visitors, clears everyone else, and removes previous activity history.</span>
+          <span>Manage signed-in users, visitor registration records, roles, and access status in one table.</span>
           <button class="btn-sm btn-danger" onclick="clearPublicVisitors()">Clear Public Visitors</button>
         </div>
         <div id="visitors-table-wrap">
-          <table>
+          <table style="min-width:1680px">
             <thead><tr>
-              <th class="sortable" onclick="sortVisitorsBy('name_entered')">Name Entered <span class="sort-indicator" id="sort-name_entered"></span></th>
-              <th class="sortable" onclick="sortVisitorsBy('visit_count')">Total Visits <span class="sort-indicator" id="sort-visit_count"></span></th>
-              <th>Mobile / Reference</th>
+              <th class="sortable" onclick="sortVisitorsBy('name_entered')">Name / Email <span class="sort-indicator" id="sort-name_entered"></span></th>
+              <th class="sortable" onclick="sortVisitorsBy('mobile')">Mobile <span class="sort-indicator" id="sort-mobile"></span></th>
+              <th>Family Details</th>
+              <th>Current Place</th>
+              <th>Heard From</th>
+              <th class="sortable" onclick="sortVisitorsBy('registered')">Registration <span class="sort-indicator" id="sort-registered"></span></th>
+              <th class="sortable" onclick="sortVisitorsBy('visit_count')">Visits <span class="sort-indicator" id="sort-visit_count"></span></th>
               <th class="sortable" onclick="sortVisitorsBy('last_seen')">Last Seen (IST) <span class="sort-indicator" id="sort-last_seen"></span></th>
               <th class="sortable" onclick="sortVisitorsBy('status')">Status <span class="sort-indicator" id="sort-status"></span></th>
               <th class="sortable" onclick="sortVisitorsBy('role')">Role <span class="sort-indicator" id="sort-role"></span></th>
@@ -1127,21 +1132,6 @@
             <tbody id="visitors-tbody"></tbody>
           </table>
         </div>
-      </div>
-    </div>
-
-    <!-- REGISTERED USERS -->
-    <div id="panel-registered" class="panel">
-      <div class="card">
-        <h2>Registered Users</h2>
-        <div class="flex-row" style="margin-bottom:16px">
-          <input class="search-bar" id="registered-search" placeholder="Search registered users, places, ancestor, email..." oninput="filterRegisteredUsers()" style="flex:1;margin:0"/>
-          <button class="btn-sm" onclick="loadRegisteredUsers()">↻ Refresh</button>
-        </div>
-        <div class="insight-note" style="margin-bottom:16px">
-          Shows signed-in users who completed the visitor form and accepted consent sections 6, 7, 8, and 18.
-        </div>
-        <div id="registered-users-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
       </div>
     </div>
 
@@ -1158,6 +1148,21 @@
           <button class="btn-sm" onclick="loadActivity()">↻ Refresh</button>
         </div>
         <div id="activity-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- STAFF ACTIVITY -->
+    <div id="panel-staffactivity" class="panel">
+      <div class="card">
+        <h2>Staff Activity <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">(admins and moderators)</span></h2>
+        <div class="activity-filters">
+          <input class="search-bar" id="staff-activity-search" placeholder="Search by actor, action, target..." oninput="filterStaffActivity()" style="max-width:320px;margin:0;flex:1"/>
+          <button class="activity-filter-btn staff-activity-filter-btn active" onclick="setStaffActivityRange('last24',this)">Last 24h</button>
+          <button class="activity-filter-btn staff-activity-filter-btn" onclick="setStaffActivityRange('today',this)">Today</button>
+          <button class="activity-filter-btn staff-activity-filter-btn" onclick="setStaffActivityRange('week',this)">This Week</button>
+          <button class="btn-sm" onclick="loadStaffActivity()">↻ Refresh</button>
+        </div>
+        <div id="staff-activity-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
       </div>
     </div>
 
@@ -1209,15 +1214,15 @@
       </div>
     </div>
 
-    <!-- IMPORT STATS / SETTINGS -->
+    <!-- SITE STATS / SETTINGS -->
     <div id="panel-settings" class="panel">
       <div class="card">
-        <h2>Import Stats</h2>
+        <h2>Site Stats</h2>
         <div id="db-stats" class="insight-grid">
           <div class="empty"><span class="spinner"></span> Loading...</div>
         </div>
         <div class="insight-note">
-          Recommended workflow: keep uploads as version history, allow intentional re-upload of an edited GEDCOM, then compare the newer file against the previous upload by filename. For now, filename warnings protect against accidental duplicate uploads without blocking deliberate revisions.
+          Includes current archive size, registered user growth, recent unique visitor activity, and GEDCOM import health.
         </div>
         <h3>Repeated GEDCOM Filenames</h3>
         <div id="duplicate-upload-stats" class="mini-list"><div class="empty">Loading...</div></div>
@@ -1509,6 +1514,8 @@ let allVisitors = [];
 let registeredUsers = [];
 let registeredSort = { key: 'registered', dir: 'desc' };
 let visitorSort = { key: 'last_seen', dir: 'desc' };
+let staffActivityRows = [];
+let staffActivityRange = 'last24';
 let forumAdminView = 'threads';
 let forumAdminThreads = [];
 let forumAdminPosts = [];
@@ -1533,6 +1540,28 @@ function normalizeAccessRole(role) {
 
 function hasAdminRole(role) {
   return (ROLE_LEVELS[currentAdminRole] || 0) >= (ROLE_LEVELS[role] || 0);
+}
+
+function currentStaffName() {
+  return sessionStorage.getItem('akt_visitor_name') || (currentAdminRole === 'superadmin' ? 'Superadmin' : 'Staff');
+}
+
+async function logStaffActivity(action, target = '', details = {}) {
+  if (!hasAdminRole('moderator')) return;
+  const payload = {
+    actor_name: currentStaffName(),
+    actor_role: currentAdminRole,
+    action,
+    target,
+    details: {
+      ...details,
+      auth_user_id: sessionStorage.getItem('akt_auth_user_id') || null
+    }
+  };
+  const { error } = await sb.from('staff_activity_logs').insert(payload);
+  if (error && !/does not exist|schema cache|relation/i.test(error.message || '')) {
+    console.warn('Staff activity log failed:', error.message);
+  }
 }
 
 // ===================== AUTH =====================
@@ -1650,9 +1679,9 @@ function switchTab(name, btn) {
   if (btn) btn.classList.add('active'); else event.target.classList.add('active');
   if (name === 'uploads') loadUploads();
   if (name === 'visitors') loadVisitors();
-  if (name === 'registered') loadRegisteredUsers();
   if (name === 'settings') loadDbStats();
   if (name === 'activity') loadActivity();
+  if (name === 'staffactivity') loadStaffActivity();
   if (name === 'changelog') loadChangeLog();
   if (name === 'corrections') loadCorrections();
   if (name === 'suggestions') loadSuggestions();
@@ -2132,6 +2161,11 @@ async function confirmUpload() {
     const result = await pushParsedData(adjustedData, onProgress);
     fill.style.width = '100%'; pct.textContent = '100%';
     label.textContent = 'Done!';
+    logStaffActivity('gedcom_uploaded', parsedData.filename, {
+      people: result.people,
+      families: result.families,
+      skipped_duplicates: parsedData.people.length - toInsert.length
+    });
     toast(`✔ Uploaded ${result.people} people, ${result.families} families from ${parsedData.filename}`);
     btn.disabled = false; btn.textContent = '✔ Confirm & Push to Database';
     setTimeout(() => { resetUpload(); loadAll(); loadUploads(); exportAllNamesJson(); }, 2000);
@@ -2217,6 +2251,7 @@ async function exportAllNamesJson() {
     URL.revokeObjectURL(url);
 
     btn.innerHTML = `✔ Downloaded — ${allPeople.length.toLocaleString()} names`;
+    logStaffActivity('allnames_json_exported', 'allnames.json', { people: allPeople.length, gedcom_count: uploads.length });
     toast(`✔ allnames.json exported — ${allPeople.length.toLocaleString()} people`);
     setTimeout(() => { btn.disabled = false; btn.innerHTML = origText; }, 3000);
 
@@ -2356,6 +2391,7 @@ async function exportGedcomSource(gedcomId, filename) {
   try {
     const gedcomText = await buildGedcomSourceText(gedcomId, filename);
     downloadTextFile(gedcomText, /\.ged$/i.test(filename) ? filename : filename + '.ged', 'text/plain;charset=utf-8');
+    logStaffActivity('gedcom_exported', filename, { gedcom_id: gedcomId, format: 'ged' });
     toast(`GEDCOM exported: ${filename}`);
   } catch (err) {
     toast('GEDCOM export failed: ' + (err.message || err), true);
@@ -2378,6 +2414,7 @@ async function renameGedcomSource(gedcomId, filename) {
   }
   uploadedSources = uploadedSources.map(source => source.id === gedcomId ? { ...source, filename: finalName } : source);
   renderUploads();
+  logStaffActivity('gedcom_renamed', finalName, { gedcom_id: gedcomId, from: current?.filename || '', to: finalName });
   toast(`GEDCOM renamed to "${finalName}"`);
 }
 
@@ -2455,6 +2492,7 @@ async function exportSelectedGedcoms() {
     toast('Select at least one GEDCOM source first.', true);
     return;
   }
+  logStaffActivity('gedcom_export_selected_started', 'selected GEDCOMs', { count: ids.length });
   await exportGedcomBundle(uploadedSources.filter(source => ids.includes(source.id)), 'apnonkitalash-selected-gedcoms.zip');
 }
 
@@ -2466,6 +2504,7 @@ async function exportAllGedcoms() {
   }
   const ok = confirm(`Export all ${uploadedSources.length.toLocaleString()} GEDCOM source files as one zip?`);
   if (!ok) return;
+  logStaffActivity('gedcom_export_all_started', 'all GEDCOMs', { count: uploadedSources.length });
   await exportGedcomBundle(uploadedSources, 'apnonkitalash-all-gedcoms.zip');
 }
 
@@ -2482,6 +2521,7 @@ async function exportGedcomBundle(sources, zipName) {
     }
     const zipBlob = buildStoredZip(files);
     downloadBlob(zipBlob, zipName);
+    logStaffActivity('gedcom_export_bundle_downloaded', zipName, { count: sources.length });
     toast(`Downloaded ${sources.length.toLocaleString()} GEDCOM export(s).`);
   } catch (err) {
     toast('Bulk GEDCOM export failed: ' + (err.message || err), true);
@@ -2751,6 +2791,7 @@ async function deleteUpload(id, name) {
     if (e5) throw new Error('Deleting upload record: ' + e5.message);
 
     toast(`✔ Deleted "${name}" and all its data`);
+    logStaffActivity('gedcom_deleted', name, { gedcom_id: id });
     loadUploads();
     loadAll();
   } catch (err) {
@@ -2761,7 +2802,7 @@ async function deleteUpload(id, name) {
 // ===================== VISITORS =====================
 async function loadVisitors() {
   const tbody = document.getElementById('visitors-tbody');
-  tbody.innerHTML = '<tr><td colspan="7" class="empty"><span class="spinner"></span> Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="11" class="empty"><span class="spinner"></span> Loading…</td></tr>';
   const { data } = await sb.from('visitors').select('*').order('last_seen', { ascending: false });
   allVisitors = data || [];
   setNavBadge('visitors', allVisitors.filter(v => visitorAccessStatus(v) === 'pending').length);
@@ -2927,11 +2968,13 @@ function registeredHeardFromText(user) {
 
 function renderVisitors(visitors) {
   const tbody = document.getElementById('visitors-tbody');
-  if (!visitors.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No visitors yet.</td></tr>'; return; }
+  if (!visitors.length) { tbody.innerHTML = '<tr><td colspan="11" class="empty">No users yet.</td></tr>'; return; }
   updateVisitorSortIndicators();
   const sortedVisitors = sortVisitorRows(visitors);
   tbody.innerHTML = sortedVisitors.map(v => {
     const status = visitorAccessStatus(v);
+    const registeredAt = v.visitor_form_completed_at || v.updated_at || v.first_seen;
+    const consentSections = Array.isArray(v.consent_sections) ? v.consent_sections.join(', ') : String(v.consent_sections || '');
     const statusStyles = {
       pending: 'background:rgba(243,156,18,0.18);color:#b8860b',
       approved: 'background:rgba(39,174,96,0.18);color:#166534',
@@ -2941,20 +2984,30 @@ function renderVisitors(visitors) {
     return `
     <tr class="${v.is_blocked ? 'blocked' : ''}">
       <td>
-        <strong>${escapeHtml(v.name_entered)}</strong>
+        <strong>${escapeHtml(v.name_entered || '(unnamed)')}</strong>
         ${v.email ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:3px">${escapeHtml(v.email)}</div>` : ''}
         ${v.admin_notes ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:3px">Note: ${escapeHtml(v.admin_notes)}</div>` : ''}
       </td>
-      <td><strong>${Number(v.visit_count || 0).toLocaleString()}</strong></td>
-      <td style="font-size:0.78rem;color:var(--muted)">
-        ${v.mobile ? `<strong style="color:var(--text)">${escapeHtml(v.mobile)}</strong><br>` : ''}
+      <td>${escapeHtml(v.mobile || '-')}</td>
+      <td style="font-size:0.78rem;color:var(--muted);white-space:normal;min-width:220px">
         ${v.father_name ? `Father: ${escapeHtml(v.father_name)}<br>` : ''}
         ${v.root_place || v.family_reference ? `Root: ${escapeHtml(v.root_place || v.family_reference)}<br>` : ''}
-        ${v.current_place ? `Current: ${escapeHtml(v.current_place)}<br>` : ''}
-        ${v.consent_terms_accepted ? `<span style="color:var(--green);font-weight:700">Consent ${escapeHtml(v.consent_version || '')}</span><br>` : ''}
-        ${formatVisitorTimezone(v.ip_hint)}
+        ${v.oldest_ancestor ? `Ancestor: ${escapeHtml(v.oldest_ancestor)}<br>` : ''}
+        ${!v.father_name && !v.root_place && !v.family_reference && !v.oldest_ancestor ? '-' : ''}
       </td>
-      <td>${formatIST(v.last_seen, false)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(v.last_seen)}</span></td>
+      <td style="font-size:0.78rem;color:var(--muted);white-space:normal;min-width:200px">
+        ${v.current_place ? `<strong style="color:var(--text)">${escapeHtml(v.current_place)}</strong><br>` : ''}
+        ${v.current_address ? escapeHtml(v.current_address) : (!v.current_place ? '-' : '')}
+      </td>
+      <td style="font-size:0.78rem;color:var(--muted);white-space:normal;min-width:220px">${escapeHtml(registeredHeardFromText(v) || '-')}</td>
+      <td>
+        ${v.visitor_form_completed ? '<span class="badge" style="background:#dcfce7;color:#166534">form</span>' : '<span class="badge" style="background:#fef3c7;color:#92400e">partial</span>'}
+        ${v.consent_terms_accepted ? '<span class="badge" style="background:#e0f2fe;color:#075985;margin-left:4px">consent</span>' : ''}
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">${formatIST(registeredAt, false)}</div>
+        ${consentSections ? `<div style="font-size:0.68rem;color:var(--muted)">Sections ${escapeHtml(consentSections)}</div>` : ''}
+      </td>
+      <td><strong>${Number(v.visit_count || 0).toLocaleString()}</strong></td>
+      <td>${formatIST(v.last_seen, false)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(v.last_seen)}</span><br><span style="font-size:0.68rem;color:var(--muted)">${formatVisitorTimezone(v.ip_hint)}</span></td>
       <td><span class="badge" style="${statusStyles[status] || statusStyles.pending}">${escapeHtml(status)}</span></td>
       <td>
         <select onchange="setVisitorRole('${v.id}', this.value)" style="min-width:132px;padding:7px 9px;font-size:0.78rem">
@@ -2977,7 +3030,8 @@ function renderVisitors(visitors) {
 
 function filterVisitors() {
   const q = document.getElementById('visitor-search').value.toLowerCase();
-  renderVisitors(allVisitors.filter(v => v.name_entered.toLowerCase().includes(q)));
+  if (!q) return renderVisitors(allVisitors);
+  renderVisitors(allVisitors.filter(v => registeredUserSearchText(v).includes(q)));
 }
 
 function sortVisitorsBy(key) {
@@ -2985,7 +3039,7 @@ function sortVisitorsBy(key) {
     visitorSort.dir = visitorSort.dir === 'asc' ? 'desc' : 'asc';
   } else {
     visitorSort.key = key;
-    visitorSort.dir = ['visit_count', 'first_seen', 'last_seen'].includes(key) ? 'desc' : 'asc';
+    visitorSort.dir = ['visit_count', 'first_seen', 'last_seen', 'registered'].includes(key) ? 'desc' : 'asc';
   }
   filterVisitors();
 }
@@ -3001,6 +3055,12 @@ function sortVisitorRows(visitors) {
     } else if (visitorSort.key === 'first_seen' || visitorSort.key === 'last_seen') {
       av = new Date(a[visitorSort.key] || 0).getTime();
       bv = new Date(b[visitorSort.key] || 0).getTime();
+    } else if (visitorSort.key === 'registered') {
+      av = new Date(a.visitor_form_completed_at || a.updated_at || a.first_seen || 0).getTime();
+      bv = new Date(b.visitor_form_completed_at || b.updated_at || b.first_seen || 0).getTime();
+    } else if (visitorSort.key === 'mobile') {
+      av = String(a.mobile || '').toLowerCase();
+      bv = String(b.mobile || '').toLowerCase();
     } else if (visitorSort.key === 'timezone') {
       av = formatVisitorTimezone(a.ip_hint).toLowerCase();
       bv = formatVisitorTimezone(b.ip_hint).toLowerCase();
@@ -3038,6 +3098,8 @@ async function setVisitorRole(id, role) {
     filterVisitors();
     return;
   }
+  const visitor = allVisitors.find(v => v.id === id);
+  const oldRole = visitor?.access_role || 'visitor';
   const { error } = await sb.from('visitors').update({
     access_role: role,
     updated_at: new Date().toISOString()
@@ -3048,6 +3110,7 @@ async function setVisitorRole(id, role) {
   }
   toast('Visitor role updated');
   allVisitors = allVisitors.map(v => v.id === id ? { ...v, access_role: role } : v);
+  logStaffActivity('user_role_changed', visitor?.name_entered || visitor?.email || id, { visitor_id: id, from: oldRole, to: role });
   filterVisitors();
 }
 
@@ -3065,15 +3128,20 @@ function visitorRoleOptions(currentRole = 'visitor') {
 
 async function blockVisitor(id) {
   const reason = prompt('Reason for blocking (optional):') || '';
+  const visitor = allVisitors.find(v => v.id === id);
   await sb.from('visitors').update({ is_blocked: true, access_status: 'blocked', block_reason: reason, updated_at: new Date().toISOString() }).eq('id', id);
+  logStaffActivity('user_blocked', visitor?.name_entered || visitor?.email || id, { visitor_id: id, reason });
   toast('Visitor blocked'); loadVisitors();
 }
 async function unblockVisitor(id) {
+  const visitor = allVisitors.find(v => v.id === id);
   await sb.from('visitors').update({ is_blocked: false, access_status: 'approved', block_reason: null, approved_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', id);
+  logStaffActivity('user_unblocked', visitor?.name_entered || visitor?.email || id, { visitor_id: id });
   toast('Visitor unblocked'); loadVisitors();
 }
 
 async function approveVisitor(id) {
+  const visitor = allVisitors.find(v => v.id === id);
   await sb.from('visitors').update({
     access_status: 'approved',
     access_role: 'visitor',
@@ -3083,6 +3151,7 @@ async function approveVisitor(id) {
     rejected_at: null,
     updated_at: new Date().toISOString()
   }).eq('id', id);
+  logStaffActivity('user_approved', visitor?.name_entered || visitor?.email || id, { visitor_id: id });
   toast('Access approved');
   loadVisitors();
 }
@@ -3117,6 +3186,7 @@ async function clearPublicVisitors() {
     toast('Could not clear public visitors: ' + error.message, true);
     return;
   }
+  logStaffActivity('public_visitors_cleared', 'visitors', { deleted_count: deleteCount });
   toast('Public visitors and previous activity history cleared.');
   await loadVisitors();
   if (document.getElementById('panel-activity').classList.contains('active')) loadActivity();
@@ -3143,12 +3213,14 @@ async function copyApprovalMessage(id) {
 
 async function rejectVisitor(id) {
   const notes = prompt('Reason or admin note (optional):') || '';
+  const visitor = allVisitors.find(v => v.id === id);
   await sb.from('visitors').update({
     access_status: 'rejected',
     admin_notes: notes,
     rejected_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   }).eq('id', id);
+  logStaffActivity('user_rejected', visitor?.name_entered || visitor?.email || id, { visitor_id: id, notes });
   toast('Access rejected');
   loadVisitors();
 }
@@ -3166,15 +3238,17 @@ async function loadDbStats() {
     { count: pc, error: peopleError },
     { count: fc, error: familiesError },
     { count: vc, error: visitorsError },
+    { data: visitorRows, error: visitorRowsError },
     { data: uploads, error: uploadsError }
   ] = await Promise.all([
     sb.from('people').select('*', { count: 'exact', head: true }),
     sb.from('families').select('*', { count: 'exact', head: true }),
     sb.from('visitors').select('*', { count: 'exact', head: true }),
+    sb.from('visitors').select('id,auth_user_id,email,mobile,name_entered,last_seen,visitor_form_completed,consent_terms_accepted').limit(10000),
     sb.from('gedcom_uploads').select('id,filename,people_count,families_count,uploaded_at,notes').order('uploaded_at', { ascending: false })
   ]);
 
-  if (peopleError || familiesError || visitorsError || uploadsError) {
+  if (peopleError || familiesError || visitorsError || visitorRowsError || uploadsError) {
     el.innerHTML = '<div class="empty">Could not load import stats.</div>';
     dupEl.innerHTML = '<div class="empty">Could not load duplicate filename history.</div>';
     recentEl.innerHTML = '<div class="empty">Could not load recent uploads.</div>';
@@ -3182,6 +3256,12 @@ async function loadDbStats() {
   }
 
   const uploadRows = uploads || [];
+  const now = new Date();
+  const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
+  const weekStart = new Date(now); weekStart.setDate(weekStart.getDate() - 7); weekStart.setHours(0,0,0,0);
+  const registeredTotal = (visitorRows || []).filter(isRegisteredVisitor).length;
+  const dailyUniqueVisitors = uniqueVisitorCountSince(visitorRows || [], todayStart);
+  const weeklyUniqueVisitors = uniqueVisitorCountSince(visitorRows || [], weekStart);
   const totalUploadedPeople = uploadRows.reduce((sum, row) => sum + Number(row.people_count || 0), 0);
   const totalUploadedFamilies = uploadRows.reduce((sum, row) => sum + Number(row.families_count || 0), 0);
   const duplicateGroups = getDuplicateUploadGroups(uploadRows);
@@ -3189,6 +3269,9 @@ async function loadDbStats() {
   el.innerHTML = `
     <div class="insight-card"><div class="num">${(pc || 0).toLocaleString()}</div><div class="lbl">People in Database</div></div>
     <div class="insight-card"><div class="num">${(fc || 0).toLocaleString()}</div><div class="lbl">Families in Database</div></div>
+    <div class="insight-card"><div class="num">${registeredTotal.toLocaleString()}</div><div class="lbl">Registered Users</div></div>
+    <div class="insight-card"><div class="num">${dailyUniqueVisitors.toLocaleString()}</div><div class="lbl">Unique Visitors Today</div></div>
+    <div class="insight-card"><div class="num">${weeklyUniqueVisitors.toLocaleString()}</div><div class="lbl">Unique Visitors Last 7 Days</div></div>
     <div class="insight-card"><div class="num">${uploadRows.length.toLocaleString()}</div><div class="lbl">GEDCOM Uploads</div></div>
     <div class="insight-card"><div class="num">${duplicateGroups.length.toLocaleString()}</div><div class="lbl">Repeated Filenames</div></div>
     <div class="insight-card"><div class="num">${totalUploadedPeople.toLocaleString()}</div><div class="lbl">People Across Uploads</div></div>
@@ -3198,6 +3281,21 @@ async function loadDbStats() {
 
   renderDuplicateUploadStats(duplicateGroups);
   renderRecentUploadStats(uploadRows.slice(0, 8));
+}
+
+function isRegisteredVisitor(visitor) {
+  return Boolean(visitor.visitor_form_completed || visitor.consent_terms_accepted || visitor.auth_user_id || visitor.email);
+}
+
+function uniqueVisitorCountSince(visitors, fromDate) {
+  const fromTime = fromDate.getTime();
+  const ids = new Set();
+  visitors.forEach(visitor => {
+    const lastSeen = new Date(visitor.last_seen || 0).getTime();
+    if (!lastSeen || lastSeen < fromTime) return;
+    ids.add(visitor.auth_user_id || visitor.email || visitor.mobile || visitor.name_entered || visitor.id);
+  });
+  return ids.size;
 }
 
 function getDuplicateUploadGroups(uploads) {
@@ -3737,6 +3835,7 @@ async function changePassword() {
   if (error) { toast('Error: ' + error.message, true); return; }
   adminPassword = pw;
   document.getElementById('new-pw').value = '';
+  logStaffActivity('admin_password_changed', 'admin_config');
   toast('Password updated successfully');
 }
 
@@ -3749,6 +3848,7 @@ async function confirmNuke() {
   await sb.from('families').delete().neq('uid', 'x');
   await sb.from('people').delete().neq('uid', 'x');
   await sb.from('gedcom_uploads').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  logStaffActivity('archive_data_deleted', 'all archive tables');
   toast('All data deleted'); loadAll();
 }
 
@@ -3758,7 +3858,7 @@ let allActivity = [];
 
 function setActivityRange(range, btn) {
   activityRange = range;
-  document.querySelectorAll('.activity-filter-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#panel-activity .activity-filter-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   loadActivity();
 }
@@ -3898,6 +3998,94 @@ function filterActivity() {
     ].join(' ').toLowerCase();
     return haystack.includes(q);
   }));
+}
+
+// ===================== STAFF ACTIVITY =====================
+function activityRangeWindow(range) {
+  const now = new Date();
+  if (range === 'today') {
+    const fromDate = new Date(now); fromDate.setHours(0,0,0,0);
+    return { fromDate, toDate: now };
+  }
+  if (range === 'week') {
+    const fromDate = new Date(now); fromDate.setDate(fromDate.getDate() - 7); fromDate.setHours(0,0,0,0);
+    return { fromDate, toDate: now };
+  }
+  return { fromDate: new Date(now.getTime() - 24*60*60*1000), toDate: now };
+}
+
+function setStaffActivityRange(range, btn) {
+  staffActivityRange = range;
+  document.querySelectorAll('.staff-activity-filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  loadStaffActivity();
+}
+
+async function loadStaffActivity() {
+  const list = document.getElementById('staff-activity-list');
+  if (!list) return;
+  list.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+  const { fromDate, toDate } = activityRangeWindow(staffActivityRange);
+  let query = sb.from('staff_activity_logs')
+    .select('id,actor_name,actor_role,action,target,details,created_at')
+    .gte('created_at', fromDate.toISOString())
+    .order('created_at', { ascending: false })
+    .limit(500);
+  if (toDate) query = query.lte('created_at', toDate.toISOString());
+  const { data, error } = await query;
+  if (error) {
+    list.innerHTML = `<div class="empty" style="color:var(--red)">Could not load staff activity. Run supabase_staff_activity_logs.sql if this is the first time enabling audit logs.<br>${escapeHtml(error.message)}</div>`;
+    return;
+  }
+  staffActivityRows = data || [];
+  renderStaffActivity(staffActivityRows);
+}
+
+function renderStaffActivity(rows) {
+  const list = document.getElementById('staff-activity-list');
+  if (!rows.length) { list.innerHTML = '<div class="empty">No staff activity found for this period.</div>'; return; }
+  list.innerHTML = `<table>
+    <thead>
+      <tr>
+        <th>When</th>
+        <th>Actor</th>
+        <th>Role</th>
+        <th>Action</th>
+        <th>Target</th>
+        <th>Details</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map(row => `<tr>
+        <td>${formatIST(row.created_at)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(row.created_at)}</span></td>
+        <td><strong>${escapeHtml(row.actor_name || 'Staff')}</strong></td>
+        <td><span class="badge" style="background:#ede9fe;color:#5b21b6">${escapeHtml(row.actor_role || '-')}</span></td>
+        <td>${escapeHtml(String(row.action || '').replace(/_/g, ' '))}</td>
+        <td>${escapeHtml(row.target || '-')}</td>
+        <td style="white-space:normal;min-width:260px">${escapeHtml(staffDetailsText(row.details))}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function staffDetailsText(details) {
+  if (!details || typeof details !== 'object') return '-';
+  const clean = Object.entries(details)
+    .filter(([key, value]) => value !== null && value !== '' && key !== 'auth_user_id')
+    .map(([key, value]) => `${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`);
+  return clean.join(' · ') || '-';
+}
+
+function filterStaffActivity() {
+  const q = document.getElementById('staff-activity-search').value.toLowerCase();
+  if (!q) return renderStaffActivity(staffActivityRows);
+  renderStaffActivity(staffActivityRows.filter(row => [
+    row.actor_name,
+    row.actor_role,
+    row.action,
+    row.target,
+    JSON.stringify(row.details || {})
+  ].join(' ').toLowerCase().includes(q)));
 }
 
 // ===================== UTILS =====================
@@ -4317,6 +4505,7 @@ async function setCorrectionStatus(id, status, btn) {
   if (error) { toast(error.message, true); return; }
   const rec = correctionsData.find(r => r.id === id);
   if (rec) rec.status = status;
+  logStaffActivity('correction_status_changed', rec?.person_name || rec?.person_uid || id, { correction_id: id, status });
   toast('Status updated to: ' + status);
   renderCorrections();
 }
@@ -4409,6 +4598,7 @@ async function applyProfileOverride(id, btn) {
   rec.applied_to_profile = true;
   rec.applied_at = new Date().toISOString();
   if (rec.status === 'new') rec.status = 'approved';
+  logStaffActivity('correction_applied_to_profile', rec.person_name || rec.person_uid || id, { correction_id: id, person_uid: rec.person_uid });
   toast('Safe fields applied to source profile.');
   renderCorrections();
 }
@@ -4443,6 +4633,7 @@ async function saveCorrectionNotes(id, notes) {
   else {
     const rec = correctionsData.find(r => r.id === id);
     if (rec) rec.admin_notes = notes;
+    logStaffActivity('correction_notes_updated', rec?.person_name || rec?.person_uid || id, { correction_id: id });
   }
 }
 
@@ -4741,6 +4932,7 @@ async function setCommunityFamilyStatus(id, status) {
     .update({ status, updated_at: new Date().toISOString() })
     .eq('id', id);
   if (error) { toast(error.message, true); return; }
+  logStaffActivity('family_submission_status_changed', id, { submission_id: id, status });
   toast('Family submission updated: ' + status);
   await loadFamilyBuilder();
 }
@@ -4869,6 +5061,7 @@ async function createIdentityGroup() {
     .select()
     .single();
   if (error) { toast(error.message, true); return; }
+  logStaffActivity('identity_group_created', payload.display_name, { group_id: data.id, canonical_person_uid: payload.canonical_person_uid });
   if (payload.canonical_person_uid) {
     await sb.from('person_identity_members').insert({
       group_id: data.id,
@@ -4965,6 +5158,7 @@ async function addIdentityMember(groupId) {
     source_role: 'source_profile'
   });
   if (error) { toast(error.message, true); return; }
+  logStaffActivity('identity_profile_linked', uid, { group_id: groupId, person_uid: uid });
   input.value = '';
   toast('Profile linked to identity group.');
   await loadIdentityGroups();
@@ -4975,6 +5169,7 @@ async function setIdentityGroupStatus(id, status) {
     .update({ status, updated_at: new Date().toISOString() })
     .eq('id', id);
   if (error) { toast(error.message, true); return; }
+  logStaffActivity('identity_group_status_changed', id, { group_id: id, status });
   toast('Identity group updated: ' + status);
   await loadIdentityGroups();
 }
@@ -5048,6 +5243,7 @@ async function setSuggestionStatus(id, status, btn) {
   if (error) { toast(error.message, true); return; }
   const rec = suggestionsData.find(r => r.id === id);
   if (rec) rec.status = status;
+  logStaffActivity('suggestion_status_changed', rec?.suggestion || id, { suggestion_id: id, status });
   toast('Status updated to: ' + status);
   renderSuggestions();
 }
@@ -5057,7 +5253,11 @@ async function saveSuggestionNotes(id, notes) {
     .update({ admin_notes: notes, updated_at: new Date().toISOString() })
     .eq('id', id);
   if (error) toast(error.message, true);
-  else { const rec = suggestionsData.find(r => r.id === id); if (rec) rec.admin_notes = notes; }
+  else {
+    const rec = suggestionsData.find(r => r.id === id);
+    if (rec) rec.admin_notes = notes;
+    logStaffActivity('suggestion_notes_updated', rec?.suggestion || id, { suggestion_id: id });
+  }
 }
 
 // ===================== FIND REQUESTS =====================

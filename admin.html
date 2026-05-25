@@ -1151,7 +1151,7 @@
               <th class="sortable" onclick="sortVisitorsBy('name_entered')">Name / Email <span class="sort-indicator" id="sort-name_entered"></span></th>
               <th class="sortable" onclick="sortVisitorsBy('visit_count')">Visits <span class="sort-indicator" id="sort-visit_count"></span></th>
               <th class="sortable" onclick="sortVisitorsBy('last_seen')">Last Seen (IST) <span class="sort-indicator" id="sort-last_seen"></span></th>
-              <th class="sortable" onclick="sortVisitorsBy('status')">Status <span class="sort-indicator" id="sort-status"></span></th>
+              <th class="sortable" onclick="sortVisitorsBy('claim')">Profile Claim <span class="sort-indicator" id="sort-claim"></span></th>
               <th class="sortable" onclick="sortVisitorsBy('role')">Role <span class="sort-indicator" id="sort-role"></span></th>
               <th>Actions</th>
             </tr></thead>
@@ -3192,7 +3192,7 @@ function renderVisitors(visitors) {
       </td>
       <td><strong>${Number(v.visit_count || 0).toLocaleString()}</strong></td>
       <td>${formatIST(v.last_seen, false)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(v.last_seen)}</span><br><span style="font-size:0.68rem;color:var(--muted)">${formatVisitorTimezone(v.ip_hint)}</span></td>
-      <td><span class="badge" style="${statusStyles[status] || statusStyles.pending}">${escapeHtml(status)}</span></td>
+      <td>${profileClaimSummaryHtml(v, claim)}</td>
       <td>
         <select onchange="setVisitorRole('${v.id}', this.value)" style="min-width:132px;padding:7px 9px;font-size:0.78rem">
           ${visitorRoleOptions(v.access_role || 'visitor')}
@@ -3228,6 +3228,7 @@ function renderVisitors(visitors) {
                 <br>${formatIST(registeredAt, false)}
                 ${consentSections ? `<br>Sections ${escapeHtml(consentSections)}` : ''}
               </div></div>
+              <div class="registered-detail-item"><div class="k">Status</div><div class="v"><span class="badge" style="${statusStyles[status] || statusStyles.pending}">${escapeHtml(status)}</span></div></div>
               <div class="registered-detail-item"><div class="k">Profile Claim</div><div class="v">${profileClaimStatusHtml(v, claim)}</div></div>
             </div>
           </div>

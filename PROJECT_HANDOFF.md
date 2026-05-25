@@ -1,6 +1,6 @@
 # Apnon Ki Talash / Iraqi Biradari Project Handoff
 
-Last updated: 2026-05-19
+Last updated: 2026-05-26
 
 ## Project Overview
 
@@ -8,7 +8,7 @@ This project has been split into two separate repositories and domains.
 
 The split is intentional. The genealogy engine must remain isolated from the public heritage/content website so future CMS/admin work does not risk breaking Shijra functionality.
 
-## Current AKT Status As Of 2026-05-19
+## Current AKT Status As Of 2026-05-26
 
 Active repo:
 
@@ -27,15 +27,25 @@ Current git state at handoff:
 ```text
 Branch: main
 Working tree before this handoff edit: clean
-Pending handoff-only change: PROJECT_HANDOFF.md
-Latest pushed commit before this handoff edit: 27634c3 Update family editor source labels and move mode
+Pending handoff/admin UI changes in this turn: admin.html, PROJECT_HANDOFF.md
+Latest pushed commit before this handoff edit: 6ea6c9a Compact users access table
 ```
 
 Recent major AKT work completed:
 
-- Public `index.html` now shows an under-development holding page.
-- Public `forum.html` is linked from the holding page so visitors can use a lighter community discussion space while the archive remains private.
-- The working genealogy app has been moved to `archive.html` for continued background development.
+- Public `index.html` is now the authenticated private archive entry point again. Users must sign in with Supabase Auth before reaching the archive.
+- Supabase Auth flow supports Google OAuth and email magic link, with first-time visitor onboarding and consent capture.
+- First-time users become `visitor` by default after completing registration/consent; blocking and role changes are handled from `admin.html`.
+- Visitor onboarding collects name/mobile, father's name, root place, current place/address, oldest known ancestor, heard-from details, and explicit consent sections.
+- Footer links to Terms & Conditions and Privacy Policy are available on public app pages.
+- Public nav is horizontal again after a vertical mobile rail experiment looked poor on phones.
+- Birth dates after 1990 are hidden only in public display (`index.html`, `archive.html`, `person.html`) while remaining stored/queryable in Supabase and editable by staff.
+- Profile claiming is implemented. Logged-in visitors see claim reminders, can claim a profile privately, and admin can apply claim email/mobile to the actual person record.
+- Admin Users table is now compact: chevron, name/email, visits, last seen, profile claim, role, and actions stay visible; mobile, family details, heard-from, registration/consent, status, and full claim details fold under the chevron.
+- Admin Registered Users table was also compacted with a chevron details row.
+- Visitor Activity is session-oriented: one row per visitor session, with a `View Activity` button opening detailed datewise activity for that session. Device/location/timezone are shown once in the popup, not repeated in the table.
+- `supabase_activity_logs.sql` now grants `activity_logs` read/insert to both `anon` and `authenticated`; run the latest SQL if detailed activity logs stop appearing for signed-in users.
+- Role contribution guidance lives in the `Contribution` tab, and role applications collect requested role, mobile number, profile link, and notes.
 - Mobile search UX has been redesigned and pushed.
 - Mobile filters now open as a compact sheet with collapsed filter sections.
 - "Filter" was renamed to "Filter Search Results".
@@ -55,6 +65,8 @@ Recent major AKT work completed:
 - `person.html` now sends `Edit Profile` to `edit.html?uid=<person_uid>`.
 - `edit.html` writes directly to `people`, `families`, and `family_members`.
 - `edit.html` supports editing person details, marking deceased, adding parents, adding spouse/partner family groups, adding children under a specific spouse group, moving existing children among spouse/family groups, and editing marriage facts/status.
+- `edit.html` now uses UUID primary keys for newly created people/families and keeps GEDCOM-style IDs separately, preventing duplicate `people_pkey` issues when adding new spouses/children.
+- `edit.html` allows adding a child even when the spouse is unknown; it creates a parent-only family group.
 - Supabase key typo in `edit.html` was fixed in commit `a07fc35`.
 - Family editor UX was significantly improved after the first MVP:
   - add father/mother/spouse now uses guided modals instead of browser prompts

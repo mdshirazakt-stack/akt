@@ -1162,6 +1162,10 @@
         <span class="icon">🔍</span>
         <input type="text" id="search-input" placeholder="Search by name…" oninput="onSearch()"/>
       </div>
+      <label style="display:flex;align-items:flex-start;gap:8px;margin:-12px 0 18px;color:var(--muted);font-size:0.82rem;line-height:1.45">
+        <input id="fuzzy-search-toggle" type="checkbox" checked onchange="toggleFuzzySearch(this.checked)" style="margin-top:2px;accent-color:var(--green)"/>
+        <span><strong style="color:var(--ink)">Fuzzy search</strong> includes spelling variants. Turn it off when results look too broad.</span>
+      </label>
       <div class="search-tools">
         <button class="filter-open-btn" type="button" onclick="openFilterDrawer()">
           <span class="filter-open-icon" aria-hidden="true"></span>
@@ -1299,6 +1303,8 @@
           <h3>How to search effectively</h3>
           <ul>
             <li>Try spelling variations, short name fragments, and family place names.</li>
+            <li>Fuzzy search is on by default. It looks for spelling variants and common transliteration differences, such as similar sounds or alternate spellings.</li>
+            <li>If fuzzy search produces too many unrelated names, turn it off. Exact name matching can be better when you know the spelling or want fewer results.</li>
             <li>Use source-family labels to understand which GEDCOM file a profile came from.</li>
             <li>If a name is missing, use Add / Correct Family rather than creating duplicate assumptions.</li>
             <li>If two profiles look like the same person, raise a duplicate-profile correction and paste the other profile link.</li>
@@ -1693,6 +1699,7 @@ let activityLogDisabled = false;
 let currentActivitySessionId = sessionStorage.getItem('akt_activity_session_id') || '';
 let locationHintPromise = null;
 let searchFilter = 'all';
+let fuzzySearchEnabled = true;
 let sourceFilter = null; // gedcom_id UUID or null = all
 let selectedSourceIds = new Set();
 let selectedLocationNames = new Set();
@@ -2424,6 +2431,9 @@ function restoreSearchState() {
     if (!state || typeof state !== 'object') return;
     document.getElementById('search-input').value = state.query || '';
     searchFilter = state.searchFilter || 'all';
+    fuzzySearchEnabled = state.fuzzySearchEnabled !== false;
+    const fuzzyToggle = document.getElementById('fuzzy-search-toggle');
+    if (fuzzyToggle) fuzzyToggle.checked = fuzzySearchEnabled;
     selectedSourceIds = new Set(Array.isArray(state.selectedSourceIds) ? state.selectedSourceIds : []);
     selectedLocationNames = new Set(Array.isArray(state.selectedLocationNames) ? state.selectedLocationNames : []);
     rebuildSelectedLocationSourceIds();
@@ -2446,6 +2456,7 @@ function saveSearchState() {
     const state = {
       query: document.getElementById('search-input')?.value.trim() || lastQuery || '',
       searchFilter,
+      fuzzySearchEnabled,
       selectedSourceIds: [...selectedSourceIds],
       selectedLocationNames: [...selectedLocationNames],
       searchPage,
@@ -2815,6 +2826,13 @@ function onSearch() {
   }, 300);
 }
 
+function toggleFuzzySearch(enabled) {
+  fuzzySearchEnabled = Boolean(enabled);
+  searchPage = 0;
+  saveSearchState();
+  loadSearch(document.getElementById('search-input').value.trim());
+}
+
 // ── FUZZY SEARCH HELPERS ──────────────────────────────────────────
 
 // Strips common honorifics/prefixes that shouldn't affect matching
@@ -2977,6 +2995,32 @@ async function loadSearch(q) {
       count = res.count || 0;
     }
 
+  } else if (!fuzzySearchEnabled) {
+    let query = sb.from('people').select(baseSelect, { count: 'exact' });
+    rawTokens.forEach(tok => {
+      query = query.ilike('name', `%${tok.replace(/[%_]/g, '')}%`);
+    });
+    if (searchFilter === 'M') query = query.eq('sex', 'M');
+    else if (searchFilter === 'F') query = query.eq('sex', 'F');
+    else if (searchFilter === 'deceased') query = query.eq('death_flag', true);
+    const gedcomIds = selectedGedcomIds();
+    if (gedcomIds) {
+      if (!gedcomIds.length) {
+        data = [];
+        count = 0;
+        query = null;
+      } else {
+        query = query.in('gedcom_id', gedcomIds);
+      }
+    }
+    if (query) {
+      query = query.order('name').range(searchPage * PAGE_SIZE, (searchPage + 1) * PAGE_SIZE - 1);
+      const res = await query;
+      if (requestSeq !== searchRequestSeq) return;
+      data = res.data || [];
+      count = res.count || 0;
+    }
+
   } else {
     // ── FUZZY MULTI-TOKEN SEARCH ──
     // Strategy: fetch a broader candidate set using OR across all fuzzy
@@ -3056,7 +3100,9 @@ async function loadSearch(q) {
   if (selectedLocationNames.size) appliedFilters.push(`${selectedLocationNames.size} location${selectedLocationNames.size === 1 ? '' : 's'}`);
   if (selectedSourceIds.size) appliedFilters.push(`${selectedSourceIds.size} source ${selectedSourceIds.size === 1 ? 'family' : 'families'}`);
   const filterDesc = appliedFilters.length ? ` in <em>${appliedFilters.join(' + ')}</em>` : '';
-  const fuzzyNote = rawTokens.length ? `<span style="font-size:0.75rem;color:var(--muted);margin-left:8px">✦ fuzzy + variant matching active</span>` : '';
+  const fuzzyNote = rawTokens.length
+    ? `<span style="font-size:0.75rem;color:var(--muted);margin-left:8px">${fuzzySearchEnabled ? '✦ fuzzy + variant matching active' : 'exact name matching active'}</span>`
+    : '';
 
   if (!data.length) {
     el.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>No results found${q ? ` for "<strong>${escapeHtml(q)}</strong>"` : ''}.<br><span style="font-size:0.82rem;color:var(--muted)">Try fewer words, clear a filter, or check the spelling.</span></p></div>`;

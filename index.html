@@ -1165,7 +1165,7 @@
     <div id="panel-search" class="panel active">
       <div class="search-wrap">
         <span class="icon">🔍</span>
-        <input type="text" id="search-input" placeholder="Search by name…" oninput="onSearch()"/>
+        <input type="text" id="search-input" placeholder="Search by name, place, or badge…" oninput="onSearch()"/>
       </div>
       <label style="display:flex;align-items:flex-start;gap:8px;margin:-12px 0 18px;color:var(--muted);font-size:0.82rem;line-height:1.45">
         <input id="fuzzy-search-toggle" type="checkbox" checked onchange="toggleFuzzySearch(this.checked)" style="margin-top:2px;accent-color:var(--green)"/>
@@ -1314,16 +1314,19 @@
           </div>
           <div class="help-card">
             <h4>Finding family</h4>
-            <p>Use Search for names, places, and source families. Open a profile to view details, then use Browse Tree to understand parents, spouses, and children around that profile.</p>
+            <p>Search by name, place, or badge. The search bar looks across names, birth place, current place, root place, and death place simultaneously. Open a profile to view details, then use Browse Tree to understand parents, spouses, and children around that profile.</p>
           </div>
         </div>
 
         <div class="help-section">
           <h3>How to search effectively</h3>
           <ul>
-            <li>Try spelling variations, short name fragments, and family place names.</li>
+            <li>The search bar looks across <strong>names, birth place, current place, root place, and death place</strong> at the same time — type a town or village name to find everyone connected to it.</li>
+            <li>Type a badge name — <strong>contributor, moderator, admin,</strong> or <strong>superadmin</strong> — to instantly filter results to that group.</li>
+            <li>Try spelling variations and short name fragments for names you are unsure of.</li>
             <li>Fuzzy search is on by default. It looks for spelling variants and common transliteration differences, such as similar sounds or alternate spellings.</li>
-            <li>If fuzzy search produces too many unrelated names, turn it off. Exact name matching can be better when you know the spelling or want fewer results.</li>
+            <li>If fuzzy search produces too many unrelated names, turn it off. Exact matching is better when you know the spelling or want tighter results.</li>
+            <li>Use the Filter drawer to narrow by gender, badge type, location group, or source family.</li>
             <li>Use source-family labels to understand which GEDCOM file a profile came from.</li>
             <li>If a name is missing, use Add / Correct Family rather than creating duplicate assumptions.</li>
           </ul>
@@ -3008,11 +3011,20 @@ async function loadSearch(q) {
   if (!el) return;
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
-  const baseSelect = 'uid,name,given_name,surname,sex,birth_place,death_flag,marr_status,gedcom_id,is_contributor,community_role';
+  const baseSelect = 'uid,name,given_name,surname,sex,birth_place,death_place,root_place,current_place,death_flag,marr_status,gedcom_id,is_contributor,community_role';
 
   try {
   // Split query into meaningful tokens (ignore short words, trim)
-  const rawTokens = q ? q.trim().split(/\s+/).filter(t => t.length >= 2) : [];
+  let rawTokens = q ? q.trim().split(/\s+/).filter(t => t.length >= 2) : [];
+
+  // Auto-detect badge keywords typed in the search box
+  const BADGE_KEYWORDS = { contributor: 'contributor', contributors: 'contributor', moderator: 'moderator', moderators: 'moderator', admin: 'admin', admins: 'admin', superadmin: 'superadmin', superadmins: 'superadmin' };
+  let activeBadgeFilter = badgeFilter;
+  const badgeTok = rawTokens.find(t => BADGE_KEYWORDS[t.toLowerCase()]);
+  if (badgeTok && activeBadgeFilter === 'all') {
+    activeBadgeFilter = BADGE_KEYWORDS[badgeTok.toLowerCase()];
+    rawTokens = rawTokens.filter(t => t !== badgeTok);
+  }
 
   let data = [], count = 0;
 
@@ -3033,10 +3045,10 @@ async function loadSearch(q) {
     if (searchFilter === 'M') query = query.eq('sex', 'M');
     else if (searchFilter === 'F') query = query.eq('sex', 'F');
     else if (searchFilter === 'deceased') query = query.eq('death_flag', true);
-    if (badgeFilter === 'contributor') query = query.eq('is_contributor', true);
-    else if (badgeFilter === 'moderator') query = query.eq('community_role', 'moderator');
-    else if (badgeFilter === 'admin') query = query.eq('community_role', 'admin');
-    else if (badgeFilter === 'superadmin') query = query.eq('community_role', 'superadmin');
+    if (activeBadgeFilter === 'contributor') query = query.eq('is_contributor', true);
+    else if (activeBadgeFilter === 'moderator') query = query.eq('community_role', 'moderator');
+    else if (activeBadgeFilter === 'admin') query = query.eq('community_role', 'admin');
+    else if (activeBadgeFilter === 'superadmin') query = query.eq('community_role', 'superadmin');
     const gedcomIds = selectedGedcomIds();
     if (gedcomIds) {
       if (!gedcomIds.length) {
@@ -3060,15 +3072,16 @@ async function loadSearch(q) {
   } else if (!fuzzySearchEnabled) {
     let query = sb.from('people').select(baseSelect, { count: 'exact' });
     rawTokens.forEach(tok => {
-      query = query.ilike('name', `%${tok.replace(/[%_]/g, '')}%`);
+      const t = tok.replace(/[%_]/g, '').replace(/'/g, "''");
+      query = query.or(`name.ilike.%${t}%,birth_place.ilike.%${t}%,current_place.ilike.%${t}%,root_place.ilike.%${t}%,death_place.ilike.%${t}%`);
     });
     if (searchFilter === 'M') query = query.eq('sex', 'M');
     else if (searchFilter === 'F') query = query.eq('sex', 'F');
     else if (searchFilter === 'deceased') query = query.eq('death_flag', true);
-    if (badgeFilter === 'contributor') query = query.eq('is_contributor', true);
-    else if (badgeFilter === 'moderator') query = query.eq('community_role', 'moderator');
-    else if (badgeFilter === 'admin') query = query.eq('community_role', 'admin');
-    else if (badgeFilter === 'superadmin') query = query.eq('community_role', 'superadmin');
+    if (activeBadgeFilter === 'contributor') query = query.eq('is_contributor', true);
+    else if (activeBadgeFilter === 'moderator') query = query.eq('community_role', 'moderator');
+    else if (activeBadgeFilter === 'admin') query = query.eq('community_role', 'admin');
+    else if (activeBadgeFilter === 'superadmin') query = query.eq('community_role', 'superadmin');
     const gedcomIds = selectedGedcomIds();
     if (gedcomIds) {
       if (!gedcomIds.length) {
@@ -3106,6 +3119,14 @@ async function loadSearch(q) {
         const safe = pat.replace(/'/g, "''");
         orClauses.push('name.ilike.' + safe);
       }
+      // Also match exact token against place fields
+      const t = tok.replace(/[%_]/g, '').replace(/'/g, "''");
+      if (t.length >= 2) {
+        orClauses.push(`birth_place.ilike.%${t}%`);
+        orClauses.push(`current_place.ilike.%${t}%`);
+        orClauses.push(`root_place.ilike.%${t}%`);
+        orClauses.push(`death_place.ilike.%${t}%`);
+      }
     }
 
     // Deduplicate
@@ -3115,10 +3136,10 @@ async function loadSearch(q) {
     if (searchFilter === 'M') query = query.eq('sex', 'M');
     else if (searchFilter === 'F') query = query.eq('sex', 'F');
     else if (searchFilter === 'deceased') query = query.eq('death_flag', true);
-    if (badgeFilter === 'contributor') query = query.eq('is_contributor', true);
-    else if (badgeFilter === 'moderator') query = query.eq('community_role', 'moderator');
-    else if (badgeFilter === 'admin') query = query.eq('community_role', 'admin');
-    else if (badgeFilter === 'superadmin') query = query.eq('community_role', 'superadmin');
+    if (activeBadgeFilter === 'contributor') query = query.eq('is_contributor', true);
+    else if (activeBadgeFilter === 'moderator') query = query.eq('community_role', 'moderator');
+    else if (activeBadgeFilter === 'admin') query = query.eq('community_role', 'admin');
+    else if (activeBadgeFilter === 'superadmin') query = query.eq('community_role', 'superadmin');
     const gedcomIds = selectedGedcomIds();
     if (gedcomIds) {
       if (!gedcomIds.length) {
@@ -3141,10 +3162,10 @@ async function loadSearch(q) {
       if (searchFilter === 'M') q2 = q2.eq('sex', 'M');
       else if (searchFilter === 'F') q2 = q2.eq('sex', 'F');
       else if (searchFilter === 'deceased') q2 = q2.eq('death_flag', true);
-      if (badgeFilter === 'contributor') q2 = q2.eq('is_contributor', true);
-      else if (badgeFilter === 'moderator') q2 = q2.eq('community_role', 'moderator');
-      else if (badgeFilter === 'admin') q2 = q2.eq('community_role', 'admin');
-      else if (badgeFilter === 'superadmin') q2 = q2.eq('community_role', 'superadmin');
+      if (activeBadgeFilter === 'contributor') q2 = q2.eq('is_contributor', true);
+      else if (activeBadgeFilter === 'moderator') q2 = q2.eq('community_role', 'moderator');
+      else if (activeBadgeFilter === 'admin') q2 = q2.eq('community_role', 'admin');
+      else if (activeBadgeFilter === 'superadmin') q2 = q2.eq('community_role', 'superadmin');
       if (gedcomIds) {
         if (!gedcomIds.length) continue;
         q2 = q2.in('gedcom_id', gedcomIds);

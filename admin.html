@@ -1022,6 +1022,7 @@
       </div>
       <div class="nav-section">
         <div class="nav-section-label">Community</div>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('contributors', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span><span class="nav-label">Contributors</span></button>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('visitors', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/><circle cx="17" cy="8" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5 4.5v1"/></svg></span><span class="nav-label">Users</span><span class="nav-badge" id="badge-visitors"></span></button>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('roleapps', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l3 6 6 .9-4.5 4.4 1.1 6.2L12 17.5 6.4 20.5l1.1-6.2L3 9.9 9 9z"/></svg></span><span class="nav-label">Role applications</span><span class="nav-badge" id="badge-roleapps"></span></button>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('dropoffs', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v5H4z"/><path d="M4 15h10"/><path d="M4 20h7"/><path d="M18 14v6"/><path d="m15 17 3 3 3-3"/></svg></span><span class="nav-label">Signup drop-offs</span><span class="nav-badge" id="badge-dropoffs"></span></button>
@@ -1139,6 +1140,18 @@
           </div>
           <div id="uploads-list"><div class="empty">Loading…</div></div>
         </div>
+      </div>
+    </div>
+
+    <!-- CONTRIBUTORS -->
+    <div id="panel-contributors" class="panel">
+      <div class="card">
+        <h2>Contributors</h2>
+        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px">Search for a person and grant or revoke their contributor badge. The badge appears on their public profile page.</p>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <input class="search-bar" id="contributor-search" placeholder="Search by name…" oninput="searchContributorPeople()" style="flex:1;margin:0"/>
+        </div>
+        <div id="contributor-results"><div class="empty">Type a name above to search.</div></div>
       </div>
     </div>
 
@@ -1785,6 +1798,7 @@ function switchTab(name, btn) {
   document.getElementById('panel-' + name).classList.add('active');
   if (btn) btn.classList.add('active'); else event.target.classList.add('active');
   if (name === 'uploads') loadUploads();
+  if (name === 'contributors') { document.getElementById('contributor-search')?.focus(); }
   if (name === 'visitors') loadVisitors();
   if (name === 'roleapps') loadRoleApplications();
   if (name === 'dropoffs') loadSignupDropoffs();
@@ -1796,6 +1810,79 @@ function switchTab(name, btn) {
   if (name === 'suggestions') loadSuggestions();
   if (name === 'familybuilder') loadFamilyBuilder();
   if (name === 'forum') loadForumAdmin();
+}
+
+// ===================== CONTRIBUTORS =====================
+let contributorSearchTimeout = null;
+
+function searchContributorPeople() {
+  clearTimeout(contributorSearchTimeout);
+  contributorSearchTimeout = setTimeout(_doContributorSearch, 300);
+}
+
+async function _doContributorSearch() {
+  const q = document.getElementById('contributor-search').value.trim();
+  const el = document.getElementById('contributor-results');
+  if (!q) { el.innerHTML = '<div class="empty">Type a name above to search.</div>'; return; }
+  el.innerHTML = '<div class="empty"><span class="spinner"></span> Searching…</div>';
+  const { data, error } = await sb.from('people')
+    .select('uid,name,sex,birth_place,is_contributor')
+    .ilike('name', `%${q}%`)
+    .order('name')
+    .limit(30);
+  if (error) { el.innerHTML = `<div class="empty" style="color:var(--rust)">Error: ${escapeHtml(error.message)}</div>`; return; }
+  if (!data || !data.length) { el.innerHTML = '<div class="empty">No matching people found.</div>'; return; }
+  el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.88rem">
+    <thead><tr style="border-bottom:2px solid var(--border);text-align:left">
+      <th style="padding:8px 10px">Name</th>
+      <th style="padding:8px 10px">Sex</th>
+      <th style="padding:8px 10px">Birth place</th>
+      <th style="padding:8px 10px">Badge status</th>
+      <th style="padding:8px 10px">Action</th>
+    </tr></thead>
+    <tbody>
+      ${data.map(p => `
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:8px 10px"><a href="person.html?uid=${encodeURIComponent(p.uid)}" target="_blank" style="color:var(--gold)">${escapeHtml(p.name || '(unnamed)')}</a></td>
+          <td style="padding:8px 10px">${p.sex ? `<span class="badge badge-${p.sex.toLowerCase()}">${escapeHtml(p.sex)}</span>` : '—'}</td>
+          <td style="padding:8px 10px;color:var(--muted)">${escapeHtml(p.birth_place || '—')}</td>
+          <td style="padding:8px 10px" id="contrib-status-${escapeHtml(p.uid)}">
+            ${p.is_contributor ? '<span class="badge" style="background:#fef3c7;color:#92400e">⭐ Contributor</span>' : '<span style="color:var(--muted)">—</span>'}
+          </td>
+          <td style="padding:8px 10px">
+            <button style="background:${p.is_contributor ? 'var(--rust)' : 'var(--green)'};color:#fff;border:none;cursor:pointer;padding:5px 14px;font-size:0.8rem;border-radius:3px"
+              id="contrib-btn-${escapeHtml(p.uid)}"
+              onclick="toggleContributor('${escapeHtml(p.uid)}', ${p.is_contributor})">
+              ${p.is_contributor ? 'Revoke' : 'Grant'}
+            </button>
+          </td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>`;
+}
+
+async function toggleContributor(uid, currentVal) {
+  const newVal = !currentVal;
+  const btn = document.getElementById(`contrib-btn-${uid}`);
+  const statusEl = document.getElementById(`contrib-status-${uid}`);
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  const { error } = await sb.from('people').update({ is_contributor: newVal }).eq('uid', uid);
+  if (error) {
+    if (btn) { btn.disabled = false; btn.textContent = currentVal ? 'Revoke' : 'Grant'; }
+    toast('Failed to update contributor status: ' + error.message, true);
+    return;
+  }
+  if (statusEl) statusEl.innerHTML = newVal
+    ? '<span class="badge" style="background:#fef3c7;color:#92400e">⭐ Contributor</span>'
+    : '<span style="color:var(--muted)">—</span>';
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = newVal ? 'Revoke' : 'Grant';
+    btn.style.background = newVal ? 'var(--rust)' : 'var(--green)';
+    btn.onclick = () => toggleContributor(uid, newVal);
+  }
+  toast(newVal ? 'Contributor badge granted.' : 'Contributor badge revoked.');
 }
 
 // ===================== GEDCOM PARSER =====================

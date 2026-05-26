@@ -377,6 +377,7 @@
   .badge-M { background: #dbeafe; color: #1e40af; }
   .badge-F { background: #fce7f3; color: #9d174d; }
   .badge-deceased { background: #f1f5f9; color: #64748b; }
+  .badge-contributor { background: #fef3c7; color: #92400e; }
   .person-link { font-weight: 700; color: var(--ink); cursor: pointer; text-decoration: none; }
   .person-link:hover { color: var(--gold); text-decoration: underline; }
 
@@ -2163,6 +2164,7 @@ async function renderPerson(uid, el) {
               <div class="meta">
                 ${displayGender ? `<span class="badge badge-${displayGender}">${displayGender === 'M' ? '♂ Male' : '♀ Female'}</span>` : ''}
                 ${displayDeceased ? `&nbsp;<span class="badge badge-deceased">Deceased</span>` : ''}
+                ${p.is_contributor ? `&nbsp;<span class="badge badge-contributor">⭐ Contributor</span>` : ''}
                 ${profileOverlay ? `&nbsp;<span class="badge" style="background:#fef3c7;color:#92400e">Community updated</span>` : ''}
               </div>
         </div>

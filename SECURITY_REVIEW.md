@@ -6,6 +6,32 @@ Last updated: 2026-05-26
 
 This document lists security and privacy gaps found during the first MVP wrap-up. It is intentionally practical: each item names the risk, where it exists, and what should happen before broader public rollout.
 
+## Current Hardening Status
+
+Implemented in this pass:
+
+- Added `supabase_security_hardening.sql` with role-aware RLS policies and helper functions:
+  - `public.akt_current_access_role()`
+  - `public.akt_has_role(min_role text)`
+  - `public.akt_is_approved_visitor()`
+- Locked core tree tables so approved authenticated visitors can read, but only admins can write `people`, `families`, `family_members`, and `gedcom_uploads`.
+- Restricted sensitive queues and logs:
+  - `visitors`
+  - `visitor_consent_records`
+  - `profile_claims`
+  - `role_applications`
+  - `signup_events`
+  - `activity_logs`
+  - `staff_activity_logs`
+- Split public visitor submissions from staff review for corrections, suggestions, find requests, forum posts, role applications, and profile claims.
+- Kept moderator database writes limited to profile-detail overlays and review queues; relationship/family-structure writes require `admin` or `superadmin`.
+- Added Google sign-in to `admin.html` and removed the hardcoded password fallback when `admin_config` is protected by RLS.
+- Locked `admin_config` to authenticated `superadmin` users.
+
+Important deployment note:
+
+- Before running `supabase_security_hardening.sql`, make sure at least one known owner account has a `visitors` row with the correct `auth_user_id`, `access_status = 'approved'`, and `access_role = 'superadmin'`. Otherwise the admin panel will not have a policy-authorized superadmin session.
+
 ## Highest Priority Before Wider Rollout
 
 ### 1. Replace Broad Public RLS Policies
@@ -28,9 +54,7 @@ Risk:
 
 Required fix:
 
-- Keep public insert only where needed.
-- Restrict read/update/delete to authenticated admin/superadmin users.
-- For user-owned rows, allow authenticated users to read only their own records where necessary.
+- Run `supabase_security_hardening.sql` in Supabase to replace the broad policies with role-aware policies.
 - Move staff-only writes into RPC functions or Edge Functions where practical.
 
 ### 2. Lock Down Admin-Only Table Writes
@@ -52,10 +76,9 @@ Risk:
 
 Required fix:
 
-- Enable RLS on every table that is reachable from the browser.
-- Add role-aware policies based on `public.visitors.auth_user_id = auth.uid()` and `access_role`.
-- Only `admin` and `superadmin` should modify relationships, imports, exports, users, and claims.
-- Moderators should only modify approved profile-detail fields.
+- Run `supabase_security_hardening.sql`.
+- Phase 2: move the most sensitive writes, especially imports/deletes/user role changes, behind RPC or Edge Functions.
+- Phase 2: separate moderator profile updates from admin relationship updates at the database boundary, not only the UI boundary.
 
 ### 3. Remove Password-Based Admin Fallback
 
@@ -68,8 +91,8 @@ Risk:
 
 Required fix:
 
-- Prefer Supabase Auth role-based admin login only.
-- Remove or disable password login after confirming all admins can use Google/email auth.
+- Use the Google sign-in button on `admin.html` with an approved admin/superadmin visitor record.
+- Password login remains visible as a legacy path, but after RLS hardening it cannot read `admin_config` unless the session is an authenticated superadmin.
 - If any emergency password remains, store it server-side only and never expose it to the browser.
 
 ### 4. Protect Private Contact Fields
@@ -85,7 +108,8 @@ Required fix:
 
 - Audit `person.html`, `index.html`, `archive.html`, exports, and admin drilldowns for private field exposure.
 - Use dedicated private columns for contact verification instead of overloading public-facing fields like `contact_address`.
-- Restrict private contact reads to moderator/admin/superadmin.
+- `supabase_security_hardening.sql` restricts `profile_claims`, `visitors`, consent records, signup events, and staff logs.
+- Phase 2: split public profile override fields from private contact fields using a public-safe view.
 
 ### 5. Split Public Inserts From Admin Review
 
@@ -93,9 +117,7 @@ Visitors should be able to submit corrections, suggestions, duplicate flags, for
 
 Required fix:
 
-- Public/authenticated users: insert only.
-- Submitter: read own record if needed.
-- Admin/moderator: review and update status according to role.
+- Run `supabase_security_hardening.sql` for insert-only visitor submission policies and staff-only review/update policies.
 - Superadmin: final destructive operations.
 
 ## Important Hardening
@@ -170,4 +192,3 @@ Before wider launch, verify:
 - Only `superadmin` can perform destructive bulk operations.
 - Public pages do not render mobile numbers or email addresses.
 - Exports do not leak private contact data unless intentionally generated for staff.
-

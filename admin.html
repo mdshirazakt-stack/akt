@@ -54,6 +54,13 @@
     transition: background 0.2s; width: 100%;
   }
   .btn-gold:hover { background: #c9683a; color: #fff; }
+  .btn-auth {
+    width: 100%; border: 1px solid var(--border); background: #fff; color: var(--text);
+    padding: 12px 18px; font-family: 'Lato', sans-serif; font-weight: 700;
+    cursor: pointer; margin-bottom: 12px;
+  }
+  .login-divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; margin: 18px 0; }
+  .login-divider::before, .login-divider::after { content: ""; height: 1px; flex: 1; background: var(--border); }
   .login-err { color: var(--red2); font-size: 0.85rem; margin-top: 12px; display: none; }
 
   /* LAYOUT */
@@ -976,6 +983,8 @@
   <div class="login-box">
     <h1>Apno Ki Talash</h1>
     <p>Admin Panel</p>
+    <button class="btn-auth" type="button" onclick="adminSignInWithGoogle()">Continue with Google</button>
+    <div class="login-divider">Legacy password</div>
     <input type="password" id="pw-input" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')doLogin()"/>
     <button class="btn-gold" onclick="doLogin()">Enter</button>
     <div class="login-err" id="login-err">Incorrect password. Please try again.</div>
@@ -1639,11 +1648,35 @@ async function logStaffActivity(action, target = '', details = {}) {
 }
 
 // ===================== AUTH =====================
+function adminLoginError(message) {
+  const el = document.getElementById('login-err');
+  if (!el) return;
+  el.textContent = message;
+  el.style.display = 'block';
+}
+
+function adminRedirectTo() {
+  return window.location.href.split('#')[0];
+}
+
+async function adminSignInWithGoogle() {
+  adminLoginError('Redirecting to Google sign-in…');
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: adminRedirectTo() }
+  });
+  if (error) adminLoginError(error.message || 'Google sign-in failed.');
+}
+
 async function doLogin() {
   const pw = document.getElementById('pw-input').value.trim();
   // Fetch password from DB
-  const { data } = await sb.from('admin_config').select('value').eq('key','admin_password').single();
-  const correct = data ? data.value : 'akt2024';
+  const { data, error } = await sb.from('admin_config').select('value').eq('key','admin_password').single();
+  if (error || !data) {
+    adminLoginError('Password login is unavailable. Please continue with Google using an approved admin account.');
+    return;
+  }
+  const correct = data.value;
   if (pw === correct) {
     adminPassword = correct;
     currentAdminRole = 'superadmin';
@@ -1652,7 +1685,7 @@ async function doLogin() {
     applyAdminRoleVisibility();
     loadAll();
   } else {
-    document.getElementById('login-err').style.display = 'block';
+    adminLoginError('Incorrect password. Please try again.');
   }
 }
 function doLogout() {

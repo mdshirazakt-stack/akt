@@ -33,23 +33,7 @@ create index if not exists idx_profile_claims_claimed_at
 alter table public.profile_claims enable row level security;
 
 drop policy if exists "Allow profile claims insert" on public.profile_claims;
-create policy "Allow profile claims insert"
-  on public.profile_claims
-  for insert
-  to public
-  with check (true);
-
 drop policy if exists "Allow profile claims update" on public.profile_claims;
-create policy "Allow profile claims update"
-  on public.profile_claims
-  for update
-  to public
-  using (true)
-  with check (true);
-
 drop policy if exists "Allow profile claims read" on public.profile_claims;
-create policy "Allow profile claims read"
-  on public.profile_claims
-  for select
-  to public
-  using (true);
+
+-- RLS policies are managed by supabase_security_hardening.sql.

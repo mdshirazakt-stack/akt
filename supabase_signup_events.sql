@@ -29,16 +29,4 @@ alter table public.signup_events enable row level security;
 drop policy if exists "signup_events_insert_from_site" on public.signup_events;
 drop policy if exists "signup_events_admin_read" on public.signup_events;
 
-create policy "signup_events_insert_from_site"
-on public.signup_events
-for insert
-to anon, authenticated
-with check (true);
-
--- The current admin.html dashboard reads through the public Supabase client.
--- Tighten this to admin-only JWT claims when the admin API is moved behind server-side auth.
-create policy "signup_events_admin_read"
-on public.signup_events
-for select
-to anon, authenticated
-using (true);
+-- RLS policies are managed by supabase_security_hardening.sql.

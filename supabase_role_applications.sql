@@ -35,23 +35,7 @@ create index if not exists idx_role_applications_auth_user_id
 alter table public.role_applications enable row level security;
 
 drop policy if exists "Allow role applications insert" on public.role_applications;
-create policy "Allow role applications insert"
-  on public.role_applications
-  for insert
-  to public
-  with check (true);
-
 drop policy if exists "Allow role applications read" on public.role_applications;
-create policy "Allow role applications read"
-  on public.role_applications
-  for select
-  to public
-  using (true);
-
 drop policy if exists "Allow role applications update" on public.role_applications;
-create policy "Allow role applications update"
-  on public.role_applications
-  for update
-  to public
-  using (true)
-  with check (true);
+
+-- RLS policies are managed by supabase_security_hardening.sql.

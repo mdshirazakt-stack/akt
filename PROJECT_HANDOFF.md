@@ -26,9 +26,9 @@ Current git state at handoff:
 
 ```text
 Branch: main
-Working tree before this handoff edit: clean
-Pending MVP wrap-up changes in this turn: index.html, archive.html, SECURITY_REVIEW.md, PROJECT_HANDOFF.md
-Latest pushed commit before this handoff edit: cc3fcf4 Link claimed profiles in users table
+Working tree before security hardening edit: clean
+Pending security hardening changes in this turn: admin.html, SECURITY_REVIEW.md, Supabase SQL hardening files
+Latest pushed commit before this hardening edit: 48a948b Add signup drop-off tracking
 ```
 
 MVP status:
@@ -50,7 +50,9 @@ Recent major AKT work completed:
 - Admin Users table is now compact: chevron, name/email, visits, last seen, profile claim, role, and actions stay visible; mobile, family details, heard-from, registration/consent, status, and full claim details fold under the chevron.
 - Admin Registered Users table was also compacted with a chevron details row.
 - Visitor Activity is session-oriented: one row per visitor session, with a `View Activity` button opening detailed datewise activity for that session. Device/location/timezone are shown once in the popup, not repeated in the table.
-- `supabase_activity_logs.sql` now grants `activity_logs` read/insert to both `anon` and `authenticated`; run the latest SQL if detailed activity logs stop appearing for signed-in users.
+- Security hardening now lives in `supabase_security_hardening.sql`. It adds role-aware RLS helper functions and replaces broad public policies with authenticated visitor/staff/admin policies.
+- Admin password fallback is now legacy only. Use Google sign-in on `admin.html` with an approved `admin` or `superadmin` visitor record before relying on hardened RLS.
+- The older setup SQL files for profile claims, role applications, signup events, activity logs, and staff logs no longer recreate broad public policies; the hardening migration owns those policies.
 - Role contribution guidance lives in the `Contribution` tab, and role applications collect requested role, mobile number, profile link, and notes.
 - A `User Guide` tab has been added after `Contribution` to explain first visit, profile claiming, searching, corrections, duplicate flags, and how to contact admins.
 - `SECURITY_REVIEW.md` now tracks MVP security hardening work, especially RLS policy tightening, admin-only writes, private contact protection, and audit logging.

@@ -23,15 +23,6 @@ create index if not exists idx_staff_activity_logs_action
 alter table public.staff_activity_logs enable row level security;
 
 drop policy if exists "Allow staff activity insert" on public.staff_activity_logs;
-create policy "Allow staff activity insert"
-  on public.staff_activity_logs
-  for insert
-  to anon
-  with check (true);
-
 drop policy if exists "Allow staff activity read" on public.staff_activity_logs;
-create policy "Allow staff activity read"
-  on public.staff_activity_logs
-  for select
-  to anon
-  using (true);
+
+-- RLS policies are managed by supabase_security_hardening.sql.

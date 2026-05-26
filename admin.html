@@ -1849,7 +1849,7 @@ async function _doContributorSearch() {
     .ilike('name', `%${q}%`)
     .order('name')
     .limit(30);
-  if (error) { el.innerHTML = `<div class="empty" style="color:var(--rust)">Error: ${escapeHtml(error.message)}</div>`; return; }
+  if (error) { el.innerHTML = `<div class="empty" style="color:var(--red)">Error: ${escapeHtml(error.message)}</div>`; return; }
   if (!data || !data.length) { el.innerHTML = '<div class="empty">No matching people found.</div>'; return; }
   el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.88rem">
     <thead><tr style="border-bottom:2px solid var(--border);text-align:left">
@@ -1868,7 +1868,7 @@ async function _doContributorSearch() {
           <td style="padding:8px 10px;color:var(--muted)">${escapeHtml(p.birth_place || '—')}</td>
           <td style="padding:8px 10px" id="contrib-status-${escapeHtml(p.uid)}">${_communityBadgeHtml(p)}</td>
           <td style="padding:8px 10px">
-            <button style="background:${p.is_contributor ? 'var(--rust)' : 'var(--green)'};color:#fff;border:none;cursor:pointer;padding:5px 12px;font-size:0.8rem;border-radius:3px"
+            <button style="background:${p.is_contributor ? 'var(--red)' : 'var(--green)'};color:#fff;border:none;cursor:pointer;padding:5px 12px;font-size:0.8rem;border-radius:3px"
               id="contrib-btn-${escapeHtml(p.uid)}"
               onclick="toggleContributor('${escapeHtml(p.uid)}', ${p.is_contributor})">
               ${p.is_contributor ? 'Revoke' : 'Grant'}
@@ -1906,7 +1906,7 @@ async function toggleContributor(uid, currentVal) {
   if (btn) {
     btn.disabled = false;
     btn.textContent = newVal ? 'Revoke' : 'Grant';
-    btn.style.background = newVal ? 'var(--rust)' : 'var(--green)';
+    btn.style.background = newVal ? 'var(--red)' : 'var(--green)';
     btn.onclick = () => toggleContributor(uid, newVal);
   }
   toast(newVal ? 'Contributor badge granted.' : 'Contributor badge revoked.');

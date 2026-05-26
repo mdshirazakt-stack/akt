@@ -1781,6 +1781,8 @@ const SEARCH_COLUMNS = [
   { key: 'name', label: 'Name', required: true },
   { key: 'sex', label: 'Sex' },
   { key: 'birth_place', label: 'Birth Place' },
+  { key: 'root_place', label: 'Root Place' },
+  { key: 'current_place', label: 'Current Place' },
   { key: 'deceased', label: 'Deceased' },
   { key: 'status', label: 'Status' },
   { key: 'source', label: 'Source' }
@@ -2585,6 +2587,8 @@ function renderResultCell(key, p, rawTokens, src) {
   if (key === 'name') return `<td data-label="Name"><span class="person-name">${highlightName(p.name || '(unnamed)', rawTokens)}</span>${personBadgeHtml(p)}</td>`;
   if (key === 'sex') return `<td data-label="Sex">${escapeHtml(p.sex || '-')}</td>`;
   if (key === 'birth_place') return `<td data-label="Birth Place">${escapeHtml(p.birth_place || '-')}</td>`;
+  if (key === 'root_place') return `<td data-label="Root Place">${escapeHtml(p.root_place || '-')}</td>`;
+  if (key === 'current_place') return `<td data-label="Current Place">${escapeHtml(p.current_place || '-')}</td>`;
   if (key === 'deceased') return `<td data-label="Deceased">${p.death_flag ? 'Yes' : '-'}</td>`;
   if (key === 'status') return `<td data-label="Status">${escapeHtml(p.marr_status || '-')}</td>`;
   if (key === 'source') return `<td data-label="Source">${src ? `<span class="source-tag" title="${escapeHtml(p.gedcom_id)}">${escapeHtml(src)}</span>` : '-'}</td>`;

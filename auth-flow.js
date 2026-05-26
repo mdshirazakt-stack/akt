@@ -10,6 +10,14 @@
   let currentVisitor = null;
   let initialized = false;
   let currentOnboardingStep = 1;
+  let signupProgressTimer = null;
+  const signupSessionId = (() => {
+    const existing = sessionStorage.getItem('akt_signup_session_id');
+    if (existing) return existing;
+    const id = (window.crypto?.randomUUID && window.crypto.randomUUID()) || String(Date.now()) + '-' + Math.random().toString(16).slice(2);
+    sessionStorage.setItem('akt_signup_session_id', id);
+    return id;
+  })();
 
   function normalizeAccessRole(role) {
     return ROLE_LEVELS[role] ? role : 'visitor';
@@ -35,6 +43,33 @@
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
     const lang = navigator.language || '';
     return [tz, lang, screen.width + 'x' + screen.height].filter(Boolean).join(' | ');
+  }
+
+  async function logSignupEvent(eventName, details = {}) {
+    if (!sb || !eventName) return;
+    const user = currentSession?.user || null;
+    const snapshot = details.form_snapshot === undefined ? null : details.form_snapshot;
+    const payload = {
+      email: details.email || userEmail(user) || currentVisitor?.email || value('auth-email') || null,
+      auth_user_id: user?.id || currentVisitor?.auth_user_id || null,
+      visitor_id: details.visitor_id || currentVisitor?.id || null,
+      event_name: eventName,
+      stage: details.stage || (currentOnboardingStep ? 'onboarding' : 'signin'),
+      step: details.step === undefined ? currentOnboardingStep : details.step,
+      form_snapshot: snapshot || {},
+      details: {
+        ...details,
+        signup_session_id: signupSessionId,
+        page: location.pathname
+      },
+      ip_hint: getIpHint(),
+      user_agent: navigator.userAgent
+    };
+    delete payload.details.form_snapshot;
+    const { error } = await sb.from('signup_events').insert(payload);
+    if (error && !/does not exist|schema cache|relation|permission|policy/i.test(error.message || '')) {
+      console.warn('Signup event log failed:', error.message);
+    }
   }
 
   function showMessage(message, isError = true) {
@@ -177,8 +212,25 @@
     const form = byId('visitor-onboarding-form');
     if (!form || form.dataset.draftAutosaveBound === '1') return;
     form.dataset.draftAutosaveBound = '1';
-    form.addEventListener('input', saveDraft);
-    form.addEventListener('change', saveDraft);
+    form.addEventListener('input', () => {
+      saveDraft();
+      scheduleSignupProgressLog();
+    });
+    form.addEventListener('change', () => {
+      saveDraft();
+      scheduleSignupProgressLog(250);
+    });
+  }
+
+  function scheduleSignupProgressLog(delay = 1000) {
+    clearTimeout(signupProgressTimer);
+    signupProgressTimer = setTimeout(() => {
+      logSignupEvent('onboarding_field_progress', {
+        stage: 'onboarding',
+        step: currentOnboardingStep,
+        form_snapshot: formSnapshot()
+      });
+    }, delay);
   }
 
   async function enterVisitor(visitor) {
@@ -553,6 +605,7 @@
     }
 
     setView('loading');
+    await logSignupEvent('auth_success', { stage: 'signin' });
     const visitor = await findVisitorForUser(currentSession.user);
     currentVisitor = visitor;
     const status = visitorStatus(visitor);
@@ -564,22 +617,33 @@
 
     if (visitor && isOnboardingComplete(visitor)) {
       await enterVisitor(visitor);
+      await logSignupEvent('registered_user_entered', {
+        stage: 'completed',
+        visitor_id: visitor.id
+      });
       return;
     }
 
     fillOnboarding(currentSession.user, visitor);
     setView('onboarding');
+    await logSignupEvent('onboarding_started', {
+      stage: 'onboarding',
+      step: currentOnboardingStep,
+      form_snapshot: formSnapshot()
+    });
     setNote('Complete this once. You will enter as a visitor by default; admins can block or update access later.');
   }
 
   async function signInWithGoogle() {
     if (!sb) return;
+    await logSignupEvent('google_signin_started', { stage: 'signin' });
     setView('loading');
     const { error } = await sb.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: redirectTo() }
     });
     if (error) {
+      await logSignupEvent('google_signin_failed', { stage: 'signin', error: error.message || '' });
       setView('signin');
       showMessage(error.message || 'Google sign-in failed.');
     }
@@ -597,6 +661,7 @@
       btn.disabled = true;
       btn.textContent = 'Sending...';
     }
+    await logSignupEvent('magic_link_requested', { stage: 'signin', email });
     const { error } = await sb.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: redirectTo() }
@@ -606,9 +671,11 @@
       btn.textContent = 'Send Magic Link';
     }
     if (error) {
+      await logSignupEvent('magic_link_failed', { stage: 'signin', email, error: error.message || '' });
       showMessage(error.message || 'Could not send magic link.');
       return;
     }
+    await logSignupEvent('magic_link_sent', { stage: 'signin', email });
     showMessage('Magic link sent. Please check your email and return through the link.', false);
   }
 
@@ -693,10 +760,22 @@
   function nextOnboardingStep() {
     if (!validateOnboardingStep(currentOnboardingStep)) return;
     setOnboardingStep(currentOnboardingStep + 1);
+    logSignupEvent('onboarding_step_changed', {
+      stage: 'onboarding',
+      step: currentOnboardingStep,
+      direction: 'next',
+      form_snapshot: formSnapshot()
+    });
   }
 
   function prevOnboardingStep() {
     setOnboardingStep(currentOnboardingStep - 1);
+    logSignupEvent('onboarding_step_changed', {
+      stage: 'onboarding',
+      step: currentOnboardingStep,
+      direction: 'back',
+      form_snapshot: formSnapshot()
+    });
   }
 
   function formSnapshot() {
@@ -734,6 +813,11 @@
     }
 
     const snapshot = formSnapshot();
+    await logSignupEvent('onboarding_submitted', {
+      stage: 'onboarding',
+      step: currentOnboardingStep,
+      form_snapshot: snapshot
+    });
     const now = new Date().toISOString();
     const payload = {
       auth_user_id: currentSession.user.id,
@@ -784,6 +868,12 @@
         btn.disabled = false;
         btn.textContent = 'Accept & Enter';
       }
+      await logSignupEvent('onboarding_submit_failed', {
+        stage: 'onboarding',
+        step: currentOnboardingStep,
+        error: error.message || '',
+        form_snapshot: snapshot
+      });
       showMessage('Could not save visitor consent. Please run the latest access gate SQL and try again.');
       console.error(error);
       return;
@@ -795,6 +885,12 @@
       btn.disabled = false;
       btn.textContent = 'Accept & Enter';
     }
+    await logSignupEvent('onboarding_completed', {
+      stage: 'completed',
+      step: currentOnboardingStep,
+      visitor_id: saved?.id || null,
+      form_snapshot: snapshot
+    });
     await enterVisitor(saved);
   }
 
@@ -848,6 +944,7 @@
 
     setView('loading');
     bindDraftAutosave();
+    logSignupEvent('login_page_viewed', { stage: 'signin' });
     const sessionResult = await sb.auth.getSession();
     await handleSession(sessionResult.data?.session || null);
 

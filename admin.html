@@ -1015,6 +1015,7 @@
         <div class="nav-section-label">Community</div>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('visitors', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/><circle cx="17" cy="8" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5 4.5v1"/></svg></span><span class="nav-label">Users</span><span class="nav-badge" id="badge-visitors"></span></button>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('roleapps', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l3 6 6 .9-4.5 4.4 1.1 6.2L12 17.5 6.4 20.5l1.1-6.2L3 9.9 9 9z"/></svg></span><span class="nav-label">Role applications</span><span class="nav-badge" id="badge-roleapps"></span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('dropoffs', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v5H4z"/><path d="M4 15h10"/><path d="M4 20h7"/><path d="M18 14v6"/><path d="m15 17 3 3 3-3"/></svg></span><span class="nav-label">Signup drop-offs</span><span class="nav-badge" id="badge-dropoffs"></span></button>
         <button class="nav-tab" data-min-role="moderator" onclick="switchTab('activity', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-7 5 14 2.5-7h4"/></svg></span><span class="nav-label">Visitor activity</span></button>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('staffactivity', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span class="nav-label">Staff activity</span></button>
         <button class="nav-tab" data-min-role="moderator" onclick="switchTab('forum', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-12.1 7.7L3 21l1.8-5.4A8.5 8.5 0 1 1 21 11.5Z"/></svg></span><span class="nav-label">Forum</span><span class="nav-badge" id="badge-forum"></span></button>
@@ -1182,6 +1183,24 @@
           </select>
         </div>
         <div id="role-applications-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- SIGNUP DROP-OFFS -->
+    <div id="panel-dropoffs" class="panel">
+      <div class="card">
+        <h2>Signup Drop-offs <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">(recent incomplete registrations)</span></h2>
+        <div class="activity-filters">
+          <input class="search-bar" id="dropoff-search" placeholder="Search by name, email, mobile, place…" oninput="filterSignupDropoffs()" style="max-width:320px;margin:0;flex:1"/>
+          <button class="activity-filter-btn dropoff-filter-btn active" onclick="setDropoffRange('week',this)">Last 7 days</button>
+          <button class="activity-filter-btn dropoff-filter-btn" onclick="setDropoffRange('today',this)">Today</button>
+          <button class="activity-filter-btn dropoff-filter-btn" onclick="setDropoffRange('month',this)">Last 30 days</button>
+          <button class="btn-sm" onclick="loadSignupDropoffs()">↻ Refresh</button>
+        </div>
+        <div class="insight-note" style="margin-top:12px">
+          Shows sign-in and first-time registration attempts that did not complete the visitor form. This starts collecting after <code>supabase_signup_events.sql</code> is run.
+        </div>
+        <div id="signup-dropoffs-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
       </div>
     </div>
 
@@ -1568,6 +1587,9 @@ let allProfileClaims = [];
 let roleApplications = [];
 let staffActivityRows = [];
 let staffActivityRange = 'last24';
+let signupDropoffRows = [];
+let signupDropoffRange = 'week';
+let signupDropoffSort = { key: 'last', dir: 'desc' };
 let forumAdminView = 'threads';
 let forumAdminThreads = [];
 let forumAdminPosts = [];
@@ -1732,6 +1754,7 @@ function switchTab(name, btn) {
   if (name === 'uploads') loadUploads();
   if (name === 'visitors') loadVisitors();
   if (name === 'roleapps') loadRoleApplications();
+  if (name === 'dropoffs') loadSignupDropoffs();
   if (name === 'settings') loadDbStats();
   if (name === 'activity') loadActivity();
   if (name === 'staffactivity') loadStaffActivity();
@@ -3750,13 +3773,23 @@ async function loadChangeLog() {
   const tbody = document.getElementById('change-log-tbody');
   tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><span class="spinner"></span> Loading…</div></td></tr>';
   try {
+    const directTreeChangeActions = [
+      'tree_profile_saved',
+      'tree_person_created',
+      'tree_person_deleted',
+      'tree_parent_set',
+      'tree_spouse_group_created',
+      'tree_child_moved',
+      'tree_marriage_saved',
+      'tree_family_group_deleted'
+    ];
     const [profileRes, relationRes, familyRes, activityRes] = await Promise.all([
       sb.from('person_profile_overrides').select('*').order('updated_at', { ascending: false }).limit(120),
       sb.from('relationship_overrides').select('*').order('updated_at', { ascending: false }).limit(120),
       sb.from('canonical_family_groups').select('*, canonical_family_children(*)').order('updated_at', { ascending: false }).limit(120),
       sb.from('activity_logs')
         .select('id,visitor_name,action,target,details,device,timezone,created_at')
-        .like('action', 'tree_%')
+        .in('action', directTreeChangeActions)
         .order('created_at', { ascending: false })
         .limit(250)
     ]);
@@ -3764,7 +3797,7 @@ async function loadChangeLog() {
     if (errors.length) throw errors[0];
 
     const rows = [
-      ...(activityRes.data || []).map(row => activityTreeChange(row)),
+      ...(activityRes.data || []).filter(row => directTreeChangeActions.includes(row.action)).map(row => activityTreeChange(row)),
       ...(profileRes.data || []).map(row => profileOverrideChange(row)),
       ...(relationRes.data || []).map(row => relationshipOverrideChange(row)),
       ...(familyRes.data || []).map(row => familyGroupChange(row))
@@ -4228,6 +4261,254 @@ async function confirmNuke() {
   await sb.from('gedcom_uploads').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   logStaffActivity('archive_data_deleted', 'all archive tables');
   toast('All data deleted'); loadAll();
+}
+
+// ===================== SIGNUP DROP-OFFS =====================
+function setDropoffRange(range, btn) {
+  signupDropoffRange = range;
+  document.querySelectorAll('#panel-dropoffs .dropoff-filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  loadSignupDropoffs();
+}
+
+function dropoffRangeWindow() {
+  const now = new Date();
+  const fromDate = new Date(now);
+  if (signupDropoffRange === 'today') {
+    fromDate.setHours(0,0,0,0);
+  } else if (signupDropoffRange === 'month') {
+    fromDate.setDate(fromDate.getDate() - 30);
+  } else {
+    fromDate.setDate(fromDate.getDate() - 7);
+  }
+  return { fromDate, toDate: now };
+}
+
+async function loadSignupDropoffs() {
+  const list = document.getElementById('signup-dropoffs-list');
+  if (!list) return;
+  list.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+  const { fromDate } = dropoffRangeWindow();
+  const { data, error } = await sb.from('signup_events')
+    .select('id,email,auth_user_id,visitor_id,event_name,stage,step,form_snapshot,details,ip_hint,user_agent,created_at')
+    .gte('created_at', fromDate.toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1500);
+  if (error) {
+    list.innerHTML = `<div class="empty" style="color:var(--red)">Could not load signup drop-offs. Run <code>supabase_signup_events.sql</code> first.<br>${escapeHtml(error.message || '')}</div>`;
+    return;
+  }
+  signupDropoffRows = buildSignupDropoffRows(data || []);
+  setNavBadge('dropoffs', signupDropoffRows.length);
+  filterSignupDropoffs();
+}
+
+function signupEventSessionKey(row) {
+  const details = row.details || {};
+  return details.signup_session_id || row.auth_user_id || row.email || row.visitor_id || row.id;
+}
+
+function signupSnapshot(row) {
+  return row?.form_snapshot && typeof row.form_snapshot === 'object' ? row.form_snapshot : {};
+}
+
+function signupSnapshotScore(snapshot) {
+  return ['name', 'mobile', 'father_name', 'root_place', 'current_place', 'current_address', 'oldest_ancestor', 'heard_from_source', 'heard_from_relative_name', 'heard_from_relative_place', 'heard_from_details']
+    .filter(key => String(snapshot?.[key] || '').trim()).length;
+}
+
+function buildSignupDropoffRows(events) {
+  const groups = new Map();
+  events.forEach(row => {
+    const key = signupEventSessionKey(row);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  });
+  return [...groups.entries()].map(([id, rows]) => {
+    const sorted = rows.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    const latest = sorted[0] || {};
+    const bestSnapshotRow = sorted
+      .filter(row => signupSnapshotScore(signupSnapshot(row)) > 0)
+      .sort((a, b) => signupSnapshotScore(signupSnapshot(b)) - signupSnapshotScore(signupSnapshot(a)))[0] || latest;
+    const snapshot = signupSnapshot(bestSnapshotRow);
+    const completed = sorted.some(row => ['onboarding_completed', 'registered_user_entered'].includes(row.event_name) || row.stage === 'completed');
+    const hasUsefulSignal = latest.email || signupSnapshotScore(snapshot) || sorted.some(row => row.event_name !== 'login_page_viewed');
+    return {
+      id,
+      rows: sorted,
+      latest,
+      firstAt: sorted[sorted.length - 1]?.created_at || latest.created_at,
+      lastAt: latest.created_at,
+      email: latest.email || sorted.find(row => row.email)?.email || '',
+      authUserId: latest.auth_user_id || sorted.find(row => row.auth_user_id)?.auth_user_id || '',
+      stage: latest.stage || '',
+      step: Number(latest.step || 0),
+      eventName: latest.event_name || '',
+      snapshot,
+      progress: signupSnapshotScore(snapshot),
+      completed,
+      hasUsefulSignal
+    };
+  }).filter(row => !row.completed && row.hasUsefulSignal);
+}
+
+function sortSignupDropoffs(rows) {
+  const dir = signupDropoffSort.dir === 'asc' ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    let av;
+    let bv;
+    if (signupDropoffSort.key === 'visitor') {
+      av = `${a.snapshot.name || ''} ${a.email || ''}`.toLowerCase();
+      bv = `${b.snapshot.name || ''} ${b.email || ''}`.toLowerCase();
+      return av.localeCompare(bv) * dir;
+    }
+    if (signupDropoffSort.key === 'stage') {
+      av = `${a.stage || ''} ${a.step || 0}`.toLowerCase();
+      bv = `${b.stage || ''} ${b.step || 0}`.toLowerCase();
+      return av.localeCompare(bv) * dir;
+    }
+    if (signupDropoffSort.key === 'progress') {
+      return (Number(a.progress || 0) - Number(b.progress || 0)) * dir;
+    }
+    if (signupDropoffSort.key === 'event') {
+      av = signupEventLabel(a.eventName).toLowerCase();
+      bv = signupEventLabel(b.eventName).toLowerCase();
+      return av.localeCompare(bv) * dir;
+    }
+    av = new Date(a.lastAt || 0).getTime();
+    bv = new Date(b.lastAt || 0).getTime();
+    return (av - bv) * dir;
+  });
+}
+
+function sortSignupDropoffsBy(key) {
+  if (signupDropoffSort.key === key) {
+    signupDropoffSort.dir = signupDropoffSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    signupDropoffSort.key = key;
+    signupDropoffSort.dir = key === 'visitor' || key === 'stage' || key === 'event' ? 'asc' : 'desc';
+  }
+  filterSignupDropoffs();
+}
+
+function renderSignupDropoffSortIndicators() {
+  ['last', 'visitor', 'stage', 'progress', 'event'].forEach(key => {
+    const el = document.getElementById('dropoff-sort-' + key);
+    if (el) el.textContent = signupDropoffSort.key === key ? (signupDropoffSort.dir === 'asc' ? '▲' : '▼') : '';
+  });
+}
+
+function filterSignupDropoffs() {
+  const q = (document.getElementById('dropoff-search')?.value || '').toLowerCase();
+  const rows = signupDropoffRows.filter(row => {
+    if (!q) return true;
+    const snapshot = row.snapshot || {};
+    return [
+      row.email,
+      row.eventName,
+      row.stage,
+      snapshot.name,
+      snapshot.mobile,
+      snapshot.father_name,
+      snapshot.root_place,
+      snapshot.current_place,
+      snapshot.current_address,
+      snapshot.oldest_ancestor,
+      snapshot.heard_from_source,
+      snapshot.heard_from_relative_name,
+      snapshot.heard_from_relative_place,
+      snapshot.heard_from_details
+    ].filter(Boolean).join(' ').toLowerCase().includes(q);
+  });
+  renderSignupDropoffs(rows);
+}
+
+function signupEventLabel(eventName) {
+  return {
+    login_page_viewed: 'Login page opened',
+    magic_link_requested: 'Magic link requested',
+    magic_link_sent: 'Magic link sent',
+    magic_link_failed: 'Magic link failed',
+    google_signin_started: 'Google sign-in started',
+    google_signin_failed: 'Google sign-in failed',
+    auth_success: 'Signed in',
+    onboarding_started: 'Registration started',
+    onboarding_step_changed: 'Registration step changed',
+    onboarding_field_progress: 'Form progress saved',
+    onboarding_submitted: 'Registration submitted',
+    onboarding_submit_failed: 'Registration save failed',
+    registered_user_entered: 'Registered user entered'
+  }[eventName] || String(eventName || 'Signup event').replace(/_/g, ' ');
+}
+
+function dropoffStageLabel(row) {
+  if (row.stage === 'signin') return 'Sign-in';
+  if (row.stage === 'completed') return 'Completed';
+  if (row.stage === 'onboarding') return `Registration${row.step ? ' step ' + row.step : ''}`;
+  return row.stage || '-';
+}
+
+function dropoffProgressHtml(row) {
+  const snapshot = row.snapshot || {};
+  const fields = [
+    ['name', 'Name'],
+    ['mobile', 'Mobile'],
+    ['father_name', 'Father'],
+    ['root_place', 'Root'],
+    ['current_place', 'Current'],
+    ['heard_from_source', 'Heard from']
+  ].filter(([key]) => String(snapshot[key] || '').trim()).map(([, label]) => label);
+  return `<strong>${Number(row.progress || 0)}/11 fields</strong>${fields.length ? `<br><span style="font-size:0.72rem;color:var(--muted)">${escapeHtml(fields.join(', '))}</span>` : ''}`;
+}
+
+function dropoffDetailsHtml(row) {
+  const snapshot = row.snapshot || {};
+  const pieces = [
+    snapshot.mobile ? `Mobile: ${snapshot.mobile}` : '',
+    snapshot.root_place ? `Root: ${snapshot.root_place}` : '',
+    snapshot.current_place ? `Current: ${snapshot.current_place}` : '',
+    snapshot.oldest_ancestor ? `Ancestor: ${snapshot.oldest_ancestor}` : '',
+    snapshot.heard_from_source ? `Heard from: ${snapshot.heard_from_source}` : ''
+  ].filter(Boolean);
+  const attempts = row.rows.length;
+  return `${pieces.length ? escapeHtml(pieces.join(' · ')) + '<br>' : ''}<span style="font-size:0.72rem;color:var(--muted)">${attempts.toLocaleString()} logged event${attempts === 1 ? '' : 's'}</span>`;
+}
+
+function renderSignupDropoffs(rows) {
+  const list = document.getElementById('signup-dropoffs-list');
+  if (!list) return;
+  if (!rows.length) {
+    list.innerHTML = '<div class="empty">No incomplete registration attempts found for this period.</div>';
+    return;
+  }
+  const sorted = sortSignupDropoffs(rows);
+  list.innerHTML = `<div style="overflow:auto;border:1px solid var(--border);background:#fff;margin-top:16px">
+    <table style="min-width:980px">
+      <thead>
+        <tr>
+          <th class="sortable" onclick="sortSignupDropoffsBy('last')">Last Seen (IST) <span class="sort-indicator" id="dropoff-sort-last"></span></th>
+          <th class="sortable" onclick="sortSignupDropoffsBy('visitor')">Visitor <span class="sort-indicator" id="dropoff-sort-visitor"></span></th>
+          <th class="sortable" onclick="sortSignupDropoffsBy('stage')">Latest Stage <span class="sort-indicator" id="dropoff-sort-stage"></span></th>
+          <th class="sortable" onclick="sortSignupDropoffsBy('progress')">Form Progress <span class="sort-indicator" id="dropoff-sort-progress"></span></th>
+          <th class="sortable" onclick="sortSignupDropoffsBy('event')">Last Event <span class="sort-indicator" id="dropoff-sort-event"></span></th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sorted.map(row => `
+          <tr>
+            <td>${formatIST(row.lastAt, false)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(row.lastAt)}</span></td>
+            <td><strong>${escapeHtml(row.snapshot.name || row.email || 'Unknown visitor')}</strong>${row.email ? `<br><span style="font-size:0.72rem;color:var(--muted)">${escapeHtml(row.email)}</span>` : ''}</td>
+            <td>${escapeHtml(dropoffStageLabel(row))}</td>
+            <td>${dropoffProgressHtml(row)}</td>
+            <td>${escapeHtml(signupEventLabel(row.eventName))}</td>
+            <td style="white-space:normal;min-width:260px">${dropoffDetailsHtml(row)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>`;
+  renderSignupDropoffSortIndicators();
 }
 
 // ===================== ACTIVITY HISTORY =====================
@@ -4813,7 +5094,9 @@ function updateForumBadge() {
 }
 
 async function loadAttentionBadges() {
-  const [visitors, profileClaims, roleApps, corrections, suggestions, forumThreads, forumPosts, forumFlags, profileReviews, relationReviews, familyReviews] = await Promise.allSettled([
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const [visitors, profileClaims, roleApps, corrections, suggestions, forumThreads, forumPosts, forumFlags, profileReviews, relationReviews, familyReviews, signupEvents] = await Promise.allSettled([
     sb.from('visitors').select('id,name_entered,email,mobile,auth_user_id,access_status,is_blocked,visitor_form_completed,visitor_form_completed_at,consent_terms_accepted,first_seen,last_seen,updated_at').limit(1000),
     sb.from('profile_claims').select('id,person_uid,person_name,claimant_name,claimant_email,claimant_mobile,auth_user_id,claimed_at').limit(10000),
     sb.from('role_applications').select('id,status').limit(1000),
@@ -4824,7 +5107,8 @@ async function loadAttentionBadges() {
     sb.from('forum_flags').select('id').eq('status', 'new').limit(1000),
     sb.from('profile_overrides').select('id').limit(1000),
     sb.from('relationship_overrides').select('id').limit(1000),
-    sb.from('canonical_family_groups').select('id').limit(1000)
+    sb.from('canonical_family_groups').select('id').limit(1000),
+    sb.from('signup_events').select('id,email,auth_user_id,visitor_id,event_name,stage,step,form_snapshot,details,created_at').gte('created_at', weekAgo.toISOString()).limit(1500)
   ]);
 
   if (visitors.status === 'fulfilled' && !visitors.value.error) {
@@ -4861,6 +5145,9 @@ async function loadAttentionBadges() {
     return sum + (result.value.data || []).length;
   }, 0);
   setNavBadge('changelog', reviewCount);
+  if (signupEvents.status === 'fulfilled' && !signupEvents.value.error) {
+    setNavBadge('dropoffs', buildSignupDropoffRows(signupEvents.value.data || []).length);
+  }
 }
 
 async function loadAll() {

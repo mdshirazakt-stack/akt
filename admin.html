@@ -487,6 +487,10 @@
   .badge-deceased { background: rgba(127,140,141,0.2); color: #95a5a6; }
   .badge-current { background: rgba(39,174,96,0.2); color: #58d68d; }
   .badge-former { background: rgba(243,156,18,0.2); color: #f5b041; }
+  .badge-contributor { background: #fef3c7; color: #92400e; }
+  .badge-role-moderator { background: #dbeafe; color: #1e40af; }
+  .badge-role-admin { background: #ede9fe; color: #5b21b6; }
+  .badge-role-superadmin { background: #fee2e2; color: #991b1b; }
 
   /* DUPLICATE PANEL */
   .dup-item {
@@ -1022,7 +1026,7 @@
       </div>
       <div class="nav-section">
         <div class="nav-section-label">Community</div>
-        <button class="nav-tab" data-min-role="admin" onclick="switchTab('contributors', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span><span class="nav-label">Contributors</span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('contributors', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span><span class="nav-label">Badges</span></button>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('visitors', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/><circle cx="17" cy="8" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5 4.5v1"/></svg></span><span class="nav-label">Users</span><span class="nav-badge" id="badge-visitors"></span></button>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('roleapps', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l3 6 6 .9-4.5 4.4 1.1 6.2L12 17.5 6.4 20.5l1.1-6.2L3 9.9 9 9z"/></svg></span><span class="nav-label">Role applications</span><span class="nav-badge" id="badge-roleapps"></span></button>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('dropoffs', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v5H4z"/><path d="M4 15h10"/><path d="M4 20h7"/><path d="M18 14v6"/><path d="m15 17 3 3 3-3"/></svg></span><span class="nav-label">Signup drop-offs</span><span class="nav-badge" id="badge-dropoffs"></span></button>
@@ -1143,12 +1147,18 @@
       </div>
     </div>
 
-    <!-- CONTRIBUTORS -->
+    <!-- BADGES -->
     <div id="panel-contributors" class="panel">
       <div class="card">
-        <h2>Contributors</h2>
-        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px">Search for a person and grant or revoke their contributor badge. The badge appears on their public profile page.</p>
-        <div style="display:flex;gap:8px;margin-bottom:16px">
+        <h2>Badges</h2>
+        <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px">Search for a person and assign community badges. Badges appear on their public profile and in search results.</p>
+        <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+          <span class="badge badge-contributor">⭐ Contributor</span>
+          <span class="badge badge-role-moderator">🛡️ Moderator</span>
+          <span class="badge badge-role-admin">⚙️ Admin</span>
+          <span class="badge badge-role-superadmin">👑 Superadmin</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;margin-top:12px">
           <input class="search-bar" id="contributor-search" placeholder="Search by name…" oninput="searchContributorPeople()" style="flex:1;margin:0"/>
         </div>
         <div id="contributor-results"><div class="empty">Type a name above to search.</div></div>
@@ -1820,13 +1830,22 @@ function searchContributorPeople() {
   contributorSearchTimeout = setTimeout(_doContributorSearch, 300);
 }
 
+function _communityBadgeHtml(p) {
+  const parts = [];
+  if (p.is_contributor) parts.push('<span class="badge badge-contributor">⭐ Contributor</span>');
+  if (p.community_role === 'moderator') parts.push('<span class="badge badge-role-moderator">🛡️ Moderator</span>');
+  if (p.community_role === 'admin') parts.push('<span class="badge badge-role-admin">⚙️ Admin</span>');
+  if (p.community_role === 'superadmin') parts.push('<span class="badge badge-role-superadmin">👑 Superadmin</span>');
+  return parts.length ? parts.join(' ') : '<span style="color:var(--muted)">—</span>';
+}
+
 async function _doContributorSearch() {
   const q = document.getElementById('contributor-search').value.trim();
   const el = document.getElementById('contributor-results');
   if (!q) { el.innerHTML = '<div class="empty">Type a name above to search.</div>'; return; }
   el.innerHTML = '<div class="empty"><span class="spinner"></span> Searching…</div>';
   const { data, error } = await sb.from('people')
-    .select('uid,name,sex,birth_place,is_contributor')
+    .select('uid,name,sex,birth_place,is_contributor,community_role')
     .ilike('name', `%${q}%`)
     .order('name')
     .limit(30);
@@ -1837,8 +1856,9 @@ async function _doContributorSearch() {
       <th style="padding:8px 10px">Name</th>
       <th style="padding:8px 10px">Sex</th>
       <th style="padding:8px 10px">Birth place</th>
-      <th style="padding:8px 10px">Badge status</th>
-      <th style="padding:8px 10px">Action</th>
+      <th style="padding:8px 10px">Current badges</th>
+      <th style="padding:8px 10px">Contributor</th>
+      <th style="padding:8px 10px">Role badge</th>
     </tr></thead>
     <tbody>
       ${data.map(p => `
@@ -1846,15 +1866,22 @@ async function _doContributorSearch() {
           <td style="padding:8px 10px"><a href="person.html?uid=${encodeURIComponent(p.uid)}" target="_blank" style="color:var(--gold)">${escapeHtml(p.name || '(unnamed)')}</a></td>
           <td style="padding:8px 10px">${p.sex ? `<span class="badge badge-${p.sex.toLowerCase()}">${escapeHtml(p.sex)}</span>` : '—'}</td>
           <td style="padding:8px 10px;color:var(--muted)">${escapeHtml(p.birth_place || '—')}</td>
-          <td style="padding:8px 10px" id="contrib-status-${escapeHtml(p.uid)}">
-            ${p.is_contributor ? '<span class="badge" style="background:#fef3c7;color:#92400e">⭐ Contributor</span>' : '<span style="color:var(--muted)">—</span>'}
-          </td>
+          <td style="padding:8px 10px" id="contrib-status-${escapeHtml(p.uid)}">${_communityBadgeHtml(p)}</td>
           <td style="padding:8px 10px">
-            <button style="background:${p.is_contributor ? 'var(--rust)' : 'var(--green)'};color:#fff;border:none;cursor:pointer;padding:5px 14px;font-size:0.8rem;border-radius:3px"
+            <button style="background:${p.is_contributor ? 'var(--rust)' : 'var(--green)'};color:#fff;border:none;cursor:pointer;padding:5px 12px;font-size:0.8rem;border-radius:3px"
               id="contrib-btn-${escapeHtml(p.uid)}"
               onclick="toggleContributor('${escapeHtml(p.uid)}', ${p.is_contributor})">
               ${p.is_contributor ? 'Revoke' : 'Grant'}
             </button>
+          </td>
+          <td style="padding:8px 10px">
+            <select id="role-select-${escapeHtml(p.uid)}" onchange="setCommunityRole('${escapeHtml(p.uid)}', this.value)"
+              style="padding:5px 8px;font-size:0.8rem;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:3px;cursor:pointer">
+              <option value="" ${!p.community_role ? 'selected' : ''}>— None —</option>
+              <option value="moderator" ${p.community_role === 'moderator' ? 'selected' : ''}>🛡️ Moderator</option>
+              <option value="admin" ${p.community_role === 'admin' ? 'selected' : ''}>⚙️ Admin</option>
+              <option value="superadmin" ${p.community_role === 'superadmin' ? 'selected' : ''}>👑 Superadmin</option>
+            </select>
           </td>
         </tr>
       `).join('')}
@@ -1883,6 +1910,26 @@ async function toggleContributor(uid, currentVal) {
     btn.onclick = () => toggleContributor(uid, newVal);
   }
   toast(newVal ? 'Contributor badge granted.' : 'Contributor badge revoked.');
+}
+
+async function setCommunityRole(uid, value) {
+  const sel = document.getElementById(`role-select-${uid}`);
+  const statusEl = document.getElementById(`contrib-status-${uid}`);
+  if (sel) sel.disabled = true;
+  const update = { community_role: value || null };
+  const { error } = await sb.from('people').update(update).eq('uid', uid);
+  if (error) {
+    if (sel) sel.disabled = false;
+    toast('Failed to update role badge: ' + error.message, true);
+    return;
+  }
+  if (sel) sel.disabled = false;
+  // Refresh the badges cell by re-deriving from current UI state
+  if (statusEl) {
+    const isContributor = document.getElementById(`contrib-btn-${uid}`)?.textContent.trim() === 'Revoke';
+    statusEl.innerHTML = _communityBadgeHtml({ is_contributor: isContributor, community_role: value || null });
+  }
+  toast(value ? `Role badge set to ${value}.` : 'Role badge removed.');
 }
 
 // ===================== GEDCOM PARSER =====================

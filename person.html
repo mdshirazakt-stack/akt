@@ -378,6 +378,9 @@
   .badge-F { background: #fce7f3; color: #9d174d; }
   .badge-deceased { background: #f1f5f9; color: #64748b; }
   .badge-contributor { background: #fef3c7; color: #92400e; }
+  .badge-role-moderator { background: #dbeafe; color: #1e40af; }
+  .badge-role-admin { background: #ede9fe; color: #5b21b6; }
+  .badge-role-superadmin { background: #fee2e2; color: #991b1b; }
   .person-link { font-weight: 700; color: var(--ink); cursor: pointer; text-decoration: none; }
   .person-link:hover { color: var(--gold); text-decoration: underline; }
 
@@ -2165,6 +2168,9 @@ async function renderPerson(uid, el) {
                 ${displayGender ? `<span class="badge badge-${displayGender}">${displayGender === 'M' ? '♂ Male' : '♀ Female'}</span>` : ''}
                 ${displayDeceased ? `&nbsp;<span class="badge badge-deceased">Deceased</span>` : ''}
                 ${p.is_contributor ? `&nbsp;<span class="badge badge-contributor">⭐ Contributor</span>` : ''}
+                ${p.community_role === 'moderator' ? `&nbsp;<span class="badge badge-role-moderator">🛡️ Moderator</span>` : ''}
+                ${p.community_role === 'admin' ? `&nbsp;<span class="badge badge-role-admin">⚙️ Admin</span>` : ''}
+                ${p.community_role === 'superadmin' ? `&nbsp;<span class="badge badge-role-superadmin">👑 Superadmin</span>` : ''}
                 ${profileOverlay ? `&nbsp;<span class="badge" style="background:#fef3c7;color:#92400e">Community updated</span>` : ''}
               </div>
         </div>

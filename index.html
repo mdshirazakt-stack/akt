@@ -737,6 +737,11 @@
   .badge-deceased { background: #f1f5f9; color: #64748b; }
   .badge-current { background: #dcfce7; color: #166534; }
   .badge-former { background: #fef3c7; color: #92400e; }
+  .badge-contributor { background: #fef3c7; color: #92400e; }
+  .badge-role-moderator { background: #dbeafe; color: #1e40af; }
+  .badge-role-admin { background: #ede9fe; color: #5b21b6; }
+  .badge-role-superadmin { background: #fee2e2; color: #991b1b; }
+  .person-badges { display:inline-flex; gap:3px; flex-wrap:wrap; margin-left:5px; vertical-align:middle; }
 
   /* PERSON DETAIL */
   .person-detail {
@@ -1188,6 +1193,7 @@
         <div class="filter-drawer-body">
           <div class="filter-tabs" aria-label="Filter sections">
             <button class="filter-tab active" type="button" onclick="showFilterPane('status', this)">Gender & Status</button>
+            <button class="filter-tab" type="button" onclick="showFilterPane('badges', this)">Badges</button>
             <button class="filter-tab" type="button" onclick="showFilterPane('locations', this)">Locations</button>
             <button class="filter-tab" type="button" onclick="showFilterPane('sources', this)">Source Families</button>
           </div>
@@ -1200,6 +1206,19 @@
                 <label class="filter-option"><input type="radio" name="drawer-status-filter" value="M" onchange="setFilterFromDrawer(this.value)"/> Male</label>
                 <label class="filter-option"><input type="radio" name="drawer-status-filter" value="F" onchange="setFilterFromDrawer(this.value)"/> Female</label>
                 <label class="filter-option"><input type="radio" name="drawer-status-filter" value="deceased" onchange="setFilterFromDrawer(this.value)"/> Deceased</label>
+              </div>
+            </div>
+          </section>
+          <section class="filter-pane" id="filter-pane-badges">
+            <h3><button class="filter-pane-toggle" type="button" onclick="toggleFilterPaneMobile('badges')"><span>Badges</span><span class="filter-pane-chevron" aria-hidden="true"></span></button></h3>
+            <div class="filter-pane-content">
+              <p class="filter-pane-help">Filter by community badge.</p>
+              <div class="filter-option-list">
+                <label class="filter-option"><input type="radio" name="drawer-badge-filter" value="all" checked onchange="setBadgeFilterFromDrawer(this.value)"/> All people</label>
+                <label class="filter-option"><input type="radio" name="drawer-badge-filter" value="contributor" onchange="setBadgeFilterFromDrawer(this.value)"/> ⭐ Contributors only</label>
+                <label class="filter-option"><input type="radio" name="drawer-badge-filter" value="moderator" onchange="setBadgeFilterFromDrawer(this.value)"/> 🛡️ Moderators only</label>
+                <label class="filter-option"><input type="radio" name="drawer-badge-filter" value="admin" onchange="setBadgeFilterFromDrawer(this.value)"/> ⚙️ Admins only</label>
+                <label class="filter-option"><input type="radio" name="drawer-badge-filter" value="superadmin" onchange="setBadgeFilterFromDrawer(this.value)"/> 👑 Superadmins only</label>
               </div>
             </div>
           </section>
@@ -1711,6 +1730,8 @@ let selectedLocationSourceIds = new Set();
 let draftSourceIds = new Set();
 let draftLocationNames = new Set();
 let draftSearchFilter = 'all';
+let badgeFilter = 'all';
+let draftBadgeFilter = 'all';
 let gedcomUploads = []; // [{id, filename, shortname}]
 let locationFilters = [];
 let searchPage = 0;
@@ -2285,11 +2306,13 @@ function openFilterDrawer() {
   draftSourceIds = new Set(selectedSourceIds);
   draftLocationNames = new Set(selectedLocationNames);
   draftSearchFilter = searchFilter;
+  draftBadgeFilter = badgeFilter;
   document.querySelectorAll('.filter-pane').forEach(pane => pane.classList.remove('mobile-open'));
   showFilterPane('status', document.querySelector('.filter-tab[onclick*="status"]'));
   renderSourceOptions();
   renderLocationOptions();
   renderDrawerStatusOptions();
+  renderDrawerBadgeOptions();
   document.getElementById('filter-drawer-backdrop').classList.add('open');
   const drawer = document.getElementById('filter-drawer');
   drawer.classList.add('open');
@@ -2321,6 +2344,7 @@ function applyDrawerFilters() {
   selectedLocationNames = new Set(draftLocationNames);
   rebuildSelectedLocationSourceIds();
   setFilterValue(draftSearchFilter);
+  badgeFilter = draftBadgeFilter;
   searchPage = 0;
   syncLegacyFilterIds();
   updateActiveFilterPills();
@@ -2336,11 +2360,14 @@ function resetAllFilters() {
   draftSourceIds.clear();
   draftLocationNames.clear();
   draftSearchFilter = 'all';
+  draftBadgeFilter = 'all';
+  badgeFilter = 'all';
   setFilterValue('all');
   searchPage = 0;
   syncLegacyFilterIds();
   renderSourceOptions();
   renderLocationOptions();
+  renderDrawerBadgeOptions();
   updateActiveFilterPills();
   loadSearch(document.getElementById('search-input').value.trim());
 }
@@ -2357,6 +2384,10 @@ function updateActiveFilterPills() {
     pills.push({ type: 'source', key: id, label: source ? cleanGedcomTitle(source.filename) : 'Source file' });
   });
   if (searchFilter !== 'all') pills.push({ type: 'status', key: searchFilter, label: filterLabel(searchFilter) });
+  if (badgeFilter !== 'all') {
+    const badgeLabels = { contributor: '⭐ Contributors', moderator: '🛡️ Moderators', admin: '⚙️ Admins', superadmin: '👑 Superadmins' };
+    pills.push({ type: 'badge', key: badgeFilter, label: badgeLabels[badgeFilter] || badgeFilter });
+  }
 
   container.innerHTML = pills.map(p => `
     <span class="active-filter-pill">${escapeHtml(p.label)} <button type="button" onclick="removeFilterPill('${p.type}','${escapeJs(p.key)}')" aria-label="Remove ${escapeHtml(p.label)}">×</button></span>
@@ -2380,6 +2411,10 @@ function removeFilterPill(type, key) {
     selectedSourceIds.delete(key);
   } else if (type === 'status') {
     setFilterValue('all');
+  } else if (type === 'badge') {
+    badgeFilter = 'all';
+    draftBadgeFilter = 'all';
+    renderDrawerBadgeOptions();
   }
   searchPage = 0;
   syncLegacyFilterIds();
@@ -2392,6 +2427,16 @@ function removeFilterPill(type, key) {
 function setFilterFromDrawer(value) {
   draftSearchFilter = value || 'all';
   renderDrawerStatusOptions();
+}
+
+function setBadgeFilterFromDrawer(value) {
+  draftBadgeFilter = value || 'all';
+}
+
+function renderDrawerBadgeOptions() {
+  document.querySelectorAll('input[name="drawer-badge-filter"]').forEach(input => {
+    input.checked = input.value === draftBadgeFilter;
+  });
 }
 
 function setFilterValue(value) {
@@ -2500,8 +2545,17 @@ function resultColumnLabel(key) {
   return (SEARCH_COLUMNS.find(c => c.key === key) || {}).label || key;
 }
 
+function personBadgeHtml(p) {
+  const parts = [];
+  if (p.is_contributor) parts.push('<span class="badge badge-contributor">⭐ Contributor</span>');
+  if (p.community_role === 'moderator') parts.push('<span class="badge badge-role-moderator">🛡️ Moderator</span>');
+  if (p.community_role === 'admin') parts.push('<span class="badge badge-role-admin">⚙️ Admin</span>');
+  if (p.community_role === 'superadmin') parts.push('<span class="badge badge-role-superadmin">👑 Superadmin</span>');
+  return parts.length ? `<span class="person-badges">${parts.join('')}</span>` : '';
+}
+
 function renderResultCell(key, p, rawTokens, src) {
-  if (key === 'name') return `<td data-label="Name"><span class="person-name">${highlightName(p.name || '(unnamed)', rawTokens)}</span></td>`;
+  if (key === 'name') return `<td data-label="Name"><span class="person-name">${highlightName(p.name || '(unnamed)', rawTokens)}</span>${personBadgeHtml(p)}</td>`;
   if (key === 'sex') return `<td data-label="Sex">${escapeHtml(p.sex || '-')}</td>`;
   if (key === 'birth_place') return `<td data-label="Birth Place">${escapeHtml(p.birth_place || '-')}</td>`;
   if (key === 'deceased') return `<td data-label="Deceased">${p.death_flag ? 'Yes' : '-'}</td>`;
@@ -2954,7 +3008,7 @@ async function loadSearch(q) {
   if (!el) return;
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
-  const baseSelect = 'uid,name,given_name,surname,sex,birth_place,death_flag,marr_status,gedcom_id';
+  const baseSelect = 'uid,name,given_name,surname,sex,birth_place,death_flag,marr_status,gedcom_id,is_contributor,community_role';
 
   try {
   // Split query into meaningful tokens (ignore short words, trim)
@@ -2979,6 +3033,10 @@ async function loadSearch(q) {
     if (searchFilter === 'M') query = query.eq('sex', 'M');
     else if (searchFilter === 'F') query = query.eq('sex', 'F');
     else if (searchFilter === 'deceased') query = query.eq('death_flag', true);
+    if (badgeFilter === 'contributor') query = query.eq('is_contributor', true);
+    else if (badgeFilter === 'moderator') query = query.eq('community_role', 'moderator');
+    else if (badgeFilter === 'admin') query = query.eq('community_role', 'admin');
+    else if (badgeFilter === 'superadmin') query = query.eq('community_role', 'superadmin');
     const gedcomIds = selectedGedcomIds();
     if (gedcomIds) {
       if (!gedcomIds.length) {
@@ -3007,6 +3065,10 @@ async function loadSearch(q) {
     if (searchFilter === 'M') query = query.eq('sex', 'M');
     else if (searchFilter === 'F') query = query.eq('sex', 'F');
     else if (searchFilter === 'deceased') query = query.eq('death_flag', true);
+    if (badgeFilter === 'contributor') query = query.eq('is_contributor', true);
+    else if (badgeFilter === 'moderator') query = query.eq('community_role', 'moderator');
+    else if (badgeFilter === 'admin') query = query.eq('community_role', 'admin');
+    else if (badgeFilter === 'superadmin') query = query.eq('community_role', 'superadmin');
     const gedcomIds = selectedGedcomIds();
     if (gedcomIds) {
       if (!gedcomIds.length) {
@@ -3053,6 +3115,10 @@ async function loadSearch(q) {
     if (searchFilter === 'M') query = query.eq('sex', 'M');
     else if (searchFilter === 'F') query = query.eq('sex', 'F');
     else if (searchFilter === 'deceased') query = query.eq('death_flag', true);
+    if (badgeFilter === 'contributor') query = query.eq('is_contributor', true);
+    else if (badgeFilter === 'moderator') query = query.eq('community_role', 'moderator');
+    else if (badgeFilter === 'admin') query = query.eq('community_role', 'admin');
+    else if (badgeFilter === 'superadmin') query = query.eq('community_role', 'superadmin');
     const gedcomIds = selectedGedcomIds();
     if (gedcomIds) {
       if (!gedcomIds.length) {
@@ -3075,6 +3141,10 @@ async function loadSearch(q) {
       if (searchFilter === 'M') q2 = q2.eq('sex', 'M');
       else if (searchFilter === 'F') q2 = q2.eq('sex', 'F');
       else if (searchFilter === 'deceased') q2 = q2.eq('death_flag', true);
+      if (badgeFilter === 'contributor') q2 = q2.eq('is_contributor', true);
+      else if (badgeFilter === 'moderator') q2 = q2.eq('community_role', 'moderator');
+      else if (badgeFilter === 'admin') q2 = q2.eq('community_role', 'admin');
+      else if (badgeFilter === 'superadmin') q2 = q2.eq('community_role', 'superadmin');
       if (gedcomIds) {
         if (!gedcomIds.length) continue;
         q2 = q2.in('gedcom_id', gedcomIds);

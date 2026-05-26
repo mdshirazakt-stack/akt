@@ -633,10 +633,10 @@ function personCard(p, cls) {
       title="Click to navigate this person as the editor focus"
       ${cls === 'child' ? `draggable="${moveModeActive ? 'true' : 'false'}"` : ''}>
       ${cls === 'child' ? '<span class="drag-handle" title="Drag this handle to move the child into another family group">⋮⋮</span>' : ''}
-      <div class="card-actions ${hasRole('superadmin') ? '' : 'no-delete'}">
+      <div class="card-actions ${hasRole('admin') ? '' : 'no-delete'}">
         <button type="button" onclick="event.stopPropagation();viewProfile('${esc(p.uid)}')">${viewIcon}<span>View</span></button>
         <button class="edit-card-btn" type="button" onclick="event.stopPropagation();selectPerson('${esc(p.uid)}')">${editIcon}<span>Edit</span></button>
-        ${hasRole('superadmin') ? `<button class="delete-card-btn" type="button" title="Delete this person" aria-label="Delete ${esc(p.name || 'person')}" onclick="event.stopPropagation();deletePerson('${esc(p.uid)}')">${deleteIcon}<span>Delete</span></button>` : '<span aria-hidden="true"></span>'}
+        ${hasRole('admin') ? `<button class="delete-card-btn" type="button" title="Delete this person" aria-label="Delete ${esc(p.name || 'person')}" onclick="event.stopPropagation();deletePerson('${esc(p.uid)}')">${deleteIcon}<span>Delete</span></button>` : '<span aria-hidden="true"></span>'}
       </div>
       <div class="p-initial ${genderClass}">${esc(initial)}</div>
       <div class="p-name">${esc(p.name || '(unnamed)')}</div>
@@ -854,7 +854,7 @@ async function saveBirthOrder(uid) {
 }
 
 async function deletePerson(uid) {
-  if (!requireRole('superadmin', 'delete people')) return;
+  if (!requireRole('admin', 'delete people')) return;
   if (!uid) return;
   const person = peopleByUid[uid] || await getPerson(uid);
   const name = person?.name || '(unnamed)';

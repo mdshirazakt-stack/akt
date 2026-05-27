@@ -574,6 +574,34 @@
     background: var(--goldl); color: var(--accent); font-size: 0.84rem; font-weight: 700;
   }
 
+  /* ===== EID POPUP ===== */
+  #eid-popup-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.72);
+    z-index: 99000; display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  #eid-popup-backdrop.hidden { display: none; }
+  #eid-popup {
+    position: relative; max-width: 480px; width: 100%;
+    border-radius: 4px; overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.55);
+    animation: eidFadeIn 0.35s ease;
+  }
+  #eid-popup img { display: block; width: 100%; height: auto; }
+  #eid-popup-close {
+    position: absolute; top: 10px; right: 10px;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(0,0,0,0.55); border: none; cursor: pointer;
+    color: #fff; font-size: 1.2rem; line-height: 32px; text-align: center;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  #eid-popup-close:hover { background: rgba(0,0,0,0.82); }
+  @keyframes eidFadeIn {
+    from { opacity: 0; transform: scale(0.92); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
   .filter-drawer-backdrop {
     position: fixed; inset: 0; background: rgba(42,35,24,0.34);
     z-index: 9000; opacity: 0; pointer-events: none; transition: opacity 0.2s;
@@ -1927,6 +1955,7 @@ async function startApp(name, role = 'visitor', visitorRecord = null) {
   updateAdminPanelLink(currentUserRole);
   document.getElementById('auth-gate').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+  showEidPopupIfActive();
   await loadGedcomSources();
   logActivity('login', `Logged in: ${name}`, { visit_count: currentVisitCount });
 
@@ -4410,6 +4439,25 @@ function toast(msg) {
   clearTimeout(t._to);
   t._to = setTimeout(() => t.className = '', 3000);
 }
+
+// ===== EID POPUP — shown once per session, between 27 May 2026 and end of 30 May 2026 =====
+function showEidPopupIfActive() {
+  const now = new Date();
+  const start = new Date('2026-05-27T00:00:00');
+  const end   = new Date('2026-05-30T00:00:00'); // Saturday 00:00 = end of Friday
+  if (now < start || now >= end) return;
+  if (sessionStorage.getItem('eid_popup_dismissed')) return;
+  const backdrop = document.getElementById('eid-popup-backdrop');
+  if (backdrop) backdrop.classList.remove('hidden');
+}
+
+function dismissEidPopup(e) {
+  // clicking outside the popup card (on the backdrop) also dismisses
+  if (e && e.target !== document.getElementById('eid-popup-backdrop') && e.target !== document.getElementById('eid-popup-close')) return;
+  sessionStorage.setItem('eid_popup_dismissed', '1');
+  const backdrop = document.getElementById('eid-popup-backdrop');
+  if (backdrop) backdrop.classList.add('hidden');
+}
 // ===================== ALL NAMES TAB =====================
 let allnamesLoaded = false;
 let allnamesData = [];   // [{uid, name, sex, death_flag, gedcom_id}]
@@ -4690,6 +4738,13 @@ async function loadPopupPerson() {
     <div id="person-popup-body" style="padding:24px 28px">
       <div class="loading"><div class="spinner"></div></div>
     </div>
+  </div>
+</div>
+<!-- ===== EID UL ADHA POPUP ===== -->
+<div id="eid-popup-backdrop" class="hidden" onclick="dismissEidPopup(event)">
+  <div id="eid-popup">
+    <button id="eid-popup-close" onclick="dismissEidPopup()" aria-label="Close">×</button>
+    <img src="eid-ul-adha-2026.jpg" alt="Eid ul Adha Mubarak — Visit apnonkitalash.com"/>
   </div>
 </div>
 </body>

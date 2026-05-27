@@ -4449,6 +4449,7 @@ function showEidPopupIfActive() {
   if (sessionStorage.getItem('eid_popup_dismissed')) return;
   const backdrop = document.getElementById('eid-popup-backdrop');
   if (backdrop) backdrop.classList.remove('hidden');
+  logActivity('eid_popup_shown', 'Eid ul Adha 2026 popup', {});
 }
 
 function dismissEidPopup(e) {
@@ -4457,6 +4458,7 @@ function dismissEidPopup(e) {
   sessionStorage.setItem('eid_popup_dismissed', '1');
   const backdrop = document.getElementById('eid-popup-backdrop');
   if (backdrop) backdrop.classList.add('hidden');
+  logActivity('eid_popup_dismissed', 'Eid ul Adha 2026 popup', {});
 }
 // ===================== ALL NAMES TAB =====================
 let allnamesLoaded = false;

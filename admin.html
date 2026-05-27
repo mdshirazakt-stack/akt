@@ -2827,11 +2827,11 @@ function buildGedcomExport({ people, families, members, filename }) {
       if (person.death_place) lines.push(`2 PLAC ${gedcomText(person.death_place)}`);
     }
     if (person.occupation) lines.push(`1 OCCU ${gedcomText(person.occupation)}`);
-    if (person.root_place) appendGedcomNote(lines, `Root place: ${person.root_place}`);
-    if (person.current_place) appendGedcomNote(lines, `Current place: ${person.current_place}`);
-    if (person.contact_address) appendGedcomNote(lines, `Mobile/contact: ${person.contact_address}`);
-    if (person.email) appendGedcomNote(lines, `Email: ${person.email}`);
-    if (person.notes) appendGedcomNote(lines, person.notes);
+    if (person.root_place) appendGedcomExportNote(lines, `Root place: ${person.root_place}`);
+    if (person.current_place) appendGedcomExportNote(lines, `Current place: ${person.current_place}`);
+    if (person.contact_address) appendGedcomExportNote(lines, `Mobile/contact: ${person.contact_address}`);
+    if (person.email) appendGedcomExportNote(lines, `Email: ${person.email}`);
+    if (person.notes) appendGedcomExportNote(lines, person.notes);
     (famsByPerson[person.uid] || []).forEach(famXref => lines.push(`1 FAMS ${famXref}`));
     (famcByPerson[person.uid] || []).forEach(famXref => lines.push(`1 FAMC ${famXref}`));
   });
@@ -2856,8 +2856,8 @@ function buildGedcomExport({ people, families, members, filename }) {
       lines.push('1 MARR');
       if (family.marr_date) lines.push(`2 DATE ${gedcomText(family.marr_date)}`);
       if (family.marr_place) lines.push(`2 PLAC ${gedcomText(family.marr_place)}`);
-      if (family.marr_status && family.marr_status !== 'married') appendGedcomNote(lines, `Marriage status: ${family.marr_status}`, 2);
-      if (family.marr_notes) appendGedcomNote(lines, family.marr_notes, 2);
+      if (family.marr_status && family.marr_status !== 'married') appendGedcomExportNote(lines, `Marriage status: ${family.marr_status}`, 2);
+      if (family.marr_notes) appendGedcomExportNote(lines, family.marr_notes, 2);
     }
   });
   lines.push('0 TRLR');
@@ -2883,7 +2883,7 @@ function gedcomText(value) {
   return String(value || '').replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-function appendGedcomNote(lines, note, level = 1) {
+function appendGedcomExportNote(lines, note, level = 1) {
   const text = gedcomText(String(note || '').replace(/<br\s*\/?>/gi, '\n'));
   if (!text) return;
   const chunks = text.match(/.{1,220}(?:\s|$)/g) || [text];

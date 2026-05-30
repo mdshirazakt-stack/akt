@@ -1808,22 +1808,32 @@ function renderIdentityReferencesSection(identityReferenceData) {
           </div>
         `;
       }).join('') : '<div class="fc-detail">No additional duplicate references attached yet.</div>'}
+      ${hasRole('admin') ? `
       <div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)">
         <div class="fc-detail" style="white-space:normal;margin-bottom:8px">
-          Link another existing profile UID when this person also appears in another GEDCOM, such as an in-laws family file.
+          Link another existing profile UID (or paste its page URL) when this person also appears in another GEDCOM, such as an in-laws family file.
         </div>
         <div class="identity-ref-grid">
-          <input id="identity-ref-uid" placeholder="Paste profile UID"/>
+          <input id="identity-ref-uid" placeholder="Paste profile UID or page URL"/>
           <input id="identity-ref-notes" placeholder="Optional note"/>
           <button class="btn-back" type="button" onclick="attachIdentityReference()">Attach</button>
         </div>
         <div id="identity-ref-status" class="fc-detail" style="margin-top:8px"></div>
       </div>
+      ` : ''}
     </div>
   `;
 }
 
-async function lookupPersonByUid(uid) {
+async function lookupPersonByUid(raw) {
+  if (!raw) return null;
+  // Accept a full profile URL — extract the uid query param if present
+  let uid = raw.trim();
+  try {
+    const url = new URL(uid);
+    const fromParam = url.searchParams.get('uid');
+    if (fromParam) uid = fromParam.trim();
+  } catch (_) { /* not a URL — use as-is */ }
   if (!uid) return null;
   const { data, error } = await sb.from('people')
     .select('uid,name,birth_place,gedcom_id,death_flag')
@@ -2487,8 +2497,10 @@ async function attachIdentityReference() {
     setIdentityReferenceStatus(error.message, true);
     return;
   }
-  setIdentityReferenceStatus('Reference attached. Refreshing profile...');
+  setIdentityReferenceStatus('Attaching… refreshing profile.');
   await renderPerson(currentPerson.uid, document.getElementById('person-container'));
+  // Re-set after re-render (renderPerson rebuilds the DOM, clearing the old status el)
+  setIdentityReferenceStatus(`✔ Attached: ${otherPerson.name || otherUid}`, false);
 }
 
 // ===== EDIT PROFILE MVP =====

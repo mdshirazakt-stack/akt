@@ -3295,7 +3295,7 @@ function profileClaimStatusHtml(visitor, claim) {
       <div style="font-size:0.68rem;color:var(--muted)">${escapeHtml(claim.claimant_mobile || '')}</div>
       <div style="font-size:0.68rem;color:var(--muted)">${formatIST(claim.claimed_at, false)}</div>
       ${hasAdminRole('admin') && !applied ? `<button class="btn-sm" style="margin-top:7px;border-color:var(--green);color:var(--green)" onclick="applyProfileClaimToPerson('${claim.id}')">Apply to record</button>` : ''}
-      ${hasAdminRole('admin') ? `<button class="btn-sm" style="margin-top:5px;border-color:var(--red2);color:var(--red2)" onclick="revokeProfileClaim('${claim.id}','${escapeJs(claim.claimant_name || claim.claimant_email || '')}')">Revoke Claim</button>` : ''}
+      ${hasAdminRole('admin') ? `<button class="btn-sm" style="margin-top:5px;border-color:var(--red2);color:var(--red2)" onclick="revokeProfileClaim('${claim.id}')">Revoke Claim</button>` : ''}
     `;
   }
   if (!isRegisteredVisitor(visitor)) {
@@ -3369,15 +3369,15 @@ async function applyProfileClaimToPerson(claimId) {
   filterVisitors();
 }
 
-async function revokeProfileClaim(claimId, claimantLabel) {
+async function revokeProfileClaim(claimId) {
   if (!hasAdminRole('admin')) {
     toast('Only admin and superadmin can revoke profile claims.', true);
     return;
   }
+  const claim = allProfileClaims.find(r => r.id === claimId);
+  const claimantLabel = claim?.claimant_name || claim?.claimant_email || claimId;
   const reason = prompt(`Revoke claim for "${claimantLabel}"?\n\nThis deletes their current profile claim so they must re-submit a correct one.\nEnter reason to show the user (leave blank for a generic message):`);
   if (reason === null) return; // cancelled
-
-  const claim = allProfileClaims.find(r => r.id === claimId);
 
   // Delete the profile claim
   const { error } = await sb.from('profile_claims').delete().eq('id', claimId);

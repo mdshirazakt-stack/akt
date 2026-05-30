@@ -3374,23 +3374,39 @@ async function revokeProfileClaim(claimId, claimantLabel) {
     toast('Only admin and superadmin can revoke profile claims.', true);
     return;
   }
-  const reason = prompt(`Revoke claim for "${claimantLabel}"?\n\nThis deletes their current profile claim so they must submit a new one.\nLeave a reason (optional — for your records):`);
+  const reason = prompt(`Revoke claim for "${claimantLabel}"?\n\nThis deletes their current profile claim so they must re-submit a correct one.\nEnter reason to show the user (leave blank for a generic message):`);
   if (reason === null) return; // cancelled
 
   const claim = allProfileClaims.find(r => r.id === claimId);
+
+  // Delete the profile claim
   const { error } = await sb.from('profile_claims').delete().eq('id', claimId);
   if (error) {
     toast('Could not revoke claim: ' + error.message, true);
     return;
   }
-
   allProfileClaims = allProfileClaims.filter(r => r.id !== claimId);
+
+  // Store the revocation notice on the visitor record so they see it on next login
+  const notice = reason?.trim()
+    ? reason.trim()
+    : 'Your previous profile claim was revoked by an admin. Please search for your correct profile and claim it.';
+  const matchVisitor = allVisitors.find(v =>
+    (claim?.auth_user_id && v.auth_user_id === claim.auth_user_id) ||
+    (claim?.claimant_email && v.email?.toLowerCase() === claim.claimant_email?.toLowerCase())
+  );
+  if (matchVisitor) {
+    await sb.from('visitors')
+      .update({ claim_revoke_notice: notice, updated_at: new Date().toISOString() })
+      .eq('id', matchVisitor.id);
+  }
+
   logStaffActivity('profile_claim_revoked', claimantLabel, {
     claim_id: claimId,
     person_uid: claim?.person_uid || '',
-    reason: reason || ''
+    reason: notice
   });
-  toast(`Claim revoked — ${claimantLabel} can now re-submit.`);
+  toast(`Claim revoked — ${claimantLabel} will see a notice on next login.`);
   filterVisitors();
 }
 

@@ -2040,15 +2040,13 @@ async function renderPerson(uid, el) {
   const equivalentPersonUids = [...new Set([uid, ...identityReferenceUids])];
   const equivalentUidSet = new Set(equivalentPersonUids);
 
-  // Families as spouse across this profile and its active identity references.
-  const spouseFamilyMap = {};
-  for (const personUid of equivalentPersonUids) {
-    const { data: rows } = await sb.from('families')
-      .select('*')
-      .or(`husband_uid.eq.${personUid},wife_uid.eq.${personUid}`);
-    (rows || []).forEach(row => { spouseFamilyMap[row.uid] = row; });
-  }
-  const famsAsSpouse = Object.values(spouseFamilyMap);
+  // Families as spouse — only for this profile's own uid.
+  // Identity-linked profiles are shown as "Also recorded as:" only; their
+  // families are NOT merged here to avoid cross-GEDCOM child duplication.
+  const { data: famsAsSpouseRows } = await sb.from('families')
+    .select('*')
+    .or(`husband_uid.eq.${uid},wife_uid.eq.${uid}`);
+  const famsAsSpouse = famsAsSpouseRows || [];
 
   // Family as child
   const { data: famsAsChild } = await sb.from('family_members')
@@ -2150,9 +2148,7 @@ async function renderPerson(uid, el) {
   currentAssignableChildren = allChildren;
   const relationshipAdditions = await loadRelationshipAdditions(uid);
   const reviewedFamilyGroups = [];
-  for (const personUid of equivalentPersonUids) {
-    reviewedFamilyGroups.push(...await loadCanonicalFamilyGroups(personUid));
-  }
+  reviewedFamilyGroups.push(...await loadCanonicalFamilyGroups(uid));
   const displayMarriageGroups = collapseDuplicateMarriageGroups(reviewedFamilyGroups);
   const hasReviewedMarriageGroups = displayMarriageGroups.length > 0;
   const reviewedChildUids = new Set(displayMarriageGroups.flatMap(group => group.children || []).map(child => child.child_person_uid).filter(Boolean));

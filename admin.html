@@ -5368,7 +5368,7 @@ async function loadAttentionBadges() {
     sb.from('forum_threads').select('id').eq('status', 'pending').limit(1000),
     sb.from('forum_posts').select('id').eq('status', 'pending').limit(1000),
     sb.from('forum_flags').select('id').eq('status', 'new').limit(1000),
-    sb.from('profile_overrides').select('id').limit(1000),
+    sb.from('person_profile_overrides').select('id').limit(1000),
     sb.from('relationship_overrides').select('id').limit(1000),
     sb.from('canonical_family_groups').select('id').limit(1000),
     sb.from('signup_events').select('id,email,auth_user_id,visitor_id,event_name,stage,step,form_snapshot,details,created_at').gte('created_at', weekAgo.toISOString()).limit(1500)

@@ -3410,7 +3410,7 @@ async function revokeProfileClaim(claimId) {
     admin_note: reason?.trim() || ''
   });
   toast(`Claim revoked — ${claimantLabel} will redo sign-up on next login.`);
-  filterVisitors();
+  loadVisitors(); // full reload from DB so UI reflects actual state
 }
 
 function renderVisitors(visitors) {

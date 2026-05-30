@@ -391,50 +391,11 @@
       removeProfileClaimBanner();
       return;
     }
-    // If a revocation notice is pending, check whether user has already re-claimed
-    if (visitor.claim_revoke_notice) {
-      if (await hasProfileClaim(visitor)) {
-        // They've re-claimed — clear the notice silently and remove banner
-        sb.from('visitors')
-          .update({ claim_revoke_notice: null, updated_at: new Date().toISOString() })
-          .eq('id', visitor.id)
-          .then(() => {});
-        removeProfileClaimBanner();
-        return;
-      }
-      renderRevokedClaimBanner(visitor.claim_revoke_notice);
-      return;
-    }
     if (await hasProfileClaim(visitor)) {
       removeProfileClaimBanner();
       return;
     }
     renderProfileClaimBanner(visitor);
-  }
-
-  function renderRevokedClaimBanner(reason) {
-    ensureProfileClaimBannerStyles();
-    removeProfileClaimBanner();
-    const banner = document.createElement('div');
-    banner.id = 'profile-claim-reminder';
-    banner.style.cssText = 'border-left-color:#c0392b;background:#fff5f5;';
-    banner.innerHTML = `
-      <div class="claim-reminder-title" style="color:#c0392b">⚠️ Your profile claim has been revoked</div>
-      <div class="claim-reminder-copy">
-        ${reason ? `<strong>Reason:</strong> ${reason.replace(/</g,'&lt;').replace(/>/g,'&gt;')}<br><br>` : ''}
-        Please find your correct family profile and submit a new claim. Contact the admin if you need help finding it.
-      </div>
-      <div class="claim-reminder-actions">
-        <a href="index.html" style="background:#c0392b;border-color:#c0392b">Find &amp; claim my profile now</a>
-      </div>
-    `;
-    const app = document.getElementById('app') || document.body;
-    const header = app.querySelector('header');
-    if (header?.nextSibling) {
-      app.insertBefore(banner, header.nextSibling);
-    } else {
-      app.prepend(banner);
-    }
   }
 
   function ensureRoleApplicationStyles() {

@@ -3376,37 +3376,40 @@ async function revokeProfileClaim(claimId) {
   }
   const claim = allProfileClaims.find(r => r.id === claimId);
   const claimantLabel = claim?.claimant_name || claim?.claimant_email || claimId;
-  const reason = prompt(`Revoke claim for "${claimantLabel}"?\n\nThis deletes their current profile claim so they must re-submit a correct one.\nEnter reason to show the user (leave blank for a generic message):`);
+  const reason = prompt(`Revoke claim for "${claimantLabel}"?\n\nTheir claim will be deleted and they will be sent back through sign-up on next login.\nEnter an admin note (optional, for your records only):`);
   if (reason === null) return; // cancelled
 
   // Delete the profile claim
-  const { error } = await sb.from('profile_claims').delete().eq('id', claimId);
-  if (error) {
-    toast('Could not revoke claim: ' + error.message, true);
+  const { error: claimError } = await sb.from('profile_claims').delete().eq('id', claimId);
+  if (claimError) {
+    toast('Could not revoke claim: ' + claimError.message, true);
     return;
   }
   allProfileClaims = allProfileClaims.filter(r => r.id !== claimId);
 
-  // Store the revocation notice on the visitor record so they see it on next login
-  const notice = reason?.trim()
-    ? reason.trim()
-    : 'Your previous profile claim was revoked by an admin. Please search for your correct profile and claim it.';
+  // Reset onboarding so the user goes through sign-up again on next login
   const matchVisitor = allVisitors.find(v =>
     (claim?.auth_user_id && v.auth_user_id === claim.auth_user_id) ||
     (claim?.claimant_email && v.email?.toLowerCase() === claim.claimant_email?.toLowerCase())
   );
   if (matchVisitor) {
-    await sb.from('visitors')
-      .update({ claim_revoke_notice: notice, updated_at: new Date().toISOString() })
-      .eq('id', matchVisitor.id);
+    const { error: visitorError } = await sb.from('visitors').update({
+      visitor_form_completed: false,
+      consent_terms_accepted: false,
+      admin_notes: reason?.trim() || null,
+      updated_at: new Date().toISOString()
+    }).eq('id', matchVisitor.id);
+    if (visitorError) {
+      toast('Claim deleted but could not reset onboarding: ' + visitorError.message, true);
+    }
   }
 
   logStaffActivity('profile_claim_revoked', claimantLabel, {
     claim_id: claimId,
     person_uid: claim?.person_uid || '',
-    reason: notice
+    admin_note: reason?.trim() || ''
   });
-  toast(`Claim revoked — ${claimantLabel} will see a notice on next login.`);
+  toast(`Claim revoked — ${claimantLabel} will redo sign-up on next login.`);
   filterVisitors();
 }
 

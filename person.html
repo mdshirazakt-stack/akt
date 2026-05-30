@@ -1687,10 +1687,42 @@ function collapseDuplicateSourceSpouseFamilies(families, identityMap = {}) {
 }
 
 function sourceMarriageAliasText(row) {
-  const aliases = [...new Set((row.aliasFamilies || [])
+  const familyAliases = [...new Set((row.aliasFamilies || [])
     .map(alias => alias.spouseName)
     .filter(name => name && normalizeLooseName(name) !== normalizeLooseName(row.spouseName || '')))];
-  return aliases.length ? `Also recorded as: ${aliases.join('; ')}` : '';
+  const identityAliases = [...new Set((row.identityAliases || [])
+    .map(p => p.name)
+    .filter(name => name && normalizeLooseName(name) !== normalizeLooseName(row.spouseName || '')))];
+  const all = [...new Set([...familyAliases, ...identityAliases])];
+  return all.length ? `Also recorded as: ${all.join('; ')}` : '';
+}
+
+// Fetch names of identity-linked profiles for each spouse in displaySpouseFamilies
+async function enrichSpousesWithIdentityAliases(spouseFamilies, spouseIdentityMap) {
+  const allGroupIds = [...new Set(Object.values(spouseIdentityMap).flat().filter(Boolean))];
+  if (!allGroupIds.length) return;
+
+  const { data: allMembers } = await sb.from('person_identity_members')
+    .select('group_id,person_uid')
+    .in('group_id', allGroupIds);
+  if (!allMembers?.length) return;
+
+  const spouseUidSet = new Set(spouseFamilies.map(r => r.spouseUid).filter(Boolean));
+  const aliasUids = [...new Set(allMembers.map(m => m.person_uid).filter(u => !spouseUidSet.has(u)))];
+  if (!aliasUids.length) return;
+
+  const { data: aliasPeople } = await sb.from('people').select('uid,name').in('uid', aliasUids);
+  const aliasPersonMap = {};
+  (aliasPeople || []).forEach(p => { aliasPersonMap[p.uid] = p; });
+
+  spouseFamilies.forEach(row => {
+    if (!row.spouseUid) return;
+    const groups = new Set(spouseIdentityMap[row.spouseUid] || []);
+    row.identityAliases = allMembers
+      .filter(m => groups.has(m.group_id) && m.person_uid !== row.spouseUid)
+      .map(m => aliasPersonMap[m.person_uid])
+      .filter(Boolean);
+  });
 }
 
 async function loadIdentityReferences(uid) {
@@ -2143,6 +2175,7 @@ async function renderPerson(uid, el) {
   });
   const spouseIdentityMap = await loadIdentityGroupMap(spouseFamilies.map(row => row.spouseUid));
   const displaySpouseFamilies = collapseDuplicateSourceSpouseFamilies(spouseFamilies, spouseIdentityMap);
+  await enrichSpousesWithIdentityAliases(displaySpouseFamilies, spouseIdentityMap);
 
   const allChildren = Object.values(childrenMap);
   currentAssignableChildren = allChildren;

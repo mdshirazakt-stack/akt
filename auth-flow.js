@@ -322,25 +322,67 @@
     const banner = document.createElement('div');
     banner.className = 'akt-notification-banner';
     if (isQuery) {
-      banner.style.cssText = 'background:#eff6ff;border-color:rgba(37,99,235,0.35);border-left-color:#2563eb;color:#1e3a5f;';
+      banner.style.cssText = 'background:#eff6ff;border-color:rgba(37,99,235,0.35);border-left-color:#2563eb;color:#1e3a5f;flex-direction:column;gap:10px;';
     }
+    const replyFormId = 'notif-reply-' + note.id;
     banner.innerHTML = `
-      <span class="notif-icon">${isQuery ? '💬' : '✅'}</span>
-      <div class="notif-body">
-        <div class="notif-title" style="${isQuery ? 'color:#1e40af' : ''}">${note.title.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-        <div class="notif-msg">${note.message.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-        ${isQuery ? `<div style="font-size:0.76rem;margin-top:5px;color:#2563eb">Please use <em>Raise Corrections</em> to respond with updated information.</div>` : ''}
+      <div style="display:flex;align-items:flex-start;gap:12px;width:100%">
+        <span class="notif-icon">${isQuery ? '💬' : '✅'}</span>
+        <div class="notif-body" style="flex:1">
+          <div class="notif-title" style="${isQuery ? 'color:#1e40af' : ''}">${note.title.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+          <div class="notif-msg">${note.message.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+        </div>
+        <button class="notif-close" type="button" aria-label="Acknowledge">Got it</button>
       </div>
-      <button class="notif-close" type="button" aria-label="Acknowledge">Got it</button>
+      ${isQuery ? `
+      <div id="${replyFormId}" style="width:100%;padding-top:10px;border-top:1px solid rgba(37,99,235,0.2)">
+        <div style="font-size:0.76rem;font-weight:700;color:#1e40af;margin-bottom:6px">Your reply to the admin:</div>
+        <textarea rows="2" style="width:100%;padding:8px 10px;border:1px solid #bfdbfe;background:#fff;font-family:inherit;font-size:0.84rem;resize:vertical;box-sizing:border-box" placeholder="Type your response here…"></textarea>
+        <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+          <button type="button" style="padding:5px 14px;background:#2563eb;border:1px solid #2563eb;color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit">Send reply</button>
+          <span class="notif-reply-status" style="font-size:0.76rem;color:#166534;display:none"></span>
+        </div>
+      </div>` : ''}
     `;
+
+    // Dismiss / Got it
     banner.querySelector('.notif-close').onclick = () => {
       banner.remove();
-      // Record that the user actively acknowledged this notification
       sb.from('user_notifications')
         .update({ acknowledged_at: new Date().toISOString() })
         .eq('id', note.id)
         .then(() => {});
     };
+
+    // Reply send
+    if (isQuery) {
+      const replyForm = banner.querySelector('#' + replyFormId);
+      const replyBtn  = replyForm.querySelector('button');
+      const replyArea = replyForm.querySelector('textarea');
+      const replyStatus = replyForm.querySelector('.notif-reply-status');
+      replyBtn.onclick = async () => {
+        const msg = replyArea.value.trim();
+        if (!msg) return;
+        replyBtn.disabled = true;
+        replyBtn.textContent = 'Sending…';
+        const { error } = await sb.from('user_notifications')
+          .update({
+            reply_message:   msg,
+            replied_at:      new Date().toISOString(),
+            acknowledged_at: new Date().toISOString()
+          })
+          .eq('id', note.id);
+        if (error) {
+          replyBtn.disabled = false;
+          replyBtn.textContent = 'Send reply';
+          replyStatus.textContent = 'Could not send — try again.';
+          replyStatus.style.color = '#c0392b';
+          replyStatus.style.display = 'inline';
+        } else {
+          replyForm.innerHTML = '<div style="font-size:0.82rem;color:#166534;padding:4px 0">✔ Reply sent — the admin will see it in your correction.</div>';
+        }
+      };
+    }
 
     const app = document.getElementById('app') || document.body;
     const claimBanner = document.getElementById('profile-claim-reminder');

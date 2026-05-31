@@ -14,8 +14,9 @@ CREATE TABLE IF NOT EXISTS public.user_notifications (
   source_type   text,        -- e.g. 'correction', 'suggestion'
   source_id     uuid,
   -- Lifecycle
-  shown_at      timestamptz, -- NULL = not yet shown to the user
-  created_at    timestamptz  NOT NULL DEFAULT now()
+  shown_at        timestamptz, -- set when the banner is displayed on login
+  acknowledged_at timestamptz, -- set when the user clicks "Got it"
+  created_at      timestamptz  NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_notifications_mobile

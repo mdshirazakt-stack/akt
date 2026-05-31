@@ -326,9 +326,16 @@
         <div class="notif-title">${note.title.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
         <div class="notif-msg">${note.message.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
       </div>
-      <button class="notif-close" type="button" aria-label="Dismiss">×</button>
+      <button class="notif-close" type="button" aria-label="Acknowledge">Got it</button>
     `;
-    banner.querySelector('.notif-close').onclick = () => banner.remove();
+    banner.querySelector('.notif-close').onclick = () => {
+      banner.remove();
+      // Record that the user actively acknowledged this notification
+      sb.from('user_notifications')
+        .update({ acknowledged_at: new Date().toISOString() })
+        .eq('id', note.id)
+        .then(() => {});
+    };
 
     const app = document.getElementById('app') || document.body;
     const claimBanner = document.getElementById('profile-claim-reminder');

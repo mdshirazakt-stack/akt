@@ -5621,6 +5621,7 @@ function toast(msg, isErr = false) {
 // ===================== CORRECTIONS =====================
 let correctionsData = [];
 let correctionFilter = 'all';
+let correctionNotifMap = {}; // correction_id → {shown_at, acknowledged_at}
 
 async function loadCorrections() {
   const container = document.getElementById('corrections-list');
@@ -5635,6 +5636,18 @@ async function loadCorrections() {
   }
   correctionsData = data || [];
   setNavBadge('corrections', correctionsData.filter(r => ['new', 'in_progress'].includes(r.status || 'new')).length);
+
+  // Load notification delivery status for all correction IDs
+  const ids = correctionsData.map(r => r.id).filter(Boolean);
+  correctionNotifMap = {};
+  if (ids.length) {
+    const { data: notifs } = await sb.from('user_notifications')
+      .select('source_id,shown_at,acknowledged_at')
+      .eq('source_type', 'correction')
+      .in('source_id', ids);
+    (notifs || []).forEach(n => { correctionNotifMap[n.source_id] = n; });
+  }
+
   renderCorrections();
 }
 
@@ -5729,6 +5742,25 @@ function renderCorrections() {
           ${r.requester_father_name ? `<div><span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Father's name</span><div style="font-size:0.88rem;margin-top:2px">${escHtml(r.requester_father_name)}</div></div>` : ''}
           ${r.requester_family_number ? `<div><span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)">Family number</span><div style="font-size:0.88rem;margin-top:2px">${escHtml(r.requester_family_number)}</div></div>` : ''}
         </div>
+
+        ${(() => {
+          const notif = correctionNotifMap[r.id];
+          if (!notif) return '';
+          const shownLabel = notif.shown_at
+            ? `<span style="color:var(--green)">✔ Shown ${formatIST(notif.shown_at, false)}</span>`
+            : '<span style="color:var(--muted)">⏳ Not yet seen</span>';
+          const ackLabel = notif.acknowledged_at
+            ? `<span style="color:var(--green)">✔ Acknowledged ${formatIST(notif.acknowledged_at, false)}</span>`
+            : '<span style="color:var(--muted)">— Not yet acknowledged</span>';
+          return `
+          <div style="margin-bottom:12px;padding:10px 12px;background:#f0fdf4;border:1px solid rgba(46,110,74,0.25);border-left:3px solid #2e6e4a">
+            <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#2e6e4a;margin-bottom:6px">Notification delivery</div>
+            <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:0.8rem">
+              <div>${shownLabel}</div>
+              <div>${ackLabel}</div>
+            </div>
+          </div>`;
+        })()}
 
         ${corrFields.length ? `
         <div style="margin-bottom:12px">

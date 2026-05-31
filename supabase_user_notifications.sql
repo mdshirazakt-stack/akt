@@ -45,6 +45,18 @@ WITH CHECK (
   )
 );
 
+-- Admins can read all notifications (to show delivery status in Corrections tab)
+CREATE POLICY "user_notifications_admin_read"
+ON public.user_notifications FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.visitors v
+    WHERE v.auth_user_id = auth.uid()
+      AND v.access_role IN ('admin', 'superadmin')
+      AND coalesce(v.is_blocked, false) = false
+  )
+);
+
 -- Users can read their own notifications (matched by auth_uid, email, or mobile)
 CREATE POLICY "user_notifications_self_read"
 ON public.user_notifications FOR SELECT TO authenticated

@@ -5782,8 +5782,43 @@ async function setCorrectionStatus(id, status, btn) {
   const rec = correctionsData.find(r => r.id === id);
   if (rec) rec.status = status;
   logStaffActivity('correction_status_changed', rec?.person_name || rec?.person_uid || id, { correction_id: id, status });
+  if (['completed', 'approved'].includes(status) && rec) {
+    await sendCorrectionNotification(rec, status);
+  }
   toast('Status updated to: ' + status);
   renderCorrections();
+}
+
+async function sendCorrectionNotification(rec, status) {
+  if (!rec) return;
+  const mobile = rec.requester_mobile || null;
+  const personLabel = rec.person_name || rec.person_uid || 'the profile';
+  const title = status === 'completed' ? 'Correction completed' : 'Correction approved';
+  const message = `Your correction request for "${personLabel}" has been reviewed and ${status === 'completed' ? 'applied to the profile' : 'approved'}. Thank you for helping improve the archive.`;
+
+  const payload = {
+    recipient_mobile: mobile || null,
+    title,
+    message,
+    source_type: 'correction',
+    source_id: rec.id
+  };
+
+  // Also look up visitor's email/auth_uid by mobile for a stronger match
+  if (mobile) {
+    const cleanMobile = String(mobile).replace(/\D/g, '');
+    const { data: vis } = await sb.from('visitors')
+      .select('email,auth_user_id')
+      .or(`mobile.eq.${mobile},mobile.eq.${cleanMobile}`)
+      .limit(1);
+    if (vis?.[0]) {
+      payload.recipient_email    = vis[0].email || null;
+      payload.recipient_auth_uid = vis[0].auth_user_id || null;
+    }
+  }
+
+  const { error } = await sb.from('user_notifications').insert(payload);
+  if (error) console.warn('Could not send correction notification:', error.message);
 }
 
 async function applyProfileOverride(id, btn) {
@@ -5875,6 +5910,7 @@ async function applyProfileOverride(id, btn) {
   rec.applied_at = new Date().toISOString();
   if (rec.status === 'new') rec.status = 'approved';
   logStaffActivity('correction_applied_to_profile', rec.person_name || rec.person_uid || id, { correction_id: id, person_uid: rec.person_uid });
+  await sendCorrectionNotification(rec, 'completed');
   toast('Safe fields applied to source profile.');
   renderCorrections();
 }

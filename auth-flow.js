@@ -258,6 +258,83 @@
       await callbacks.onStart(name, role, { ...visitor, visit_count: visitCount });
     }
     await refreshProfileClaimBanner({ ...visitor, visit_count: visitCount });
+    await showPendingNotifications(visitor);
+  }
+
+  async function showPendingNotifications(visitor) {
+    if (!visitor || !sb) return;
+    try {
+      const email  = userEmail(currentSession?.user) || visitor?.email || '';
+      const mobile = visitor?.mobile || '';
+      const authId = currentSession?.user?.id || visitor?.auth_user_id || '';
+
+      const clauses = [];
+      if (authId)  clauses.push(`recipient_auth_uid.eq.${authId}`);
+      if (email)   clauses.push(`recipient_email.ilike.${email}`);
+      if (mobile)  clauses.push(`recipient_mobile.eq.${String(mobile).replace(/\D/g,'')}`);
+      if (!clauses.length) return;
+
+      const { data: notes, error } = await sb.from('user_notifications')
+        .select('id,title,message,source_type,created_at')
+        .or(clauses.join(','))
+        .is('shown_at', null)
+        .order('created_at', { ascending: true })
+        .limit(10);
+      if (error || !notes?.length) return;
+
+      // Mark all as shown immediately
+      const ids = notes.map(n => n.id);
+      sb.from('user_notifications')
+        .update({ shown_at: new Date().toISOString() })
+        .in('id', ids)
+        .then(() => {});
+
+      // Render one banner per notification (stacked)
+      notes.forEach(n => renderNotificationBanner(n));
+    } catch (e) { /* notifications are non-critical */ }
+  }
+
+  function renderNotificationBanner(note) {
+    if (!document.getElementById('notification-banner-styles')) {
+      const style = document.createElement('style');
+      style.id = 'notification-banner-styles';
+      style.textContent = `
+        .akt-notification-banner {
+          background: #f0fdf4; border: 1px solid rgba(46,110,74,0.35);
+          border-left: 4px solid #2e6e4a; color: #1a3d2e;
+          font-family: 'Lato', sans-serif;
+          margin: 10px auto 0; max-width: min(1120px, calc(100% - 36px));
+          padding: 13px 16px; display: flex; align-items: flex-start; gap: 12px;
+        }
+        .akt-notification-banner .notif-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .akt-notification-banner .notif-body { flex: 1; }
+        .akt-notification-banner .notif-title { font-size: 0.88rem; font-weight: 700; margin-bottom: 3px; }
+        .akt-notification-banner .notif-msg   { font-size: 0.82rem; line-height: 1.55; color: #2e4a3a; }
+        .akt-notification-banner .notif-close {
+          background: none; border: none; cursor: pointer; font-size: 1.1rem;
+          color: #5f7a6a; padding: 0 2px; flex-shrink: 0; line-height: 1;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    const banner = document.createElement('div');
+    banner.className = 'akt-notification-banner';
+    banner.innerHTML = `
+      <span class="notif-icon">✅</span>
+      <div class="notif-body">
+        <div class="notif-title">${note.title.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+        <div class="notif-msg">${note.message.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      </div>
+      <button class="notif-close" type="button" aria-label="Dismiss">×</button>
+    `;
+    banner.querySelector('.notif-close').onclick = () => banner.remove();
+
+    const app = document.getElementById('app') || document.body;
+    const claimBanner = document.getElementById('profile-claim-reminder');
+    const ref = claimBanner?.nextSibling || app.querySelector('header')?.nextSibling;
+    if (ref) app.insertBefore(banner, ref);
+    else app.prepend(banner);
   }
 
   function removeProfileClaimBanner() {

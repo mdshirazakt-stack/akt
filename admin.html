@@ -5637,15 +5637,19 @@ async function loadCorrections() {
   correctionsData = data || [];
   setNavBadge('corrections', correctionsData.filter(r => ['new', 'in_progress'].includes(r.status || 'new')).length);
 
-  // Load notification delivery status for all correction IDs
+  // Load all notifications for these corrections (completion + notes)
   const ids = correctionsData.map(r => r.id).filter(Boolean);
   correctionNotifMap = {};
   if (ids.length) {
     const { data: notifs } = await sb.from('user_notifications')
-      .select('source_id,shown_at,acknowledged_at')
-      .eq('source_type', 'correction')
-      .in('source_id', ids);
-    (notifs || []).forEach(n => { correctionNotifMap[n.source_id] = n; });
+      .select('source_id,source_type,title,message,shown_at,acknowledged_at,created_at')
+      .in('source_type', ['correction', 'correction_note'])
+      .in('source_id', ids)
+      .order('created_at', { ascending: true });
+    (notifs || []).forEach(n => {
+      if (!correctionNotifMap[n.source_id]) correctionNotifMap[n.source_id] = [];
+      correctionNotifMap[n.source_id].push(n);
+    });
   }
 
   renderCorrections();
@@ -5744,21 +5748,31 @@ function renderCorrections() {
         </div>
 
         ${(() => {
-          const notif = correctionNotifMap[r.id];
-          if (!notif) return '';
-          const shownLabel = notif.shown_at
-            ? `<span style="color:var(--green)">✔ Shown ${formatIST(notif.shown_at, false)}</span>`
-            : '<span style="color:var(--muted)">⏳ Not yet seen</span>';
-          const ackLabel = notif.acknowledged_at
-            ? `<span style="color:var(--green)">✔ Acknowledged ${formatIST(notif.acknowledged_at, false)}</span>`
-            : '<span style="color:var(--muted)">— Not yet acknowledged</span>';
+          const notifs = correctionNotifMap[r.id] || [];
+          if (!notifs.length) return '';
           return `
           <div style="margin-bottom:12px;padding:10px 12px;background:#f0fdf4;border:1px solid rgba(46,110,74,0.25);border-left:3px solid #2e6e4a">
-            <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#2e6e4a;margin-bottom:6px">Notification delivery</div>
-            <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:0.8rem">
-              <div>${shownLabel}</div>
-              <div>${ackLabel}</div>
-            </div>
+            <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#2e6e4a;margin-bottom:8px">Messages sent to user (${notifs.length})</div>
+            ${notifs.map(n => {
+              const isNote = n.source_type === 'correction_note';
+              const shownLabel = n.shown_at
+                ? `✔ Shown ${formatIST(n.shown_at, false)}`
+                : '⏳ Not yet seen';
+              const ackLabel = n.acknowledged_at
+                ? `✔ Got it ${formatIST(n.acknowledged_at, false)}`
+                : '— Not acknowledged yet';
+              return `
+              <div style="margin-bottom:6px;padding:8px 10px;background:#fff;border:1px solid rgba(46,110,74,0.18);border-radius:2px">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                  <span style="font-size:0.72rem;background:${isNote ? '#dbeafe' : '#dcfce7'};color:${isNote ? '#1e40af' : '#166534'};padding:1px 7px;font-weight:700">${isNote ? '💬 Query' : '✅ Completion'}</span>
+                  <span style="font-size:0.72rem;color:var(--muted)">${formatIST(n.created_at, false)}</span>
+                </div>
+                <div style="font-size:0.82rem;color:var(--ink);margin-bottom:5px;white-space:pre-wrap">${escHtml(n.message)}</div>
+                <div style="display:flex;gap:18px;font-size:0.75rem;color:var(--muted)">
+                  <span>${shownLabel}</span><span>${ackLabel}</span>
+                </div>
+              </div>`;
+            }).join('')}
           </div>`;
         })()}
 
@@ -5776,8 +5790,14 @@ function renderCorrections() {
         </div>` : ''}
 
         <div style="margin-bottom:12px">
-          <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:5px">Admin Notes</div>
-          <textarea rows="2" style="width:100%;padding:8px 10px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:0.85rem;resize:vertical" placeholder="Internal notes…" onchange="saveCorrectionNotes('${r.id}', this.value)">${escHtml(r.admin_notes || '')}</textarea>
+          <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:5px">Admin Notes (internal only)</div>
+          <textarea rows="2" style="width:100%;padding:8px 10px;border:1px solid var(--border);background:var(--bg);font-family:inherit;font-size:0.85rem;resize:vertical" placeholder="Internal notes — not visible to the user…" onchange="saveCorrectionNotes('${r.id}', this.value)">${escHtml(r.admin_notes || '')}</textarea>
+        </div>
+
+        <div style="margin-bottom:14px;padding:12px;border:1px solid #bfdbfe;background:#eff6ff;border-left:3px solid #2563eb">
+          <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1e40af;margin-bottom:6px">💬 Send query / message to user</div>
+          <textarea id="notif-msg-${r.id}" rows="2" style="width:100%;padding:8px 10px;border:1px solid #bfdbfe;background:#fff;font-family:inherit;font-size:0.85rem;resize:vertical;margin-bottom:8px" placeholder="e.g. Could you clarify the spelling of the birth place? We need more details to process this correction."></textarea>
+          <button onclick="sendNoteToUser('${r.id}')" style="padding:5px 14px;border:1px solid #2563eb;background:#2563eb;color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit">Send to user</button>
         </div>
 
 	        <div style="display:flex;flex-wrap:wrap;gap:6px">
@@ -5819,6 +5839,46 @@ async function setCorrectionStatus(id, status, btn) {
   }
   toast('Status updated to: ' + status);
   renderCorrections();
+}
+
+async function sendNoteToUser(correctionId) {
+  const rec = correctionsData.find(r => r.id === correctionId);
+  if (!rec) return;
+  const textarea = document.getElementById('notif-msg-' + correctionId);
+  const msg = textarea?.value.trim();
+  if (!msg) { toast('Please type a message before sending.', true); return; }
+
+  const mobile = rec.requester_mobile || null;
+  const personLabel = rec.person_name || rec.person_uid || 'your correction';
+  const payload = {
+    recipient_mobile: mobile || null,
+    title: `Follow-up on your correction — ${personLabel}`,
+    message: msg,
+    source_type: 'correction_note',
+    source_id: rec.id
+  };
+
+  if (mobile) {
+    const cleanMobile = String(mobile).replace(/\D/g, '');
+    const { data: vis } = await sb.from('visitors')
+      .select('email,auth_user_id')
+      .or(`mobile.eq.${mobile},mobile.eq.${cleanMobile}`)
+      .limit(1);
+    if (vis?.[0]) {
+      payload.recipient_email    = vis[0].email || null;
+      payload.recipient_auth_uid = vis[0].auth_user_id || null;
+    }
+  }
+
+  const { error } = await sb.from('user_notifications').insert(payload);
+  if (error) { toast('Could not send message: ' + error.message, true); return; }
+
+  logStaffActivity('correction_note_sent', rec.person_name || rec.person_uid || correctionId, {
+    correction_id: correctionId, message_preview: msg.slice(0, 80)
+  });
+  if (textarea) textarea.value = '';
+  toast('Message sent — user will see it on next login.');
+  await loadCorrections(); // refresh to show updated delivery status
 }
 
 async function sendCorrectionNotification(rec, status) {

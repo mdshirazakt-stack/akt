@@ -318,13 +318,18 @@
       document.head.appendChild(style);
     }
 
+    const isQuery = note.source_type === 'correction_note';
     const banner = document.createElement('div');
     banner.className = 'akt-notification-banner';
+    if (isQuery) {
+      banner.style.cssText = 'background:#eff6ff;border-color:rgba(37,99,235,0.35);border-left-color:#2563eb;color:#1e3a5f;';
+    }
     banner.innerHTML = `
-      <span class="notif-icon">✅</span>
+      <span class="notif-icon">${isQuery ? '💬' : '✅'}</span>
       <div class="notif-body">
-        <div class="notif-title">${note.title.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+        <div class="notif-title" style="${isQuery ? 'color:#1e40af' : ''}">${note.title.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
         <div class="notif-msg">${note.message.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+        ${isQuery ? `<div style="font-size:0.76rem;margin-top:5px;color:#2563eb">Please use <em>Raise Corrections</em> to respond with updated information.</div>` : ''}
       </div>
       <button class="notif-close" type="button" aria-label="Acknowledge">Got it</button>
     `;

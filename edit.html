@@ -682,8 +682,8 @@ function familySection(fam, idx) {
   const children = fam.children || [];
   const relationshipActions = canEditRelationships();
   const isDivorced = ['divorced', 'separated'].includes(fam.marr_status);
-  const fatherName = spouseUid === fam.wife_uid ? (peopleByUid[fam.husband_uid]?.name || 'Father') : (focusPerson?.name || 'Father');
-  const motherName = spouseUid === fam.husband_uid ? (peopleByUid[fam.wife_uid]?.name || 'Mother') : (focusPerson?.name || 'Mother');
+  const fatherName = (fam.husband_uid === focusUid ? focusPerson?.name : peopleByUid[fam.husband_uid]?.name) || 'Father';
+  const motherName = (fam.wife_uid   === focusUid ? focusPerson?.name : peopleByUid[fam.wife_uid]?.name)   || 'Mother';
 
   return `
     <section class="family-box ${spouseUid ? 'has-spouse' : ''} ${moveModeActive ? 'move-target' : ''}" data-family-uid="${esc(fam.uid)}">

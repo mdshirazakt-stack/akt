@@ -1459,6 +1459,13 @@
         <span class="icon">🔍</span>
         <input type="text" id="byfile-search" placeholder="Filter names within this view…" oninput="onByfileSearch()"/>
       </div>
+      <div style="display:flex;align-items:center;gap:10px;margin:-8px 0 12px;font-size:0.78rem;color:var(--muted)">
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none">
+          <input type="checkbox" id="byfile-fuzzy-toggle" onchange="onByfileSearch()" style="accent-color:var(--green)"/>
+          Fuzzy search
+        </label>
+        <span id="byfile-match-info"></span>
+      </div>
       <div id="byfile-list">
         <div class="loading"><div class="spinner"></div></div>
       </div>
@@ -4391,28 +4398,66 @@ function onByfileSearch() {
 
 function applyByfileSearch() {
   const q = document.getElementById('byfile-search').value.trim();
-  if (q) logActivity('index_filter', `Filtered index: ${q}`, { query: q });
-  // For sections already loaded, re-render with filter
-  // For un-loaded sections, just let them load normally when opened
+  const useFuzzy = document.getElementById('byfile-fuzzy-toggle')?.checked;
+  const infoEl = document.getElementById('byfile-match-info');
+  if (infoEl) infoEl.textContent = '';
+
+  if (!q) {
+    // No query — restore all open sections to their full unfiltered list
+    Object.keys(byfilePeopleCache).forEach(id => {
+      const body = document.getElementById('ged-body-' + id);
+      const hdr  = document.getElementById('ged-hdr-' + id);
+      if (body && hdr?.classList.contains('open')) renderGedBody(id, byfilePeopleCache[id], '');
+    });
+    return;
+  }
+
+  if (q) logActivity('index_filter', `Filtered index: ${q}`, { query: q, fuzzy: useFuzzy });
+
+  // Build a matcher function based on mode
+  const qLower = q.toLowerCase();
+  let matchName;
+  if (useFuzzy) {
+    const patterns = fuzzyPatterns(q); // reuse existing fuzzyPatterns from main search
+    const regexes = patterns.map(p => {
+      // patterns are ilike-style: %x% — convert to substring check
+      const inner = p.replace(/^%/, '').replace(/%$/, '').toLowerCase();
+      return inner;
+    });
+    matchName = name => regexes.some(r => (name || '').toLowerCase().includes(r));
+  } else {
+    matchName = name => (name || '').toLowerCase().includes(qLower);
+  }
+
+  let totalMatches = 0;
+  let sectionsWithMatches = 0;
+
   Object.keys(byfilePeopleCache).forEach(id => {
     const body = document.getElementById('ged-body-' + id);
     const hdr  = document.getElementById('ged-hdr-' + id);
-    if (!body) return;
-    // If we have a search query, auto-open sections that have matches
-    if (q) {
-      const matches = byfilePeopleCache[id].filter(p => (p.name || '').toLowerCase().includes(q.toLowerCase()));
-      if (matches.length) {
-        hdr.classList.add('open');
-        body.classList.add('open');
-        renderGedBody(id, byfilePeopleCache[id], q);
-      } else {
-        // Re-render to show "no matches" only if already open
-        if (hdr.classList.contains('open')) renderGedBody(id, byfilePeopleCache[id], q);
-      }
-    } else {
-      if (hdr.classList.contains('open')) renderGedBody(id, byfilePeopleCache[id], '');
+    if (!body || !hdr) return;
+
+    const matches = byfilePeopleCache[id].filter(p => matchName(p.name));
+
+    if (matches.length) {
+      hdr.classList.add('open');
+      body.classList.add('open');
+      renderGedBody(id, byfilePeopleCache[id], q); // renderGedBody applies its own filter internally
+      totalMatches += matches.length;
+      sectionsWithMatches++;
+    } else if (hdr.classList.contains('open')) {
+      // Section was open but has no matches — collapse it
+      hdr.classList.remove('open');
+      body.classList.remove('open');
     }
   });
+
+  if (infoEl) {
+    infoEl.textContent = totalMatches
+      ? `${totalMatches} match${totalMatches === 1 ? '' : 'es'} in ${sectionsWithMatches} file${sectionsWithMatches === 1 ? '' : 's'}`
+      : 'No matches in open sections — try expanding more files first';
+    infoEl.style.color = totalMatches ? 'var(--green)' : 'var(--muted)';
+  }
 }
 
 async function toggleAllGed() {

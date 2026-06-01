@@ -544,7 +544,7 @@ async function loadFamilyData() {
 
   if (famUids.length) {
     const { data: members } = await sb.from('family_members')
-      .select('family_uid,person_uid,birth_order')
+      .select('family_uid,person_uid,birth_order,custody_parent')
       .in('family_uid', famUids)
       .eq('role', 'child')
       .order('birth_order');
@@ -554,8 +554,8 @@ async function loadFamilyData() {
       const children = (members || [])
         .filter(m => m.family_uid === fam.uid)
         .sort((a, b) => (a.birth_order || 999) - (b.birth_order || 999))
-        .map(m => peopleByUid[m.person_uid])
-        .filter(Boolean);
+        .map(m => ({ ...peopleByUid[m.person_uid], _custody: m.custody_parent || null }))
+        .filter(c => c.uid);
       return { ...fam, children };
     });
   }
@@ -681,22 +681,57 @@ function familySection(fam, idx) {
   const title = spouse ? `${focusPerson.name || 'Person'} and ${spouseName}'s children` : `${focusPerson.name || 'Person'}'s children (${spouseName})`;
   const children = fam.children || [];
   const relationshipActions = canEditRelationships();
+  const isDivorced = ['divorced', 'separated'].includes(fam.marr_status);
+  const fatherName = spouseUid === fam.wife_uid ? (peopleByUid[fam.husband_uid]?.name || 'Father') : (focusPerson?.name || 'Father');
+  const motherName = spouseUid === fam.husband_uid ? (peopleByUid[fam.wife_uid]?.name || 'Mother') : (focusPerson?.name || 'Mother');
+
   return `
     <section class="family-box ${spouseUid ? 'has-spouse' : ''} ${moveModeActive ? 'move-target' : ''}" data-family-uid="${esc(fam.uid)}">
       <div class="family-title"><span style="color:var(--gold)">Family ${idx + 1}</span> &nbsp; ${esc(title)} (${children.length})</div>
+      ${isDivorced && children.length ? `
+        <div style="margin:6px 0 10px;padding:8px 12px;background:#fff7ed;border:1px solid #fed7aa;border-left:3px solid #f97316;font-size:0.78rem;color:#7c2d12">
+          ↔ <strong>Divorced / Separated</strong> — assign custody for each child below.
+        </div>` : ''}
       ${relationshipActions ? `<div class="family-actions">
         <button class="small" onclick="moveExistingChildToFamily('${fam.uid}')">${moveModeActive ? 'Move mode active' : 'Move existing child here'}</button>
         <button class="small" onclick="editFamilyFacts('${fam.uid}')">Marriage details</button>
         ${!spouseUid && !children.length ? `<button class="small danger" onclick="deleteEmptyFamilyGroup('${fam.uid}')">Delete Empty Group</button>` : ''}
       </div>` : ''}
       <div class="children-grid">
-        ${children.map(child => personCard(child, 'child')).join('')}
+        ${children.map(child => `
+          <div style="display:flex;flex-direction:column;gap:4px">
+            ${personCard(child, 'child')}
+            ${isDivorced && relationshipActions ? `
+            <select onchange="setCustodyParent('${fam.uid}','${child.uid}',this.value)"
+              style="font-size:0.72rem;padding:4px 8px;border:1px solid #fed7aa;background:#fff7ed;color:#7c2d12;font-family:inherit;cursor:pointer;width:100%">
+              <option value="" ${!child._custody ? 'selected' : ''}>— Custody not specified</option>
+              <option value="father" ${child._custody === 'father' ? 'selected' : ''}>👨 With Father (${esc(fatherName)})</option>
+              <option value="mother" ${child._custody === 'mother' ? 'selected' : ''}>👩 With Mother (${esc(motherName)})</option>
+              <option value="shared" ${child._custody === 'shared' ? 'selected' : ''}>🤝 Shared custody</option>
+            </select>` : ''}
+          </div>
+        `).join('')}
         ${relationshipActions ? `<button class="person-card add-card" onclick="addChildToFamily('${fam.uid}')">
           <span class="plus-bubble">+</span><span>Add a child</span><span style="font-weight:400;color:var(--muted)">son or daughter</span>
         </button>` : ''}
       </div>
     </section>
   `;
+}
+
+async function setCustodyParent(familyUid, personUid, value) {
+  const { error } = await sb.from('family_members')
+    .update({ custody_parent: value || null })
+    .eq('family_uid', familyUid)
+    .eq('person_uid', personUid);
+  if (error) { setStatus('Could not save custody: ' + error.message, true); return; }
+  // Update local cache
+  const fam = spouseFamilies.find(f => f.uid === familyUid);
+  if (fam) {
+    const child = (fam.children || []).find(c => c.uid === personUid);
+    if (child) child._custody = value || null;
+  }
+  setStatus('Custody saved.');
 }
 
 async function deleteEmptyFamilyGroup(familyUid) {

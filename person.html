@@ -2082,7 +2082,7 @@ async function renderPerson(uid, el) {
 
   // Family as child
   const { data: famsAsChild } = await sb.from('family_members')
-    .select('family_uid, role, birth_order')
+    .select('family_uid, role, birth_order, custody_parent')
     .eq('person_uid', uid)
     .eq('role', 'child')
     .order('birth_order');
@@ -2239,6 +2239,29 @@ async function renderPerson(uid, el) {
         ${p.occupation   ? `<div class="detail-field"><div class="key">Occupation</div><div class="val">${escHtml(p.occupation)}</div></div>` : ''}
         <div class="detail-field"><div class="key">Father</div><div class="val">${fatherName}</div></div>
         <div class="detail-field"><div class="key">Mother</div><div class="val">${motherName}</div></div>
+        ${(() => {
+          const myMembership = (famsAsChild || [])[0];
+          const isDivorced = parentFamily && ['divorced','separated'].includes(parentFamily.marr_status);
+          if (!isDivorced) return '';
+          const custody = myMembership?.custody_parent;
+          const custodyText = custody === 'father' ? `with ${fatherName}`
+            : custody === 'mother' ? `with ${motherName}`
+            : custody === 'shared' ? 'shared between both parents'
+            : 'not yet recorded';
+          const custodyColor = custody === 'father' ? '#1e40af'
+            : custody === 'mother' ? '#9d174d'
+            : custody === 'shared' ? '#065f46' : '#92400e';
+          const custodyBg = custody === 'father' ? '#dbeafe'
+            : custody === 'mother' ? '#fce7f3'
+            : custody === 'shared' ? '#d1fae5' : '#fef3c7';
+          return `<div class="detail-field" style="grid-column:1/-1">
+            <div class="key">Parents' status</div>
+            <div class="val" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;padding:2px 8px;font-size:0.78rem;font-weight:700">↔ Divorced / Separated</span>
+              <span style="background:${custodyBg};color:${custodyColor};padding:2px 8px;font-size:0.78rem;font-weight:700">Currently ${custodyText}</span>
+            </div>
+          </div>`;
+        })()}
       </div>
 
       ${siblings.length ? `

@@ -1457,7 +1457,7 @@
       </div>
       <div class="byfile-search-wrap">
         <span class="icon">🔍</span>
-        <input type="text" id="byfile-search" placeholder="Filter names within this view…" oninput="onByfileSearch()"/>
+        <input type="text" id="byfile-search" placeholder="Search GEDCOM files by name…" oninput="onByfileSearch()"/>
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin:-8px 0 12px;font-size:0.78rem;color:var(--muted)">
         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none">
@@ -4397,66 +4397,41 @@ function onByfileSearch() {
 }
 
 function applyByfileSearch() {
-  const q = document.getElementById('byfile-search').value.trim();
+  const q = document.getElementById('byfile-search').value.trim().toLowerCase();
   const useFuzzy = document.getElementById('byfile-fuzzy-toggle')?.checked;
   const infoEl = document.getElementById('byfile-match-info');
   if (infoEl) infoEl.textContent = '';
 
-  if (!q) {
-    // No query — restore all open sections to their full unfiltered list
-    Object.keys(byfilePeopleCache).forEach(id => {
-      const body = document.getElementById('ged-body-' + id);
-      const hdr  = document.getElementById('ged-hdr-' + id);
-      if (body && hdr?.classList.contains('open')) renderGedBody(id, byfilePeopleCache[id], '');
-    });
-    return;
-  }
+  let visible = 0;
 
-  if (q) logActivity('index_filter', `Filtered index: ${q}`, { query: q, fuzzy: useFuzzy });
+  gedcomUploads.forEach(u => {
+    const sec  = document.getElementById('ged-sec-' + u.id);
+    if (!sec) return;
 
-  // Build a matcher function based on mode
-  const qLower = q.toLowerCase();
-  let matchName;
-  if (useFuzzy) {
-    const patterns = fuzzyPatterns(q); // reuse existing fuzzyPatterns from main search
-    const regexes = patterns.map(p => {
-      // patterns are ilike-style: %x% — convert to substring check
-      const inner = p.replace(/^%/, '').replace(/%$/, '').toLowerCase();
-      return inner;
-    });
-    matchName = name => regexes.some(r => (name || '').toLowerCase().includes(r));
-  } else {
-    matchName = name => (name || '').toLowerCase().includes(qLower);
-  }
+    const filename = (u.filename || '').toLowerCase();
 
-  let totalMatches = 0;
-  let sectionsWithMatches = 0;
-
-  Object.keys(byfilePeopleCache).forEach(id => {
-    const body = document.getElementById('ged-body-' + id);
-    const hdr  = document.getElementById('ged-hdr-' + id);
-    if (!body || !hdr) return;
-
-    const matches = byfilePeopleCache[id].filter(p => matchName(p.name));
-
-    if (matches.length) {
-      hdr.classList.add('open');
-      body.classList.add('open');
-      renderGedBody(id, byfilePeopleCache[id], q); // renderGedBody applies its own filter internally
-      totalMatches += matches.length;
-      sectionsWithMatches++;
-    } else if (hdr.classList.contains('open')) {
-      // Section was open but has no matches — collapse it
-      hdr.classList.remove('open');
-      body.classList.remove('open');
+    let matches;
+    if (!q) {
+      matches = true; // show all when no query
+    } else if (useFuzzy) {
+      const patterns = fuzzyPatterns(q);
+      matches = patterns.some(p => {
+        const inner = p.replace(/^%/, '').replace(/%$/, '');
+        return filename.includes(inner);
+      });
+    } else {
+      matches = filename.includes(q);
     }
+
+    sec.style.display = matches ? '' : 'none';
+    if (matches) visible++;
   });
 
-  if (infoEl) {
-    infoEl.textContent = totalMatches
-      ? `${totalMatches} match${totalMatches === 1 ? '' : 'es'} in ${sectionsWithMatches} file${sectionsWithMatches === 1 ? '' : 's'}`
-      : 'No matches in open sections — try expanding more files first';
-    infoEl.style.color = totalMatches ? 'var(--green)' : 'var(--muted)';
+  if (infoEl && q) {
+    infoEl.textContent = visible
+      ? `${visible} file${visible === 1 ? '' : 's'} found`
+      : 'No matching files';
+    infoEl.style.color = visible ? 'var(--green)' : 'var(--red)';
   }
 }
 

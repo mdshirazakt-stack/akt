@@ -2366,8 +2366,8 @@ async function renderPerson(uid, el) {
                 ${children.map(c => {
                   const custodyBadge = (() => {
                     if (!['divorced','separated'].includes(f.marr_status)) return '';
-                    if (c._custody === 'father') return `&nbsp;<span style="font-size:0.68rem;background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:3px;white-space:nowrap">👨 Father</span>`;
-                    if (c._custody === 'mother') return `&nbsp;<span style="font-size:0.68rem;background:#fce7f3;color:#9d174d;padding:1px 6px;border-radius:3px;white-space:nowrap">👩 Mother</span>`;
+                    if (c._custody === 'father') return `&nbsp;<span style="font-size:0.68rem;background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:3px;white-space:nowrap">👨 w/Father</span>`;
+                    if (c._custody === 'mother') return `&nbsp;<span style="font-size:0.68rem;background:#fce7f3;color:#9d174d;padding:1px 6px;border-radius:3px;white-space:nowrap">👩 w/Mother</span>`;
                     if (c._custody === 'shared') return `&nbsp;<span style="font-size:0.68rem;background:#d1fae5;color:#065f46;padding:1px 6px;border-radius:3px;white-space:nowrap">🤝 Shared</span>`;
                     return '';
                   })();

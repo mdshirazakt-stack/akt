@@ -917,6 +917,34 @@
   .byfile-expand-all { padding: 6px 14px; border: 1px solid var(--border); background: none; font-family: 'Lato', sans-serif; font-size: 0.78rem; color: var(--muted); cursor: pointer; transition: all 0.2s; }
   .byfile-expand-all:hover { border-color: var(--gold); color: var(--gold); }
 
+  /* INDEX SPLIT PANE */
+  .byfile-split { display: grid; grid-template-columns: 1fr; gap: 0; transition: grid-template-columns 0.25s ease; }
+  .byfile-split.detail-open { grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.4fr); gap: 20px; }
+  .byfile-detail-pane {
+    display: none; position: sticky; top: 72px; height: calc(100vh - 90px);
+    overflow-y: auto; border: 1px solid var(--border); background: var(--surface);
+    border-top: 3px solid var(--gold2); padding: 0;
+  }
+  .byfile-split.detail-open .byfile-detail-pane { display: block; }
+  .byfile-detail-bar {
+    position: sticky; top: 0; z-index: 2; background: var(--surface);
+    border-bottom: 1px solid var(--border); padding: 10px 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .byfile-detail-bar button {
+    padding: 5px 12px; border: 1px solid var(--border); background: none;
+    font-family: 'Lato', sans-serif; font-size: 0.78rem; cursor: pointer; color: var(--ink);
+  }
+  .byfile-detail-bar button:hover { border-color: var(--gold); color: var(--gold); }
+  .byfile-detail-bar .close-btn { margin-left: auto; border-color: var(--red); color: var(--red); }
+  .byfile-detail-bar .close-btn:hover { background: var(--red); color: #fff; }
+  .byfile-detail-bar .nav-info { font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+  .byfile-detail-body { padding: 18px; }
+  @media (max-width: 760px) {
+    .byfile-split.detail-open { grid-template-columns: 1fr; }
+    .byfile-detail-pane { position: fixed; inset: 0; z-index: 500; height: 100vh; border: none; }
+  }
+
   /* LOADING */
   .loading { text-align: center; padding: 60px; color: var(--muted); }
   .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
@@ -1466,8 +1494,22 @@
         </label>
         <span id="byfile-match-info"></span>
       </div>
-      <div id="byfile-list">
-        <div class="loading"><div class="spinner"></div></div>
+      <div class="byfile-split" id="byfile-split">
+        <div id="byfile-list">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+        <div class="byfile-detail-pane" id="byfile-detail-pane">
+          <div class="byfile-detail-bar">
+            <button onclick="byfileNavPrev()">← Prev</button>
+            <button onclick="byfileNavNext()">Next →</button>
+            <span class="nav-info" id="byfile-nav-info"></span>
+            <a id="byfile-open-link" href="#" target="_blank" style="font-size:0.75rem;color:var(--gold);margin-left:4px;text-decoration:none" title="Open full profile">↗ Full profile</a>
+            <button class="close-btn" onclick="closeByfileDetail()">✕ Close</button>
+          </div>
+          <div class="byfile-detail-body" id="byfile-detail-body">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -4379,15 +4421,68 @@ function renderGedBody(id, people, filterQ) {
 }
 
 // Navigate to person detail from By File, keeping state so Back returns here
-function showPersonFromByfile(uid) {
-  // Temporarily hijack lastQuery so Back button works sensibly
-  const el = document.getElementById('search-results');
-  // Switch to search tab silently so showPerson renders there
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('panel-search').classList.add('active');
-  document.querySelector('.nav-tab[onclick*="search"]').classList.add('active');
-  showPerson(uid);
+let byfileCurrentUid = null;
+let byfileNavList = []; // flat list of {uid,name} for prev/next across all open sections
+
+function buildByfileNavList() {
+  // Collect all visible people from all open + rendered sections
+  const all = [];
+  document.querySelectorAll('.ged-section').forEach(sec => {
+    const id = sec.dataset.id;
+    if (sec.style.display === 'none') return;
+    const hdr = document.getElementById('ged-hdr-' + id);
+    if (!hdr?.classList.contains('open')) return;
+    (byfilePeopleCache[id] || []).forEach(p => all.push(p));
+  });
+  byfileNavList = all;
+}
+
+async function showPersonFromByfile(uid) {
+  buildByfileNavList();
+  byfileCurrentUid = uid;
+
+  const split = document.getElementById('byfile-split');
+  const pane  = document.getElementById('byfile-detail-pane');
+  const body  = document.getElementById('byfile-detail-body');
+  const link  = document.getElementById('byfile-open-link');
+
+  split.classList.add('detail-open');
+  pane.scrollTop = 0;
+  body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  if (link) link.href = 'person.html?uid=' + encodeURIComponent(uid);
+
+  updateByfileNavInfo();
+
+  try {
+    await renderPersonDetail(uid, body);
+  } catch(e) {
+    body.innerHTML = `<div class="empty-state" style="color:var(--red)">Could not load profile.</div>`;
+  }
+}
+
+function updateByfileNavInfo() {
+  const info = document.getElementById('byfile-nav-info');
+  if (!info || !byfileCurrentUid) return;
+  const idx = byfileNavList.findIndex(p => p.uid === byfileCurrentUid);
+  info.textContent = idx >= 0 ? `${idx + 1} / ${byfileNavList.length}` : '';
+}
+
+function byfileNavPrev() {
+  if (!byfileNavList.length || !byfileCurrentUid) return;
+  const idx = byfileNavList.findIndex(p => p.uid === byfileCurrentUid);
+  if (idx > 0) showPersonFromByfile(byfileNavList[idx - 1].uid);
+}
+
+function byfileNavNext() {
+  if (!byfileNavList.length || !byfileCurrentUid) return;
+  const idx = byfileNavList.findIndex(p => p.uid === byfileCurrentUid);
+  if (idx < byfileNavList.length - 1) showPersonFromByfile(byfileNavList[idx + 1].uid);
+}
+
+function closeByfileDetail() {
+  byfileCurrentUid = null;
+  document.getElementById('byfile-split')?.classList.remove('detail-open');
+  document.getElementById('byfile-detail-body').innerHTML = '';
 }
 
 // Inline filter across all open sections

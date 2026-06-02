@@ -603,6 +603,36 @@
     to   { opacity: 1; transform: scale(1); }
   }
 
+  /* ===== PRINT PAYMENT MODAL ===== */
+  #print-pay-backdrop {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65);
+    z-index:99200; align-items:center; justify-content:center; padding:16px;
+  }
+  #print-pay-modal {
+    background:#fff; max-width:420px; width:100%; border-top:4px solid var(--gold2);
+    box-shadow:0 24px 60px rgba(0,0,0,0.4); animation:eidFadeIn 0.3s ease;
+    font-family:'Lato',sans-serif;
+  }
+  .ppm-head { padding:18px 22px 0; }
+  .ppm-head h3 { font-size:1.05rem; color:var(--green); margin-bottom:4px; }
+  .ppm-head p  { font-size:0.82rem; color:var(--muted); line-height:1.5; }
+  .ppm-qr { display:flex; flex-direction:column; align-items:center; padding:18px 22px; border-bottom:1px solid var(--border); }
+  .ppm-qr img { width:180px; height:180px; border:1px solid var(--border); }
+  .ppm-qr .upi-id { margin-top:10px; font-size:0.82rem; font-weight:700; color:var(--ink); letter-spacing:0.04em; }
+  .ppm-qr .amount { font-size:1.4rem; font-weight:900; color:var(--green); margin-top:4px; }
+  .ppm-qr .upi-link { margin-top:10px; }
+  .ppm-qr .upi-link a { font-size:0.75rem; color:#2563eb; text-decoration:none; border:1px solid #93c5fd; padding:5px 12px; }
+  .ppm-body { padding:16px 22px; }
+  .ppm-body label { font-size:0.72rem; font-weight:900; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink); display:block; margin-bottom:6px; }
+  .ppm-body input { width:100%; padding:11px 14px; border:1px solid var(--border); font-family:'Lato',sans-serif; font-size:0.95rem; outline:none; box-sizing:border-box; }
+  .ppm-body input:focus { border-color:var(--gold2); box-shadow:0 0 0 3px rgba(201,168,76,0.12); }
+  .ppm-body .hint { font-size:0.74rem; color:var(--muted); margin-top:5px; line-height:1.4; }
+  .ppm-foot { padding:14px 22px; display:flex; gap:10px; align-items:center; border-top:1px solid var(--border); flex-wrap:wrap; }
+  .ppm-submit { flex:1; padding:11px; background:var(--green); color:#fff; border:none; font-family:'Lato',sans-serif; font-weight:700; font-size:0.88rem; cursor:pointer; letter-spacing:0.06em; }
+  .ppm-submit:disabled { opacity:0.6; cursor:not-allowed; }
+  .ppm-cancel { background:none; border:1px solid var(--border); padding:11px 16px; font-family:'Lato',sans-serif; font-size:0.82rem; cursor:pointer; color:var(--muted); }
+  .ppm-status { font-size:0.82rem; font-weight:700; width:100%; margin-top:6px; }
+
   .filter-drawer-backdrop {
     position: fixed; inset: 0; background: rgba(42,35,24,0.34);
     z-index: 9000; opacity: 0; pointer-events: none; transition: opacity 0.2s;
@@ -3864,9 +3894,78 @@ function printTree() {
     alert('Please search for a person in the Browse Tree tab first.');
     return;
   }
+  // Show payment modal instead of printing directly
+  openPrintPayModal();
+}
+
+function openPrintPayModal() {
+  document.getElementById('print-utr-input').value = '';
+  document.getElementById('print-pay-status').textContent = '';
+  document.getElementById('print-pay-btn').disabled = false;
+  document.getElementById('print-pay-btn').textContent = 'Verify & Print';
+  const backdrop = document.getElementById('print-pay-backdrop');
+  backdrop.style.display = 'flex';
+}
+
+function closePrintPayModal() {
+  document.getElementById('print-pay-backdrop').style.display = 'none';
+}
+
+async function submitPrintPayment() {
+  const utr = document.getElementById('print-utr-input').value.trim();
+  const statusEl = document.getElementById('print-pay-status');
+  const btn = document.getElementById('print-pay-btn');
+
+  statusEl.style.color = 'var(--red)';
+  if (!utr || utr.length < 8) {
+    statusEl.textContent = 'Please enter a valid Transaction / UTR ID (at least 8 characters).';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Verifying…';
+  statusEl.textContent = '';
+
+  // Check for duplicate UTR
+  const { data: existing } = await sb.from('print_payments')
+    .select('id')
+    .eq('utr', utr)
+    .limit(1);
+  if (existing?.length) {
+    btn.disabled = false;
+    btn.textContent = 'Verify & Print';
+    statusEl.textContent = 'This Transaction ID has already been used. Please contact us if this is an error.';
+    return;
+  }
+
+  // Get current visitor ID
+  const { data: visRows } = await sb.from('visitors')
+    .select('id,name_entered')
+    .eq('auth_user_id', (await sb.auth.getUser()).data?.user?.id || '')
+    .limit(1);
+  const vis = visRows?.[0];
+
+  // Record the payment
+  const { error } = await sb.from('print_payments').insert({
+    visitor_id:   vis?.id   || null,
+    visitor_name: vis?.name_entered || currentUser || '',
+    utr,
+    amount:       49,
+    status:       'pending'
+  });
+
+  if (error) {
+    btn.disabled = false;
+    btn.textContent = 'Verify & Print';
+    statusEl.textContent = 'Could not save payment. Please try again or contact us on WhatsApp.';
+    return;
+  }
+
+  // Payment recorded — proceed to print
+  closePrintPayModal();
   const label = document.getElementById('tree-person-label')?.textContent || '';
   const personName = label.replace(/^Showing tree for:\s*/i, '').trim();
-  logActivity('print_tree', personName ? `Printed tree for: ${personName}` : 'Printed tree', { label });
+  logActivity('print_tree', personName ? `Printed tree for: ${personName}` : 'Printed tree', { label, utr });
   window.print();
 }
 
@@ -4962,6 +5061,37 @@ async function loadPopupPerson() {
     </div>
   </div>
 </div>
+<!-- ===== PRINT TREE PAYMENT MODAL ===== -->
+<div id="print-pay-backdrop" onclick="if(event.target===this)closePrintPayModal()">
+  <div id="print-pay-modal">
+    <div class="ppm-head">
+      <h3>🖨 Print Family Tree — ₹49</h3>
+      <p>Scan the QR code with any UPI app (GPay, PhonePe, Paytm, etc.), pay ₹49, then enter your Transaction ID below.</p>
+    </div>
+    <div class="ppm-qr">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=9818555830@ptsbi%26pn=Apno+Ki+Talash%26am=49%26cu=INR%26tn=Print+Tree+Service" alt="UPI QR Code"/>
+      <div class="upi-id">9818555830@ptsbi</div>
+      <div class="amount">₹49</div>
+      <div class="upi-link">
+        <a href="upi://pay?pa=9818555830@ptsbi&pn=Apno+Ki+Talash&am=49&cu=INR&tn=Print+Tree+Service">Open in UPI app →</a>
+      </div>
+    </div>
+    <div class="ppm-body">
+      <label for="print-utr-input">Transaction / UTR ID *</label>
+      <input type="text" id="print-utr-input" placeholder="e.g. 512345678901" maxlength="30" oninput="this.value=this.value.replace(/[^a-zA-Z0-9]/g,'')"/>
+      <div class="hint">Find this in your UPI app under Payment History. It is usually 12–16 characters.</div>
+      <div class="ppm-status" id="print-pay-status"></div>
+    </div>
+    <div class="ppm-foot">
+      <button class="ppm-submit" id="print-pay-btn" onclick="submitPrintPayment()">Verify &amp; Print</button>
+      <button class="ppm-cancel" onclick="closePrintPayModal()">Cancel</button>
+      <div style="font-size:0.7rem;color:var(--muted);width:100%">
+        Having trouble? Contact us on <a href="https://chat.whatsapp.com/HtSTOEqyDx644pLLdbnnlm" target="_blank" style="color:var(--green)">WhatsApp</a> with your payment screenshot.
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== EID UL ADHA POPUP ===== -->
 <div id="eid-popup-backdrop" class="hidden" onclick="dismissEidPopup(event)">
   <div id="eid-popup">

@@ -1013,6 +1013,7 @@
         <div class="nav-section-label">Imports</div>
         <button class="nav-tab active" data-min-role="admin" onclick="switchTab('upload', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="M7 8l5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg></span><span class="nav-label">Import GEDCOM</span></button>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('uploads', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/><path d="M12 7v5l3 2"/></svg></span><span class="nav-label">Export GEDCOM</span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('printpayments', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></span><span class="nav-label">Print Payments</span></button>
         <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('settings', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/></svg></span><span class="nav-label">Site stats</span></button>
       </div>
       <div class="nav-section">
@@ -1367,6 +1368,17 @@
     </div>
 
     <!-- SITE STATS / SETTINGS -->
+    <!-- PRINT PAYMENTS -->
+    <div id="panel-printpayments" class="panel">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <h2 style="margin:0">Print Tree Payments <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">₹49 per print · UPI 9818555830@ptsbi</span></h2>
+          <button class="btn-sm" onclick="loadPrintPayments()">↻ Refresh</button>
+        </div>
+        <div id="print-payments-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+      </div>
+    </div>
+
     <div id="panel-settings" class="panel">
       <div class="card">
         <h2>Site Stats</h2>
@@ -1861,6 +1873,7 @@ function switchTab(name, btn) {
   if (name === 'uploads') loadUploads();
   if (name === 'contributors') { document.getElementById('contributor-search')?.focus(); }
   if (name === 'ads') { loadAds(); loadAdvertiseClicks(); loadAdInquiries(); }
+  if (name === 'printpayments') loadPrintPayments();
   if (name === 'visitors') loadVisitors();
   if (name === 'roleapps') loadRoleApplications();
   if (name === 'dropoffs') loadSignupDropoffs();
@@ -2653,6 +2666,69 @@ async function loadAdvertiseClicks() {
             <span style="color:var(--muted);font-size:0.76rem">${formatIST(r.created_at)}</span>
           </div>`).join('')}
       </div>`).join('')}`;
+}
+
+async function loadPrintPayments() {
+  const list = document.getElementById('print-payments-list');
+  if (!list) return;
+  list.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+
+  const { data, error } = await sb.from('print_payments')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) { list.innerHTML = `<div class="empty" style="color:var(--red2)">${escapeHtml(error.message)}</div>`; return; }
+  if (!data?.length) { list.innerHTML = '<div class="empty">No print payments yet.</div>'; return; }
+
+  const total = data.reduce((s, r) => s + (r.amount || 0), 0);
+  const verified = data.filter(r => r.status === 'verified').length;
+  const pending  = data.filter(r => r.status === 'pending').length;
+
+  const statusColor = { pending:'#92400e', verified:'#166534', rejected:'#991b1b' };
+  const statusBg    = { pending:'#fef3c7', verified:'#dcfce7', rejected:'#fee2e2' };
+
+  list.innerHTML = `
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px">
+      <div style="padding:10px 16px;background:var(--bg);border:1px solid var(--border);text-align:center">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--green)">₹${total.toLocaleString('en-IN')}</div>
+        <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase">Total collected</div>
+      </div>
+      <div style="padding:10px 16px;background:var(--bg);border:1px solid var(--border);text-align:center">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--ink)">${data.length}</div>
+        <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase">Total prints</div>
+      </div>
+      <div style="padding:10px 16px;background:var(--bg);border:1px solid var(--border);text-align:center">
+        <div style="font-size:1.5rem;font-weight:700;color:#166534">${verified}</div>
+        <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase">Verified</div>
+      </div>
+      <div style="padding:10px 16px;background:var(--bg);border:1px solid var(--border);text-align:center">
+        <div style="font-size:1.5rem;font-weight:700;color:#92400e">${pending}</div>
+        <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase">Pending verification</div>
+      </div>
+    </div>
+    ${data.map(r => `
+    <div style="border:1px solid var(--border);padding:12px 16px;margin-bottom:8px;background:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div>
+        <strong>${escapeHtml(r.visitor_name || '—')}</strong>
+        <span style="margin:0 8px;color:var(--muted)">·</span>
+        <span style="font-family:monospace;font-size:0.85rem;background:var(--bg);padding:2px 6px;border:1px solid var(--border)">${escapeHtml(r.utr)}</span>
+        <span style="margin-left:8px;padding:2px 9px;background:${statusBg[r.status]||'#f3f4f6'};color:${statusColor[r.status]||'#374151'};font-size:0.68rem;font-weight:700;text-transform:uppercase">${r.status}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:0.78rem;color:var(--muted)">${formatIST(r.created_at, false)}</span>
+        <span style="font-weight:700;color:var(--green)">₹${r.amount}</span>
+        ${r.status === 'pending' ? `
+          <button class="btn-sm" style="background:var(--green);color:#fff;border-color:var(--green)" onclick="setPrintPayStatus('${r.id}','verified')">✔ Verify</button>
+          <button class="btn-sm" style="color:var(--red2);border-color:var(--red2)" onclick="setPrintPayStatus('${r.id}','rejected')">✖ Reject</button>
+        ` : ''}
+      </div>
+    </div>`).join('')}`;
+}
+
+async function setPrintPayStatus(id, status) {
+  await sb.from('print_payments').update({ status }).eq('id', id);
+  toast(status === 'verified' ? '✔ Payment verified' : '✖ Payment rejected');
+  loadPrintPayments();
 }
 
 async function loadAdInquiries() {

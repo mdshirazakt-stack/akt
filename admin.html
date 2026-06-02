@@ -1026,6 +1026,7 @@
       </div>
       <div class="nav-section">
         <div class="nav-section-label">Community</div>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('ads', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg></span><span class="nav-label">Ads</span></button>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('contributors', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span><span class="nav-label">Badges</span></button>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('visitors', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/><circle cx="17" cy="8" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5 4.5v1"/></svg></span><span class="nav-label">Users</span><span class="nav-badge" id="badge-visitors"></span></button>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('roleapps', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l3 6 6 .9-4.5 4.4 1.1 6.2L12 17.5 6.4 20.5l1.1-6.2L3 9.9 9 9z"/></svg></span><span class="nav-label">Role applications</span><span class="nav-badge" id="badge-roleapps"></span></button>
@@ -1162,6 +1163,37 @@
           <input class="search-bar" id="contributor-search" placeholder="Search by name…" oninput="searchContributorPeople()" style="flex:1;margin:0"/>
         </div>
         <div id="contributor-results"><div class="empty">Type a name above to search.</div></div>
+      </div>
+    </div>
+
+    <!-- ADS -->
+    <div id="panel-ads" class="panel">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <h2 style="margin:0">Community Ads</h2>
+          <button class="btn-sm" onclick="loadAds()">↻ Refresh</button>
+        </div>
+        <div class="insight-note" style="margin-bottom:18px">
+          One active ad at a time. Others queue automatically. Shown once per unique logged-in user.
+          Impression = shown. Dismissed = user closed it. Each counts once per user.
+        </div>
+
+        <!-- Create new ad -->
+        <div style="border:1px solid var(--border);padding:16px;margin-bottom:20px;background:var(--bg)">
+          <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--gold);margin-bottom:12px">New Ad</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <input id="ad-advertiser" placeholder="Advertiser name" style="padding:8px 10px;border:1px solid var(--border);background:#fff;font-family:inherit;font-size:0.85rem"/>
+            <input id="ad-link" placeholder="Click-through URL (optional)" style="padding:8px 10px;border:1px solid var(--border);background:#fff;font-family:inherit;font-size:0.85rem"/>
+          </div>
+          <input id="ad-image-url" placeholder="Image URL (upload to Supabase Storage and paste URL here)" style="width:100%;padding:8px 10px;border:1px solid var(--border);background:#fff;font-family:inherit;font-size:0.85rem;margin-bottom:10px;box-sizing:border-box"/>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <input id="ad-target" type="number" placeholder="Target impressions (e.g. 100)" min="1" style="padding:8px 10px;border:1px solid var(--border);background:#fff;font-family:inherit;font-size:0.85rem"/>
+            <input id="ad-notes" placeholder="Internal notes" style="padding:8px 10px;border:1px solid var(--border);background:#fff;font-family:inherit;font-size:0.85rem"/>
+          </div>
+          <button class="btn-sm" style="background:var(--green);color:#fff;border-color:var(--green)" onclick="createAd()">+ Create Ad (queued as pending)</button>
+        </div>
+
+        <div id="ads-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
       </div>
     </div>
 
@@ -1818,6 +1850,7 @@ function switchTab(name, btn) {
   if (btn) btn.classList.add('active'); else event.target.classList.add('active');
   if (name === 'uploads') loadUploads();
   if (name === 'contributors') { document.getElementById('contributor-search')?.focus(); }
+  if (name === 'ads') loadAds();
   if (name === 'visitors') loadVisitors();
   if (name === 'roleapps') loadRoleApplications();
   if (name === 'dropoffs') loadSignupDropoffs();
@@ -2382,6 +2415,131 @@ function setDup(uid, decision, btn) {
 }
 function bulkOverwrite() { Object.keys(dupDecisions).forEach(k => setDup(k,'overwrite',null)); toast('All duplicates set to Overwrite'); }
 function bulkSkip() { Object.keys(dupDecisions).forEach(k => setDup(k,'skip',null)); toast('All duplicates set to Skip'); }
+
+// ===================== ADS =====================
+let allAds = [];
+
+async function loadAds() {
+  const list = document.getElementById('ads-list');
+  if (!list) return;
+  list.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+
+  const { data: ads, error } = await sb.from('ads')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) { list.innerHTML = `<div class="empty" style="color:var(--red2)">${escapeHtml(error.message)}</div>`; return; }
+  allAds = ads || [];
+
+  // Fetch impression counts per ad
+  const adIds = allAds.map(a => a.id);
+  let shownMap = {}, dismissedMap = {};
+  if (adIds.length) {
+    const { data: imps } = await sb.from('ad_impressions')
+      .select('ad_id,dismissed_at')
+      .in('ad_id', adIds);
+    (imps || []).forEach(r => {
+      shownMap[r.ad_id] = (shownMap[r.ad_id] || 0) + 1;
+      if (r.dismissed_at) dismissedMap[r.ad_id] = (dismissedMap[r.ad_id] || 0) + 1;
+    });
+  }
+
+  if (!allAds.length) { list.innerHTML = '<div class="empty">No ads yet.</div>'; return; }
+
+  const statusColor = { pending:'#92400e', active:'#166534', paused:'#1e40af', completed:'#374151' };
+  const statusBg    = { pending:'#fef3c7', active:'#dcfce7', paused:'#dbeafe', completed:'#f3f4f6' };
+
+  list.innerHTML = allAds.map(ad => {
+    const shown     = shownMap[ad.id] || 0;
+    const dismissed = dismissedMap[ad.id] || 0;
+    const notDismissed = shown - dismissed;
+    const progress = ad.target_impressions ? Math.round(dismissed / ad.target_impressions * 100) : 0;
+    return `
+    <div style="border:1px solid var(--border);padding:16px;margin-bottom:12px;background:#fff">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div>
+          <strong style="font-size:0.95rem">${escapeHtml(ad.advertiser_name)}</strong>
+          <span style="margin-left:10px;padding:2px 9px;background:${statusBg[ad.status]||'#f3f4f6'};color:${statusColor[ad.status]||'#374151'};font-size:0.68rem;font-weight:700;text-transform:uppercase">${ad.status}</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${ad.status === 'pending' ? `<button class="btn-sm" style="background:var(--green);color:#fff;border-color:var(--green)" onclick="setAdStatus('${ad.id}','active')">▶ Activate</button>` : ''}
+          ${ad.status === 'active'  ? `<button class="btn-sm" onclick="setAdStatus('${ad.id}','paused')">⏸ Pause</button>` : ''}
+          ${ad.status === 'paused'  ? `<button class="btn-sm" style="background:var(--green);color:#fff;border-color:var(--green)" onclick="setAdStatus('${ad.id}','active')">▶ Resume</button>` : ''}
+          <button class="btn-sm" onclick="downloadAdLog('${ad.id}','${escapeHtml(ad.advertiser_name).replace(/'/g,'')}')" title="Download timestamp log (no PII)">⬇ Log</button>
+        </div>
+      </div>
+      ${ad.image_url ? `<img src="${escapeHtml(ad.image_url)}" style="max-height:80px;max-width:200px;object-fit:cover;border:1px solid var(--border);margin-bottom:8px"/>` : ''}
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:0.82rem;margin-bottom:8px">
+        <div style="text-align:center;padding:8px;background:var(--bg);border:1px solid var(--border)">
+          <div style="font-size:1.4rem;font-weight:700;color:var(--ink)">${shown}</div>
+          <div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase">Total shown</div>
+        </div>
+        <div style="text-align:center;padding:8px;background:var(--bg);border:1px solid var(--border)">
+          <div style="font-size:1.4rem;font-weight:700;color:#166534">${dismissed}</div>
+          <div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase">Dismissed</div>
+        </div>
+        <div style="text-align:center;padding:8px;background:var(--bg);border:1px solid var(--border)">
+          <div style="font-size:1.4rem;font-weight:700;color:#92400e">${notDismissed}</div>
+          <div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase">Shown only</div>
+        </div>
+        <div style="text-align:center;padding:8px;background:var(--bg);border:1px solid var(--border)">
+          <div style="font-size:1.4rem;font-weight:700;color:var(--ink)">${ad.target_impressions}</div>
+          <div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase">Target</div>
+        </div>
+      </div>
+      <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${Math.min(progress,100)}%;background:#166534;transition:width 0.4s"></div>
+      </div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">${progress}% of target dismissed impressions delivered</div>
+    </div>`;
+  }).join('');
+}
+
+async function createAd() {
+  const advertiser = document.getElementById('ad-advertiser').value.trim();
+  const imageUrl   = document.getElementById('ad-image-url').value.trim();
+  const linkUrl    = document.getElementById('ad-link').value.trim() || null;
+  const target     = parseInt(document.getElementById('ad-target').value) || 100;
+  const notes      = document.getElementById('ad-notes').value.trim() || null;
+  if (!advertiser || !imageUrl) { toast('Advertiser name and image URL are required.', true); return; }
+
+  const { error } = await sb.from('ads').insert({
+    advertiser_name: advertiser, image_url: imageUrl, link_url: linkUrl,
+    target_impressions: target, notes, status: 'pending'
+  });
+  if (error) { toast(error.message, true); return; }
+  ['ad-advertiser','ad-image-url','ad-link','ad-target','ad-notes'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  toast('Ad created and queued.');
+  loadAds();
+}
+
+async function setAdStatus(id, status) {
+  if (status === 'active') {
+    // Only one ad active at a time — pause any existing active
+    await sb.from('ads').update({ status: 'paused', updated_at: new Date().toISOString() }).eq('status', 'active');
+  }
+  await sb.from('ads').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+  toast(`Ad ${status}.`);
+  loadAds();
+}
+
+async function downloadAdLog(adId, advertiserName) {
+  const { data } = await sb.from('ad_impressions')
+    .select('shown_at,dismissed_at')
+    .eq('ad_id', adId)
+    .order('shown_at', { ascending: true });
+  if (!data?.length) { toast('No impressions yet.', true); return; }
+
+  const rows = ['shown_at,dismissed_at,status'];
+  data.forEach(r => {
+    const status = r.dismissed_at ? 'dismissed' : 'shown_only';
+    rows.push(`${r.shown_at || ''},${r.dismissed_at || ''},${status}`);
+  });
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ad-log-${advertiserName.replace(/\s+/g,'-')}.csv`;
+  a.click();
+}
 
 // ===================== PUSH TO DB =====================
 async function confirmUpload() {

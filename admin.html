@@ -2725,7 +2725,7 @@ async function loadPrintPayments() {
   const enabled = cfg?.value !== 'disabled';
   if (monStatus) {
     monStatus.innerHTML = enabled
-      ? '<span style="color:#166534;font-weight:700">✔ Monetization is ON — users pay ₹49 to print</span>'
+      ? `<span style="color:#166534;font-weight:700">✔ Monetization is ON — users pay ₹${currentPrice} to print</span>`
       : '<span style="color:#92400e;font-weight:700">✖ Monetization is OFF — all users print for free</span>';
   }
   // Highlight active button

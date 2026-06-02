@@ -1375,26 +1375,33 @@
       <div class="card" style="margin-bottom:16px">
         <h2 style="margin-bottom:16px">Monetization Controls</h2>
 
-        <!-- Global toggle -->
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:14px 16px;background:var(--bg);border:1px solid var(--border);margin-bottom:12px">
+        <!-- Global toggle + price -->
+        <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:14px 16px;background:var(--bg);border:1px solid var(--border);margin-bottom:8px;flex-wrap:wrap">
           <div>
             <div style="font-weight:700;font-size:0.9rem">Global Print Monetization</div>
             <div style="font-size:0.78rem;color:var(--muted);margin-top:2px">When disabled, all users can print for free.</div>
           </div>
-          <div style="display:flex;gap:8px">
-            <button id="print-mon-enable-btn" class="btn-sm" onclick="setPrintMonetization('enabled')">✔ Enable (₹49)</button>
-            <button id="print-mon-disable-btn" class="btn-sm" onclick="setPrintMonetization('disabled')">✖ Disable (Free for all)</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="print-mon-enable-btn" class="btn-sm" onclick="setPrintMonetization('enabled')">✔ Enabled</button>
+            <button id="print-mon-disable-btn" class="btn-sm" onclick="setPrintMonetization('disabled')">✖ Disabled (free)</button>
           </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-top:none;margin-bottom:12px;flex-wrap:wrap">
+          <div style="font-weight:700;font-size:0.85rem;white-space:nowrap">Print price (₹):</div>
+          <input type="number" id="print-price-input" min="1" max="9999" placeholder="49"
+            style="width:90px;padding:7px 10px;border:1px solid var(--border);font-family:inherit;font-size:0.9rem"/>
+          <button class="btn-sm" style="background:var(--green);color:#fff;border-color:var(--green)" onclick="savePrintPrice()">Save price</button>
+          <span id="print-price-status" style="font-size:0.78rem;color:var(--muted)"></span>
         </div>
         <div id="print-mon-status" style="font-size:0.82rem;margin-bottom:16px"></div>
 
         <!-- Per-user free exemptions -->
-        <div style="font-weight:700;font-size:0.88rem;margin-bottom:8px">Free printing — individual exemptions</div>
-        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:10px">Search a user and toggle free printing for them. Paste their profile UID or visitor name.</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <input id="print-exempt-search" placeholder="Search visitor name or email…" style="flex:1;padding:8px 12px;border:1px solid var(--border);font-family:inherit;font-size:0.85rem" oninput="searchPrintExemptVisitor()"/>
-        </div>
-        <div id="print-exempt-results" style="margin-top:8px"></div>
+        <div style="font-weight:700;font-size:0.88rem;margin-bottom:6px">Free printing — individual exemptions</div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:10px">Search by name or email. Users granted free access can print without paying.</div>
+        <input id="print-exempt-search" placeholder="Type name or email to search…" style="width:100%;padding:9px 12px;border:1px solid var(--border);font-family:inherit;font-size:0.85rem;box-sizing:border-box;margin-bottom:8px" oninput="searchPrintExemptVisitor()"/>
+        <div id="print-exempt-results"></div>
+        <div style="margin-top:14px;font-weight:700;font-size:0.82rem;color:var(--muted);margin-bottom:6px">Currently whitelisted (free printing):</div>
+        <div id="print-whitelist"></div>
       </div>
 
       <!-- Analytics funnel -->
@@ -1908,7 +1915,7 @@ function switchTab(name, btn) {
   if (name === 'uploads') loadUploads();
   if (name === 'contributors') { document.getElementById('contributor-search')?.focus(); }
   if (name === 'ads') { loadAds(); loadAdvertiseClicks(); loadAdInquiries(); }
-  if (name === 'printpayments') loadPrintPayments();
+  if (name === 'printpayments') { loadPrintPayments(); loadPrintWhitelist(); }
   if (name === 'visitors') loadVisitors();
   if (name === 'roleapps') loadRoleApplications();
   if (name === 'dropoffs') loadSignupDropoffs();
@@ -2704,8 +2711,16 @@ async function loadAdvertiseClicks() {
 }
 
 async function loadPrintPayments() {
-  // Load global monetization status
-  const { data: cfg } = await sb.from('admin_config').select('value').eq('key','print_monetization').single();
+  // Load global monetization status and current price
+  const [{ data: cfg }, { data: priceCfg }] = await Promise.all([
+    sb.from('admin_config').select('value').eq('key','print_monetization').single(),
+    sb.from('admin_config').select('value').eq('key','print_price').single()
+  ]);
+  const currentPrice = priceCfg?.value || '49';
+  const priceInput = document.getElementById('print-price-input');
+  if (priceInput) priceInput.value = currentPrice;
+  const priceStatus = document.getElementById('print-price-status');
+  if (priceStatus) priceStatus.textContent = `Current: ₹${currentPrice} per print`;
   const monStatus = document.getElementById('print-mon-status');
   const enabled = cfg?.value !== 'disabled';
   if (monStatus) {
@@ -2798,39 +2813,77 @@ async function setPrintMonetization(value) {
   loadPrintPayments();
 }
 
+async function savePrintPrice() {
+  const val = parseInt(document.getElementById('print-price-input')?.value) || 0;
+  if (!val || val < 1) { toast('Enter a valid price (minimum ₹1)', true); return; }
+  await sb.from('admin_config').upsert({ key:'print_price', value: String(val) }, { onConflict:'key' });
+  toast(`Print price updated to ₹${val}`);
+  loadPrintPayments();
+}
+
+function renderExemptRow(v) {
+  const isFree = v.print_free === true;
+  return `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1px solid var(--border);margin-top:4px;background:#fff;flex-wrap:wrap;gap:8px">
+      <div>
+        <strong style="font-size:0.88rem">${escapeHtml(v.name_entered||'—')}</strong>
+        <span style="font-size:0.76rem;color:var(--muted);margin-left:8px">${escapeHtml(v.email||'')}</span>
+        ${isFree ? '<span style="margin-left:8px;padding:1px 7px;background:#dcfce7;color:#166534;font-size:0.68rem;font-weight:700">FREE</span>' : ''}
+      </div>
+      <button class="btn-sm" onclick="togglePrintFree('${v.id}',${!isFree})"
+        style="${isFree ? 'color:var(--red2);border-color:var(--red2)' : 'background:var(--green);color:#fff;border-color:var(--green)'}">
+        ${isFree ? '✖ Remove free access' : '✔ Grant free printing'}
+      </button>
+    </div>`;
+}
+
 let printExemptTimer = null;
 function searchPrintExemptVisitor() {
   clearTimeout(printExemptTimer);
   printExemptTimer = setTimeout(async () => {
-    const q = document.getElementById('print-exempt-search')?.value.trim().toLowerCase();
+    const q = (document.getElementById('print-exempt-search')?.value || '').trim();
     const results = document.getElementById('print-exempt-results');
     if (!results) return;
-    if (!q) { results.innerHTML = ''; return; }
-    const { data } = await sb.from('visitors')
-      .select('id,name_entered,email,print_free')
+    if (q.length < 2) { results.innerHTML = ''; return; }
+
+    // Fetch visitors matching name or email — select without print_free first for reliability
+    const { data, error } = await sb.from('visitors')
+      .select('id,name_entered,email,access_status,print_free')
       .or(`name_entered.ilike.%${q}%,email.ilike.%${q}%`)
-      .limit(10);
-    if (!data?.length) { results.innerHTML = '<div style="font-size:0.82rem;color:var(--muted);padding:6px 0">No users found.</div>'; return; }
-    results.innerHTML = data.map(v => `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1px solid var(--border);margin-top:4px;background:#fff;flex-wrap:wrap;gap:8px">
-        <div>
-          <strong style="font-size:0.88rem">${escapeHtml(v.name_entered||'—')}</strong>
-          <span style="font-size:0.76rem;color:var(--muted);margin-left:8px">${escapeHtml(v.email||'')}</span>
-          ${v.print_free ? '<span style="margin-left:8px;padding:1px 7px;background:#dcfce7;color:#166534;font-size:0.68rem;font-weight:700">FREE</span>' : ''}
-        </div>
-        <button class="btn-sm" onclick="togglePrintFree('${v.id}',${!v.print_free})"
-          style="${v.print_free ? 'color:var(--red2);border-color:var(--red2)' : 'background:var(--green);color:#fff;border-color:var(--green)'}">
-          ${v.print_free ? '✖ Remove free access' : '✔ Grant free printing'}
-        </button>
-      </div>`).join('');
+      .neq('access_status', 'rejected')
+      .order('name_entered')
+      .limit(15);
+
+    if (error) {
+      results.innerHTML = `<div style="font-size:0.82rem;color:var(--red2);padding:6px 0">${escapeHtml(error.message)}</div>`;
+      return;
+    }
+    if (!data?.length) {
+      results.innerHTML = '<div style="font-size:0.82rem;color:var(--muted);padding:6px 0">No matching users found.</div>';
+      return;
+    }
+    results.innerHTML = data.map(v => renderExemptRow(v)).join('');
   }, 300);
+}
+
+async function loadPrintWhitelist() {
+  const wl = document.getElementById('print-whitelist');
+  if (!wl) return;
+  const { data } = await sb.from('visitors')
+    .select('id,name_entered,email,print_free')
+    .eq('print_free', true)
+    .order('name_entered');
+  if (!data?.length) { wl.innerHTML = '<div style="font-size:0.82rem;color:var(--muted)">No users whitelisted yet.</div>'; return; }
+  wl.innerHTML = data.map(v => renderExemptRow(v)).join('');
 }
 
 async function togglePrintFree(visitorId, value) {
   const { error } = await sb.from('visitors').update({ print_free: value }).eq('id', visitorId);
   if (error) { toast(error.message, true); return; }
-  toast(value ? 'Free printing granted' : 'Free printing revoked');
+  toast(value ? '✔ Free printing granted' : '✖ Free printing revoked');
+  // Refresh both search results and whitelist
   searchPrintExemptVisitor();
+  loadPrintWhitelist();
 }
 
 async function loadAdInquiries() {

@@ -3895,13 +3895,16 @@ async function printTree() {
     return;
   }
 
-  // Check global monetization toggle + per-user free flag
-  const [configRes, visitorRes] = await Promise.all([
+  // Check global monetization toggle, price, and per-user free flag
+  const authUid = (await sb.auth.getUser()).data?.user?.id || '';
+  const [monRes, priceRes, visitorRes] = await Promise.all([
     sb.from('admin_config').select('value').eq('key', 'print_monetization').single(),
-    sb.from('visitors').select('print_free').eq('auth_user_id', (await sb.auth.getUser()).data?.user?.id || '').single()
+    sb.from('admin_config').select('value').eq('key', 'print_price').single(),
+    sb.from('visitors').select('print_free').eq('auth_user_id', authUid).single()
   ]);
 
-  const monetizationEnabled = configRes.data?.value !== 'disabled';
+  const monetizationEnabled = monRes.data?.value !== 'disabled';
+  const printPrice = parseInt(priceRes.data?.value || '49') || 49;
   const userIsFree = visitorRes.data?.print_free === true;
 
   if (!monetizationEnabled || userIsFree) {
@@ -3914,17 +3917,29 @@ async function printTree() {
   }
 
   // Log the attempt before showing modal
-  logActivity('print_tree_attempt', 'Opened print payment modal', {});
-  openPrintPayModal();
+  logActivity('print_tree_attempt', 'Opened print payment modal', { price: printPrice });
+  openPrintPayModal(printPrice);
 }
 
-function openPrintPayModal() {
+function openPrintPayModal(price = 49) {
   document.getElementById('print-utr-input').value = '';
   document.getElementById('print-pay-status').textContent = '';
   document.getElementById('print-pay-btn').disabled = false;
   document.getElementById('print-pay-btn').textContent = 'Verify & Print';
-  const backdrop = document.getElementById('print-pay-backdrop');
-  backdrop.style.display = 'flex';
+  // Update modal with dynamic price
+  const qrImg = document.getElementById('print-qr-img');
+  const amountEl = document.getElementById('print-amount-display');
+  const upiLink = document.getElementById('print-upi-link');
+  const titleEl = document.getElementById('print-modal-title');
+  const upiBase = `upi://pay?pa=9818555830@ptsbi&pn=Apno+Ki+Talash&am=${price}&cu=INR&tn=Print+Tree+Service`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiBase)}`;
+  if (qrImg)    qrImg.src = qrUrl;
+  if (amountEl) amountEl.textContent = '₹' + price;
+  if (upiLink)  upiLink.href = upiBase;
+  if (titleEl)  titleEl.textContent = `🖨 Print Family Tree — ₹${price}`;
+  // Store price for submitPrintPayment
+  document.getElementById('print-pay-backdrop').dataset.price = price;
+  document.getElementById('print-pay-backdrop').style.display = 'flex';
 }
 
 function closePrintPayModal() {
@@ -3970,7 +3985,7 @@ async function submitPrintPayment() {
     visitor_id:   vis?.id   || null,
     visitor_name: vis?.name_entered || currentUser || '',
     utr,
-    amount:       49,
+    amount: parseInt(document.getElementById('print-pay-backdrop')?.dataset.price || '49') || 49,
     status:       'pending'
   });
 
@@ -5085,15 +5100,15 @@ async function loadPopupPerson() {
 <div id="print-pay-backdrop" onclick="if(event.target===this)closePrintPayModal()">
   <div id="print-pay-modal">
     <div class="ppm-head">
-      <h3>🖨 Print Family Tree — ₹49</h3>
-      <p>Scan the QR code with any UPI app (GPay, PhonePe, Paytm, etc.), pay ₹49, then enter your Transaction ID below.</p>
+      <h3 id="print-modal-title">🖨 Print Family Tree — ₹49</h3>
+      <p>Scan the QR code with any UPI app (GPay, PhonePe, Paytm, etc.), pay the amount shown, then enter your Transaction ID below.</p>
     </div>
     <div class="ppm-qr">
-      <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=9818555830@ptsbi%26pn=Apno+Ki+Talash%26am=49%26cu=INR%26tn=Print+Tree+Service" alt="UPI QR Code"/>
+      <img id="print-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=9818555830@ptsbi%26pn=Apno+Ki+Talash%26am=49%26cu=INR%26tn=Print+Tree+Service" alt="UPI QR Code"/>
       <div class="upi-id">9818555830@ptsbi</div>
-      <div class="amount">₹49</div>
+      <div class="amount" id="print-amount-display">₹49</div>
       <div class="upi-link">
-        <a href="upi://pay?pa=9818555830@ptsbi&pn=Apno+Ki+Talash&am=49&cu=INR&tn=Print+Tree+Service">Open in UPI app →</a>
+        <a id="print-upi-link" href="upi://pay?pa=9818555830@ptsbi&pn=Apno+Ki+Talash&am=49&cu=INR&tn=Print+Tree+Service">Open in UPI app →</a>
       </div>
     </div>
     <div class="ppm-body">

@@ -260,6 +260,15 @@
   </div>
 
   <div class="policy-section">
+    <h3>Delivery window</h3>
+    <ul>
+      <li>Campaigns are delivered over a <strong>maximum of 2 weeks</strong> from the go-live date.</li>
+      <li>Delivery speed depends on community login activity — on active days impressions accumulate faster.</li>
+      <li>If the target is not reached within 2 weeks, the remaining impressions roll over into the following week at no extra charge.</li>
+    </ul>
+  </div>
+
+  <div class="policy-section">
     <h3>Payment</h3>
     <ul>
       <li>Payment is collected before the campaign goes live, via bank transfer or UPI.</li>
@@ -332,7 +341,7 @@ async function submitAdInquiry() {
     return;
   }
 
-  status.innerHTML = '✅ <strong>Inquiry received!</strong> Our team will call you back on the number provided within 1–2 business days.';
+  status.innerHTML = '✅ <strong>Inquiry received!</strong> Our team will call you back on the number provided within 2 business days.';
   status.style.background = '#f0fdf4'; status.style.color = '#166534';
   status.style.display = 'block';
   btn.textContent = 'Submitted ✓';

@@ -1196,6 +1196,15 @@
         <div id="ads-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
       </div>
 
+      <!-- Advertise page clicks -->
+      <div class="card" style="margin-top:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <h2 style="margin:0">Advertise with Us — Page Visits <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">(logged-in members who clicked)</span></h2>
+          <button class="btn-sm" onclick="loadAdvertiseClicks()">↻ Refresh</button>
+        </div>
+        <div id="advertise-clicks-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+      </div>
+
       <!-- Ad inquiries -->
       <div class="card" style="margin-top:18px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
@@ -1859,7 +1868,7 @@ function switchTab(name, btn) {
   if (btn) btn.classList.add('active'); else event.target.classList.add('active');
   if (name === 'uploads') loadUploads();
   if (name === 'contributors') { document.getElementById('contributor-search')?.focus(); }
-  if (name === 'ads') { loadAds(); loadAdInquiries(); }
+  if (name === 'ads') { loadAds(); loadAdvertiseClicks(); loadAdInquiries(); }
   if (name === 'visitors') loadVisitors();
   if (name === 'roleapps') loadRoleApplications();
   if (name === 'dropoffs') loadSignupDropoffs();
@@ -2548,6 +2557,54 @@ async function downloadAdLog(adId, advertiserName) {
   a.href = URL.createObjectURL(blob);
   a.download = `ad-log-${advertiserName.replace(/\s+/g,'-')}.csv`;
   a.click();
+}
+
+async function loadAdvertiseClicks() {
+  const list = document.getElementById('advertise-clicks-list');
+  if (!list) return;
+  list.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+
+  const { data, error } = await sb.from('activity_logs')
+    .select('visitor_name,created_at,device,location_hint')
+    .eq('action', 'advertise_page_visit')
+    .order('created_at', { ascending: false })
+    .limit(500);
+
+  if (error) { list.innerHTML = `<div class="empty" style="color:var(--red2)">${escapeHtml(error.message)}</div>`; return; }
+  if (!data?.length) { list.innerHTML = '<div class="empty">No clicks recorded yet.</div>'; return; }
+
+  // Group by date
+  const byDate = {};
+  data.forEach(r => {
+    const date = formatIST(r.created_at, false).split(',')[0].trim();
+    if (!byDate[date]) byDate[date] = [];
+    byDate[date].push(r);
+  });
+
+  const uniqueVisitors = new Set(data.map(r => r.visitor_name));
+
+  list.innerHTML = `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px">
+      <div style="padding:10px 16px;background:var(--bg);border:1px solid var(--border);text-align:center">
+        <div style="font-size:1.6rem;font-weight:700;color:var(--ink)">${data.length}</div>
+        <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase">Total clicks</div>
+      </div>
+      <div style="padding:10px 16px;background:var(--bg);border:1px solid var(--border);text-align:center">
+        <div style="font-size:1.6rem;font-weight:700;color:var(--green)">${uniqueVisitors.size}</div>
+        <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase">Unique visitors</div>
+      </div>
+    </div>
+    ${Object.entries(byDate).map(([date, rows]) => `
+      <div style="margin-bottom:14px">
+        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--gold);padding:6px 0;border-bottom:1px solid var(--border);margin-bottom:8px">
+          ${date} — ${rows.length} click${rows.length===1?'':'s'}
+        </div>
+        ${rows.map(r => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.82rem;flex-wrap:wrap;gap:6px">
+            <span style="font-weight:700">${escapeHtml(r.visitor_name || '—')}</span>
+            <span style="color:var(--muted);font-size:0.76rem">${formatIST(r.created_at)}</span>
+          </div>`).join('')}
+      </div>`).join('')}`;
 }
 
 async function loadAdInquiries() {

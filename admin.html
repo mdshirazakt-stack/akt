@@ -2440,16 +2440,30 @@ async function loadAds() {
   if (error) { list.innerHTML = `<div class="empty" style="color:var(--red2)">${escapeHtml(error.message)}</div>`; return; }
   allAds = ads || [];
 
-  // Fetch impression counts per ad
+  // Fetch all impressions with visitor details
   const adIds = allAds.map(a => a.id);
-  let shownMap = {}, dismissedMap = {};
+  let shownMap = {}, dismissedMap = {}, impressionsMap = {};
   if (adIds.length) {
     const { data: imps } = await sb.from('ad_impressions')
-      .select('ad_id,dismissed_at')
-      .in('ad_id', adIds);
+      .select('ad_id,visitor_id,shown_at,dismissed_at')
+      .in('ad_id', adIds)
+      .order('shown_at', { ascending: false });
+
+    // Fetch visitor names
+    const visitorIds = [...new Set((imps || []).map(r => r.visitor_id).filter(Boolean))];
+    const visitorMap = {};
+    if (visitorIds.length) {
+      const { data: vis } = await sb.from('visitors')
+        .select('id,name_entered,email')
+        .in('id', visitorIds);
+      (vis || []).forEach(v => { visitorMap[v.id] = v; });
+    }
+
     (imps || []).forEach(r => {
       shownMap[r.ad_id] = (shownMap[r.ad_id] || 0) + 1;
       if (r.dismissed_at) dismissedMap[r.ad_id] = (dismissedMap[r.ad_id] || 0) + 1;
+      if (!impressionsMap[r.ad_id]) impressionsMap[r.ad_id] = [];
+      impressionsMap[r.ad_id].push({ ...r, visitor: visitorMap[r.visitor_id] || null });
     });
   }
 
@@ -2500,6 +2514,48 @@ async function loadAds() {
         <div style="height:100%;width:${Math.min(progress,100)}%;background:#166534;transition:width 0.4s"></div>
       </div>
       <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">${progress}% of target dismissed impressions delivered</div>
+
+      ${(() => {
+        const rows = impressionsMap[ad.id] || [];
+        if (!rows.length) return '';
+        const toggleId = 'ad-log-' + ad.id;
+        return `
+        <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
+          <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.textContent=this.textContent.includes('▶')?'▼ Hide user interaction log':'▶ Show user interaction log (${rows.length} users)'"
+            style="background:none;border:none;font-family:inherit;font-size:0.78rem;color:var(--gold);cursor:pointer;font-weight:700;padding:0">
+            ▶ Show user interaction log (${rows.length} users)
+          </button>
+          <div style="display:none;margin-top:10px">
+            <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+              <thead>
+                <tr style="background:var(--bg)">
+                  <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">#</th>
+                  <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">User</th>
+                  <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Shown at</th>
+                  <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Dismissed at</th>
+                  <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.map((r, i) => `
+                <tr style="border-bottom:1px solid var(--border)">
+                  <td style="padding:6px 10px;border:1px solid var(--border);color:var(--muted)">${i+1}</td>
+                  <td style="padding:6px 10px;border:1px solid var(--border)">
+                    <strong>${escapeHtml(r.visitor?.name_entered || '—')}</strong>
+                  </td>
+                  <td style="padding:6px 10px;border:1px solid var(--border);color:var(--muted);white-space:nowrap">${formatIST(r.shown_at)}</td>
+                  <td style="padding:6px 10px;border:1px solid var(--border);color:var(--muted);white-space:nowrap">${r.dismissed_at ? formatIST(r.dismissed_at) : '—'}</td>
+                  <td style="padding:6px 10px;border:1px solid var(--border)">
+                    ${r.dismissed_at
+                      ? '<span style="background:#dcfce7;color:#166534;padding:2px 8px;font-size:0.68rem;font-weight:700">✔ Dismissed</span>'
+                      : '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;font-size:0.68rem;font-weight:700">👁 Shown only</span>'}
+                  </td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+      })()}
     </div>`;
   }).join('');
 }

@@ -2509,7 +2509,7 @@ async function loadAds() {
     const visitorMap = {};
     if (visitorIds.length) {
       const { data: vis } = await sb.from('visitors')
-        .select('id,name_entered,email')
+        .select('id,name_entered,email,mobile')
         .in('id', visitorIds);
       (vis || []).forEach(v => { visitorMap[v.id] = v; });
     }
@@ -2586,6 +2586,7 @@ async function loadAds() {
                 <tr style="background:var(--bg)">
                   <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">#</th>
                   <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">User</th>
+                  <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Mobile</th>
                   <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Shown at</th>
                   <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Dismissed at</th>
                   <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Status</th>
@@ -2597,6 +2598,9 @@ async function loadAds() {
                   <td style="padding:6px 10px;border:1px solid var(--border);color:var(--muted)">${i+1}</td>
                   <td style="padding:6px 10px;border:1px solid var(--border)">
                     <strong>${escapeHtml(r.visitor?.name_entered || '—')}</strong>
+                  </td>
+                  <td style="padding:6px 10px;border:1px solid var(--border);white-space:nowrap">
+                    ${r.visitor?.mobile ? `<a href="tel:${escapeHtml(r.visitor.mobile)}" style="color:var(--green);font-weight:700;font-size:0.8rem">${escapeHtml(r.visitor.mobile)}</a>` : '<span style="color:var(--muted)">—</span>'}
                   </td>
                   <td style="padding:6px 10px;border:1px solid var(--border);color:var(--muted);white-space:nowrap">${formatIST(r.shown_at)}</td>
                   <td style="padding:6px 10px;border:1px solid var(--border);color:var(--muted);white-space:nowrap">${r.dismissed_at ? formatIST(r.dismissed_at) : '—'}</td>

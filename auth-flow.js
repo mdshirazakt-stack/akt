@@ -137,7 +137,7 @@
 
   function visitorStatus(visitor) {
     if (visitor?.is_blocked) return 'blocked';
-    return visitor?.access_status || 'pending';
+    return visitor?.access_status || 'approved';
   }
 
   function isOnboardingComplete(visitor) {
@@ -746,12 +746,6 @@
       return;
     }
 
-    if (status === 'pending' && visitor && isOnboardingComplete(visitor)) {
-      setView('message');
-      showMessage('Your registration is under review. An admin will approve your access shortly. If you have a query, reach us via the WhatsApp community on the sign-in page.', false);
-      return;
-    }
-
     if (visitor && isOnboardingComplete(visitor)) {
       await enterVisitor(visitor);
       await logSignupEvent('registered_user_entered', {
@@ -971,7 +965,7 @@
       heard_from_relative_name: snapshot.heard_from_relative_name || null,
       heard_from_relative_place: snapshot.heard_from_relative_place || null,
       heard_from_details: snapshot.heard_from_details || null,
-      access_status: currentVisitor?.access_status || 'pending',
+      access_status: currentVisitor?.access_status || 'approved',
       access_role: currentVisitor?.access_role || 'visitor',
       is_blocked: currentVisitor?.is_blocked || false,
       visitor_form_completed: true,

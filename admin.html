@@ -1288,15 +1288,6 @@
 
     <!-- ACTIVITY HISTORY -->
     <div id="panel-activity" class="panel">
-      <div class="card" id="eid-stats-card" style="margin-bottom:18px;display:none">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-          <h2 style="margin:0;font-size:1rem">🌙 Eid ul Adha Popup Stats</h2>
-          <button class="btn-sm" onclick="loadEidStats()">↻ Refresh</button>
-        </div>
-        <div id="eid-stats-body" style="display:flex;gap:16px;flex-wrap:wrap">
-          <div class="spinner"></div>
-        </div>
-      </div>
       <div class="card">
         <h2>Activity History <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">(last 24 hours)</span></h2>
         <div class="activity-filters">
@@ -1873,7 +1864,7 @@ function switchTab(name, btn) {
   if (name === 'roleapps') loadRoleApplications();
   if (name === 'dropoffs') loadSignupDropoffs();
   if (name === 'settings') loadDbStats();
-  if (name === 'activity') { loadActivity(); loadEidStats(); }
+  if (name === 'activity') { loadActivity(); }
   if (name === 'staffactivity') loadStaffActivity();
   if (name === 'changelog') loadChangeLog();
   if (name === 'corrections') loadCorrections();
@@ -5089,50 +5080,6 @@ async function loadActivityLogs(fromDate, toDate) {
   await loadVisitorActivityFallback(fromDate, toDate);
 }
 
-async function loadEidStats() {
-  const card = document.getElementById('eid-stats-card');
-  const body = document.getElementById('eid-stats-body');
-  if (!card || !body) return;
-  card.style.display = 'block';
-  body.innerHTML = '<div class="spinner"></div>';
-
-  const { data, error } = await sb.from('activity_logs')
-    .select('action,details,visitor_name,created_at')
-    .in('action', ['eid_popup_shown', 'eid_popup_dismissed'])
-    .gte('created_at', '2026-05-27T00:00:00.000Z')
-    .order('created_at', { ascending: false })
-    .limit(2000);
-
-  if (error || !data) {
-    body.innerHTML = `<span style="color:var(--red2)">Could not load stats: ${escapeHtml(error?.message || 'unknown error')}</span>`;
-    return;
-  }
-
-  const shownRows     = data.filter(r => r.action === 'eid_popup_shown');
-  const dismissedRows = data.filter(r => r.action === 'eid_popup_dismissed');
-
-  // Unique sessions (session_id inside details JSON)
-  const sessionId = r => (r.details && r.details.session_id) ? r.details.session_id : r.visitor_name + '|' + r.created_at;
-  const shownSessions     = new Set(shownRows.map(sessionId));
-  const dismissedSessions = new Set(dismissedRows.map(sessionId));
-
-  // Unique visitors
-  const shownVisitors     = new Set(shownRows.map(r => r.visitor_name).filter(Boolean));
-  const dismissedVisitors = new Set(dismissedRows.map(r => r.visitor_name).filter(Boolean));
-
-  const statBox = (emoji, label, main, sub) => `
-    <div style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:14px 18px">
-      <div style="font-size:1.6rem;line-height:1">${emoji}</div>
-      <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin:6px 0 2px">${label}</div>
-      <div style="font-size:1.8rem;font-weight:700;color:var(--ink)">${main}</div>
-      <div style="font-size:0.78rem;color:var(--muted)">${sub}</div>
-    </div>`;
-
-  body.innerHTML =
-    statBox('👁️', 'Sessions Shown', shownSessions.size, `${shownVisitors.size} unique visitor${shownVisitors.size === 1 ? '' : 's'}`) +
-    statBox('✅', 'Sessions Dismissed', dismissedSessions.size, `${dismissedVisitors.size} unique visitor${dismissedVisitors.size === 1 ? '' : 's'}`) +
-    statBox('📊', 'Dismiss Rate', shownSessions.size ? Math.round(dismissedSessions.size / shownSessions.size * 100) + '%' : '—', 'of those shown');
-}
 
 async function loadVisitorActivityRows(fromDate, toDate) {
   let visitorQuery = sb.from('visitors')

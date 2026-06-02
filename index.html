@@ -620,8 +620,13 @@
   .ppm-qr img { width:180px; height:180px; border:1px solid var(--border); }
   .ppm-qr .upi-id { margin-top:10px; font-size:0.82rem; font-weight:700; color:var(--ink); letter-spacing:0.04em; }
   .ppm-qr .amount { font-size:1.4rem; font-weight:900; color:var(--green); margin-top:4px; }
-  .ppm-qr .upi-link { margin-top:10px; }
-  .ppm-qr .upi-link a { font-size:0.75rem; color:#2563eb; text-decoration:none; border:1px solid #93c5fd; padding:5px 12px; }
+  .upi-app-btn {
+    display:inline-flex; align-items:center; gap:5px; padding:6px 12px;
+    border:1px solid var(--border); background:#fff; color:var(--ink);
+    font-family:'Lato',sans-serif; font-size:0.74rem; font-weight:700;
+    text-decoration:none; cursor:pointer; white-space:nowrap;
+  }
+  .upi-app-btn:hover { background:var(--bg); border-color:var(--gold2); }
   .ppm-body { padding:16px 22px; }
   .ppm-body label { font-size:0.72rem; font-weight:900; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink); display:block; margin-bottom:6px; }
   .ppm-body input { width:100%; padding:11px 14px; border:1px solid var(--border); font-family:'Lato',sans-serif; font-size:0.95rem; outline:none; box-sizing:border-box; }
@@ -3931,12 +3936,31 @@ function openPrintPayModal(price = 49) {
   const amountEl = document.getElementById('print-amount-display');
   const upiLink = document.getElementById('print-upi-link');
   const titleEl = document.getElementById('print-modal-title');
-  const upiBase = `upi://pay?pa=9818555830@ptsbi&pn=Apno+Ki+Talash&am=${price}&cu=INR&tn=Print+Tree+Service`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiBase)}`;
+  const pa = '9818555830@ptsbi';
+  const pn = 'Apno+Ki+Talash';
+  const tn = 'Print+Tree+Service';
+  const upiParams = `pa=${pa}&pn=${pn}&am=${price}&cu=INR&tn=${tn}`;
+  const upiBase   = `upi://pay?${upiParams}`;
+  const qrUrl     = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiBase)}`;
   if (qrImg)    qrImg.src = qrUrl;
   if (amountEl) amountEl.textContent = '₹' + price;
-  if (upiLink)  upiLink.href = upiBase;
   if (titleEl)  titleEl.textContent = `🖨 Print Family Tree — ₹${price}`;
+
+  // Render per-app deep links — each app uses its own URI scheme
+  const appsEl = document.getElementById('print-upi-apps');
+  if (appsEl) {
+    const apps = [
+      { name:'GPay',    href:`tez://upi/pay?${upiParams}`,          fallback: upiBase },
+      { name:'PhonePe', href:`phonepe://pay?${upiParams}`,           fallback: upiBase },
+      { name:'Paytm',   href:`paytmmp://pay?${upiParams}`,           fallback: upiBase },
+      { name:'BHIM',    href:`upi://pay?${upiParams}`,               fallback: upiBase },
+      { name:'Any UPI app', href:`intent://pay?${upiParams}#Intent;scheme=upi;end`, fallback: upiBase },
+    ];
+    appsEl.innerHTML = apps.map(app => `
+      <a class="upi-app-btn" href="${app.href}"
+        onclick="setTimeout(()=>{},500)"
+        ontouchstart="">${app.name}</a>`).join('');
+  }
   // Store price for submitPrintPayment
   document.getElementById('print-pay-backdrop').dataset.price = price;
   document.getElementById('print-pay-backdrop').style.display = 'flex';
@@ -5107,9 +5131,7 @@ async function loadPopupPerson() {
       <img id="print-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=9818555830@ptsbi%26pn=Apno+Ki+Talash%26am=49%26cu=INR%26tn=Print+Tree+Service" alt="UPI QR Code"/>
       <div class="upi-id">9818555830@ptsbi</div>
       <div class="amount" id="print-amount-display">₹49</div>
-      <div class="upi-link">
-        <a id="print-upi-link" href="upi://pay?pa=9818555830@ptsbi&pn=Apno+Ki+Talash&am=49&cu=INR&tn=Print+Tree+Service">Open in UPI app →</a>
-      </div>
+      <div id="print-upi-apps" style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:10px"></div>
     </div>
     <div class="ppm-body">
       <label for="print-utr-input">Transaction / UTR ID *</label>

@@ -1217,6 +1217,14 @@
 
     <!-- SEARCH PANEL -->
     <div id="panel-search" class="panel active">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <a href="advertise.html" target="_blank" rel="noopener"
+          style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Lato',sans-serif;font-size:0.78rem;font-weight:700;text-decoration:none;letter-spacing:0.06em;text-transform:uppercase;transition:all 0.18s"
+          onmouseover="this.style.borderColor='var(--gold2)';this.style.color='var(--gold)'"
+          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+          📢 Advertise with Us
+        </a>
+      </div>
       <div class="search-wrap">
         <span class="icon">🔍</span>
         <input type="text" id="search-input" placeholder="Search by name, place, or badge…" oninput="onSearch()"/>
@@ -2022,7 +2030,6 @@ async function startApp(name, role = 'visitor', visitorRecord = null) {
   document.getElementById('auth-gate').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   showEidPopupIfActive();
-  checkAndShowAd(visitorRecord);
   await loadGedcomSources();
   logActivity('login', `Logged in: ${name}`, { visit_count: currentVisitCount });
 
@@ -4593,74 +4600,6 @@ function dismissEidPopup(e) {
   if (backdrop) backdrop.classList.add('hidden');
   logActivity('eid_popup_dismissed', 'Eid ul Adha 2026 popup', {});
 }
-// ===================== COMMUNITY AD POPUP =====================
-let currentAdId = null;
-let currentVisitorId = null;
-
-async function checkAndShowAd(visitorRecord) {
-  if (!visitorRecord?.id) return;
-  currentVisitorId = visitorRecord.id;
-
-  // Fetch the single active ad
-  const { data: ads } = await sb.from('ads')
-    .select('id,image_url,link_url,target_impressions')
-    .eq('status', 'active')
-    .limit(1);
-  const ad = ads?.[0];
-  if (!ad) return;
-
-  // Check if this visitor has already been shown this ad
-  const { data: existing } = await sb.from('ad_impressions')
-    .select('id,dismissed_at')
-    .eq('ad_id', ad.id)
-    .eq('visitor_id', visitorRecord.id)
-    .limit(1);
-
-  if (existing && existing.length > 0) return; // already shown — skip
-
-  // Record impression (shown_at = now, dismissed_at = null)
-  const { error } = await sb.from('ad_impressions').insert({
-    ad_id: ad.id,
-    visitor_id: visitorRecord.id
-  });
-  if (error) return; // don't block UX if tracking fails
-
-  currentAdId = ad.id;
-
-  // Render and show the popup
-  const img  = document.getElementById('ad-popup-img');
-  const link = document.getElementById('ad-popup-link');
-  const backdrop = document.getElementById('ad-popup-backdrop');
-  if (!img || !backdrop) return;
-
-  img.src = ad.image_url;
-  img.alt = 'Community advertisement';
-  if (link) { link.href = ad.link_url || '#'; if (!ad.link_url) link.style.pointerEvents = 'none'; }
-  backdrop.style.display = 'flex';
-}
-
-async function dismissAd() {
-  const backdrop = document.getElementById('ad-popup-backdrop');
-  if (backdrop) backdrop.style.display = 'none';
-  if (!currentAdId || !currentVisitorId) return;
-
-  // Record dismissal timestamp
-  await sb.from('ad_impressions')
-    .update({ dismissed_at: new Date().toISOString() })
-    .eq('ad_id', currentAdId)
-    .eq('visitor_id', currentVisitorId);
-
-  // Auto-complete ad if target reached
-  const { count } = await sb.from('ad_impressions')
-    .select('id', { count: 'exact', head: true })
-    .eq('ad_id', currentAdId)
-    .not('dismissed_at', 'is', null);
-
-  const { data: adRow } = await sb.from('ads').select('target_impressions').eq('id', currentAdId).single();
-  if (adRow && count >= adRow.target_impressions) {
-    await sb.from('ads').update({ status: 'completed', updated_at: new Date().toISOString() }).eq('id', currentAdId);
-  }
-}
 
 // ===================== ALL NAMES TAB =====================
 let allnamesLoaded = false;
@@ -4952,18 +4891,5 @@ async function loadPopupPerson() {
   </div>
 </div>
 
-<!-- ===== COMMUNITY AD POPUP ===== -->
-<div id="ad-popup-backdrop" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:99100;display:flex;align-items:center;justify-content:center;padding:16px">
-  <div id="ad-popup" style="position:relative;max-width:500px;width:100%;border-radius:4px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.55);animation:eidFadeIn 0.35s ease">
-    <button id="ad-popup-close" aria-label="Close ad"
-      style="position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.55);border:none;cursor:pointer;color:#fff;font-size:1.2rem;display:flex;align-items:center;justify-content:center;transition:background 0.15s"
-      onmouseover="this.style.background='rgba(0,0,0,0.82)'" onmouseout="this.style.background='rgba(0,0,0,0.55)'"
-      onclick="dismissAd()">×</button>
-    <a id="ad-popup-link" href="#" target="_blank" rel="noopener sponsored" style="display:block">
-      <img id="ad-popup-img" src="" alt="Community advertisement" style="display:block;width:100%;height:auto"/>
-    </a>
-    <div style="background:#1a1a1a;padding:5px 12px;font-size:0.65rem;color:rgba(255,255,255,0.45);letter-spacing:0.08em;text-transform:uppercase">Sponsored · Apno Ki Talash Community</div>
-  </div>
-</div>
 </body>
 </html>

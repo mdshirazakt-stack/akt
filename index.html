@@ -4619,20 +4619,33 @@ async function checkAndShowAd(visitorRecord) {
   const ad = ads?.[0];
   if (!ad) return;
 
-  // Already shown to this visitor?
   const { data: existing } = await sb.from('ad_impressions')
-    .select('id')
+    .select('id,shown_at,dismissed_at')
     .eq('ad_id', ad.id)
     .eq('visitor_id', visitorRecord.id)
     .limit(1);
-  if (existing?.length) return;
 
-  // Record impression (shown_at = now, dismissed_at = null)
-  const { error } = await sb.from('ad_impressions').insert({
-    ad_id: ad.id,
-    visitor_id: visitorRecord.id
-  });
-  if (error) return;
+  const row = existing?.[0];
+
+  if (row) {
+    // Dismissed → never show again
+    if (row.dismissed_at) return;
+    // Shown within last 24 hours → skip
+    const shownAt = new Date(row.shown_at);
+    const hoursAgo = (Date.now() - shownAt.getTime()) / (1000 * 60 * 60);
+    if (hoursAgo < 24) return;
+    // 24h+ passed and still not dismissed → update shown_at and re-show
+    await sb.from('ad_impressions')
+      .update({ shown_at: new Date().toISOString() })
+      .eq('id', row.id);
+  } else {
+    // First time — insert impression row
+    const { error } = await sb.from('ad_impressions').insert({
+      ad_id: ad.id,
+      visitor_id: visitorRecord.id
+    });
+    if (error) return;
+  }
 
   _currentAdId = ad.id;
 
@@ -4641,7 +4654,7 @@ async function checkAndShowAd(visitorRecord) {
   const backdrop = document.getElementById('ad-popup-backdrop');
   if (!img || !backdrop) return;
 
-  img.src  = ad.image_url;
+  img.src = ad.image_url;
   if (link) { link.href = ad.link_url || '#'; if (!ad.link_url) link.style.pointerEvents = 'none'; }
   backdrop.style.display = 'flex';
 }

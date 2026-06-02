@@ -1195,6 +1195,15 @@
 
         <div id="ads-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
       </div>
+
+      <!-- Ad inquiries -->
+      <div class="card" style="margin-top:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <h2 style="margin:0">Ad Inquiries <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">(from advertise.html)</span></h2>
+          <button class="btn-sm" onclick="loadAdInquiries()">↻ Refresh</button>
+        </div>
+        <div id="ad-inquiries-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+      </div>
     </div>
 
     <!-- VISITORS -->
@@ -1850,7 +1859,7 @@ function switchTab(name, btn) {
   if (btn) btn.classList.add('active'); else event.target.classList.add('active');
   if (name === 'uploads') loadUploads();
   if (name === 'contributors') { document.getElementById('contributor-search')?.focus(); }
-  if (name === 'ads') loadAds();
+  if (name === 'ads') { loadAds(); loadAdInquiries(); }
   if (name === 'visitors') loadVisitors();
   if (name === 'roleapps') loadRoleApplications();
   if (name === 'dropoffs') loadSignupDropoffs();
@@ -2539,6 +2548,68 @@ async function downloadAdLog(adId, advertiserName) {
   a.href = URL.createObjectURL(blob);
   a.download = `ad-log-${advertiserName.replace(/\s+/g,'-')}.csv`;
   a.click();
+}
+
+async function loadAdInquiries() {
+  const list = document.getElementById('ad-inquiries-list');
+  if (!list) return;
+  list.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+
+  const { data, error } = await sb.from('ad_inquiries')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) { list.innerHTML = `<div class="empty" style="color:var(--red2)">${escapeHtml(error.message)}</div>`; return; }
+  if (!data?.length) { list.innerHTML = '<div class="empty">No inquiries yet.</div>'; return; }
+
+  const statusColors = { new:'#92400e', contacted:'#1e40af', converted:'#166534', declined:'#374151' };
+  const statusBg     = { new:'#fef3c7', contacted:'#dbeafe', converted:'#dcfce7', declined:'#f3f4f6' };
+
+  list.innerHTML = data.map(inq => `
+    <div style="border:1px solid var(--border);padding:14px 16px;margin-bottom:10px;background:#fff">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div>
+          <strong style="font-size:0.95rem">${escapeHtml(inq.advertiser_name)}</strong>
+          &nbsp;·&nbsp;
+          <a href="tel:${escapeHtml(inq.mobile)}" style="color:var(--green);font-weight:700">${escapeHtml(inq.mobile)}</a>
+          ${inq.website_url ? `&nbsp;·&nbsp;<a href="${escapeHtml(inq.website_url)}" target="_blank" style="color:#2563eb;font-size:0.82rem">Website ↗</a>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="padding:2px 9px;background:${statusBg[inq.status]||'#f3f4f6'};color:${statusColors[inq.status]||'#374151'};font-size:0.68rem;font-weight:700;text-transform:uppercase">${inq.status}</span>
+          <select onchange="setInquiryStatus('${inq.id}', this.value)" style="font-size:0.75rem;padding:4px 8px;border:1px solid var(--border);font-family:inherit;cursor:pointer">
+            <option value="new"       ${inq.status==='new'       ?'selected':''}>New</option>
+            <option value="contacted" ${inq.status==='contacted' ?'selected':''}>Contacted</option>
+            <option value="converted" ${inq.status==='converted' ?'selected':''}>Converted</option>
+            <option value="declined"  ${inq.status==='declined'  ?'selected':''}>Declined</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.82rem;margin-bottom:8px">
+        <div><span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;color:var(--muted)">Business</span><br>${escapeHtml(inq.business_detail)}</div>
+        ${inq.ad_concept ? `<div><span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;color:var(--muted)">Ad concept</span><br>${escapeHtml(inq.ad_concept)}</div>` : ''}
+      </div>
+      <div style="display:flex;gap:20px;font-size:0.8rem;color:var(--muted);margin-bottom:8px">
+        ${inq.impression_target ? `<span>🎯 ${inq.impression_target} impressions · ₹${(inq.impression_target * 250).toLocaleString('en-IN')}</span>` : '<span>Target: not specified</span>'}
+        <span>📅 ${formatIST(inq.created_at, false)}</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input id="note-${inq.id}" value="${escapeHtml(inq.admin_notes||'')}" placeholder="Admin notes…"
+          style="flex:1;padding:6px 10px;border:1px solid var(--border);font-family:inherit;font-size:0.82rem"/>
+        <button class="btn-sm" onclick="saveInquiryNote('${inq.id}')">Save note</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function setInquiryStatus(id, status) {
+  await sb.from('ad_inquiries').update({ status }).eq('id', id);
+  toast('Status updated.');
+  loadAdInquiries();
+}
+
+async function saveInquiryNote(id) {
+  const note = document.getElementById('note-' + id)?.value.trim() || null;
+  await sb.from('ad_inquiries').update({ admin_notes: note }).eq('id', id);
+  toast('Note saved.');
 }
 
 // ===================== PUSH TO DB =====================

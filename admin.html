@@ -1168,7 +1168,18 @@
 
     <!-- ADS -->
     <div id="panel-ads" class="panel">
+
+      <!-- 1. Ad Inquiries (top) -->
       <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <h2 style="margin:0">Ad Inquiries <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">(from advertise.html)</span></h2>
+          <button class="btn-sm" onclick="loadAdInquiries()">↻ Refresh</button>
+        </div>
+        <div id="ad-inquiries-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+      </div>
+
+      <!-- 2. Community Ads (create + manage) -->
+      <div class="card" style="margin-top:18px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
           <h2 style="margin:0">Community Ads</h2>
           <button class="btn-sm" onclick="loadAds()">↻ Refresh</button>
@@ -1177,8 +1188,6 @@
           One active ad at a time. Others queue automatically. Shown once per unique logged-in user.
           Impression = shown. Dismissed = user closed it. Each counts once per user.
         </div>
-
-        <!-- Create new ad -->
         <div style="border:1px solid var(--border);padding:16px;margin-bottom:20px;background:var(--bg)">
           <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--gold);margin-bottom:12px">New Ad</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
@@ -1187,16 +1196,15 @@
           </div>
           <input id="ad-image-url" placeholder="Image URL (upload to Supabase Storage and paste URL here)" style="width:100%;padding:8px 10px;border:1px solid var(--border);background:#fff;font-family:inherit;font-size:0.85rem;margin-bottom:10px;box-sizing:border-box"/>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-            <input id="ad-target" type="number" placeholder="Target impressions (e.g. 100)" min="1" style="padding:8px 10px;border:1px solid var(--border);background:#fff;font-family:inherit;font-size:0.85rem"/>
+            <input id="ad-target" type="number" placeholder="Target impressions (e.g. 50)" min="1" style="padding:8px 10px;border:1px solid var(--border);background:#fff;font-family:inherit;font-size:0.85rem"/>
             <input id="ad-notes" placeholder="Internal notes" style="padding:8px 10px;border:1px solid var(--border);background:#fff;font-family:inherit;font-size:0.85rem"/>
           </div>
           <button class="btn-sm" style="background:var(--green);color:#fff;border-color:var(--green)" onclick="createAd()">+ Create Ad (queued as pending)</button>
         </div>
-
         <div id="ads-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
       </div>
 
-      <!-- Advertise page clicks -->
+      <!-- 3. Advertise with Us page visits (bottom) -->
       <div class="card" style="margin-top:18px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
           <h2 style="margin:0">Advertise with Us — Page Visits <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">(logged-in members who clicked)</span></h2>
@@ -1205,14 +1213,6 @@
         <div id="advertise-clicks-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
       </div>
 
-      <!-- Ad inquiries -->
-      <div class="card" style="margin-top:18px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-          <h2 style="margin:0">Ad Inquiries <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">(from advertise.html)</span></h2>
-          <button class="btn-sm" onclick="loadAdInquiries()">↻ Refresh</button>
-        </div>
-        <div id="ad-inquiries-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
-      </div>
     </div>
 
     <!-- VISITORS -->

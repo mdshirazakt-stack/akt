@@ -2031,6 +2031,7 @@ async function startApp(name, role = 'visitor', visitorRecord = null) {
   document.getElementById('auth-gate').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   showEidPopupIfActive();
+  checkAndShowAd(visitorRecord);
   await loadGedcomSources();
   logActivity('login', `Logged in: ${name}`, { visit_count: currentVisitCount });
 
@@ -4602,6 +4603,69 @@ function dismissEidPopup(e) {
   logActivity('eid_popup_dismissed', 'Eid ul Adha 2026 popup', {});
 }
 
+// ===================== COMMUNITY AD POPUP =====================
+let _currentAdId = null;
+let _currentVisitorId = null;
+
+async function checkAndShowAd(visitorRecord) {
+  if (!visitorRecord?.id) return;
+  _currentVisitorId = visitorRecord.id;
+
+  // Fetch the single active ad
+  const { data: ads } = await sb.from('ads')
+    .select('id,image_url,link_url')
+    .eq('status', 'active')
+    .limit(1);
+  const ad = ads?.[0];
+  if (!ad) return;
+
+  // Already shown to this visitor?
+  const { data: existing } = await sb.from('ad_impressions')
+    .select('id')
+    .eq('ad_id', ad.id)
+    .eq('visitor_id', visitorRecord.id)
+    .limit(1);
+  if (existing?.length) return;
+
+  // Record impression (shown_at = now, dismissed_at = null)
+  const { error } = await sb.from('ad_impressions').insert({
+    ad_id: ad.id,
+    visitor_id: visitorRecord.id
+  });
+  if (error) return;
+
+  _currentAdId = ad.id;
+
+  const img      = document.getElementById('ad-popup-img');
+  const link     = document.getElementById('ad-popup-link');
+  const backdrop = document.getElementById('ad-popup-backdrop');
+  if (!img || !backdrop) return;
+
+  img.src  = ad.image_url;
+  if (link) { link.href = ad.link_url || '#'; if (!ad.link_url) link.style.pointerEvents = 'none'; }
+  backdrop.style.display = 'flex';
+}
+
+async function dismissAd() {
+  document.getElementById('ad-popup-backdrop').style.display = 'none';
+  if (!_currentAdId || !_currentVisitorId) return;
+
+  await sb.from('ad_impressions')
+    .update({ dismissed_at: new Date().toISOString() })
+    .eq('ad_id', _currentAdId)
+    .eq('visitor_id', _currentVisitorId);
+
+  // Auto-complete if target reached
+  const { count } = await sb.from('ad_impressions')
+    .select('id', { count: 'exact', head: true })
+    .eq('ad_id', _currentAdId)
+    .not('dismissed_at', 'is', null);
+  const { data: adRow } = await sb.from('ads').select('target_impressions').eq('id', _currentAdId).single();
+  if (adRow && count >= adRow.target_impressions) {
+    await sb.from('ads').update({ status: 'completed', updated_at: new Date().toISOString() }).eq('id', _currentAdId);
+  }
+}
+
 // ===================== ALL NAMES TAB =====================
 let allnamesLoaded = false;
 let allnamesData = [];   // [{uid, name, sex, death_flag, gedcom_id}]
@@ -4889,6 +4953,19 @@ async function loadPopupPerson() {
   <div id="eid-popup">
     <button id="eid-popup-close" onclick="dismissEidPopup()" aria-label="Close">×</button>
     <img src="eid-ul-adha-2026.png" alt="Eid ul Adha Mubarak — Visit apnonkitalash.com"/>
+  </div>
+</div>
+
+<!-- ===== COMMUNITY AD POPUP ===== -->
+<div id="ad-popup-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99100;align-items:center;justify-content:center;padding:16px">
+  <div id="ad-popup" style="position:relative;max-width:500px;width:100%;border-radius:4px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.55);animation:eidFadeIn 0.35s ease">
+    <button id="ad-popup-close" aria-label="Close"
+      style="position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,0.6);border:none;cursor:pointer;color:#fff;font-size:1.3rem;display:flex;align-items:center;justify-content:center"
+      onclick="dismissAd()">×</button>
+    <a id="ad-popup-link" href="#" target="_blank" rel="noopener sponsored" style="display:block">
+      <img id="ad-popup-img" src="" alt="Community advertisement" style="display:block;width:100%;height:auto"/>
+    </a>
+    <div style="background:#1a1a1a;padding:5px 12px;font-size:0.65rem;color:rgba(255,255,255,0.4);letter-spacing:0.08em;text-transform:uppercase">Sponsored · Apno Ki Talash Community</div>
   </div>
 </div>
 

@@ -1370,13 +1370,48 @@
     <!-- SITE STATS / SETTINGS -->
     <!-- PRINT PAYMENTS -->
     <div id="panel-printpayments" class="panel">
-      <div class="card">
+
+      <!-- Monetization controls -->
+      <div class="card" style="margin-bottom:16px">
+        <h2 style="margin-bottom:16px">Monetization Controls</h2>
+
+        <!-- Global toggle -->
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:14px 16px;background:var(--bg);border:1px solid var(--border);margin-bottom:12px">
+          <div>
+            <div style="font-weight:700;font-size:0.9rem">Global Print Monetization</div>
+            <div style="font-size:0.78rem;color:var(--muted);margin-top:2px">When disabled, all users can print for free.</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button id="print-mon-enable-btn" class="btn-sm" onclick="setPrintMonetization('enabled')">✔ Enable (₹49)</button>
+            <button id="print-mon-disable-btn" class="btn-sm" onclick="setPrintMonetization('disabled')">✖ Disable (Free for all)</button>
+          </div>
+        </div>
+        <div id="print-mon-status" style="font-size:0.82rem;margin-bottom:16px"></div>
+
+        <!-- Per-user free exemptions -->
+        <div style="font-weight:700;font-size:0.88rem;margin-bottom:8px">Free printing — individual exemptions</div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:10px">Search a user and toggle free printing for them. Paste their profile UID or visitor name.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="print-exempt-search" placeholder="Search visitor name or email…" style="flex:1;padding:8px 12px;border:1px solid var(--border);font-family:inherit;font-size:0.85rem" oninput="searchPrintExemptVisitor()"/>
+        </div>
+        <div id="print-exempt-results" style="margin-top:8px"></div>
+      </div>
+
+      <!-- Analytics funnel -->
+      <div class="card" style="margin-bottom:16px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-          <h2 style="margin:0">Print Tree Payments <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">₹49 per print · UPI 9818555830@ptsbi</span></h2>
+          <h2 style="margin:0">Print Funnel Analytics</h2>
           <button class="btn-sm" onclick="loadPrintPayments()">↻ Refresh</button>
         </div>
+        <div id="print-funnel" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px"></div>
+      </div>
+
+      <!-- Payment records -->
+      <div class="card">
+        <h2 style="margin-bottom:16px">Payment Records <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">₹49 · UPI 9818555830@ptsbi</span></h2>
         <div id="print-payments-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
       </div>
+
     </div>
 
     <div id="panel-settings" class="panel">
@@ -2669,44 +2704,70 @@ async function loadAdvertiseClicks() {
 }
 
 async function loadPrintPayments() {
-  const list = document.getElementById('print-payments-list');
-  if (!list) return;
-  list.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+  // Load global monetization status
+  const { data: cfg } = await sb.from('admin_config').select('value').eq('key','print_monetization').single();
+  const monStatus = document.getElementById('print-mon-status');
+  const enabled = cfg?.value !== 'disabled';
+  if (monStatus) {
+    monStatus.innerHTML = enabled
+      ? '<span style="color:#166534;font-weight:700">✔ Monetization is ON — users pay ₹49 to print</span>'
+      : '<span style="color:#92400e;font-weight:700">✖ Monetization is OFF — all users print for free</span>';
+  }
+  // Highlight active button
+  document.getElementById('print-mon-enable-btn')?.style && (document.getElementById('print-mon-enable-btn').style.background = enabled ? 'var(--green)' : '');
+  document.getElementById('print-mon-enable-btn') && (document.getElementById('print-mon-enable-btn').style.color = enabled ? '#fff' : '');
+  document.getElementById('print-mon-disable-btn') && (document.getElementById('print-mon-disable-btn').style.background = !enabled ? 'var(--red2)' : '');
+  document.getElementById('print-mon-disable-btn') && (document.getElementById('print-mon-disable-btn').style.color = !enabled ? '#fff' : '');
 
-  const { data, error } = await sb.from('print_payments')
+  // Load attempt analytics from activity_logs
+  const thirtyDaysAgo = new Date(Date.now() - 30*24*60*60*1000).toISOString();
+  const { data: attempts } = await sb.from('activity_logs')
+    .select('visitor_name,created_at')
+    .eq('action','print_tree_attempt')
+    .gte('created_at', thirtyDaysAgo);
+
+  const { data: prints } = await sb.from('activity_logs')
+    .select('visitor_name,created_at')
+    .eq('action','print_tree')
+    .gte('created_at', thirtyDaysAgo);
+
+  const { data: payments, error } = await sb.from('print_payments')
     .select('*')
     .order('created_at', { ascending: false });
 
-  if (error) { list.innerHTML = `<div class="empty" style="color:var(--red2)">${escapeHtml(error.message)}</div>`; return; }
-  if (!data?.length) { list.innerHTML = '<div class="empty">No print payments yet.</div>'; return; }
+  // Funnel stats
+  const funnel = document.getElementById('print-funnel');
+  if (funnel) {
+    const attemptCount = (attempts||[]).length;
+    const paidCount    = (payments||[]).length;
+    const printCount   = (prints||[]).length;
+    const didntPay     = attemptCount - paidCount;
+    const convRate     = attemptCount ? Math.round(paidCount/attemptCount*100) : 0;
+    const totalRev     = (payments||[]).reduce((s,r)=>s+(r.amount||0),0);
+    const statBox = (label, val, sub, color='var(--ink)') =>
+      `<div style="padding:12px 16px;background:var(--bg);border:1px solid var(--border);text-align:center;min-width:110px">
+        <div style="font-size:1.5rem;font-weight:700;color:${color}">${val}</div>
+        <div style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;margin-top:2px">${label}</div>
+        ${sub ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:2px">${sub}</div>` : ''}
+      </div>`;
+    funnel.innerHTML =
+      statBox('Attempted print', attemptCount, 'last 30 days') +
+      statBox('Paid & printed', paidCount, '', '#166534') +
+      statBox("Didn't pay", didntPay < 0 ? 0 : didntPay, '', '#92400e') +
+      statBox('Conversion', convRate+'%', 'paid / attempted') +
+      statBox('Revenue', '₹'+totalRev.toLocaleString('en-IN'), 'total collected', 'var(--green)');
+  }
 
-  const total = data.reduce((s, r) => s + (r.amount || 0), 0);
-  const verified = data.filter(r => r.status === 'verified').length;
-  const pending  = data.filter(r => r.status === 'pending').length;
+  // Payment records
+  const list = document.getElementById('print-payments-list');
+  if (!list) return;
+  if (error) { list.innerHTML = `<div class="empty" style="color:var(--red2)">${escapeHtml(error.message)}</div>`; return; }
+  if (!payments?.length) { list.innerHTML = '<div class="empty">No payments recorded yet.</div>'; return; }
 
   const statusColor = { pending:'#92400e', verified:'#166534', rejected:'#991b1b' };
   const statusBg    = { pending:'#fef3c7', verified:'#dcfce7', rejected:'#fee2e2' };
 
-  list.innerHTML = `
-    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px">
-      <div style="padding:10px 16px;background:var(--bg);border:1px solid var(--border);text-align:center">
-        <div style="font-size:1.5rem;font-weight:700;color:var(--green)">₹${total.toLocaleString('en-IN')}</div>
-        <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase">Total collected</div>
-      </div>
-      <div style="padding:10px 16px;background:var(--bg);border:1px solid var(--border);text-align:center">
-        <div style="font-size:1.5rem;font-weight:700;color:var(--ink)">${data.length}</div>
-        <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase">Total prints</div>
-      </div>
-      <div style="padding:10px 16px;background:var(--bg);border:1px solid var(--border);text-align:center">
-        <div style="font-size:1.5rem;font-weight:700;color:#166534">${verified}</div>
-        <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase">Verified</div>
-      </div>
-      <div style="padding:10px 16px;background:var(--bg);border:1px solid var(--border);text-align:center">
-        <div style="font-size:1.5rem;font-weight:700;color:#92400e">${pending}</div>
-        <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase">Pending verification</div>
-      </div>
-    </div>
-    ${data.map(r => `
+  list.innerHTML = payments.map(r => `
     <div style="border:1px solid var(--border);padding:12px 16px;margin-bottom:8px;background:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
       <div>
         <strong>${escapeHtml(r.visitor_name || '—')}</strong>
@@ -2714,7 +2775,7 @@ async function loadPrintPayments() {
         <span style="font-family:monospace;font-size:0.85rem;background:var(--bg);padding:2px 6px;border:1px solid var(--border)">${escapeHtml(r.utr)}</span>
         <span style="margin-left:8px;padding:2px 9px;background:${statusBg[r.status]||'#f3f4f6'};color:${statusColor[r.status]||'#374151'};font-size:0.68rem;font-weight:700;text-transform:uppercase">${r.status}</span>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span style="font-size:0.78rem;color:var(--muted)">${formatIST(r.created_at, false)}</span>
         <span style="font-weight:700;color:var(--green)">₹${r.amount}</span>
         ${r.status === 'pending' ? `
@@ -2722,13 +2783,54 @@ async function loadPrintPayments() {
           <button class="btn-sm" style="color:var(--red2);border-color:var(--red2)" onclick="setPrintPayStatus('${r.id}','rejected')">✖ Reject</button>
         ` : ''}
       </div>
-    </div>`).join('')}`;
+    </div>`).join('');
 }
 
 async function setPrintPayStatus(id, status) {
   await sb.from('print_payments').update({ status }).eq('id', id);
   toast(status === 'verified' ? '✔ Payment verified' : '✖ Payment rejected');
   loadPrintPayments();
+}
+
+async function setPrintMonetization(value) {
+  await sb.from('admin_config').upsert({ key:'print_monetization', value }, { onConflict:'key' });
+  toast(value === 'enabled' ? 'Monetization enabled — ₹49 per print' : 'Monetization disabled — free for all');
+  loadPrintPayments();
+}
+
+let printExemptTimer = null;
+function searchPrintExemptVisitor() {
+  clearTimeout(printExemptTimer);
+  printExemptTimer = setTimeout(async () => {
+    const q = document.getElementById('print-exempt-search')?.value.trim().toLowerCase();
+    const results = document.getElementById('print-exempt-results');
+    if (!results) return;
+    if (!q) { results.innerHTML = ''; return; }
+    const { data } = await sb.from('visitors')
+      .select('id,name_entered,email,print_free')
+      .or(`name_entered.ilike.%${q}%,email.ilike.%${q}%`)
+      .limit(10);
+    if (!data?.length) { results.innerHTML = '<div style="font-size:0.82rem;color:var(--muted);padding:6px 0">No users found.</div>'; return; }
+    results.innerHTML = data.map(v => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1px solid var(--border);margin-top:4px;background:#fff;flex-wrap:wrap;gap:8px">
+        <div>
+          <strong style="font-size:0.88rem">${escapeHtml(v.name_entered||'—')}</strong>
+          <span style="font-size:0.76rem;color:var(--muted);margin-left:8px">${escapeHtml(v.email||'')}</span>
+          ${v.print_free ? '<span style="margin-left:8px;padding:1px 7px;background:#dcfce7;color:#166534;font-size:0.68rem;font-weight:700">FREE</span>' : ''}
+        </div>
+        <button class="btn-sm" onclick="togglePrintFree('${v.id}',${!v.print_free})"
+          style="${v.print_free ? 'color:var(--red2);border-color:var(--red2)' : 'background:var(--green);color:#fff;border-color:var(--green)'}">
+          ${v.print_free ? '✖ Remove free access' : '✔ Grant free printing'}
+        </button>
+      </div>`).join('');
+  }, 300);
+}
+
+async function togglePrintFree(visitorId, value) {
+  const { error } = await sb.from('visitors').update({ print_free: value }).eq('id', visitorId);
+  if (error) { toast(error.message, true); return; }
+  toast(value ? 'Free printing granted' : 'Free printing revoked');
+  searchPrintExemptVisitor();
 }
 
 async function loadAdInquiries() {

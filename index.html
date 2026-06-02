@@ -3888,13 +3888,33 @@ function toggleFamGroup(tid) {
   btn.textContent = (hidden ? '\u25bc\u00a0' : '\u25b6\u00a0') + label;
 }
 
-function printTree() {
+async function printTree() {
   const panel = document.getElementById('panel-tree');
   if (!panel.classList.contains('active')) {
     alert('Please search for a person in the Browse Tree tab first.');
     return;
   }
-  // Show payment modal instead of printing directly
+
+  // Check global monetization toggle + per-user free flag
+  const [configRes, visitorRes] = await Promise.all([
+    sb.from('admin_config').select('value').eq('key', 'print_monetization').single(),
+    sb.from('visitors').select('print_free').eq('auth_user_id', (await sb.auth.getUser()).data?.user?.id || '').single()
+  ]);
+
+  const monetizationEnabled = configRes.data?.value !== 'disabled';
+  const userIsFree = visitorRes.data?.print_free === true;
+
+  if (!monetizationEnabled || userIsFree) {
+    // Free printing — skip payment, print directly
+    const label = document.getElementById('tree-person-label')?.textContent || '';
+    const personName = label.replace(/^Showing tree for:\s*/i, '').trim();
+    logActivity('print_tree', personName ? `Printed tree for: ${personName}` : 'Printed tree', { label, free: true });
+    window.print();
+    return;
+  }
+
+  // Log the attempt before showing modal
+  logActivity('print_tree_attempt', 'Opened print payment modal', {});
   openPrintPayModal();
 }
 

@@ -3729,15 +3729,23 @@ async function loadTree(uid) {
   }
 
   // Builds a family-group card: couple header + collapsible children
-  function famCard(person, cls, spouse, childrenHtml, childCount) {
+  function famCard(person, cls, spouse, childrenHtml, childCount, marrStatus) {
     var tid = 'fg' + (_tid++);
+    var isDivorced = marrStatus === 'divorced' || marrStatus === 'separated';
     var spouseColor = cls === 'tree-box-focus' ? 'var(--gold)' : cls === 'tree-box-anc' ? '#6a9a50' : '#5a8ab0';
     var spouseCls   = cls === 'tree-box-anc'   ? 'tree-box-anc' : cls === 'tree-box-focus' ? 'tree-box-desc' : 'tree-box-spouse';
-    var h = '<div class="fam-group" id="' + tid + '_wrap">';
+    var cardBorder  = isDivorced ? 'border:2px solid #f59e0b;' : '';
+    var h = '<div class="fam-group" id="' + tid + '_wrap" style="' + cardBorder + '">';
+    if (isDivorced) {
+      h += '<div style="background:#fef3c7;color:#92400e;font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:3px 10px;text-align:center">Divorced</div>';
+    }
     h += '<div class="fam-group-header">';
     h += pBox(person, cls);
     if (spouse) {
-      h += '<div style="padding:10px 5px 0;font-size:0.9rem;color:' + spouseColor + ';font-weight:700;line-height:1">\u26ad</div>';
+      var connectorHtml = isDivorced
+        ? '<div style="padding:8px 5px 0;font-size:0.72rem;color:#92400e;font-weight:700;text-align:center;line-height:1.2">Divorced</div>'
+        : '<div style="padding:10px 5px 0;font-size:0.9rem;color:' + spouseColor + ';font-weight:700;line-height:1">\u26ad</div>';
+      h += connectorHtml;
       h += pBox(spouse, spouseCls);
     }
     if (childCount > 0) {
@@ -3811,7 +3819,7 @@ async function loadTree(uid) {
     var fChildren = await getChildren(ff.uid);
     var freshFC = fChildren.filter(function(c){ return !visited.has(c.uid); });
     freshFC.forEach(function(c){ visited.add(c.uid); });
-    focusMarriages.push({ spouse: fSpouse, children: freshFC });
+    focusMarriages.push({ spouse: fSpouse, children: freshFC, marrStatus: ff.marr_status || '' });
   }
 
   // Seed gen 1 people = all children of focus
@@ -3837,7 +3845,7 @@ async function loadTree(uid) {
           var pChildren = await getChildren(pfam.uid);
           var freshPC = pChildren.filter(function(c){ return !visited.has(c.uid); });
           freshPC.forEach(function(c){ visited.add(c.uid); nextPeople.push(c); });
-          genRow.push({ person: person, spouse: pSpouse, children: freshPC });
+          genRow.push({ person: person, spouse: pSpouse, children: freshPC, marrStatus: pfam.marr_status || '' });
         }
       }
     }
@@ -3873,7 +3881,7 @@ async function loadTree(uid) {
     html += famCard(focusPerson, 'tree-box-focus', null, null, 0);
   } else {
     focusMarriages.forEach(function(m) {
-      html += famCard(focusPerson, 'tree-box-focus', m.spouse, childLeaves(m.children), m.children.length);
+      html += famCard(focusPerson, 'tree-box-focus', m.spouse, childLeaves(m.children), m.children.length, m.marrStatus);
     });
   }
   html += '</div>';
@@ -3884,7 +3892,7 @@ async function loadTree(uid) {
     html += '<div class="gen-label" style="color:#5a7ab0">\u25bc Descendant Generation ' + (gi + 1) + '</div>';
     html += '<div class="gen-section-row">';
     genRow.forEach(function(entry) {
-      html += famCard(entry.person, 'tree-box-desc', entry.spouse, childLeaves(entry.children), entry.children.length);
+      html += famCard(entry.person, 'tree-box-desc', entry.spouse, childLeaves(entry.children), entry.children.length, entry.marrStatus);
     });
     html += '</div>';
   });

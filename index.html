@@ -4492,9 +4492,8 @@ async function loadByFile() {
     const count = u.count || 0;
     const countLabel = count > 0 ? `${count.toLocaleString()} ${count === 1 ? 'person' : 'people'}` : '—';
     const adminActions = hasRole('admin') ? `
-      <div style="display:flex;gap:5px;flex-shrink:0" onclick="event.stopPropagation()">
+      <div style="flex-shrink:0" onclick="event.stopPropagation()">
         <button style="padding:3px 10px;border:1px solid var(--border);background:var(--surface);font-family:inherit;font-size:0.72rem;cursor:pointer;color:var(--gold)" onclick="gedcomStartRename('${u.id}','${escapeJs(u.filename)}')">✏ Rename</button>
-        <button style="padding:3px 10px;border:1px solid var(--border);background:var(--surface);font-family:inherit;font-size:0.72rem;cursor:pointer;color:var(--red)" onclick="gedcomDelete('${u.id}','${escapeJs(u.filename)}')">🗑 Delete</button>
       </div>` : '';
     return `
       <div class="ged-section" id="ged-sec-${u.id}" data-id="${u.id}">

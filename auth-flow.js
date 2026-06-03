@@ -233,6 +233,8 @@
     }, delay);
   }
 
+  let appLaunched = false; // guard against re-init on tab focus / token refresh
+
   async function enterVisitor(visitor) {
     currentVisitor = visitor;
     const role = normalizeAccessRole(visitor?.access_role);
@@ -257,6 +259,7 @@
     if (typeof callbacks.onStart === 'function') {
       await callbacks.onStart(name, role, { ...visitor, visit_count: visitCount });
     }
+    appLaunched = true; // mark app as fully initialised
     await refreshProfileClaimBanner({ ...visitor, visit_count: visitCount });
     await showPendingNotifications(visitor);
   }
@@ -1080,16 +1083,17 @@
     await handleSession(sessionResult.data?.session || null);
 
     sb.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN') {
-        // Only re-run full session handling on explicit sign-in
-        setTimeout(() => handleSession(session), 0);
-      }
-      if (event === 'TOKEN_REFRESHED') {
-        // Token silently refreshed — just update the session reference,
-        // do NOT re-initialise the app (causes page reload / tree reset)
-        currentSession = session;
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (appLaunched) {
+          // App already running — just update the session silently.
+          // Do NOT re-initialise (causes reload / tree reset on tab focus).
+          currentSession = session;
+        } else {
+          setTimeout(() => handleSession(session), 0);
+        }
       }
       if (event === 'SIGNED_OUT') {
+        appLaunched = false;
         setTimeout(() => handleSession(null), 0);
       }
     });

@@ -4528,13 +4528,15 @@ function personInlineRename(btn, uid, currentName) {
   const originalHTML = td.innerHTML;
 
   td.innerHTML = `
-    <input id="pr-input-${escapeHtml(uid)}" value="${escapeHtml(currentName)}"
-      style="padding:2px 8px;border:1px solid var(--gold2);font-family:inherit;font-size:0.88rem;width:min(260px,55vw)"
-      onkeydown="if(event.key==='Enter')personInlineSave('${escapeJs(uid)}');if(event.key==='Escape')personInlineCancel('${escapeJs(uid)}')"/>
-    <button onclick="personInlineSave('${escapeJs(uid)}')"
-      style="margin-left:4px;padding:2px 10px;background:var(--green);color:#fff;border:none;font-family:inherit;font-size:0.72rem;cursor:pointer">Save</button>
-    <button onclick="personInlineCancel('${escapeJs(uid)}')"
-      style="margin-left:2px;padding:2px 8px;border:1px solid var(--border);background:none;font-family:inherit;font-size:0.72rem;cursor:pointer">✕</button>`;
+    <div style="display:flex;align-items:center;gap:6px;width:100%">
+      <input id="pr-input-${escapeHtml(uid)}" value="${escapeHtml(currentName)}"
+        style="flex:1;min-width:0;padding:5px 10px;border:1px solid var(--gold2);font-family:inherit;font-size:0.88rem;box-shadow:0 0 0 3px rgba(201,168,76,0.13)"
+        onkeydown="if(event.key==='Enter')personInlineSave('${escapeJs(uid)}');if(event.key==='Escape')personInlineCancel('${escapeJs(uid)}')"/>
+      <button onclick="personInlineSave('${escapeJs(uid)}')"
+        style="flex-shrink:0;padding:5px 14px;background:var(--green);color:#fff;border:none;font-family:inherit;font-size:0.78rem;font-weight:700;cursor:pointer">Save</button>
+      <button onclick="personInlineCancel('${escapeJs(uid)}')"
+        style="flex-shrink:0;padding:5px 10px;border:1px solid var(--border);background:none;font-family:inherit;font-size:0.78rem;cursor:pointer">✕</button>
+    </div>`;
   td.dataset.originalHTML = originalHTML;
   document.getElementById('pr-input-' + uid)?.focus();
   document.getElementById('pr-input-' + uid)?.select();
@@ -4738,7 +4740,9 @@ function renderGedBody(id, people, filterQ) {
     const decBadge = p.death_flag ? `<span class="badge badge-deceased" style="font-size:0.65rem">†</span>` : '';
     const renameBtn = isAdmin
       ? `<button title="Quick rename" onclick="personInlineRename(this,'${escapeJs(p.uid)}','${escapeJs(p.name||'')}')"
-          style="margin-left:6px;padding:1px 7px;border:1px solid var(--border);background:none;font-size:0.68rem;color:var(--muted);cursor:pointer;font-family:inherit;vertical-align:middle">✏</button>`
+          style="margin-left:6px;padding:3px 5px;border:1px solid var(--border);background:var(--surface);cursor:pointer;vertical-align:middle;line-height:1;border-radius:4px">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted);display:block"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>`
       : '';
     return `
       <tr id="ged-person-row-${escapeHtml(p.uid)}">

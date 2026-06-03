@@ -4459,9 +4459,9 @@ async function loadDbStats() {
     sb.from('families').select('*', { count: 'exact', head: true }),
     sb.from('visitors').select('id,visitor_form_completed,access_status,is_blocked,approved_at,updated_at,last_seen,first_seen').limit(10000),
     sb.from('gedcom_uploads').select('id,filename,people_count,families_count,uploaded_at,notes').order('uploaded_at', { ascending: false }),
-    sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', todayStart.toISOString()),
-    sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', yesterdayStart.toISOString()).lt('created_at', todayStart.toISOString()),
-    sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', weekStart.toISOString())
+    sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', todayStart.toISOString()).limit(5000),
+    sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', yesterdayStart.toISOString()).lt('created_at', todayStart.toISOString()).limit(5000),
+    sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', weekStart.toISOString()).limit(5000)
   ]);
 
   if (visErr) console.warn('Visitors query failed:', visErr.message);

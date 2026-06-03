@@ -4521,6 +4521,60 @@ async function loadByFile() {
   }).join('');
 }
 
+// ── Person quick rename from Index list (admin only) ─────────────────────────
+function personInlineRename(btn, uid, currentName) {
+  const td = btn.closest('td');
+  if (!td || td.querySelector('input')) return; // already editing
+  const originalHTML = td.innerHTML;
+
+  td.innerHTML = `
+    <input id="pr-input-${escapeHtml(uid)}" value="${escapeHtml(currentName)}"
+      style="padding:2px 8px;border:1px solid var(--gold2);font-family:inherit;font-size:0.88rem;width:min(260px,55vw)"
+      onkeydown="if(event.key==='Enter')personInlineSave('${escapeJs(uid)}');if(event.key==='Escape')personInlineCancel('${escapeJs(uid)}')"/>
+    <button onclick="personInlineSave('${escapeJs(uid)}')"
+      style="margin-left:4px;padding:2px 10px;background:var(--green);color:#fff;border:none;font-family:inherit;font-size:0.72rem;cursor:pointer">Save</button>
+    <button onclick="personInlineCancel('${escapeJs(uid)}')"
+      style="margin-left:2px;padding:2px 8px;border:1px solid var(--border);background:none;font-family:inherit;font-size:0.72rem;cursor:pointer">✕</button>`;
+  td.dataset.originalHTML = originalHTML;
+  document.getElementById('pr-input-' + uid)?.focus();
+  document.getElementById('pr-input-' + uid)?.select();
+}
+
+function personInlineCancel(uid) {
+  const td = document.querySelector(`#ged-person-row-${uid} td:last-child`);
+  if (td && td.dataset.originalHTML) td.innerHTML = td.dataset.originalHTML;
+}
+
+async function personInlineSave(uid) {
+  const input = document.getElementById('pr-input-' + uid);
+  if (!input) return;
+  const newName = input.value.trim();
+  if (!newName) { toast('Name cannot be empty.', true); return; }
+
+  const { error } = await sb.from('people').update({ name: newName, updated_at: new Date().toISOString() }).eq('uid', uid);
+  if (error) { toast('Rename failed: ' + error.message, true); return; }
+
+  // Update all caches
+  Object.values(byfilePeopleCache).forEach(arr => {
+    const p = arr.find(p => p.uid === uid);
+    if (p) p.name = newName;
+  });
+
+  // Update the row display
+  const td = document.querySelector(`#ged-person-row-${uid} td:last-child`);
+  if (td && td.dataset.originalHTML) {
+    // Rebuild with new name
+    const newHTML = td.dataset.originalHTML.replace(
+      /(<span class="ged-person-name"[^>]*>)[^<]*/,
+      `$1${escapeHtml(newName)}`
+    );
+    td.innerHTML = newHTML;
+  }
+
+  logActivity('person_renamed_from_index', `Renamed to: ${newName}`, { person_uid: uid });
+  toast(`✔ Renamed to "${newName}"`);
+}
+
 // ── GEDCOM inline rename (admin only) ────────────────────────────────────────
 function gedcomStartRename(id, currentFilename) {
   const titleEl = document.getElementById('ged-title-' + id);
@@ -4675,18 +4729,23 @@ function renderGedBody(id, people, filterQ) {
     return;
   }
 
+  const isAdmin = hasRole('admin');
   const rows = filtered.map((p, i) => {
     const name = q
       ? (p.name || '(unnamed)').replace(new RegExp('(' + filterQ.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi'), '<mark style="background:#fff3a3;padding:0 1px">$1</mark>')
       : (p.name || '(unnamed)');
     const sexBadge = p.sex ? `<span class="badge badge-${p.sex}" style="font-size:0.65rem">${p.sex}</span>` : '';
     const decBadge = p.death_flag ? `<span class="badge badge-deceased" style="font-size:0.65rem">†</span>` : '';
+    const renameBtn = isAdmin
+      ? `<button title="Quick rename" onclick="personInlineRename(this,'${escapeJs(p.uid)}','${escapeJs(p.name||'')}')"
+          style="margin-left:6px;padding:1px 7px;border:1px solid var(--border);background:none;font-size:0.68rem;color:var(--muted);cursor:pointer;font-family:inherit;vertical-align:middle">✏</button>`
+      : '';
     return `
-      <tr>
+      <tr id="ged-person-row-${escapeHtml(p.uid)}">
         <td class="ged-person-row-num">${i + 1}</td>
         <td>
           <span class="ged-person-name" onclick="showPersonFromByfile('${p.uid}')">${name}</span>
-          &nbsp;${sexBadge}${decBadge ? '&nbsp;' + decBadge : ''}
+          &nbsp;${sexBadge}${decBadge ? '&nbsp;' + decBadge : ''}${renameBtn}
         </td>
       </tr>`;
   }).join('');

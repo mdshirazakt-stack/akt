@@ -1,6 +1,6 @@
 # Apnon Ki Talash / Iraqi Biradari Project Handoff
 
-Last updated: 2026-05-26
+Last updated: 2026-06-04
 
 ## Project Overview
 
@@ -8,7 +8,7 @@ This project has been split into two separate repositories and domains.
 
 The split is intentional. The genealogy engine must remain isolated from the public heritage/content website so future CMS/admin work does not risk breaking Shijra functionality.
 
-## Current AKT Status As Of 2026-05-26
+## Current AKT Status As Of 2026-06-04
 
 Active repo:
 
@@ -22,806 +22,313 @@ Active domain:
 https://apnonkitalash.com/
 ```
 
-Current git state at handoff:
+Current git state:
 
 ```text
 Branch: main
-Working tree before security hardening edit: clean
-Pending security hardening changes in this turn: admin.html, SECURITY_REVIEW.md, Supabase SQL hardening files
-Latest pushed commit before this hardening edit: 48a948b Add signup drop-off tracking
+Working tree: clean
+Latest commit: 3e01d47 Fix 7-day visitor count lower than yesterday — add explicit limits
 ```
 
-MVP status:
+Database:
 
 ```text
-First MVP is mostly complete and usable for authenticated community access, search, profile viewing, corrections, profile claiming, admin review, imports/exports, and native family editing.
+Supabase project: fusairoeiabmqvsbxhfi.supabase.co
+Total DB size: 65 MB / 500 MB free limit (13% used)
+activity_logs: 15 MB (largest single table — see Backlog for cleanup plan)
+people table: 8 MB
+People in DB: ~23,909
+Families in DB: ~9,384
+GEDCOM files: 207
+Registered users: 127
+Approved users: ~92
+Egress this month: 0.969 GB / 5 GB free limit (19% used)
+MAU: 153 / 50,000 free limit
 ```
 
-Recent major AKT work completed:
+---
 
-- Public `index.html` is now the authenticated private archive entry point again. Users must sign in with Supabase Auth before reaching the archive.
-- Supabase Auth flow supports Google OAuth and email magic link, with first-time visitor onboarding and consent capture.
-- First-time users become `visitor` by default after completing registration/consent; blocking and role changes are handled from `admin.html`.
-- Visitor onboarding collects name/mobile, father's name, root place, current place/address, oldest known ancestor, heard-from details, and explicit consent sections.
-- Footer links to Terms & Conditions and Privacy Policy are available on public app pages.
-- Public nav is horizontal again after a vertical mobile rail experiment looked poor on phones.
-- Birth dates after 1990 are hidden only in public display (`index.html`, `archive.html`, `person.html`) while remaining stored/queryable in Supabase and editable by staff.
-- Profile claiming is implemented. Logged-in visitors see claim reminders, can claim a profile privately, and admin can apply claim email/mobile to the actual person record.
-- Admin Users table is now compact: chevron, name/email, visits, last seen, profile claim, role, and actions stay visible; mobile, family details, heard-from, registration/consent, status, and full claim details fold under the chevron.
-- Admin Registered Users table was also compacted with a chevron details row.
-- Visitor Activity is session-oriented: one row per visitor session, with a `View Activity` button opening detailed datewise activity for that session. Device/location/timezone are shown once in the popup, not repeated in the table.
-- Security hardening now lives in `supabase_security_hardening.sql`. It adds role-aware RLS helper functions and replaces broad public policies with authenticated visitor/staff/admin policies.
-- Admin password fallback is now legacy only. Use Google sign-in on `admin.html` with an approved `admin` or `superadmin` visitor record before relying on hardened RLS.
-- The older setup SQL files for profile claims, role applications, signup events, activity logs, and staff logs no longer recreate broad public policies; the hardening migration owns those policies.
-- Role contribution guidance lives in the `Contribution` tab, and role applications collect requested role, mobile number, profile link, and notes.
-- A `User Guide` tab has been added after `Contribution` to explain first visit, profile claiming, searching, corrections, duplicate flags, and how to contact admins.
-- `SECURITY_REVIEW.md` now tracks MVP security hardening work, especially RLS policy tightening, admin-only writes, private contact protection, and audit logging.
-- Mobile search UX has been redesigned and pushed.
-- Mobile filters now open as a compact sheet with collapsed filter sections.
-- "Filter" was renamed to "Filter Search Results".
-- "Source Files" was renamed to "Source Families".
-- Quick filters below the search bar were removed.
-- Mobile result cards were simplified to show clickable names, birth place, and source family only.
-- Default blank results avoid awkward unnamed/bracket-leading records and generic "1 son / 1 daughter" style records, while those records remain searchable.
-- Print tree no longer prints the large search/index result list.
-- Admin visitors/activity tracking was enriched with IST timestamps, visit counts, device/timezone, and location hints.
-- Admin visitor table got sortable columns and cleaner mobile-unfriendly metadata was removed.
-- Visitor Activity is now grouped by browser session where a `session_id` is available; older logs fall back to same-user time-window grouping.
-- New activity logs from `index.html`, `archive.html`, and `person.html` include `details.session_id` so `View Activity` can show session movements more cleanly.
-- Admin Users profile-claim column now includes a compact link to the claimed profile when a claim exists or has been applied.
-- GEDCOM duplicate protection was changed to a filename warning instead of person-level duplicate blocking.
-- Profile correction workflow was introduced on `person.html`.
-- Admin can review correction requests and apply harmless profile fields.
-- Harmless profile edits now also update the source `people` record directly, so future GEDCOM export can pick them up.
-- Relationship overlays were useful for exploration, but the project direction has shifted toward native genealogy table edits for real family graph changes.
-- A new native family editor page was created at `edit.html`.
-- `person.html` now sends `Edit Profile` to `edit.html?uid=<person_uid>`.
-- `edit.html` writes directly to `people`, `families`, and `family_members`.
-- `edit.html` supports editing person details, marking deceased, adding parents, adding spouse/partner family groups, adding children under a specific spouse group, moving existing children among spouse/family groups, and editing marriage facts/status.
-- `edit.html` now uses UUID primary keys for newly created people/families and keeps GEDCOM-style IDs separately, preventing duplicate `people_pkey` issues when adding new spouses/children.
-- `edit.html` allows adding a child even when the spouse is unknown; it creates a parent-only family group.
-- Supabase key typo in `edit.html` was fixed in commit `a07fc35`.
-- Family editor UX was significantly improved after the first MVP:
-  - add father/mother/spouse now uses guided modals instead of browser prompts
-  - add child first asks son/daughter and filters search results by sex
-  - spouse search filters by opposite gender when the focus person's gender is known
-  - spouse search supports paged "Load more results"
-  - spouse search includes a fuzzy-search toggle, off by default
-  - search results show parent names where available
-  - search results now show source GEDCOM filename, not raw GEDCOM UUID
-  - selected editing card is visually highlighted
-  - child handles are hidden by default and appear only during move mode
-  - "Move existing child here" now enables board move mode instead of opening search
+## Role Architecture
 
-Profile correction overlay currently supports these harmless fields:
+```text
+visitor   → read archive, raise corrections, claim profile
+moderator → visitor + admin panel (corrections, suggestions, forum)
+admin     → moderator + edit profiles/families via edit.html and person.html
+superadmin → admin + full admin panel (GEDCOM imports/exports, users, ads, payments, site stats)
+```
 
-- corrected name
-- deceased flag
-- date of birth as free text
-- date of death as free text
-- place of death
-- mobile number
-- root place
-- place of birth
-- current location
-- birth order (`First`, `2` through `20`, `Last`)
+**Admin panel (admin.html) is superadmin-only.** Admins were removed from the admin panel link and blocked by redirect to prevent accidental GEDCOM import/delete/export. Admins do their work via:
+- `person.html` — edit profile details, raise corrections
+- `edit.html` — edit family relationships, add/remove family members
 
-Relationship/family modification requests are collected as review notes only for now:
+---
 
-- parents
-- siblings
-- spouse
-- children
+## Key Pages
 
-They do not directly modify the family graph yet.
+```text
+index.html      — main archive (search, browse tree, index, user guide, contributions)
+person.html     — individual profile view + edit/correction tools
+edit.html       — native family tree editor (admin+)
+admin.html      — operations panel (superadmin only)
+advertise.html  — ad policy, pricing, interest form (public)
+terms.html      — terms & conditions, privacy policy (public)
+trouble.html    — login troubleshooting, WhatsApp community links (public)
+```
 
-Supabase profile overlay SQL has already been run by Shiraz in the AKT Supabase project. The active schema additions are:
+---
+
+## Recent Major Work Completed (Since Last Handoff)
+
+### Security
+- **RLS emergency fix** (`supabase_rls_fix.sql`) — all tables were open to unauthenticated anon requests. Fixed with `akt_is_visitor()`, `akt_is_staff()`, `akt_is_admin()` helper functions that bypass the broken `akt_has_role()`.
+- **robots.txt** — blocks all search engine crawlers (Disallow: /)
+- **noindex meta tags** — added to all 10 HTML pages
+- **Admin panel locked** — only superadmin can access admin.html; admin role redirected back to index.html
+- **Tab-focus reload fix** — Supabase `TOKEN_REFRESHED` and `SIGNED_IN` events no longer re-initialise the app when already running; prevents page reloads on browser tab switch
+
+### Community Badges & Roles
+- `is_contributor boolean` and `community_role text` columns added to `people`
+- Badges shown on person profiles and search results
+- Admin can assign badges from admin.html Badges tab
+- Badge filter in search drawer + badge keyword detection in search bar
+
+### Profile Attach (Duplicate Linking)
+- `person_identity_groups` and `person_identity_members` tables
+- Admin can link duplicate profiles from person.html
+- "Also recorded as:" shown on profile and on partner's marriage section
+- Fixed: URL pasting (full profile URLs now parsed), success message persists after re-render, form hidden for non-admins
+
+### Corrections & Notifications
+- **In-app notification system** (`user_notifications` table) — when admin marks a correction completed, user sees a green banner on next login
+- Admin can send follow-up queries to users; users can reply inline from the banner
+- Notification delivery status (shown_at, acknowledged_at, reply_message, replied_at) visible in Corrections accordion
+- **Revoke Claim** — deletes profile claim, resets `visitor_form_completed` so user re-does sign-up flow
+
+### Divorce & Custody
+- `custody_parent` column on `family_members` (father/mother/shared)
+- edit.html shows custody dropdown per child when family is divorced/separated
+- person.html shows `w/Father` / `w/Mother` / `Shared` badge next to children
+- Browse Tree shows amber border + "Divorced" label between divorced couple boxes
+
+### Print Tree (Paid Feature)
+- `print_payments` table — UPI QR payment (9818555830@ptsbi, dynamic price)
+- `print_price` stored in `admin_config` (changeable from admin Ads tab)
+- `print_monetization` global toggle (enable/disable via admin)
+- Per-user `print_free` flag for exemptions
+- Print analytics: total clicks, paid prints, conversion rate in admin
+- Admin → Print Payments tab: verify/reject UTR payments, mobile/email shown
+
+### Advertising System
+- `ads`, `ad_impressions`, `ad_inquiries` tables
+- Ad popup shown once per unique user after login; 24-hour re-show for non-dismissed
+- Billing metric: **shown impressions** (not dismissed — user sees ad regardless of × click)
+- Admin Ads tab: impression log with user names + mobile, collapsible per-user interaction log
+- advertise.html — public page with policy, pricing (₹250/shown impression), inquiry form
+- "✨ Advertise with Us" shimmer button in search panel
+
+### Index Tab Enhancements
+- GEDCOM search filters by filename (not people names inside)
+- Admin can **inline rename** GEDCOM files directly from Index tab
+- Admin can **inline rename person names** directly from Index list (✏ button per row, full-width input, Enter to save)
+- Split-pane quick view: clicking a name in Index opens person detail panel beside the list with Prev/Next navigation
+
+### Site Stats (admin.html)
+- Grouped: Members / Visits / Archive
+- Members: Total Registered, Total Approved, Total Blocked, New Approved Today
+- Visits: Unique Today, Unique Yesterday, Unique Last 7 Days (all from activity_logs — accurate)
+- Archive: People, Families, GEDCOM files, People/Families across uploads, Repeated filenames
+
+### Other
+- **User Guide** updated: mobile number privacy, DOB privacy, how to print family tree (step-by-step with 6-generation limit explained)
+- **Divorced marker** in Browse Tree / Print Tree: amber border + "Divorced" text between couple boxes
+- **favicon.ico** generated (16/32/48px) from logo
+- **trouble.html** — login FAQ page with two WhatsApp community group links and tag instructions
+- **WhatsApp community button** in search panel (shimmer animation)
+- `allnames.json` kept up to date alongside `people` table
+
+---
+
+## SQL Files — All Run Status
+
+All SQL files are confirmed run in Supabase **except**:
+
+```text
+supabase_profile_overrides.sql  — NOT run (person_profile_overrides table missing)
+                                   Needed for "Apply Safe Fields" in Corrections tab.
+                                   Skip if corrections overlay feature not needed.
+```
+
+All other SQL files confirmed run:
+- supabase_rls_fix.sql ✅ (critical — enables RLS)
+- supabase_ads.sql ✅
+- supabase_ad_inquiries.sql ✅
+- supabase_user_notifications.sql ✅
+- supabase_print_payments.sql ✅
+- supabase_print_monetization.sql ✅
+- supabase_custody_parent.sql ✅
+- supabase_community_roles.sql ✅
+- supabase_contributor_badge.sql ✅
+- supabase_claim_revoke_notice.sql ✅
+- supabase_profile_claim_delete_policy.sql ✅
+- supabase_relationship_mvp.sql ✅
+- supabase_access_gate.sql ✅
+- supabase_activity_logs.sql ✅
+- supabase_staff_activity_logs.sql ✅
+- supabase_profile_claims.sql ✅
+- supabase_forum.sql ✅
+- supabase_signup_events.sql ✅
+- supabase_role_applications.sql ✅
+- supabase_family_editor_updates.sql ✅
+
+---
+
+## Backlog (Not Yet Built)
+
+### High Priority
+
+- **Referral / vouching system** — new users enter email or mobile of an existing member to get auto-approved. Build when approved users > 200.
+
+- **Activity log cleanup button** — activity_logs is 15 MB (largest table, 23% of DB). Admin button in Site Stats to delete logs older than 90 days. SQL:
+  ```sql
+  DELETE FROM public.activity_logs WHERE created_at < now() - interval '90 days';
+  DELETE FROM public.staff_activity_logs WHERE created_at < now() - interval '180 days';
+  ```
+  Run manually in Supabase SQL editor until button is built.
+
+- **Reactivate blocked users** — 28 users are currently blocked. Need a workflow to review and selectively reactivate. Currently requires manual DB edit.
+
+- **Print Tree UPI payment Razorpay option** — Razorpay Option B (client-side) for automated payment verification instead of manual UTR check.
+
+### Medium Priority
+
+- **Browse Tree depth increase** — currently limited to 6 ancestor + 6 descendant generations. Increasing ancestors to 10 is safe (linear queries). Increasing descendants to 10 is risky (exponential query growth for large families). Consider "Load next generation" button instead.
+
+- **eBook generator** — see detailed prompt at bottom of this file. Node.js script that queries Supabase and generates a printable HTML file organised by GEDCOM chapter with cross-references.
+
+- **Location filter** — replace GEDCOM-filename-based locations filter with actual `birth_place`, `current_place`, `root_place`, `death_place` field values, auto-deduplicated. Planned SQL view in `supabase_places_view.sql`.
+
+- **EmailJS notification layer** — layer email notifications on top of existing in-app notification system. Free tier: 200 emails/month. Needs EmailJS account setup (~30 min).
+
+- **WhatsApp Business API** — fully automated WhatsApp notifications require Meta approval + backend server. Not feasible with current GitHub Pages stack.
+
+### Low Priority / Ideas
+
+- **Custody in Browse Tree** — show `w/Father` / `w/Mother` badges on child boxes inside the tree view (currently only on person.html profile page)
+- **"Former marriage" label** in Browse Tree for divorced person's second marriage context
+- **GEDCOM export** from edited native tables (`people`, `families`, `family_members`)
+- **Source GEDCOM selector** when creating brand-new people/families in edit.html
+
+---
+
+## Database Schema Notes
+
+### Key tables
+
+```text
+people              — archive (uid, name, sex, birth_place, death_place, root_place,
+                      current_place, birth_date, death_date, death_flag, marr_status,
+                      gedcom_id, notes, occupation, contact_address, email,
+                      is_contributor, community_role)
+families            — family units (uid, husband_uid, wife_uid, marr_status, marr_date,
+                      marr_place, marr_notes, gedcom_id)
+family_members      — (family_uid, person_uid, role, birth_order, custody_parent)
+gedcom_uploads      — (id, filename, people_count, families_count)
+visitors            — registered users (auth_user_id, email, mobile, name_entered,
+                      access_role, access_status, is_blocked, visitor_form_completed,
+                      print_free, claim_revoke_notice, last_seen, first_seen)
+activity_logs       — all user events (visitor_name, action, target, details jsonb,
+                      device jsonb, created_at) — 15 MB, trim to 90 days when needed
+admin_config        — key/value settings (print_monetization, print_price)
+ads                 — ad campaigns (advertiser_name, image_url, status, target_impressions)
+ad_impressions      — (ad_id, visitor_id, shown_at, dismissed_at)
+print_payments      — (visitor_id, utr, amount, status)
+user_notifications  — (recipient_mobile, recipient_email, title, message,
+                      shown_at, acknowledged_at, reply_message, replied_at)
+person_identity_groups/members — duplicate profile linking
+canonical_family_groups/children — family overlay (community-added)
+relationship_overrides — approved relationship links
+correction_requests — user-submitted corrections
+profile_claims      — user profile claims
+```
+
+### RLS helper functions (created by supabase_rls_fix.sql)
 
 ```sql
-public.person_profile_overrides
-public.correction_requests correction_* columns
+public.akt_is_visitor()  — approved, non-blocked auth user
+public.akt_is_staff()    — moderator or above
+public.akt_is_admin()    — admin or superadmin
 ```
 
-Profile overlays still exist as audit/review support, but safe approved profile fields now also write into `people`. Relationship graph edits should increasingly move away from overlays and into real `families` / `family_members` records.
+All policies use these instead of the broken `akt_has_role()`.
 
-## Native Family Editor MVP
+---
 
-New page:
+## Google OAuth Consent Screen
 
-```text
-edit.html?uid=<person_uid>
-```
+Currently shows "fusairoeiabmqvsbxhfi.supabase.co" on the Google sign-in page.
 
-Purpose:
+**To fix:**
+1. Google Cloud Console → APIs & Services → OAuth consent screen
+2. App name → "Apno Ki Talash"
+3. App logo → apnonkitalash-icon-light.png
+4. Homepage → https://apnonkitalash.com
+5. Authorized domains → apnonkitalash.com
+6. Supabase → Authentication → URL Configuration → Site URL → https://apnonkitalash.com
 
-```text
-Native genealogy editor that writes to source-style tables instead of only showing overlay corrections.
-```
+---
 
-Current implementation:
+## eBook Generator Prompt (Future Agent)
 
-- Loads the selected person as the focus person.
-- Shows father and mother from the person's parent `family_members` row.
-- Shows spouse/partner groups from `families`.
-- Shows children grouped under each spouse/partner family.
-- Allows editing a real person row:
-  - name
-  - gender
-  - alive/deceased flag
-  - birth date/place
-  - death date/place
-  - notes
-- Allows adding/setting father and mother.
-- Allows adding a spouse/partner family group.
-- Allows adding/finding a son or daughter under a specific spouse/partner group:
-  - first asks whether the child is a son or daughter
-  - filters search results by `sex = M` or `sex = F`
-  - can create a brand-new child record if no match is found
-- Allows moving existing visible child cards among spouse/partner family groups:
-  - click `Move existing child here`
-  - child handles appear
-  - drag a child card into another visible family group
-  - click `Done` in the move banner
-- Allows editing marriage facts on the real `families` row:
-  - `marr_date`
-  - `marr_place`
-  - `marr_status`
-  - `marr_notes` if the new schema column has been applied
+**Project context:** Apno Ki Talash (AKT) genealogy archive at apnonkitalash.com. Static HTML + Supabase. GitHub repo: https://github.com/mdshirazakt-stack/akt. Local: /Users/shiraz/apnonkitalash/akt/
 
-Important behavior:
+**Key tables:** `gedcom_uploads` (chapter ordering by filename number), `people`, `families`, `family_members`, `canonical_family_groups`, `canonical_family_children`, `person_identity_members`/`groups`, `relationship_overrides`
 
-- Browse Tree reads from `families` and `family_members`, so edits made through `edit.html` should appear in Browse Tree after refresh.
-- Newly created people inherit a source GEDCOM:
-  - children prefer the husband/father's source GEDCOM when the target family has a husband
-  - otherwise they fall back to the focus person's `gedcom_id`
-  - other newly created people currently fall back to the focus person's `gedcom_id`
-- Relationship search results resolve `people.gedcom_id` through `gedcom_uploads.filename`, e.g. `202-Shiraz-familyof-Rasra`, rather than showing raw upload UUIDs.
-- Cross-GEDCOM marriages should preserve provenance:
-  - each person keeps their own original `gedcom_id`
-  - family rows connect them truthfully
-  - UI should later show source badges for person source, spouse source, and relationship/family source
+**Task:** Generate a genealogy eBook — one chapter per GEDCOM file, organised by filename number. Cross-reference instead of duplicating data across GEDCOMs.
 
-Known limitations / next fixes:
+**Rules:**
+1. Chapters ordered by leading number in filename (e.g. 153 in 153-Rasra.ged)
+2. Each chapter covers people from that GEDCOM's `gedcom_id`
+3. Organise by family units (`canonical_family_groups` + `families` table)
+4. Daughter married OUT to another GEDCOM → show name + "(See Chapter N)"
+5. Daughter-in-law FROM another GEDCOM → show name + "(Family details in Chapter N)"
+6. Daughter married WITHIN same GEDCOM → at in-laws entry, note "See [father's name] family (this chapter)"
+7. End of each chapter: cross-reference summary
+8. End of book: global alphabetical index
 
-- Security hardening is the highest priority before broad public rollout. Start with `SECURITY_REVIEW.md`.
-- `edit.html` still has a few prompt/confirm paths, especially deleting empty groups; most core add/search/create flows now use modals.
-- Permission gating now allows moderators into profile editing while relationship/family graph operations remain admin-only in the UI guards.
-- Relationship overlays still exist and can confuse users if mixed with native edits. Decide whether to hide, migrate, or archive overlay relationship tools.
-- Backlog: improve the Raise Correction form before expanding duplicate review:
-  - make "Flag duplicate profile" a dedicated section, not just a field inside relationship corrections
-  - explain that visitors should paste the other profile link or UID and briefly say why they think it is the same person
-  - split correction form areas into chevron-openable sections so users can see all available sections at once without a long intimidating form
-- Need a safe way to delete/undo native family edits.
-- Need source GEDCOM selector/override when creating brand-new people/families.
-- Need better handling for wife with multiple husbands and husband with multiple wives in the visual editor.
-- Need GEDCOM export that emits edited `people`, `families`, and `family_members`.
-- Drag-and-drop move mode currently moves visible children among visible spouse/family groups for the current focus person. It does not search for children outside the current board.
+**Output:** Single `ebook.html` in /Users/shiraz/apnonkitalash/akt/ — printable, A4, Amiri + Lato fonts, gold/green colour palette, page breaks between chapters, clickable Table of Contents.
 
-Schema note:
+**Implementation:** Node.js build script (`node generate-ebook.js`) querying Supabase REST API with anon key from auth-flow.js. Paginate people in batches of 1000.
 
-```text
-supabase_family_editor_updates.sql
-```
-
-This file adds:
-
-```sql
-alter table public.families
-  add column if not exists marr_notes text;
-```
-
-Run it in the AKT Supabase project if marriage notes should persist from the marriage-details modal.
-
-## Open Item For Tomorrow: GEDCOM Notes
-
-GEDCOM no. 202 was checked at:
-
-```text
-/Users/shiraz/Downloads/202-Shiraz-familyof-Rasra.ged
-```
-
-Finding:
-
-```text
-The file contains 100 NOTE fields.
-```
-
-Examples include:
-
-```text
-1 NOTE Blue Star Finishers<br>Mobile - 9415051970
-1 NOTE Mohammad Shiraz Anwar is a seasoned Product & Program Leadership executive...
-2 CONC continuation lines...
-```
-
-Current parser status:
-
-- `admin.html` now parses GEDCOM `NOTE`, `CONC`, and `CONT` tags into `people.notes` for future uploads.
-- Existing uploaded people rows can show notes after a no-reupload SQL backfill.
-- Reuploading GEDCOM 202 is not desired.
-
-Potential no-reupload backfill file provided by Shiraz:
-
-```text
-/Users/shiraz/Downloads/import_notes.sql
-```
-
-This file was useful because it:
-
-- adds `public.people.notes`
-- updates 100 people from GEDCOM 202 using `raw_gedcom_id`
-
-Important safety handling:
-
-A scoped import file has been generated in the repo:
-
-```text
-supabase_import_202_notes.sql
-```
-
-It scopes every update to the latest uploaded `202-Shiraz-familyof-Rasra.ged`, because `raw_gedcom_id` values such as `@I1@` can exist in multiple GEDCOM uploads.
-
-Recommended next steps for notes:
-
-1. Ask Shiraz to run `supabase_profile_overrides.sql` first if the new note columns are not yet present.
-2. Ask Shiraz to run `supabase_import_202_notes.sql` in the AKT Supabase project.
-3. Verify a known noted profile such as raw GEDCOM `@I1@` or `@I6@`.
-4. Keep source notes in `people.notes`; keep approved community notes in `person_profile_overrides.profile_note`.
-
-## Repository 1: `akt`
-
-Purpose: genealogy engine only.
-
-Local path:
-
-```text
-/Users/shiraz/apnonkitalash/akt
-```
-
-Domain:
-
-```text
-apnonkitalash.com
-```
-
-Expected root contents:
-
-```text
-CNAME
-index.html          public under-development holding page
-forum.html          public community forum
-archive.html        working genealogy explorer
-admin.html
-allnames.json
-legacy-code/
-```
-
-Important notes:
-
-- `index.html` is the public holding page while the site is under development.
-- `forum.html` is a public discussion forum using the existing `forum_*` Supabase tables.
-- `archive.html` is the Shijra genealogy explorer used for background development.
-- `admin.html` is the Shijra admin/import/export utility.
-- `allnames.json` must stay beside `archive.html`, because the explorer uses:
-
-```js
-fetch('allnames.json')
-```
-
-- `CNAME` should contain:
-
-```text
-apnonkitalash.com
-```
-
-- Do not move Shijra into `/shijra/` anymore.
-- Do not add public heritage portal pages to this repo.
-- Do not mix Iraqi Biradari CMS/admin content into this repo.
-
-Current Git state/context:
-
-- The repo was restored to genealogy-only.
-- Latest local cleanup commit was:
-
-```text
-9f2f700 Restore akt as genealogy-only site
-```
-
-Check before continuing:
-
-```bash
-cd /Users/shiraz/apnonkitalash/akt
-git status
-```
-
-If needed, push:
-
-```bash
-git push
-```
-
-## Repository 2: `iraqibiradari-site`
-
-Purpose: public Iraqi Biradari heritage portal.
-
-Local path:
-
-```text
-/Users/shiraz/apnonkitalash/iraqibiradari-site
-```
-
-Domain:
-
-```text
-iraqibiradari.com
-```
-
-Expected root contents:
-
-```text
-CNAME
-index.html
-about/
-events/
-documents/
-videos/
-contact/
-admin/
-assets/
-```
-
-Important notes:
-
-- `CNAME` should contain:
-
-```text
-iraqibiradari.com
-```
-
-- All Shijra links in this repo should point to:
-
-```text
-https://apnonkitalash.com/
-```
-
-- Do not host or duplicate the genealogy engine inside this repo.
-- This repo is for content, heritage pages, videos, PDFs, events, announcements, and future admin console.
-
-Current Git state/context:
-
-- The repo was initialized locally.
-- Initial commit was:
-
-```text
-f8272c1 Initial heritage portal site
-```
-
-Check before continuing:
-
-```bash
-cd /Users/shiraz/apnonkitalash/iraqibiradari-site
-git status
-git remote -v
-```
-
-If remote is missing, add it after creating the GitHub repo:
-
-```bash
-git remote add origin git@github-akt:mdshirazakt-stack/iraqibiradari-site.git
-git push -u origin main
-```
-
-If remote already exists, push:
-
-```bash
-git push -u origin main
-```
-
-## Domain / DNS Mapping
-
-Use this final domain ownership:
-
-```text
-apnonkitalash.com  -> akt
-iraqibiradari.com  -> iraqibiradari-site
-```
-
-For GitHub Pages apex domains, recommended DNS records are:
-
-```text
-Type: A
-Host: @
-Value: 185.199.108.153
-
-Type: A
-Host: @
-Value: 185.199.109.153
-
-Type: A
-Host: @
-Value: 185.199.110.153
-
-Type: A
-Host: @
-Value: 185.199.111.153
-```
-
-For `www`:
-
-```text
-Type: CNAME
-Host: www
-Value: mdshirazakt-stack.github.io
-```
-
-Optional IPv6:
-
-```text
-Type: AAAA
-Host: @
-Value: 2606:50c0:8000::153
-
-Type: AAAA
-Host: @
-Value: 2606:50c0:8001::153
-
-Type: AAAA
-Host: @
-Value: 2606:50c0:8002::153
-
-Type: AAAA
-Host: @
-Value: 2606:50c0:8003::153
-```
-
-Remove old/conflicting parking, forwarding, A, AAAA, or CNAME records for `@` and `www`.
-
-## Design Direction For `iraqibiradari-site`
-
-The site should feel like:
-
-- historical archive
-- manuscript collection
-- cultural registry
-- heritage institution
-
-Preferred visual direction:
-
-- deep green
-- cream/off-white
-- muted gold
-- charcoal text
-- subtle Islamic/archival influence
-- timeless and calm
-
-Avoid:
-
-- startup aesthetic
-- flashy gradients
-- SaaS dashboard look
-- excessive animation
-- heavy frameworks
-
-Technology:
-
-```text
-Static HTML
-TailwindCSS via CDN for now
-Vanilla JavaScript
-Supabase later for content/admin data
-GitHub Pages deployment
-```
-
-## Current `iraqibiradari-site` Pages
-
-Created pages:
-
-```text
-/
-/about/
-/events/
-/documents/
-/videos/
-/contact/
-```
-
-Future admin path:
-
-```text
-/admin/
-```
-
-Current public pages are static first-pass pages. They can be refined later.
-
-## Supabase Decision
-
-Do not use the existing Supabase account tied to:
-
-```text
-mdshiraz.akt@gmail.com
-```
-
-That account/project belongs to `apnonkitalash.com` / Shijra.
-
-Recommended new account/project for Iraqi Biradari:
-
-```text
-Email: mdshiraz.ib@gmail.com
-Project name: iraqibiradari-site
-```
-
-Reason:
-
-- keeps genealogy data isolated
-- keeps free-tier limits isolated
-- avoids PDF/video storage pressure affecting Shijra
-- separates admin credentials/API keys
-- makes future maintenance cleaner
-
-## Media Storage Recommendation
-
-Do not store videos directly in Supabase.
-
-Use:
-
-```text
-YouTube for videos
-Google Drive or Supabase Storage for PDFs initially
-Supabase DB only for metadata
-```
-
-Supabase should store metadata such as:
-
-```text
-title
-description
-youtube_url
-pdf_url
-thumbnail_url
-event_date
-category
-priority
-created_at
-```
-
-## Planned Supabase Tables
-
-### `events`
-
-```text
-id
-title
-description
-event_date
-venue
-banner_image
-created_at
-```
-
-### `videos`
-
-```text
-id
-title
-youtube_url
-description
-thumbnail
-created_at
-```
-
-### `documents`
-
-```text
-id
-title
-description
-pdf_url
-cover_image
-category
-created_at
-```
-
-### `announcements`
-
-```text
-id
-title
-body
-priority
-created_at
-```
-
-## Admin Console Scope
-
-Build lightweight admin only for:
-
-```text
-Events
-Videos
-PDF documents/books
-Announcements
-```
-
-Avoid building a full CMS initially.
-
-Admin should support:
-
-- add item
-- edit item
-- delete item
-- list existing items
-- simple authentication strategy, likely Supabase auth or password gate
-
-Keep it simple and static-friendly.
-
-## Next Recommended Steps
-
-1. Confirm both repos are clean:
-
-```bash
-cd /Users/shiraz/apnonkitalash/akt
-git status
-
-cd /Users/shiraz/apnonkitalash/iraqibiradari-site
-git status
-```
-
-2. Confirm both domains are correctly configured:
-
-```text
-apnonkitalash.com opens Shijra
-iraqibiradari.com opens heritage portal
-Shijra links from iraqibiradari.com open apnonkitalash.com
-```
-
-3. Create/use separate Supabase account:
-
-```text
-mdshiraz.ib@gmail.com
-```
-
-4. Create Supabase project:
-
-```text
-iraqibiradari-site
-```
-
-5. Create the four tables:
-
-```text
-events
-videos
-documents
-announcements
-```
-
-6. Get Supabase values:
-
-```text
-SUPABASE_URL
-SUPABASE_ANON_KEY
-```
-
-7. Build `/admin/index.html` in `iraqibiradari-site`.
-
-8. Connect public pages to Supabase data:
-
-```text
-/events/
-/documents/
-/videos/
-homepage announcements/events/docs/videos sections
-```
-
-## Guardrails For Future Sessions
-
-- Do not merge the two repos again.
-- Do not move Shijra into `/shijra/`.
-- Do not put Iraqi Biradari content admin into `akt`.
-- Do not use the old Shijra Supabase project for portal data.
-- Do not store heavy videos in Supabase.
-- Keep `apnonkitalash.com` and `iraqibiradari.com` separate.
-- Make small commits after each meaningful step.
-
-## Relationship / Family Editing History
-
-Important context: the project first explored relationship overlays, then moved toward native table edits.
-
-The overlay approach is still present in the codebase, but it is no longer the preferred end-state for real genealogy relationships. The current direction is:
-
-```text
-Profile-safe fields -> update `people`
-Real relationship/family graph edits -> update `families` and `family_members`
-Audit/review/legacy overlay data -> keep for reference or migration
-```
-
-Overlay SQL file:
-
-```text
-supabase_relationship_mvp.sql
-```
-
-Run it in the AKT Supabase project:
-
-```text
-https://fusairoeiabmqvsbxhfi.supabase.co
-```
-
-Tables added by the SQL:
-
-```text
-person_identity_groups
-person_identity_members
-relationship_overrides
-community_family_submissions
-community_family_people
-community_family_relationships
-canonical_family_groups
-canonical_family_children
-```
-
-Current implementation:
-
-- `person.html` still contains the older edit drawer and overlay functions, but the visible `Edit Profile` entry point now goes to `edit.html?uid=<person_uid>`.
-- Relationship additions can still link to an existing person across GEDCOM files or record a new person name through the older overlay path.
-- Approved relationship overlays can display on the profile under “Linked Family Records”.
-- Reviewed marriage/child groupings using `canonical_family_groups` were added as an interim step.
-- This interim layer exposed a limitation: Browse Tree still reads the real `families` / `family_members` graph, so overlays alone do not make the tree truthful.
-- The new `edit.html` native editor is intended to replace overlay-based relationship editing for actual family structure updates.
-- `edit.html` now has the preferred editing path for real relationships:
-  - guided add/search/create modals for parents, spouse/partner, and children
-  - son/daughter child selection before child search
-  - spouse search constrained to the opposite gender when possible
-  - visible-card drag mode for moving children among spouse/family groups
-  - source labels resolved from `gedcom_uploads.filename`
-- `admin.html` now has a “Family Builder” tab for brand-new family submissions.
-- Family Builder can create a family submission, add people, and add relationships within that submitted family.
-- Family Builder also includes “Known Duplicate Profiles” to create identity groups and link multiple profile UIDs as the same real person.
-- `archive.html` search results now support configurable result columns and preserve query, filters, page, and selected columns while moving between results and profile pages.
-- Role/permission enforcement is intentionally deferred, per current plan.
-
-Next relationship work:
-
-- Continue improving `edit.html` as the real family editor.
-- Continue replacing remaining prompt/confirm paths with proper UI, especially destructive/delete operations.
-- Improve board-level drag/drop affordances and mobile behavior for move mode.
-- Add explicit source GEDCOM selector/override when creating brand-new people or families.
-- Add admin/moderator permission gating before public exposure.
-- Add undo/delete tools for native family edits.
-- Decide whether to migrate existing `relationship_overrides` and `canonical_family_groups` into real `people` / `families` / `family_members`.
-- Add export logic that can emit GEDCOM from edited native tables plus useful audit/provenance metadata.
+---
 
 ## Quick Commands
 
-Start local server for `akt`:
-
 ```bash
+# Start local server
 cd /Users/shiraz/apnonkitalash/akt
 python3 -m http.server 8000
+# Open http://localhost:8000/
+
+# Push changes
+git add -A && git commit -m "message" && git push
+
+# Check DB size
+# Run in Supabase SQL editor:
+SELECT relname, pg_size_pretty(pg_total_relation_size(relid))
+FROM pg_catalog.pg_statio_user_tables
+ORDER BY pg_total_relation_size(relid) DESC LIMIT 15;
 ```
 
-Open:
+---
 
-```text
-http://localhost:8000/
-http://localhost:8000/admin.html
-```
+## Guardrails For Future Sessions
 
-Start local server for `iraqibiradari-site`:
-
-```bash
-cd /Users/shiraz/apnonkitalash/iraqibiradari-site
-python3 -m http.server 8001
-```
-
-Open:
-
-```text
-http://localhost:8001/
-http://localhost:8001/about/
-http://localhost:8001/events/
-http://localhost:8001/documents/
-http://localhost:8001/videos/
-http://localhost:8001/contact/
-http://localhost:8001/admin/
-```
+- Do not merge the two repos (akt and iraqibiradari-site)
+- Do not move Shijra into /shijra/
+- Do not put Iraqi Biradari content admin into akt
+- Do not use the old Shijra Supabase project for portal data
+- admin.html is superadmin-only — do not re-expose to admin role without deliberate decision
+- RLS is now active on all tables — all new tables must have RLS + policies using akt_is_visitor/staff/admin
+- activity_logs is 15 MB and growing — trim to 90 days when DB approaches 300 MB
+- The `akt_has_role()` function is broken/missing — use `akt_is_visitor()`, `akt_is_staff()`, `akt_is_admin()` instead
+- New GEDCOM imports remain superadmin-only (admins redirected away from admin.html)

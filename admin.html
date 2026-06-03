@@ -4442,8 +4442,9 @@ async function loadDbStats() {
   recentEl.innerHTML = '<div class="empty"><span class="spinner"></span> Loading...</div>';
 
   const now = new Date();
-  const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
-  const weekStart  = new Date(now); weekStart.setDate(weekStart.getDate()-6); weekStart.setHours(0,0,0,0);
+  const todayStart     = new Date(now); todayStart.setHours(0,0,0,0);
+  const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(yesterdayStart.getDate()-1);
+  const weekStart      = new Date(now); weekStart.setDate(weekStart.getDate()-6); weekStart.setHours(0,0,0,0);
 
   const [
     { count: pc },
@@ -4451,6 +4452,7 @@ async function loadDbStats() {
     { data: visitorRows, error: visErr },
     { data: uploads },
     { data: loginLogsToday },
+    { data: loginLogsYesterday },
     { data: loginLogsWeek }
   ] = await Promise.all([
     sb.from('people').select('*', { count: 'exact', head: true }),
@@ -4458,6 +4460,7 @@ async function loadDbStats() {
     sb.from('visitors').select('id,visitor_form_completed,access_status,is_blocked,approved_at,updated_at,last_seen,first_seen').limit(10000),
     sb.from('gedcom_uploads').select('id,filename,people_count,families_count,uploaded_at,notes').order('uploaded_at', { ascending: false }),
     sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', todayStart.toISOString()),
+    sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', yesterdayStart.toISOString()).lt('created_at', todayStart.toISOString()),
     sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', weekStart.toISOString())
   ]);
 
@@ -4477,8 +4480,9 @@ async function loadDbStats() {
   }).length;
 
   // Unique visitors from activity_logs (accurate — not last_seen)
-  const uniqueToday = new Set((loginLogsToday || []).map(r => r.visitor_name).filter(Boolean)).size;
-  const uniqueWeek  = new Set((loginLogsWeek  || []).map(r => r.visitor_name).filter(Boolean)).size;
+  const uniqueToday     = new Set((loginLogsToday     || []).map(r => r.visitor_name).filter(Boolean)).size;
+  const uniqueYesterday = new Set((loginLogsYesterday || []).map(r => r.visitor_name).filter(Boolean)).size;
+  const uniqueWeek      = new Set((loginLogsWeek      || []).map(r => r.visitor_name).filter(Boolean)).size;
 
   const totalUploadedPeople   = uploadRows.reduce((s, r) => s + Number(r.people_count   || 0), 0);
   const totalUploadedFamilies = uploadRows.reduce((s, r) => s + Number(r.families_count || 0), 0);
@@ -4495,8 +4499,9 @@ async function loadDbStats() {
     ${card(newApprovedToday.toLocaleString(), 'New Approved Today')}
 
     ${grp('Visits')}
-    ${card(uniqueToday.toLocaleString(), 'Unique Visitors Today')}
-    ${card(uniqueWeek.toLocaleString(),  'Unique Visitors Last 7 Days')}
+    ${card(uniqueToday.toLocaleString(),     'Unique Visitors Today')}
+    ${card(uniqueYesterday.toLocaleString(), 'Unique Visitors Yesterday')}
+    ${card(uniqueWeek.toLocaleString(),      'Unique Visitors Last 7 Days')}
 
     ${grp('Archive')}
     ${card((pc || 0).toLocaleString(),               'People in Database')}

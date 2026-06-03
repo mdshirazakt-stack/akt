@@ -4451,7 +4451,7 @@ async function loadDbStats() {
     sb.from('people').select('*', { count: 'exact', head: true }),
     sb.from('families').select('*', { count: 'exact', head: true }),
     sb.from('visitors').select('*', { count: 'exact', head: true }),
-    sb.from('visitors').select('id,auth_user_id,email,mobile,name_entered,last_seen,visitor_form_completed,consent_terms_accepted').limit(10000),
+    sb.from('visitors').select('id,auth_user_id,email,mobile,name_entered,last_seen,visitor_form_completed,consent_terms_accepted,visit_count,access_status,is_blocked').limit(10000),
     sb.from('gedcom_uploads').select('id,filename,people_count,families_count,uploaded_at,notes').order('uploaded_at', { ascending: false })
   ]);
 
@@ -4466,24 +4466,40 @@ async function loadDbStats() {
   const now = new Date();
   const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
   const weekStart = new Date(now); weekStart.setDate(weekStart.getDate() - 7); weekStart.setHours(0,0,0,0);
-  const registeredTotal = (visitorRows || []).filter(isRegisteredVisitor).length;
-  const dailyUniqueVisitors = uniqueVisitorCountSince(visitorRows || [], todayStart);
-  const weeklyUniqueVisitors = uniqueVisitorCountSince(visitorRows || [], weekStart);
-  const totalUploadedPeople = uploadRows.reduce((sum, row) => sum + Number(row.people_count || 0), 0);
+  const allVisitors = visitorRows || [];
+  const approvedVisitors = allVisitors.filter(v => !v.is_blocked && v.access_status !== 'rejected');
+  const registeredTotal  = allVisitors.filter(isRegisteredVisitor).length;
+  const approvedTotal    = approvedVisitors.length;
+  const blockedTotal     = allVisitors.filter(v => v.is_blocked || v.access_status === 'blocked').length;
+  const repeatVisitors   = approvedVisitors.filter(v => (v.visit_count || 0) > 1).length;
+  const dailyUniqueVisitors  = uniqueVisitorCountSince(allVisitors, todayStart);
+  const weeklyUniqueVisitors = uniqueVisitorCountSince(allVisitors, weekStart);
+  const dailyAvg = weeklyUniqueVisitors > 0 ? Math.round(weeklyUniqueVisitors / 7) : 0;
+  const totalUploadedPeople   = uploadRows.reduce((sum, row) => sum + Number(row.people_count || 0), 0);
   const totalUploadedFamilies = uploadRows.reduce((sum, row) => sum + Number(row.families_count || 0), 0);
   const duplicateGroups = getDuplicateUploadGroups(uploadRows);
 
   el.innerHTML = `
+    <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--gold);grid-column:1/-1;margin-bottom:4px">Archive</div>
     <div class="insight-card"><div class="num">${(pc || 0).toLocaleString()}</div><div class="lbl">People in Database</div></div>
     <div class="insight-card"><div class="num">${(fc || 0).toLocaleString()}</div><div class="lbl">Families in Database</div></div>
-    <div class="insight-card"><div class="num">${registeredTotal.toLocaleString()}</div><div class="lbl">Registered Users</div></div>
-    <div class="insight-card"><div class="num">${dailyUniqueVisitors.toLocaleString()}</div><div class="lbl">Unique Visitors Today</div></div>
-    <div class="insight-card"><div class="num">${weeklyUniqueVisitors.toLocaleString()}</div><div class="lbl">Unique Visitors Last 7 Days</div></div>
-    <div class="insight-card"><div class="num">${uploadRows.length.toLocaleString()}</div><div class="lbl">GEDCOM Uploads</div></div>
-    <div class="insight-card"><div class="num">${duplicateGroups.length.toLocaleString()}</div><div class="lbl">Repeated Filenames</div></div>
+    <div class="insight-card"><div class="num">${uploadRows.length.toLocaleString()}</div><div class="lbl">GEDCOM Files</div></div>
     <div class="insight-card"><div class="num">${totalUploadedPeople.toLocaleString()}</div><div class="lbl">People Across Uploads</div></div>
     <div class="insight-card"><div class="num">${totalUploadedFamilies.toLocaleString()}</div><div class="lbl">Families Across Uploads</div></div>
-    <div class="insight-card"><div class="num">${(vc || 0).toLocaleString()}</div><div class="lbl">Visitors</div></div>
+
+    <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--gold);grid-column:1/-1;margin:12px 0 4px">Members</div>
+    <div class="insight-card"><div class="num">${registeredTotal.toLocaleString()}</div><div class="lbl">Registered</div></div>
+    <div class="insight-card"><div class="num">${approvedTotal.toLocaleString()}</div><div class="lbl">Approved</div></div>
+    <div class="insight-card"><div class="num">${blockedTotal.toLocaleString()}</div><div class="lbl">Blocked</div></div>
+    <div class="insight-card"><div class="num">${repeatVisitors.toLocaleString()}</div><div class="lbl">Return Visitors</div></div>
+
+    <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--gold);grid-column:1/-1;margin:12px 0 4px">Activity</div>
+    <div class="insight-card"><div class="num">${dailyUniqueVisitors.toLocaleString()}</div><div class="lbl">Unique Today</div></div>
+    <div class="insight-card"><div class="num">${weeklyUniqueVisitors.toLocaleString()}</div><div class="lbl">Unique Last 7 Days</div></div>
+    <div class="insight-card"><div class="num">~${dailyAvg.toLocaleString()}</div><div class="lbl">Daily Avg (7-day)</div></div>
+
+    <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--gold);grid-column:1/-1;margin:12px 0 4px">Data Quality</div>
+    <div class="insight-card"><div class="num">${duplicateGroups.length.toLocaleString()}</div><div class="lbl">Repeated Filenames</div></div>
   `;
 
   renderDuplicateUploadStats(duplicateGroups);

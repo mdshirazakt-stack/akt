@@ -4448,28 +4448,24 @@ async function loadDbStats() {
   const [
     { count: pc },
     { count: fc },
-    { data: visitorRows },
+    { data: visitorRows, error: visErr },
     { data: uploads },
     { data: loginLogsToday },
     { data: loginLogsWeek }
   ] = await Promise.all([
     sb.from('people').select('*', { count: 'exact', head: true }),
     sb.from('families').select('*', { count: 'exact', head: true }),
-    sb.from('visitors').select('id,visitor_form_completed,consent_terms_accepted,access_status,is_blocked,updated_at,created_at').limit(10000),
+    sb.from('visitors').select('id,visitor_form_completed,access_status,is_blocked,updated_at,created_at').limit(10000),
     sb.from('gedcom_uploads').select('id,filename,people_count,families_count,uploaded_at,notes').order('uploaded_at', { ascending: false }),
     sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', todayStart.toISOString()),
     sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', weekStart.toISOString())
   ]);
 
-  if (!visitorRows) {
-    el.innerHTML = '<div class="empty">Could not load stats.</div>';
-    dupEl.innerHTML = ''; recentEl.innerHTML = '';
-    return;
-  }
+  if (visErr) console.warn('Visitors query failed:', visErr.message);
 
   const uploadRows = uploads || [];
-  const allVisitors    = visitorRows;
-  const registeredTotal = allVisitors.filter(isRegisteredVisitor).length;
+  const allVisitors     = visitorRows || [];
+  const registeredTotal = allVisitors.filter(v => v.visitor_form_completed || v.access_status === 'approved').length;
   const approvedTotal   = allVisitors.filter(v => v.access_status === 'approved' && !v.is_blocked).length;
   const blockedTotal    = allVisitors.filter(v => v.is_blocked || v.access_status === 'blocked').length;
 

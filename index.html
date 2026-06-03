@@ -2127,7 +2127,7 @@ async function startApp(name, role = 'visitor', visitorRecord = null) {
 function updateAdminPanelLink(role) {
   const link = document.getElementById('admin-panel-link');
   if (!link) return;
-  link.classList.toggle('is-visible', ['admin', 'superadmin'].includes(normalizeAccessRole(role)));
+  link.classList.toggle('is-visible', ['superadmin'].includes(normalizeAccessRole(role)));
 }
 
 function doLogout() {

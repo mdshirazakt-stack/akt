@@ -3912,6 +3912,9 @@ async function printTree() {
   const printPrice = parseInt(priceRes.data?.value || '49') || 49;
   const userIsFree = visitorRes.data?.print_free === true;
 
+  // Always log every print button click (free or paid) for analytics
+  logActivity('print_tree_attempt', 'Print button clicked', { price: printPrice, free: !monetizationEnabled || userIsFree });
+
   if (!monetizationEnabled || userIsFree) {
     // Free printing — skip payment, print directly
     const label = document.getElementById('tree-person-label')?.textContent || '';
@@ -3921,8 +3924,6 @@ async function printTree() {
     return;
   }
 
-  // Log the attempt before showing modal
-  logActivity('print_tree_attempt', 'Opened print payment modal', { price: printPrice });
   openPrintPayModal(printPrice);
 }
 

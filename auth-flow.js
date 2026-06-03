@@ -1080,8 +1080,14 @@
     await handleSession(sessionResult.data?.session || null);
 
     sb.auth.onAuthStateChange((event, session) => {
-      if (['SIGNED_IN', 'TOKEN_REFRESHED'].includes(event)) {
+      if (event === 'SIGNED_IN') {
+        // Only re-run full session handling on explicit sign-in
         setTimeout(() => handleSession(session), 0);
+      }
+      if (event === 'TOKEN_REFRESHED') {
+        // Token silently refreshed — just update the session reference,
+        // do NOT re-initialise the app (causes page reload / tree reset)
+        currentSession = session;
       }
       if (event === 'SIGNED_OUT') {
         setTimeout(() => handleSession(null), 0);

@@ -4455,7 +4455,7 @@ async function loadDbStats() {
   ] = await Promise.all([
     sb.from('people').select('*', { count: 'exact', head: true }),
     sb.from('families').select('*', { count: 'exact', head: true }),
-    sb.from('visitors').select('id,visitor_form_completed,consent_terms_accepted,access_status,is_blocked,approved_at,created_at').limit(10000),
+    sb.from('visitors').select('id,visitor_form_completed,consent_terms_accepted,access_status,is_blocked,updated_at,created_at').limit(10000),
     sb.from('gedcom_uploads').select('id,filename,people_count,families_count,uploaded_at,notes').order('uploaded_at', { ascending: false }),
     sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', todayStart.toISOString()),
     sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', weekStart.toISOString())
@@ -4473,10 +4473,10 @@ async function loadDbStats() {
   const approvedTotal   = allVisitors.filter(v => v.access_status === 'approved' && !v.is_blocked).length;
   const blockedTotal    = allVisitors.filter(v => v.is_blocked || v.access_status === 'blocked').length;
 
-  // New users approved today (approved_at date matches today)
+  // New users approved today — use updated_at as proxy (approved_at may not exist)
   const newApprovedToday = allVisitors.filter(v => {
-    if (v.access_status !== 'approved') return false;
-    const ts = v.approved_at || v.created_at;
+    if (v.access_status !== 'approved' || v.is_blocked) return false;
+    const ts = v.updated_at || v.created_at;
     return ts && new Date(ts) >= todayStart;
   }).length;
 

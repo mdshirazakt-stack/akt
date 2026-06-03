@@ -1188,7 +1188,8 @@
         </div>
         <div class="insight-note" style="margin-bottom:18px">
           One active ad at a time. Others queue automatically. Shown once per unique logged-in user.
-          Impression = shown. Dismissed = user closed it. Each counts once per user.
+          <strong>Impression = shown</strong> (ad displayed to a unique user). Dismissed = user actively closed it.
+          Billing is per <em>shown</em> impression — the ad blocked the UI so the user saw it regardless of whether they clicked ×.
         </div>
         <div style="border:1px solid var(--border);padding:16px;margin-bottom:20px;background:var(--bg)">
           <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--gold);margin-bottom:12px">New Ad</div>
@@ -2536,7 +2537,7 @@ async function loadAds() {
     const shown     = shownMap[ad.id] || 0;
     const dismissed = dismissedMap[ad.id] || 0;
     const notDismissed = shown - dismissed;
-    const progress = ad.target_impressions ? Math.round(dismissed / ad.target_impressions * 100) : 0;
+    const progress = ad.target_impressions ? Math.round(shown / ad.target_impressions * 100) : 0;
     return `
     <div style="border:1px solid var(--border);padding:16px;margin-bottom:12px;background:#fff">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
@@ -2553,17 +2554,17 @@ async function loadAds() {
       </div>
       ${ad.image_url ? `<img src="${escapeHtml(ad.image_url)}" style="max-height:80px;max-width:200px;object-fit:cover;border:1px solid var(--border);margin-bottom:8px"/>` : ''}
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:0.82rem;margin-bottom:8px">
-        <div style="text-align:center;padding:8px;background:var(--bg);border:1px solid var(--border)">
-          <div style="font-size:1.4rem;font-weight:700;color:var(--ink)">${shown}</div>
-          <div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase">Total shown</div>
+        <div style="text-align:center;padding:8px;background:#dcfce7;border:1px solid #86efac">
+          <div style="font-size:1.4rem;font-weight:700;color:#166534">${shown}</div>
+          <div style="color:#166534;font-size:0.7rem;text-transform:uppercase;font-weight:700">Impressions (billed)</div>
         </div>
         <div style="text-align:center;padding:8px;background:var(--bg);border:1px solid var(--border)">
-          <div style="font-size:1.4rem;font-weight:700;color:#166534">${dismissed}</div>
-          <div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase">Dismissed</div>
+          <div style="font-size:1.4rem;font-weight:700;color:var(--ink)">${dismissed}</div>
+          <div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase">Actively dismissed</div>
         </div>
         <div style="text-align:center;padding:8px;background:var(--bg);border:1px solid var(--border)">
           <div style="font-size:1.4rem;font-weight:700;color:#92400e">${notDismissed}</div>
-          <div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase">Shown only</div>
+          <div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase">Seen, navigated away</div>
         </div>
         <div style="text-align:center;padding:8px;background:var(--bg);border:1px solid var(--border)">
           <div style="font-size:1.4rem;font-weight:700;color:var(--ink)">${ad.target_impressions}</div>
@@ -2573,7 +2574,7 @@ async function loadAds() {
       <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
         <div style="height:100%;width:${Math.min(progress,100)}%;background:#166534;transition:width 0.4s"></div>
       </div>
-      <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">${progress}% of target dismissed impressions delivered</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">${progress}% of target impressions delivered (${shown} shown / ${ad.target_impressions} target)</div>
 
       ${(() => {
         const rows = impressionsMap[ad.id] || [];

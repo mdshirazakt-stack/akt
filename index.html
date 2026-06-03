@@ -4491,14 +4491,20 @@ async function loadByFile() {
       .trim();
     const count = u.count || 0;
     const countLabel = count > 0 ? `${count.toLocaleString()} ${count === 1 ? 'person' : 'people'}` : '—';
+    const adminActions = hasRole('admin') ? `
+      <div style="display:flex;gap:5px;flex-shrink:0" onclick="event.stopPropagation()">
+        <button style="padding:3px 10px;border:1px solid var(--border);background:var(--surface);font-family:inherit;font-size:0.72rem;cursor:pointer;color:var(--gold)" onclick="gedcomStartRename('${u.id}','${escapeJs(u.filename)}')">✏ Rename</button>
+        <button style="padding:3px 10px;border:1px solid var(--border);background:var(--surface);font-family:inherit;font-size:0.72rem;cursor:pointer;color:var(--red)" onclick="gedcomDelete('${u.id}','${escapeJs(u.filename)}')">🗑 Delete</button>
+      </div>` : '';
     return `
       <div class="ged-section" id="ged-sec-${u.id}" data-id="${u.id}">
         <div class="ged-header" id="ged-hdr-${u.id}" onclick="toggleGed('${u.id}')">
-          <div class="ged-header-left">
+          <div class="ged-header-left" style="flex:1;min-width:0">
             <span class="ged-num">${num}</span>
-            <span class="ged-title" title="${u.filename}">${title}</span>
+            <span class="ged-title" id="ged-title-${u.id}" title="${escapeHtml(u.filename)}">${escapeHtml(title)}</span>
           </div>
-          <div style="display:flex;align-items:center;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            ${adminActions}
             <span class="ged-count" id="ged-count-${u.id}">${countLabel}</span>
             <span class="ged-arrow">▼</span>
           </div>
@@ -4506,6 +4512,85 @@ async function loadByFile() {
         <div class="ged-body" id="ged-body-${u.id}"></div>
       </div>`;
   }).join('');
+}
+
+// ── GEDCOM inline rename (admin only) ────────────────────────────────────────
+function gedcomStartRename(id, currentFilename) {
+  const titleEl = document.getElementById('ged-title-' + id);
+  if (!titleEl) return;
+  if (titleEl.querySelector('input')) return; // already editing
+
+  const displayName = currentFilename.replace(/\.ged$/i, '');
+  titleEl.innerHTML = `
+    <input id="ged-rename-input-${id}" value="${escapeHtml(displayName)}"
+      style="padding:3px 8px;border:1px solid var(--gold2);font-family:inherit;font-size:0.9rem;width:min(280px,50vw)"
+      onclick="event.stopPropagation()"
+      onkeydown="if(event.key==='Enter')gedcomSaveRename('${id}');if(event.key==='Escape')gedcomCancelRename('${id}','${escapeJs(currentFilename)}')"/>
+    <button onclick="event.stopPropagation();gedcomSaveRename('${id}')"
+      style="margin-left:4px;padding:3px 10px;background:var(--green);color:#fff;border:none;font-family:inherit;font-size:0.72rem;cursor:pointer">Save</button>
+    <button onclick="event.stopPropagation();gedcomCancelRename('${id}','${escapeJs(currentFilename)}')"
+      style="margin-left:2px;padding:3px 8px;border:1px solid var(--border);background:none;font-family:inherit;font-size:0.72rem;cursor:pointer">Cancel</button>`;
+  document.getElementById('ged-rename-input-' + id)?.focus();
+}
+
+function gedcomCancelRename(id, originalFilename) {
+  const u = gedcomUploads.find(u => u.id === id);
+  const title = (u?.filename || originalFilename)
+    .replace(/^\d+[-_\s]+/, '').replace(/\.ged$/i, '').replace(/[_]+/g, ' ').trim();
+  const titleEl = document.getElementById('ged-title-' + id);
+  if (titleEl) titleEl.innerHTML = escapeHtml(title);
+}
+
+async function gedcomSaveRename(id) {
+  const input = document.getElementById('ged-rename-input-' + id);
+  if (!input) return;
+  const raw = input.value.trim();
+  if (!raw) { toast('Name cannot be empty.', true); return; }
+  const finalName = /\.ged$/i.test(raw) ? raw : raw + '.ged';
+
+  const { error } = await sb.from('gedcom_uploads').update({ filename: finalName }).eq('id', id);
+  if (error) { toast('Rename failed: ' + error.message, true); return; }
+
+  // Update local cache
+  const u = gedcomUploads.find(u => u.id === id);
+  if (u) u.filename = finalName;
+
+  const newTitle = finalName.replace(/^\d+[-_\s]+/, '').replace(/\.ged$/i, '').replace(/[_]+/g, ' ').trim();
+  const titleEl = document.getElementById('ged-title-' + id);
+  if (titleEl) { titleEl.innerHTML = escapeHtml(newTitle); titleEl.title = finalName; }
+
+  logActivity('gedcom_renamed', `Renamed to: ${finalName}`, { gedcom_id: id });
+  toast(`✔ Renamed to "${finalName}"`);
+}
+
+// ── GEDCOM delete (admin only) ────────────────────────────────────────────────
+async function gedcomDelete(id, filename) {
+  if (!confirm(`Delete "${filename}"?\n\nThis will permanently remove all people, families and data from this file.\n\nThis cannot be undone. Type DELETE to confirm.`)) return;
+  const confirmation = prompt('Type DELETE to confirm permanent deletion:');
+  if (confirmation !== 'DELETE') { toast('Deletion cancelled.'); return; }
+
+  toast(`Deleting "${filename}"…`);
+  try {
+    const { data: famRows } = await sb.from('families').select('uid').eq('gedcom_id', id);
+    const famUids = (famRows || []).map(f => f.uid);
+    if (famUids.length) {
+      const CHUNK = 200;
+      for (let i = 0; i < famUids.length; i += CHUNK) {
+        await sb.from('family_members').delete().in('family_uid', famUids.slice(i, i + CHUNK));
+      }
+    }
+    await sb.from('families').delete().eq('gedcom_id', id);
+    await sb.from('people').delete().eq('gedcom_id', id);
+    await sb.from('gedcom_uploads').delete().eq('id', id);
+
+    gedcomUploads = gedcomUploads.filter(u => u.id !== id);
+    const sec = document.getElementById('ged-sec-' + id);
+    if (sec) sec.remove();
+    logActivity('gedcom_deleted', `Deleted: ${filename}`, { gedcom_id: id });
+    toast(`✔ Deleted "${filename}"`);
+  } catch(err) {
+    toast('Delete failed: ' + err.message, true);
+  }
 }
 
 async function toggleGed(id) {

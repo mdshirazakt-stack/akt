@@ -1051,6 +1051,10 @@ async function createSpouseFamilyWith(spouseUid) {
   }
   const { error } = await sb.from('families').update(update).eq('uid', fam.uid);
   if (error) return setStatus(error.message, true);
+
+  // Auto-import existing children of the selected spouse from their GEDCOM families
+  await importSpouseExistingChildren(spouseUid, fam.uid);
+
   await refreshGedcomCounts(fam.gedcom_id);
   await logTreeChange('tree_spouse_group_created', 'Spouse/partner group created', {
     profile_uid: focusUid,
@@ -1060,6 +1064,45 @@ async function createSpouseFamilyWith(spouseUid) {
   });
   setStatus('Spouse/partner group created.');
   await loadEditor();
+}
+
+async function importSpouseExistingChildren(spouseUid, newFamilyUid) {
+  // Find all existing families where the selected spouse is husband or wife
+  const { data: existingFams } = await sb.from('families')
+    .select('uid')
+    .or(`husband_uid.eq.${spouseUid},wife_uid.eq.${spouseUid}`);
+  if (!existingFams?.length) return;
+
+  const existingFamUids = existingFams.map(f => f.uid);
+
+  // Get all children across those families
+  const { data: members } = await sb.from('family_members')
+    .select('person_uid, birth_order')
+    .in('family_uid', existingFamUids)
+    .eq('role', 'child');
+  if (!members?.length) return;
+
+  // De-duplicate children (could appear in multiple families)
+  const seen = new Set();
+  const toInsert = [];
+  members.forEach(m => {
+    if (!seen.has(m.person_uid)) {
+      seen.add(m.person_uid);
+      toInsert.push({
+        family_uid:   newFamilyUid,
+        person_uid:   m.person_uid,
+        role:         'child',
+        birth_order:  m.birth_order || null
+      });
+    }
+  });
+  if (!toInsert.length) return;
+
+  // Insert into the new family (ignore conflicts — child may already be there)
+  const { error } = await sb.from('family_members').upsert(toInsert, { onConflict: 'family_uid,person_uid' });
+  if (!error) {
+    setStatus(`Spouse/partner group created — ${toInsert.length} existing child${toInsert.length === 1 ? '' : 'ren'} imported automatically.`);
+  }
 }
 
 async function addChildToFamily(familyUid) {

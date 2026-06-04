@@ -1341,7 +1341,15 @@ async function runRelationshipSearch(append = false) {
     relationshipSearchRows = [];
     relationshipSearchTotal = 0;
   }
-  const uidMatch = q.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  // Extract UID from pasted profile URL (e.g. person.html?uid=xxx) or raw UID
+  let searchQ = q;
+  try {
+    const url = new URL(q);
+    const fromParam = url.searchParams.get('uid');
+    if (fromParam) searchQ = fromParam.trim();
+  } catch (_) {}
+  const uidMatch = searchQ.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
+                || (searchQ.match(/^[a-z0-9]{8}_[A-Z][0-9]+$/) ? [searchQ.trim()] : null); // namespaced xrefs e.g. 2ae2a6b5_I37
   let query = sb.from('people')
     .select('uid,name,sex,birth_date,birth_place,death_flag,gedcom_id', { count: 'exact' })
     .range(relationshipSearchOffset, relationshipSearchOffset + 7);
@@ -1389,10 +1397,13 @@ function loadMoreRelationshipResults() {
 }
 
 function applyRelationshipSearchFilters(query, q, uidMatch) {
+  // UID / URL search — bypass all context filters and search by uid only
+  if (uidMatch) return query.eq('uid', uidMatch[0]);
+
+  // Name search — apply contextual sex filters
   const spouseSex = relationshipContext?.kind === 'spouse' ? expectedSpouseSex() : '';
   if (spouseSex) query = query.eq('sex', spouseSex);
   if (relationshipContext?.kind === 'child' && relationshipContext.sexFilter) query = query.eq('sex', relationshipContext.sexFilter);
-  if (uidMatch) return query.eq('uid', uidMatch[0]);
   if (relationshipContext?.kind === 'spouse' && relationshipFuzzyEnabled) {
     const parts = q.split(/\s+/).map(part => part.trim()).filter(Boolean).slice(0, 4);
     if (parts.length > 1) {

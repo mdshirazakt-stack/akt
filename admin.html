@@ -4461,9 +4461,9 @@ async function loadDbStats() {
     sb.from('families').select('*', { count: 'exact', head: true }),
     sb.from('visitors').select('id,visitor_form_completed,access_status,is_blocked,approved_at,updated_at,last_seen,first_seen').limit(10000),
     sb.from('gedcom_uploads').select('id,filename,people_count,families_count,uploaded_at,notes').order('uploaded_at', { ascending: false }),
-    sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', todayStart.toISOString()).limit(5000),
-    sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', yesterdayStart.toISOString()).lt('created_at', todayStart.toISOString()).limit(5000),
-    sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', weekStart.toISOString()).limit(5000),
+    sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', todayStart.toISOString()).order('created_at',{ascending:false}).limit(5000),
+    sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', yesterdayStart.toISOString()).lt('created_at', todayStart.toISOString()).order('created_at',{ascending:false}).limit(5000),
+    sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', weekStart.toISOString()).order('created_at',{ascending:false}).limit(10000),
     sb.from('signup_events').select('email,created_at').eq('event_name','blocked_access_attempt').gte('created_at', todayStart.toISOString()).limit(500),
     sb.from('signup_events').select('email,created_at').eq('event_name','blocked_access_attempt').gte('created_at', yesterdayStart.toISOString()).lt('created_at', todayStart.toISOString()).limit(500)
   ]);
@@ -4483,10 +4483,14 @@ async function loadDbStats() {
     return ts && new Date(ts) >= todayStart;
   }).length;
 
-  // Unique visitors from activity_logs (accurate — not last_seen)
+  // Unique visitors — compute as union to guarantee 7-day >= yesterday >= today
   const uniqueToday     = new Set((loginLogsToday     || []).map(r => r.visitor_name).filter(Boolean)).size;
   const uniqueYesterday = new Set((loginLogsYesterday || []).map(r => r.visitor_name).filter(Boolean)).size;
-  const uniqueWeek      = new Set((loginLogsWeek      || []).map(r => r.visitor_name).filter(Boolean)).size;
+  const uniqueWeek      = new Set([
+    ...(loginLogsToday     || []).map(r => r.visitor_name),
+    ...(loginLogsYesterday || []).map(r => r.visitor_name),
+    ...(loginLogsWeek      || []).map(r => r.visitor_name)
+  ].filter(Boolean)).size;
 
   // Blocked users attempting sign-in (from signup_events)
   const blockedToday     = new Set((blockedAttemptsToday     || []).map(r => r.email).filter(Boolean)).size;

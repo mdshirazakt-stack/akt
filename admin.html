@@ -4492,6 +4492,14 @@ async function loadDbStats() {
   const blockedToday     = new Set((blockedAttemptsToday     || []).map(r => r.email).filter(Boolean)).size;
   const blockedYesterday = new Set((blockedAttemptsYesterday || []).map(r => r.email).filter(Boolean)).size;
 
+  // Fetch full blocked attempt history (last 30 days) for the detail log
+  const { data: blockedHistory } = await sb.from('signup_events')
+    .select('email,created_at,details')
+    .eq('event_name', 'blocked_access_attempt')
+    .gte('created_at', weekStart.toISOString())
+    .order('created_at', { ascending: false })
+    .limit(500);
+
   const totalUploadedPeople   = uploadRows.reduce((s, r) => s + Number(r.people_count   || 0), 0);
   const totalUploadedFamilies = uploadRows.reduce((s, r) => s + Number(r.families_count || 0), 0);
   const duplicateGroups = getDuplicateUploadGroups(uploadRows);
@@ -4512,12 +4520,55 @@ async function loadDbStats() {
     ${card(uniqueWeek.toLocaleString(),      'Unique Visitors Last 7 Days')}
     ${card(
       `<span style="color:${blockedToday > 0 ? '#991b1b' : 'var(--ink)'}">${blockedToday}</span>`,
-      'Blocked Users Attempted Today'
+      'Blocked Attempted Today'
     )}
     ${card(
       `<span style="color:${blockedYesterday > 0 ? '#991b1b' : 'var(--ink)'}">${blockedYesterday}</span>`,
-      'Blocked Users Attempted Yesterday'
+      'Blocked Attempted Yesterday'
     )}
+
+    ${(() => {
+      const history = blockedHistory || [];
+      if (!history.length) return '';
+
+      // Group by email: {email → [{created_at, status}]}
+      const byEmail = {};
+      history.forEach(r => {
+        const key = r.email || '(unknown)';
+        if (!byEmail[key]) byEmail[key] = [];
+        byEmail[key].push({ ts: r.created_at, status: r.details?.status || 'blocked' });
+      });
+
+      const rows = Object.entries(byEmail)
+        .sort((a, b) => b[1].length - a[1].length) // most attempts first
+        .map(([email, attempts]) => `
+          <tr>
+            <td style="padding:7px 10px;border-bottom:1px solid var(--border);font-size:0.82rem;font-weight:700;color:#991b1b">${escapeHtml(email)}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid var(--border);font-size:0.82rem;text-align:center">
+              <span style="background:#fee2e2;color:#991b1b;padding:2px 8px;font-weight:700;font-size:0.75rem">${attempts.length}×</span>
+            </td>
+            <td style="padding:7px 10px;border-bottom:1px solid var(--border);font-size:0.78rem;color:var(--muted)">
+              ${attempts.map(a => formatIST(a.ts)).join('<br>')}
+            </td>
+          </tr>`).join('');
+
+      return `
+        <div style="grid-column:1/-1;margin-top:12px;border:1px solid #fecaca;background:#fff">
+          <div style="padding:10px 14px;background:#fee2e2;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#991b1b">
+            🚫 Blocked users who attempted sign-in (last 7 days)
+          </div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="background:var(--bg)">
+                <th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Email</th>
+                <th style="padding:7px 10px;text-align:center;border-bottom:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Attempts</th>
+                <th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Timestamps (IST)</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    })()}
 
     ${grp('Archive')}
     ${card((pc || 0).toLocaleString(),               'People in Database')}

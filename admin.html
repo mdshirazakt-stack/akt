@@ -4453,7 +4453,9 @@ async function loadDbStats() {
     { data: uploads },
     { data: loginLogsToday },
     { data: loginLogsYesterday },
-    { data: loginLogsWeek }
+    { data: loginLogsWeek },
+    { data: blockedAttemptsToday },
+    { data: blockedAttemptsYesterday }
   ] = await Promise.all([
     sb.from('people').select('*', { count: 'exact', head: true }),
     sb.from('families').select('*', { count: 'exact', head: true }),
@@ -4461,7 +4463,9 @@ async function loadDbStats() {
     sb.from('gedcom_uploads').select('id,filename,people_count,families_count,uploaded_at,notes').order('uploaded_at', { ascending: false }),
     sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', todayStart.toISOString()).limit(5000),
     sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', yesterdayStart.toISOString()).lt('created_at', todayStart.toISOString()).limit(5000),
-    sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', weekStart.toISOString()).limit(5000)
+    sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', weekStart.toISOString()).limit(5000),
+    sb.from('signup_events').select('email,created_at').eq('event_name','blocked_access_attempt').gte('created_at', todayStart.toISOString()).limit(500),
+    sb.from('signup_events').select('email,created_at').eq('event_name','blocked_access_attempt').gte('created_at', yesterdayStart.toISOString()).lt('created_at', todayStart.toISOString()).limit(500)
   ]);
 
   if (visErr) console.warn('Visitors query failed:', visErr.message);
@@ -4484,6 +4488,10 @@ async function loadDbStats() {
   const uniqueYesterday = new Set((loginLogsYesterday || []).map(r => r.visitor_name).filter(Boolean)).size;
   const uniqueWeek      = new Set((loginLogsWeek      || []).map(r => r.visitor_name).filter(Boolean)).size;
 
+  // Blocked users attempting sign-in (from signup_events)
+  const blockedToday     = new Set((blockedAttemptsToday     || []).map(r => r.email).filter(Boolean)).size;
+  const blockedYesterday = new Set((blockedAttemptsYesterday || []).map(r => r.email).filter(Boolean)).size;
+
   const totalUploadedPeople   = uploadRows.reduce((s, r) => s + Number(r.people_count   || 0), 0);
   const totalUploadedFamilies = uploadRows.reduce((s, r) => s + Number(r.families_count || 0), 0);
   const duplicateGroups = getDuplicateUploadGroups(uploadRows);
@@ -4502,6 +4510,14 @@ async function loadDbStats() {
     ${card(uniqueToday.toLocaleString(),     'Unique Visitors Today')}
     ${card(uniqueYesterday.toLocaleString(), 'Unique Visitors Yesterday')}
     ${card(uniqueWeek.toLocaleString(),      'Unique Visitors Last 7 Days')}
+    ${card(
+      `<span style="color:${blockedToday > 0 ? '#991b1b' : 'var(--ink)'}">${blockedToday}</span>`,
+      'Blocked Users Attempted Today'
+    )}
+    ${card(
+      `<span style="color:${blockedYesterday > 0 ? '#991b1b' : 'var(--ink)'}">${blockedYesterday}</span>`,
+      'Blocked Users Attempted Yesterday'
+    )}
 
     ${grp('Archive')}
     ${card((pc || 0).toLocaleString(),               'People in Database')}

@@ -744,6 +744,13 @@
     currentVisitor = visitor;
     const status = visitorStatus(visitor);
     if (status === 'blocked' || status === 'rejected') {
+      // Log blocked access attempt — use signup_events (open to all authenticated)
+      await logSignupEvent('blocked_access_attempt', {
+        stage: 'signin',
+        status,
+        email: userEmail(currentSession.user) || '',
+        visitor_id: visitor?.id || null
+      });
       setView('message');
       showMessage('Your access is currently blocked or rejected. Please contact the administrator if this looks incorrect.', true);
       return;

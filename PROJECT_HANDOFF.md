@@ -1,6 +1,6 @@
 # Apnon Ki Talash / Iraqi Biradari Project Handoff
 
-Last updated: 2026-06-04
+Last updated: 2026-06-04 (security patch)
 
 ## Project Overview
 
@@ -160,6 +160,7 @@ supabase_profile_overrides.sql  — NOT run (person_profile_overrides table miss
 
 All other SQL files confirmed run:
 - supabase_rls_fix.sql ✅ (critical — enables RLS)
+- supabase_get_my_visitor.sql ⚠️ **MUST RUN** — security fix for blocked user bypass
 - supabase_ads.sql ✅
 - supabase_ad_inquiries.sql ✅
 - supabase_user_notifications.sql ✅
@@ -261,6 +262,29 @@ public.akt_is_admin()    — admin or superadmin
 
 All policies use these instead of the broken `akt_has_role()`.
 
+### Critical security function (created by supabase_get_my_visitor.sql)
+
+```sql
+public.get_my_visitor()  — SECURITY DEFINER, returns calling user's visitor record
+```
+
+**Why this exists — important context for future sessions:**
+
+After the RLS fix, `findVisitorForUser()` in auth-flow.js reads the `visitors` table to check if a user is blocked/approved. The RLS policy `visitors_self_read` allows users to read their own record via `auth_user_id = auth.uid()`.
+
+**The loophole:** users whose `auth_user_id` is null in the visitors table (e.g. registered before the RLS fix, or where the link wasn't established) cannot read their own record. `findVisitorForUser()` returns `null`. `visitorStatus(null)` falls back to `'approved'`. **Blocked users bypass the block entirely** — they see the app as a new user and start onboarding.
+
+**The fix:** `get_my_visitor()` is SECURITY DEFINER (runs as DB owner, bypasses RLS). It matches the caller by `auth.uid()` OR by email from `auth.users`. Returns only the calling user's own record — safe by design. auth-flow.js calls `rpc('get_my_visitor')` first, falls back to direct table query.
+
+**If `get_my_visitor()` is ever dropped or missing**, blocked users with null `auth_user_id` will bypass blocking again. Always ensure this function exists.
+
+**To fix a specific user's null auth_user_id:**
+```sql
+UPDATE public.visitors
+SET auth_user_id = (SELECT id FROM auth.users WHERE email = 'user@example.com' LIMIT 1)
+WHERE lower(email) = 'user@example.com' AND auth_user_id IS NULL;
+```
+
 ---
 
 ## Google OAuth Consent Screen
@@ -332,3 +356,5 @@ ORDER BY pg_total_relation_size(relid) DESC LIMIT 15;
 - activity_logs is 15 MB and growing — trim to 90 days when DB approaches 300 MB
 - The `akt_has_role()` function is broken/missing — use `akt_is_visitor()`, `akt_is_staff()`, `akt_is_admin()` instead
 - New GEDCOM imports remain superadmin-only (admins redirected away from admin.html)
+- **`get_my_visitor()` SQL function must always exist** — if dropped, blocked users with null `auth_user_id` bypass blocking. See Database Schema Notes for full explanation.
+- After any RLS change, verify blocked users cannot access the archive by checking that `findVisitorForUser()` correctly identifies their visitor record

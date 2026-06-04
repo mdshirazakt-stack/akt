@@ -115,22 +115,29 @@
   }
 
   async function findVisitorForUser(user) {
+    // Use SECURITY DEFINER function to bypass RLS — critical for blocked users
+    // whose auth_user_id may be null (RLS would block the direct table query,
+    // making them appear as new users and bypass blocking).
+    const { data, error } = await sb.rpc('get_my_visitor');
+    if (!error && data) return data;
+
+    // Fallback: direct table query (works if auth_user_id is already linked)
     const email = userEmail(user);
     let found = null;
-    let { data, error } = await sb.from('visitors')
+    const { data: rows } = await sb.from('visitors')
       .select('*')
       .eq('auth_user_id', user.id)
       .order('last_seen', { ascending: false })
       .limit(1);
-    if (!error && data && data.length) found = data[0];
+    if (rows && rows.length) found = rows[0];
 
     if (!found && email) {
-      const emailResult = await sb.from('visitors')
+      const { data: emailRows } = await sb.from('visitors')
         .select('*')
         .ilike('email', email)
         .order('last_seen', { ascending: false })
         .limit(1);
-      if (!emailResult.error && emailResult.data && emailResult.data.length) found = emailResult.data[0];
+      if (emailRows && emailRows.length) found = emailRows[0];
     }
     return found;
   }

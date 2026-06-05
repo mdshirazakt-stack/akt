@@ -5015,12 +5015,16 @@ async function checkAndShowAd(visitorRecord) {
 
 async function dismissAd() {
   document.getElementById('ad-popup-backdrop').style.display = 'none';
-  if (!_currentAdId || !_currentVisitorId) return;
+  if (!_currentAdId || !_currentVisitorId) {
+    console.warn('dismissAd: missing _currentAdId or _currentVisitorId', _currentAdId, _currentVisitorId);
+    return;
+  }
 
-  await sb.from('ad_impressions')
+  const { error: dismissErr } = await sb.from('ad_impressions')
     .update({ dismissed_at: new Date().toISOString() })
     .eq('ad_id', _currentAdId)
     .eq('visitor_id', _currentVisitorId);
+  if (dismissErr) console.warn('dismissAd update failed:', dismissErr.message);
 
   // Auto-complete if target reached
   const { count } = await sb.from('ad_impressions')
@@ -5353,10 +5357,10 @@ async function loadPopupPerson() {
 </div>
 
 <!-- ===== COMMUNITY AD POPUP ===== -->
-<div id="ad-popup-backdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99100;align-items:center;justify-content:center;padding:16px">
+<div id="ad-popup-backdrop" onclick="if(event.target===this)dismissAd()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99100;align-items:center;justify-content:center;padding:16px">
   <div id="ad-popup" style="position:relative;max-width:500px;width:100%;border-radius:4px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.55);animation:eidFadeIn 0.35s ease">
-    <button id="ad-popup-close" aria-label="Close"
-      style="position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,0.6);border:none;cursor:pointer;color:#fff;font-size:1.3rem;display:flex;align-items:center;justify-content:center"
+    <button id="ad-popup-close" aria-label="Close ad — tap here to close"
+      style="position:absolute;top:8px;right:8px;width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,0.72);border:2px solid rgba(255,255,255,0.4);cursor:pointer;color:#fff;font-size:1.5rem;display:flex;align-items:center;justify-content:center;z-index:2;-webkit-tap-highlight-color:transparent"
       onclick="dismissAd()">×</button>
     <a id="ad-popup-link" href="#" target="_blank" rel="noopener sponsored" style="display:block">
       <img id="ad-popup-img" src="" alt="Community advertisement" style="display:block;width:100%;height:auto"/>

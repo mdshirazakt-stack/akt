@@ -1283,7 +1283,13 @@
 
     <!-- SEARCH PANEL -->
     <div id="panel-search" class="panel active">
-      <div style="display:flex;justify-content:flex-start;margin-bottom:10px">
+      <div style="display:flex;justify-content:flex-start;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <a id="merge-trees-link" href="merge.html" target="_blank" rel="noopener"
+          style="display:none;align-items:center;gap:6px;padding:7px 14px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Lato',sans-serif;font-size:0.78rem;font-weight:700;text-decoration:none;letter-spacing:0.06em;text-transform:uppercase;transition:all 0.18s"
+          onmouseover="this.style.borderColor='var(--gold2)';this.style.color='var(--gold)'"
+          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+          🔀 Merge Trees
+        </a>
         <a href="advertise.html" target="_blank" rel="noopener" class="advertise-btn"
           onclick="logActivity('advertise_page_visit','Clicked Advertise with Us',{})"
           style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;font-family:'Lato',sans-serif;font-size:0.78rem;font-weight:700;text-decoration:none;letter-spacing:0.06em;text-transform:uppercase;transition:background 0.3s,color 0.2s,box-shadow 0.2s">
@@ -2156,6 +2162,9 @@ function updateAdminPanelLink(role) {
   const link = document.getElementById('admin-panel-link');
   if (!link) return;
   link.classList.toggle('is-visible', ['admin', 'superadmin'].includes(normalizeAccessRole(role)));
+  // Show Merge Trees link for admins
+  const mergeLink = document.getElementById('merge-trees-link');
+  if (mergeLink) mergeLink.style.display = ['admin', 'superadmin'].includes(normalizeAccessRole(role)) ? 'inline-flex' : 'none';
 }
 
 function doLogout() {

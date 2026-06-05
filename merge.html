@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet"/>
+<title>Parallel Tree Merger — Apno Ki Talash</title>
+<link rel="icon" type="image/png" href="apnonkitalash-icon-light.png"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="auth-flow.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+<style>
+  :root { --bg:#faf7f2; --surface:#fff; --border:#e0d8cc; --ink:#2a2318; --muted:#7a6e5e; --gold:#9a6f2f; --gold2:#c9a84c; --green:#2e6e4a; --red:#8b2e2e; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--ink); font-family:'Lato',sans-serif; min-height:100vh; }
+
+  /* Auth gate */
+  #auth-gate { min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#fbf7ef,#efe5d4); }
+  #auth-gate .box { background:#fff; border:1px solid var(--border); border-top:3px solid var(--gold2); padding:32px; max-width:400px; width:100%; text-align:center; }
+  #auth-gate h2 { font-family:'Amiri',serif; color:var(--green); margin-bottom:12px; }
+  #auth-gate p { font-size:.85rem; color:var(--muted); }
+
+  /* App */
+  #app { display:none; }
+  header { background:var(--green); color:#f0ede6; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; position:sticky; top:0; z-index:100; }
+  header h1 { font-family:'Amiri',serif; font-size:1.4rem; }
+  header nav { display:flex; gap:10px; align-items:center; }
+  header a, header button { color:#f0ede6; font-size:.78rem; font-weight:700; text-decoration:none; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25); padding:6px 12px; cursor:pointer; font-family:'Lato',sans-serif; }
+  header a:hover, header button:hover { background:rgba(255,255,255,.22); }
+
+  main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
+
+  /* Setup panel */
+  .setup-panel { background:var(--surface); border:1px solid var(--border); padding:24px; margin-bottom:24px; }
+  .setup-panel h2 { font-size:1rem; font-weight:700; color:var(--green); margin-bottom:16px; }
+  .setup-grid { display:grid; grid-template-columns:1fr 1fr auto; gap:12px; align-items:end; }
+  .setup-field label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:5px; }
+  .setup-field input { width:100%; padding:10px 12px; border:1px solid var(--border); font-family:'Lato',sans-serif; font-size:.88rem; }
+  .setup-field input:focus { outline:none; border-color:var(--gold2); }
+  .btn-compare { padding:10px 24px; background:var(--green); color:#fff; border:none; font-family:'Lato',sans-serif; font-weight:700; font-size:.85rem; cursor:pointer; white-space:nowrap; }
+  .btn-compare:hover { background:#213b2a; }
+  .btn-compare:disabled { opacity:.5; cursor:not-allowed; }
+  .setup-hint { font-size:.78rem; color:var(--muted); margin-top:10px; }
+
+  /* Progress bar */
+  #progress-bar { display:none; background:var(--surface); border:1px solid var(--border); padding:16px 20px; margin-bottom:16px; display:none; }
+  .progress-stats { display:flex; gap:20px; flex-wrap:wrap; font-size:.82rem; }
+  .progress-stat { display:flex; gap:5px; align-items:center; }
+  .stat-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+  /* Generation blocks */
+  .gen-block { margin-bottom:20px; }
+  .gen-label { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:var(--gold); padding:8px 0; border-bottom:1px solid var(--border); margin-bottom:10px; }
+  .pair-row { display:grid; grid-template-columns:1fr 160px 1fr; gap:0; border:1px solid var(--border); margin-bottom:6px; background:var(--surface); }
+  .pair-row.linked { border-color:#2e6e4a; background:#f0fdf4; }
+  .pair-row.skipped { opacity:.5; }
+  .pair-row.unmatched { border-color:var(--border); }
+
+  .person-cell { padding:12px 14px; min-height:70px; }
+  .person-cell.empty { background:#faf7f2; }
+  .person-name { font-weight:700; font-size:.9rem; color:var(--ink); line-height:1.3; }
+  .person-name a { color:var(--green); text-decoration:none; }
+  .person-name a:hover { text-decoration:underline; }
+  .person-meta { font-size:.74rem; color:var(--muted); margin-top:3px; line-height:1.4; }
+  .person-badges { margin-top:5px; display:flex; gap:4px; flex-wrap:wrap; }
+  .person-badge { font-size:.65rem; padding:1px 6px; border-radius:3px; font-weight:700; }
+  .badge-M { background:#dbeafe; color:#1e40af; }
+  .badge-F { background:#fce7f3; color:#9d174d; }
+  .badge-deceased { background:#f3f4f6; color:#374151; }
+
+  .action-cell { padding:10px 8px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; border-left:1px solid var(--border); border-right:1px solid var(--border); background:#faf7f2; }
+  .score-pill { font-size:.7rem; font-weight:700; padding:3px 8px; border-radius:12px; }
+  .score-high { background:#dcfce7; color:#166534; }
+  .score-med  { background:#fef9c3; color:#92400e; }
+  .score-low  { background:#fee2e2; color:#991b1b; }
+  .score-none { background:#f3f4f6; color:#6b7280; }
+  .action-btns { display:flex; gap:4px; }
+  .btn-link { padding:4px 10px; background:var(--green); color:#fff; border:none; font-size:.7rem; font-weight:700; cursor:pointer; border-radius:3px; }
+  .btn-link:hover { background:#1a4a2a; }
+  .btn-skip { padding:4px 8px; background:none; border:1px solid var(--border); font-size:.7rem; color:var(--muted); cursor:pointer; border-radius:3px; }
+  .btn-skip:hover { border-color:var(--red); color:var(--red); }
+  .linked-badge { font-size:.68rem; color:#166534; font-weight:700; }
+
+  .unmatched-only { grid-template-columns:1fr 160px 1fr; }
+
+  /* Empty state */
+  .empty-state { text-align:center; padding:40px; color:var(--muted); }
+  .loading-block { text-align:center; padding:32px; color:var(--muted); font-size:.88rem; }
+  .spinner { display:inline-block; width:20px; height:20px; border:3px solid var(--border); border-top-color:var(--gold); border-radius:50%; animation:spin .8s linear infinite; vertical-align:middle; margin-right:8px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  @media (max-width:700px) {
+    .setup-grid { grid-template-columns:1fr; }
+    .pair-row { grid-template-columns:1fr; }
+    .action-cell { flex-direction:row; border:none; border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<div id="auth-gate">
+  <div class="box">
+    <h2>Admin Access Required</h2>
+    <p>The Parallel Tree Merger is available to admins only. Please sign in from the main archive first.</p>
+    <br>
+    <a href="index.html" style="display:inline-block;padding:10px 20px;background:var(--green);color:#fff;text-decoration:none;font-weight:700;font-size:.85rem">← Back to Archive</a>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <h1>🔀 Parallel Tree Merger</h1>
+    <nav>
+      <a href="index.html">← Archive</a>
+      <span id="user-display" style="font-size:.78rem;opacity:.8"></span>
+      <button onclick="doLogout()">Logout</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Setup -->
+    <div class="setup-panel">
+      <h2>Compare two parallel family trees side by side</h2>
+      <div class="setup-grid">
+        <div class="setup-field">
+          <label>Root Person A — UID or profile URL</label>
+          <input type="text" id="uid-a" placeholder="Paste UID or https://apnonkitalash.com/person.html?uid=..."/>
+        </div>
+        <div class="setup-field">
+          <label>Root Person B — UID or profile URL</label>
+          <input type="text" id="uid-b" placeholder="Paste UID or https://apnonkitalash.com/person.html?uid=..."/>
+        </div>
+        <button class="btn-compare" id="compare-btn" onclick="startComparison()">Compare Trees</button>
+      </div>
+      <div class="setup-hint">
+        Enter the root persons of each parallel tree. The tool will fetch up to 6 generations and auto-pair likely matches using name similarity.
+        Click <strong>Link</strong> on confirmed pairs to mark them as identity duplicates.
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div id="progress-bar">
+      <div class="progress-stats">
+        <div class="progress-stat"><div class="stat-dot" style="background:#166534"></div><span id="stat-linked">0 linked</span></div>
+        <div class="progress-stat"><div class="stat-dot" style="background:#d1d5db"></div><span id="stat-skipped">0 skipped</span></div>
+        <div class="progress-stat"><div class="stat-dot" style="background:#f59e0b"></div><span id="stat-pending">0 pending review</span></div>
+        <div class="progress-stat"><div class="stat-dot" style="background:#e5e7eb"></div><span id="stat-unmatched">0 unmatched</span></div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div id="results"></div>
+  </main>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://fusairoeiabmqvsbxhfi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1c2Fpcm9laWFibXF2c2J4aGZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MTUwNTgsImV4cCI6MjA5MzQ5MTA1OH0.uTVlBn4iDFZzAeD2i4Bzt4fXVxGequ2W9LIxugBIKsA';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null, currentUserRole = 'visitor';
+const ROLE_LEVELS = { visitor:1, moderator:2, admin:3, superadmin:4 };
+function hasRole(r) { return (ROLE_LEVELS[currentUserRole]||0) >= (ROLE_LEVELS[r]||0); }
+
+// ── Auth ─────────────────────────────────────────────────────────
+AKT_AUTH.setup({
+  sb,
+  onStart: (name, role) => {
+    currentUser = name;
+    currentUserRole = role || 'visitor';
+    if (!hasRole('admin')) {
+      document.getElementById('auth-gate').innerHTML = `
+        <div class="box">
+          <h2>Admin Access Only</h2>
+          <p>You are signed in as <strong>${esc(name)}</strong> (${esc(role)}). This tool requires admin or superadmin role.</p>
+          <br><a href="index.html" style="display:inline-block;padding:10px 20px;background:var(--green);color:#fff;text-decoration:none;font-weight:700;font-size:.85rem">← Back to Archive</a>
+        </div>`;
+      return;
+    }
+    document.getElementById('auth-gate').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('user-display').textContent = name;
+  },
+  onSignOut: () => { window.location.href = 'index.html'; }
+});
+
+function doLogout() { AKT_AUTH.signOut(); }
+
+// ── Helpers ──────────────────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function extractUid(raw) {
+  const s = (raw||'').trim();
+  try {
+    const url = new URL(s);
+    const p = url.searchParams.get('uid');
+    if (p) return p.trim();
+  } catch(_) {}
+  return s;
+}
+
+// ── Name similarity (reused from edit.html) ───────────────────────
+const HONORIFICS_RX = /\b(dr|prof|eng|haji|hajji|maulana|maulvi|janab|syed|late|marhoom|mr|mrs|ms|al|abu|um|umm)\b\.?/gi;
+const PHONETIC_MAP = [
+  [/\b(mohammad|mohammed|muhammed|mohamad|mohd|md)\b/g,'mohammad'],
+  [/\b(ahmad|ahmed|ahamed)\b/g,'ahmad'],
+  [/\b(hussain|husain|husayn|hussien|hussein)\b/g,'husain'],
+  [/\b(hassan|hasan|hussan)\b/g,'hasan'],
+  [/\b(anwar|anwer)\b/g,'anwar'],
+  [/\b(akbar|akber)\b/g,'akbar'],
+  [/\b(khatoon|khatun|khatum|khaatoon)\b/g,'khatun'],
+  [/\b(begum|begam|bigum)\b/g,'begum'],
+  [/\b(bibi|biwi|beebi)\b/g,''],
+  [/\b(siddiqui|siddique|siddiqy)\b/g,'siddiqui'],
+  [/\b(ansari|ansaari)\b/g,'ansari'],
+];
+
+function parseCoreName(raw) {
+  if (!raw) return '';
+  let s = raw.trim();
+  const relMatch = s.match(/[\s,\(](s\/o|d\/o|w\/o|son\s+of|daughter\s+of|bint|bin|ibn|so)\s+/i);
+  if (relMatch) s = s.slice(0, relMatch.index).trim();
+  return s.replace(HONORIFICS_RX,'').replace(/\s+/g,' ').trim();
+}
+
+function normalizeTokens(name) {
+  if (!name) return [];
+  let s = parseCoreName(name).toLowerCase();
+  for (const [rx,rep] of PHONETIC_MAP) s = s.replace(rx, rep);
+  return s.replace(/[^a-z0-9\s]/g,'').split(/\s+/).filter(t => t.length >= 3);
+}
+
+function nameSimilarityScore(a, b) {
+  const ta = new Set(normalizeTokens(a));
+  const tb = new Set(normalizeTokens(b));
+  if (!ta.size || !tb.size) return 0;
+  const common = [...ta].filter(t => tb.has(t)).length;
+  const union  = new Set([...ta, ...tb]).size;
+  return Math.round(common / union * 100);
+}
+
+// ── Tree fetcher (BFS, 6 generations) ────────────────────────────
+async function fetchTree(rootUid, maxDepth = 6) {
+  const personCache = {};
+  const generations = [];
+
+  async function getPerson(uid) {
+    if (!uid) return null;
+    if (personCache[uid]) return personCache[uid];
+    const { data } = await sb.from('people').select('uid,name,sex,birth_date,birth_place,death_flag').eq('uid', uid).single();
+    if (data) personCache[uid] = data;
+    return data || null;
+  }
+
+  async function getChildren(famUids) {
+    if (!famUids.length) return [];
+    const { data } = await sb.from('family_members').select('family_uid,person_uid,birth_order').in('family_uid', famUids).eq('role','child').order('birth_order');
+    return data || [];
+  }
+
+  async function getSpouseFamilies(personUid) {
+    const { data } = await sb.from('families').select('uid,husband_uid,wife_uid').or(`husband_uid.eq.${personUid},wife_uid.eq.${personUid}`);
+    return data || [];
+  }
+
+  const root = await getPerson(rootUid);
+  if (!root) return null;
+
+  let currentGenUids = [rootUid];
+  const visited = new Set([rootUid]);
+
+  for (let depth = 0; depth < maxDepth && currentGenUids.length; depth++) {
+    // Load all persons for this generation
+    const genPersons = await Promise.all(currentGenUids.map(u => getPerson(u)));
+    const validPersons = genPersons.filter(Boolean);
+
+    // Get all families for this generation's persons
+    const allFams = [];
+    for (const p of validPersons) {
+      const fams = await getSpouseFamilies(p.uid);
+      allFams.push(...fams);
+    }
+
+    // Deduplicate families
+    const famMap = {};
+    allFams.forEach(f => { famMap[f.uid] = f; });
+    const uniqueFams = Object.values(famMap);
+
+    // Get children for all families
+    const childRows = uniqueFams.length ? await getChildren(uniqueFams.map(f => f.uid)) : [];
+    const nextGenUids = [];
+    childRows.forEach(r => {
+      if (!visited.has(r.person_uid)) {
+        visited.add(r.person_uid);
+        nextGenUids.push(r.person_uid);
+      }
+    });
+
+    // Build generation entry
+    const genEntries = validPersons.map(p => {
+      const myFams = uniqueFams.filter(f => f.husband_uid === p.uid || f.wife_uid === p.uid);
+      const spouseUids = myFams.map(f => f.husband_uid === p.uid ? f.wife_uid : f.husband_uid).filter(Boolean);
+      const myChildUids = childRows.filter(r => myFams.some(f => f.uid === r.family_uid)).map(r => r.person_uid);
+      return { person: p, spouseUids, childUids: myChildUids };
+    });
+
+    generations.push({ depth, entries: genEntries });
+    currentGenUids = nextGenUids;
+  }
+
+  return { root, generations, personCache };
+}
+
+// ── Pair matching ─────────────────────────────────────────────────
+function matchGenerations(genA, genB) {
+  const used = new Set();
+  const pairs = [];
+
+  // Sort A entries by how well they match something in B
+  const scoreMatrix = genA.entries.map(ea => ({
+    ea,
+    best: genB.entries.map(eb => ({
+      eb,
+      score: nameSimilarityScore(ea.person.name, eb.person.name) +
+             (ea.person.sex === eb.person.sex ? 5 : 0)
+    })).sort((x,y) => y.score - x.score)
+  }));
+
+  // Greedy matching: best score first
+  const sorted = scoreMatrix.flatMap(x => x.best.map(b => ({ ea: x.ea, eb: b.eb, score: b.score })))
+    .sort((x,y) => y.score - x.score);
+
+  const usedA = new Set(), usedB = new Set();
+  for (const { ea, eb, score } of sorted) {
+    if (usedA.has(ea.person.uid) || usedB.has(eb.person.uid)) continue;
+    if (score < 30) break; // below threshold, no match
+    pairs.push({ a: ea, b: eb, score, status: 'pending' });
+    usedA.add(ea.person.uid);
+    usedB.add(eb.person.uid);
+  }
+
+  // Unmatched from A
+  genA.entries.filter(ea => !usedA.has(ea.person.uid)).forEach(ea => {
+    pairs.push({ a: ea, b: null, score: 0, status: 'unmatched_a' });
+  });
+  // Unmatched from B
+  genB.entries.filter(eb => !usedB.has(eb.person.uid)).forEach(eb => {
+    pairs.push({ a: null, b: eb, score: 0, status: 'unmatched_b' });
+  });
+
+  return pairs;
+}
+
+// ── Linking ───────────────────────────────────────────────────────
+async function linkPair(uidA, uidB, pairId) {
+  // Check if either already has an identity group
+  const { data: existing } = await sb.from('person_identity_members')
+    .select('group_id,person_uid')
+    .in('person_uid', [uidA, uidB]);
+
+  let groupId = (existing||[])[0]?.group_id || null;
+
+  if (!groupId) {
+    const pA = window._mergePersonCache[uidA];
+    const { data: grp } = await sb.from('person_identity_groups').insert({
+      canonical_person_uid: uidA,
+      display_name: pA?.name || 'Linked identity',
+      status: 'active',
+      created_by: currentUser || 'merger'
+    }).select('id').single();
+    if (!grp) { showToast('Could not create identity group', true); return false; }
+    groupId = grp.id;
+  }
+
+  const rows = [
+    { group_id: groupId, person_uid: uidA, source_role: 'canonical_profile' },
+    { group_id: groupId, person_uid: uidB, source_role: 'source_profile' }
+  ];
+  const { error } = await sb.from('person_identity_members').upsert(rows, { onConflict: 'group_id,person_uid' });
+  if (error) { showToast('Link failed: ' + error.message, true); return false; }
+
+  // Update UI
+  const row = document.getElementById(pairId);
+  if (row) { row.classList.add('linked'); row.classList.remove('pending'); }
+  updateProgress();
+  showToast('✔ Linked successfully');
+  return true;
+}
+
+function skipPair(pairId) {
+  const row = document.getElementById(pairId);
+  if (row) row.classList.add('skipped');
+  updateProgress();
+}
+
+// ── Render ────────────────────────────────────────────────────────
+function renderPerson(entry, side) {
+  if (!entry) return `<div class="person-cell empty"></div>`;
+  const p = entry.person;
+  const meta = [
+    p.sex ? (p.sex === 'M' ? 'Male' : 'Female') : null,
+    p.birth_date || null,
+    p.birth_place || null
+  ].filter(Boolean).join(' · ');
+  const deceased = p.death_flag ? '<span class="person-badge badge-deceased">†</span>' : '';
+  const sexBadge = p.sex ? `<span class="person-badge badge-${p.sex}">${p.sex}</span>` : '';
+  return `
+    <div class="person-cell">
+      <div class="person-name"><a href="person.html?uid=${encodeURIComponent(p.uid)}" target="_blank">${esc(p.name||'(unnamed)')}</a></div>
+      ${meta ? `<div class="person-meta">${esc(meta)}</div>` : ''}
+      <div class="person-badges">${sexBadge}${deceased}</div>
+    </div>`;
+}
+
+function renderPairs(pairs, genDepth) {
+  return pairs.map((pair, idx) => {
+    const pairId = `pair-g${genDepth}-${idx}`;
+    const isLinked  = pair.status === 'linked';
+    const isSkipped = pair.status === 'skipped';
+    const isPending = pair.a && pair.b;
+
+    let scoreHtml = '';
+    let actionHtml = '';
+    if (isPending) {
+      const cls = pair.score >= 75 ? 'score-high' : pair.score >= 50 ? 'score-med' : 'score-low';
+      scoreHtml = `<div class="score-pill ${cls}">${pair.score}% match</div>`;
+      actionHtml = isLinked
+        ? `<div class="linked-badge">✔ Linked</div>`
+        : isSkipped
+          ? `<div class="linked-badge" style="color:var(--muted)">Skipped</div>`
+          : `<div class="action-btns">
+               <button class="btn-link" onclick="linkPairById('${pairId}','${pair.a.person.uid}','${pair.b.person.uid}')">Link</button>
+               <button class="btn-skip" onclick="skipPair('${pairId}')">Skip</button>
+             </div>`;
+    } else {
+      scoreHtml = `<div class="score-pill score-none">No match</div>`;
+    }
+
+    const rowCls = [isLinked ? 'linked' : '', isSkipped ? 'skipped' : ''].filter(Boolean).join(' ');
+
+    return `
+      <div class="pair-row ${rowCls}" id="${pairId}" data-uid-a="${pair.a?.person?.uid||''}" data-uid-b="${pair.b?.person?.uid||''}">
+        ${renderPerson(pair.a, 'a')}
+        <div class="action-cell">
+          ${scoreHtml}
+          ${actionHtml}
+        </div>
+        ${renderPerson(pair.b, 'b')}
+      </div>`;
+  }).join('');
+}
+
+async function linkPairById(pairId, uidA, uidB) {
+  const btn = document.querySelector(`#${pairId} .btn-link`);
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  await linkPair(uidA, uidB, pairId);
+  if (btn) { btn.disabled = false; }
+}
+
+function updateProgress() {
+  const rows = document.querySelectorAll('.pair-row[data-uid-a][data-uid-b]');
+  let linked = 0, skipped = 0, pending = 0;
+  rows.forEach(r => {
+    const hasMatch = r.dataset.uidA && r.dataset.uidB;
+    if (!hasMatch) return;
+    if (r.classList.contains('linked')) linked++;
+    else if (r.classList.contains('skipped')) skipped++;
+    else pending++;
+  });
+  const unmatchedRows = document.querySelectorAll('.pair-row:not([data-uid-b=]):not([data-uid-a=])');
+  document.getElementById('stat-linked').textContent   = `${linked} linked`;
+  document.getElementById('stat-skipped').textContent  = `${skipped} skipped`;
+  document.getElementById('stat-pending').textContent  = `${pending} pending review`;
+  document.getElementById('stat-unmatched').textContent = `${unmatchedRows.length + (document.querySelectorAll('.pair-row').length - rows.length)} unmatched`;
+}
+
+function showToast(msg, isError = false) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;padding:10px 18px;font-size:.82rem;font-weight:700;border-radius:4px;box-shadow:0 4px 16px rgba(0,0,0,.2);background:${isError?'#991b1b':'#166534'};color:#fff`;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ── Main comparison ───────────────────────────────────────────────
+window._mergePersonCache = {};
+
+async function startComparison() {
+  const uidA = extractUid(document.getElementById('uid-a').value);
+  const uidB = extractUid(document.getElementById('uid-b').value);
+  if (!uidA || !uidB) { showToast('Please enter both UIDs', true); return; }
+  if (uidA === uidB) { showToast('Both UIDs are the same person', true); return; }
+
+  const btn = document.getElementById('compare-btn');
+  btn.disabled = true;
+  btn.textContent = 'Loading…';
+
+  const results = document.getElementById('results');
+  results.innerHTML = `<div class="loading-block"><span class="spinner"></span>Fetching both trees (up to 6 generations each)…</div>`;
+  document.getElementById('progress-bar').style.display = 'none';
+
+  try {
+    const [treeA, treeB] = await Promise.all([
+      fetchTree(uidA, 6),
+      fetchTree(uidB, 6)
+    ]);
+
+    if (!treeA) { showToast('Could not load Tree A — check the UID', true); results.innerHTML = ''; btn.disabled = false; btn.textContent = 'Compare Trees'; return; }
+    if (!treeB) { showToast('Could not load Tree B — check the UID', true); results.innerHTML = ''; btn.disabled = false; btn.textContent = 'Compare Trees'; return; }
+
+    // Merge person caches for linking
+    Object.assign(window._mergePersonCache, treeA.personCache, treeB.personCache);
+
+    // Build HTML generation by generation
+    const maxDepth = Math.max(treeA.generations.length, treeB.generations.length);
+    let html = `
+      <div style="display:grid;grid-template-columns:1fr 160px 1fr;gap:0;background:var(--border);padding:8px 0;margin-bottom:16px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)">
+        <div style="padding:0 14px">Tree A — <span style="color:var(--green)">${esc(treeA.root.name)}</span></div>
+        <div style="text-align:center">Actions</div>
+        <div style="padding:0 14px">Tree B — <span style="color:var(--green)">${esc(treeB.root.name)}</span></div>
+      </div>`;
+
+    for (let d = 0; d < maxDepth; d++) {
+      const genA = treeA.generations[d] || { depth: d, entries: [] };
+      const genB = treeB.generations[d] || { depth: d, entries: [] };
+      if (!genA.entries.length && !genB.entries.length) continue;
+
+      const pairs = matchGenerations(genA, genB);
+      const genLabel = d === 0 ? 'Root Person' : `Generation ${d} (${d === 1 ? 'Children' : d === 2 ? 'Grandchildren' : d === 3 ? 'Great-grandchildren' : `${d} levels deep`})`;
+
+      html += `<div class="gen-block"><div class="gen-label">${genLabel} — ${genA.entries.length} in A · ${genB.entries.length} in B</div>`;
+      html += renderPairs(pairs, d);
+      html += `</div>`;
+    }
+
+    results.innerHTML = html;
+    document.getElementById('progress-bar').style.display = 'block';
+    updateProgress();
+
+  } catch(err) {
+    results.innerHTML = `<div class="empty-state" style="color:var(--red)">Error: ${esc(err.message)}</div>`;
+    console.error(err);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Compare Trees';
+}
+</script>
+</body>
+</html>

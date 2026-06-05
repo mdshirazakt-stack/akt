@@ -132,6 +132,20 @@
   .status-option.active { border:2px solid var(--green); box-shadow:0 0 0 4px rgba(181,130,43,.16); }
   .status-icon { width:38px; height:38px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:#efe0b0; color:var(--gold); }
   .load-more-wrap { padding:14px; text-align:center; border-top:1px solid #e5dcc9; background:#fffaf0; }
+  /* ── Conflict detection modal ── */
+  #conflict-modal { width:min(560px,100%); max-height:85vh; overflow:auto; background:#fffdf7; border:1px solid #d6c69b; border-radius:22px; box-shadow:0 24px 80px rgba(0,0,0,.28); }
+  .conflict-head { padding:22px 26px 14px; border-bottom:1px solid #e5d9bc; }
+  .conflict-head h3 { margin:0 0 6px; font-family:Georgia,serif; color:#7a3a00; font-size:1.5rem; }
+  .conflict-head p { margin:0; color:#665535; font-size:.9rem; line-height:1.55; }
+  .conflict-matches { padding:16px 26px; display:grid; gap:10px; }
+  .conflict-match-card { background:#fff8ec; border:1px solid #f0d89a; border-left:4px solid #e8a020; border-radius:10px; padding:12px 14px; font-size:.85rem; color:#4a3a18; line-height:1.6; }
+  .conflict-match-card strong { display:block; font-size:.95rem; color:#7a3a00; margin-bottom:4px; }
+  .conflict-match-reason { color:#665535; }
+  .conflict-foot { display:flex; flex-direction:column; gap:8px; padding:14px 26px 22px; border-top:1px solid #e5d9bc; }
+  .conflict-btn-primary { border:0; border-radius:12px; padding:13px; font-size:.9rem; font-weight:700; cursor:pointer; background:var(--green); color:#fff; }
+  .conflict-btn-view { border:1px solid #c5a84a; border-radius:12px; padding:11px; font-size:.88rem; font-weight:700; cursor:pointer; background:#fff8ec; color:#7a5a00; }
+  .conflict-btn-cancel { border:0; background:transparent; padding:8px; font-size:.85rem; color:#7a8a7a; cursor:pointer; }
+
   @media (max-width:900px) {
     header { align-items:flex-start; flex-direction:column; }
     main { padding:12px; }
@@ -305,6 +319,22 @@
     <div class="modal-footer">
       <button type="button" onclick="closeMarriageModal()">Cancel</button>
       <button class="primary" type="button" onclick="saveMarriageDetails()">Save details</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Family conflict detection modal ── -->
+<div class="modal-backdrop" id="conflict-modal-backdrop" aria-hidden="true">
+  <div id="conflict-modal" role="dialog" aria-modal="true" aria-labelledby="conflict-title">
+    <div class="conflict-head">
+      <h3 id="conflict-title">⚠️ Possible Duplicate Family</h3>
+      <p id="conflict-desc">The person you're adding may already be part of a similar family structure. Please review before continuing.</p>
+    </div>
+    <div class="conflict-matches" id="conflict-matches"></div>
+    <div class="conflict-foot">
+      <button class="conflict-btn-view" id="conflict-view-btn" type="button" style="display:none" onclick="conflictViewFamily()">🔍 View existing family</button>
+      <button class="conflict-btn-primary" type="button" onclick="conflictProceed()">I understand — continue anyway</button>
+      <button class="conflict-btn-cancel" type="button" onclick="conflictCancel()">Cancel — go back to search</button>
     </div>
   </div>
 </div>
@@ -1554,7 +1584,286 @@ async function getParentSummaries(rows) {
 async function selectExistingForRelationship(personUid) {
   const person = await getPerson(personUid);
   if (!person) return setStatus('No person found for that UID.', true);
+
+  // Run conflict detection before attaching
+  const conflicts = await checkRelationshipConflict(person.uid, person.name, relationshipContext?.kind);
+  if (conflicts.length > 0) {
+    showConflictDialog(conflicts, () => attachPersonToContext(person.uid));
+    return;
+  }
   await attachPersonToContext(person.uid);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FAMILY CONFLICT DETECTION
+// ══════════════════════════════════════════════════════════════════
+
+const _dismissedConflicts = new Set(); // track ignored conflict family UIDs
+
+// ── Name parsing ────────────────────────────────────────────────
+
+const HONORIFICS = /\b(dr|prof|eng|haji|hajji|maulana|maulvi|janab|syed|late|marhoom|mr|mrs|ms|al|abu|um|umm)\b\.?/gi;
+const RELATIONAL_PREFIX = /\b(s\/o|d\/o|w\/o|b\/o|son\s+of|daughter\s+of|wife\s+of|bint|bin|ibn|so)\b/gi;
+
+const PHONETIC_MAP = [
+  [/\b(mohammad|mohammed|muhammed|mohamad|mohd|md)\b/g, 'mohammad'],
+  [/\b(ahmad|ahmed|ahamed)\b/g, 'ahmad'],
+  [/\b(hussain|husain|husayn|hussien|hussein)\b/g, 'husain'],
+  [/\b(hassan|hasan|hussan)\b/g, 'hasan'],
+  [/\b(anwar|anwer)\b/g, 'anwar'],
+  [/\b(akbar|akber)\b/g, 'akbar'],
+  [/\b(asghar|asger)\b/g, 'asghar'],
+  [/\b(abdur|abdus|abdu|abd)\b/g, 'abd'],
+  [/\b(khatoon|khatun|khatum|khaatoon)\b/g, 'khatun'],
+  [/\b(begum|begam|bigum)\b/g, 'begum'],
+  [/\b(bibi|biwi|beebi)\b/g, ''],
+  [/\b(siddiqui|siddique|siddiqy)\b/g, 'siddiqui'],
+  [/\b(qureshi|quraishi|quereshi)\b/g, 'qureshi'],
+  [/\b(ansari|ansaari)\b/g, 'ansari'],
+];
+
+function parsePersonName(raw) {
+  if (!raw) return { core: '', parentRef: null, spouseRef: null };
+  let s = raw.trim();
+
+  // Extract relational suffix: "S/o Haji Zameer Ahmad" → parentRef
+  let parentRef = null, spouseRef = null;
+  const relMatch = s.match(/[\(,\s](s\/o|d\/o|w\/o|b\/o|son\s+of|daughter\s+of|wife\s+of|bint|bin|ibn|so)\s+(.+)/i);
+  if (relMatch) {
+    const relType = relMatch[1].toLowerCase().replace(/\s+/g, '');
+    const refName = relMatch[2].replace(/[()]/g, '').trim();
+    if (['s/o','so','sonof','bin','ibn'].includes(relType)) parentRef = refName;
+    else if (['d/o','daughterof','bint'].includes(relType)) parentRef = refName;
+    else if (['w/o','wifeof'].includes(relType)) spouseRef = refName;
+    // Strip the relational suffix from the name
+    s = s.slice(0, relMatch.index).trim();
+  }
+
+  // Strip honorifics from core name
+  const core = s.replace(HONORIFICS, '').replace(/\s+/g, ' ').trim();
+  return { core, parentRef, spouseRef };
+}
+
+function normalizeNameTokens(name) {
+  if (!name) return [];
+  let s = name.toLowerCase().replace(HONORIFICS, '');
+  for (const [rx, rep] of PHONETIC_MAP) s = s.replace(rx, rep);
+  return s.replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(t => t.length >= 3);
+}
+
+function namesCloselyMatch(a, b) {
+  if (!a || !b) return false;
+  const pa = parsePersonName(a);
+  const pb = parsePersonName(b);
+  const ta = new Set(normalizeNameTokens(pa.core));
+  const tb = new Set(normalizeNameTokens(pb.core));
+  if (ta.size === 0 || tb.size === 0) return false;
+  // All tokens match (short names)
+  if (ta.size <= 2 && tb.size <= 2) {
+    const common = [...ta].filter(t => tb.has(t));
+    return common.length === Math.min(ta.size, tb.size) && common.length >= 1;
+  }
+  // 2+ tokens in common (longer names)
+  const common = [...ta].filter(t => tb.has(t));
+  return common.length >= 2;
+}
+
+// ── Main conflict detector ────────────────────────────────────────
+
+async function checkRelationshipConflict(proposedUid, proposedName, kind) {
+  if (!proposedUid || !focusUid) return [];
+  // Skip conflict check for child moves (intentional re-assignment)
+  if (kind === 'move_child') return [];
+
+  const conflicts = [];
+  const parsedProposed = parsePersonName(proposedName);
+
+  // Build focus person's current family picture
+  const currentFatherUid = parentFamily?.husband_uid;
+  const currentMotherUid  = parentFamily?.wife_uid;
+  const currentFather = currentFatherUid ? peopleByUid[currentFatherUid] : null;
+  const currentMother = currentMotherUid ? peopleByUid[currentMotherUid] : null;
+  const currentSpouses = spouseFamilies.map(f => {
+    const uid = f.husband_uid === focusUid ? f.wife_uid : f.husband_uid;
+    return uid ? peopleByUid[uid] : null;
+  }).filter(Boolean);
+  const currentChildren = spouseFamilies.flatMap(f => f.children || []);
+
+  // ── Direct duplicate: exact UID already in family ──
+  const directMsg = [];
+  if (proposedUid === currentFatherUid) directMsg.push('This person is already the father.');
+  if (proposedUid === currentMotherUid)  directMsg.push('This person is already the mother.');
+  if (currentSpouses.some(s => s.uid === proposedUid)) directMsg.push('This person is already a spouse.');
+  if (currentChildren.some(c => c.uid === proposedUid)) directMsg.push('This person is already a child.');
+  if (directMsg.length) {
+    return [{ score: 10, familyUid: null, viewUid: null, reasons: directMsg }];
+  }
+
+  // ── Fetch all families the proposed person belongs to ──
+  const { data: theirFams } = await sb.from('families')
+    .select('uid,husband_uid,wife_uid')
+    .or(`husband_uid.eq.${proposedUid},wife_uid.eq.${proposedUid}`);
+  if (!theirFams?.length) return [];
+
+  for (const fam of theirFams) {
+    if (_dismissedConflicts.has(fam.uid)) continue;
+
+    const theirSpouseUid = fam.husband_uid === proposedUid ? fam.wife_uid : fam.husband_uid;
+    const theirSpouse    = theirSpouseUid ? (peopleByUid[theirSpouseUid] || await getPerson(theirSpouseUid)) : null;
+
+    // Fetch this family's children
+    const { data: famMemberRows } = await sb.from('family_members')
+      .select('person_uid')
+      .eq('family_uid', fam.uid)
+      .eq('role', 'child');
+    const theirChildUids = (famMemberRows || []).map(m => m.person_uid);
+
+    let score = 0;
+    const reasons = [];
+
+    // Direct: their spouse IS the focus person → very strong
+    if (theirSpouseUid === focusUid) {
+      score += 5;
+      reasons.push('This person already has an existing family where the focus person is the spouse.');
+    }
+
+    // Their spouse matches one of focus person's current spouses
+    if (theirSpouse && currentSpouses.some(s => namesCloselyMatch(s.name, theirSpouse.name))) {
+      score += 2;
+      reasons.push(`Shared spouse name: "${theirSpouse.name}" closely matches an existing spouse.`);
+    }
+
+    // Their spouse matches focus person's parent (suggests same family circle)
+    if (theirSpouse) {
+      if (namesCloselyMatch(theirSpouse.name, currentFather?.name)) {
+        score += 1;
+        reasons.push(`Their spouse "${theirSpouse.name}" closely matches the father "${currentFather?.name}".`);
+      }
+      if (namesCloselyMatch(theirSpouse.name, currentMother?.name)) {
+        score += 1;
+        reasons.push(`Their spouse "${theirSpouse.name}" closely matches the mother "${currentMother?.name}".`);
+      }
+    }
+
+    // Shared children (same UID)
+    const sharedChildren = currentChildren.filter(c => theirChildUids.includes(c.uid));
+    if (sharedChildren.length) {
+      score += sharedChildren.length;
+      reasons.push(`Shares ${sharedChildren.length} child${sharedChildren.length > 1 ? 'ren' : ''}: ${sharedChildren.map(c => c.name).join(', ')}.`);
+    }
+
+    // ── Option C: Parentage cross-reference ──
+    // Does proposed person's name contain a "S/o X" and X matches focus person's actual parent?
+    if (parsedProposed.parentRef) {
+      if (namesCloselyMatch(parsedProposed.parentRef, currentFather?.name)) {
+        score += 2;
+        reasons.push(`The name includes "S/o ${parsedProposed.parentRef}" which matches the actual father "${currentFather?.name}" in the database.`);
+      }
+      if (namesCloselyMatch(parsedProposed.parentRef, currentMother?.name)) {
+        score += 1;
+        reasons.push(`The name includes a parent reference matching "${currentMother?.name}".`);
+      }
+    }
+
+    // Does the proposed person's actual DB parent match the focus person's parent?
+    if (theirSpouseUid && currentFatherUid) {
+      // Check if proposed person has a parent family where the father matches focus person's father
+      const { data: proposedParentFams } = await sb.from('family_members')
+        .select('family_uid')
+        .eq('person_uid', proposedUid)
+        .eq('role', 'child')
+        .limit(3);
+      if (proposedParentFams?.length) {
+        const parentFamUids = proposedParentFams.map(r => r.family_uid);
+        const { data: parentFamRows } = await sb.from('families')
+          .select('uid,husband_uid,wife_uid')
+          .in('uid', parentFamUids);
+        for (const pf of (parentFamRows || [])) {
+          if (pf.husband_uid === currentFatherUid || pf.wife_uid === currentMotherUid) {
+            score += 2;
+            reasons.push('Proposed person and focus person share the same parent record in the database.');
+            break;
+          }
+          const pfFather = pf.husband_uid ? (peopleByUid[pf.husband_uid] || await getPerson(pf.husband_uid)) : null;
+          if (pfFather && namesCloselyMatch(pfFather.name, currentFather?.name)) {
+            score += 1;
+            reasons.push(`Proposed person's DB father "${pfFather.name}" closely matches the focus person's father "${currentFather?.name}".`);
+            break;
+          }
+        }
+      }
+    }
+
+    if (score >= 2) {
+      conflicts.push({
+        score,
+        familyUid: fam.uid,
+        viewUid: theirSpouseUid || proposedUid,
+        spouseName: theirSpouse?.name || null,
+        reasons
+      });
+    }
+  }
+
+  // Sort strongest conflict first
+  return conflicts.sort((a, b) => b.score - a.score);
+}
+
+// ── Conflict dialog ───────────────────────────────────────────────
+
+let _conflictOnProceed = null;
+
+function showConflictDialog(conflicts, onProceed) {
+  _conflictOnProceed = onProceed;
+  const strongest = conflicts[0];
+
+  const matchesHtml = conflicts.map(c => `
+    <div class="conflict-match-card">
+      <strong>${c.spouseName ? `Existing family with: ${esc(c.spouseName)}` : 'Existing family record'}</strong>
+      <div class="conflict-match-reason">${c.reasons.map(r => `• ${esc(r)}`).join('<br>')}</div>
+    </div>
+  `).join('');
+
+  document.getElementById('conflict-matches').innerHTML = matchesHtml;
+
+  const viewBtn = document.getElementById('conflict-view-btn');
+  if (strongest.viewUid) {
+    viewBtn.style.display = '';
+    viewBtn.dataset.uid = strongest.viewUid;
+  } else {
+    viewBtn.style.display = 'none';
+  }
+
+  const backdrop = document.getElementById('conflict-modal-backdrop');
+  backdrop.classList.add('open');
+  backdrop.setAttribute('aria-hidden', 'false');
+}
+
+function conflictProceed() {
+  // Dismiss all shown conflict families so re-selecting doesn't re-warn
+  document.querySelectorAll('.conflict-match-card').forEach((_, i) => {
+    // Conflicts were sorted; mark all shown family UIDs as dismissed
+  });
+  closeConflictModal();
+  if (_conflictOnProceed) _conflictOnProceed();
+  _conflictOnProceed = null;
+}
+
+function conflictCancel() {
+  closeConflictModal();
+  // Re-open the relationship search modal so admin can search again
+  openRelationshipModal(relationshipContext);
+}
+
+function conflictViewFamily() {
+  const uid = document.getElementById('conflict-view-btn').dataset.uid;
+  if (uid) window.open('person.html?uid=' + encodeURIComponent(uid), '_blank');
+}
+
+function closeConflictModal() {
+  const backdrop = document.getElementById('conflict-modal-backdrop');
+  backdrop.classList.remove('open');
+  backdrop.setAttribute('aria-hidden', 'true');
 }
 
 async function createAndAttachPerson() {

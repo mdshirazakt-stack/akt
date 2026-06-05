@@ -2765,7 +2765,7 @@ function personBadgeHtml(p) {
 function renderResultCell(key, p, rawTokens, src) {
   if (key === 'name') return `<td data-label="Name"><span class="person-name">${highlightName(p.name || '(unnamed)', rawTokens)}</span>${personBadgeHtml(p)}</td>`;
   if (key === 'sex') return `<td data-label="Sex">${escapeHtml(p.sex || '-')}</td>`;
-  if (key === 'birth_place') return `<td data-label="Birth Place">${escapeHtml(p.birth_place || '-')}</td>`;
+  if (key === 'birth_place') return `<td data-label="Birth Place">—</td>`; // hidden site-wide
   if (key === 'root_place') return `<td data-label="Root Place">${escapeHtml(p.root_place || '-')}</td>`;
   if (key === 'current_place') return `<td data-label="Current Place">${escapeHtml(p.current_place || '-')}</td>`;
   if (key === 'deceased') return `<td data-label="Deceased">${p.death_flag ? 'Yes' : '-'}</td>`;
@@ -3588,8 +3588,7 @@ async function renderPersonDetail(uid, el) {
 
       <div class="detail-grid">
         <div class="detail-field"><div class="key">Given Name</div><div class="val">${p.given_name || p.name || '—'}</div></div>
-        ${p.birth_place ? `<div class="detail-field"><div class="key">Birth Place</div><div class="val">${p.birth_place}</div></div>` : ''}
-        ${visibleBirthDate ? `<div class="detail-field"><div class="key">Birth Date</div><div class="val">${visibleBirthDate}</div></div>` : ''}
+        <!-- Birth Place and Birth Date hidden site-wide (to be re-enabled later) -->
         ${p.death_date ? `<div class="detail-field"><div class="key">Death Date</div><div class="val">${p.death_date}</div></div>` : ''}
         ${p.death_place ? `<div class="detail-field"><div class="key">Death Place</div><div class="val">${p.death_place}</div></div>` : ''}
         ${p.occupation ? `<div class="detail-field"><div class="key">Occupation</div><div class="val">${p.occupation}</div></div>` : ''}
@@ -3739,9 +3738,10 @@ async function loadTree(uid) {
     if (!p) return '<div class="tree-box ' + cls + '" style="min-width:110px;opacity:0.35"><div class="tname" style="font-style:italic;color:var(--muted)">\u2014</div></div>';
     var parts = [];
     if (p.sex) parts.push(p.sex);
-    var birthDate = publicBirthDate(p.birth_date);
-    if (birthDate) parts.push(birthDate);
-    if (p.birth_place) parts.push(p.birth_place);
+    // Birth date and birth place hidden site-wide (to be re-enabled later)
+    // var birthDate = publicBirthDate(p.birth_date);
+    // if (birthDate) parts.push(birthDate);
+    // if (p.birth_place) parts.push(p.birth_place);
     if (p.death_flag) parts.push('\u2020');
     var meta = parts.join(' \u00b7 ');
     return '<div class="tree-box ' + cls + '" style="min-width:110px;max-width:180px;cursor:pointer" onclick="loadTree(\'' + p.uid + '\')">'

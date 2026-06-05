@@ -2231,10 +2231,10 @@ async function renderPerson(uid, el) {
 
       <div class="detail-grid">
         <div class="detail-field"><div class="key">Given Name</div><div class="val">${escHtml(displayName || p.given_name || '—')}</div></div>
-        ${displayBirthPlace    ? `<div class="detail-field"><div class="key">Place of Birth</div><div class="val">${escHtml(displayBirthPlace)}</div></div>` : ''}
+        <!-- Birth Place hidden site-wide (to be re-enabled later) -->
         ${displayRootLocation  ? `<div class="detail-field"><div class="key">Root Place</div><div class="val">${escHtml(displayRootLocation)}</div></div>` : ''}
         ${displayCurrentLocation ? `<div class="detail-field"><div class="key">Current Location</div><div class="val">${escHtml(displayCurrentLocation)}</div></div>` : ''}
-        ${displayBirthDate     ? `<div class="detail-field"><div class="key">Birth Date</div><div class="val">${escHtml(displayBirthDate)}</div></div>` : ''}
+        <!-- Birth Date hidden site-wide (to be re-enabled later) -->
         ${displayDeathDate     ? `<div class="detail-field"><div class="key">Death Date</div><div class="val">${escHtml(displayDeathDate)}</div></div>` : ''}
         ${displayDeathLocation ? `<div class="detail-field"><div class="key">Death Place</div><div class="val">${escHtml(displayDeathLocation)}</div></div>` : ''}
         ${p.occupation   ? `<div class="detail-field"><div class="key">Occupation</div><div class="val">${escHtml(p.occupation)}</div></div>` : ''}

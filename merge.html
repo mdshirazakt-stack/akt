@@ -379,6 +379,14 @@ async function linkPair(uidA, uidB, pairId) {
   const { error } = await sb.from('person_identity_members').upsert(rows, { onConflict: 'group_id,person_uid' });
   if (error) { showToast('Link failed: ' + error.message, true); return false; }
 
+  // Log the link action
+  const pA = window._mergePersonCache[uidA];
+  const pB = window._mergePersonCache[uidB];
+  await logMergeActivity('merge_pair_linked',
+    `Linked: "${pA?.name || uidA}" ↔ "${pB?.name || uidB}"`,
+    { uid_a: uidA, uid_b: uidB, group_id: groupId }
+  );
+
   // Update UI
   const row = document.getElementById(pairId);
   if (row) { row.classList.add('linked'); row.classList.remove('pending'); }
@@ -485,11 +493,25 @@ function showToast(msg, isError = false) {
 // ── Main comparison ───────────────────────────────────────────────
 window._mergePersonCache = {};
 
+async function logMergeActivity(action, detail, extra = {}) {
+  try {
+    await sb.from('activity_logs').insert({
+      visitor_name: currentUser || 'admin',
+      action,
+      target: detail,
+      details: { ...extra, page: 'merge.html' },
+      device: navigator.userAgent.slice(0, 80)
+    });
+  } catch(_) {}
+}
+
 async function startComparison() {
   const uidA = extractUid(document.getElementById('uid-a').value);
   const uidB = extractUid(document.getElementById('uid-b').value);
   if (!uidA || !uidB) { showToast('Please enter both UIDs', true); return; }
   if (uidA === uidB) { showToast('Both UIDs are the same person', true); return; }
+
+  await logMergeActivity('merge_comparison_started', `Comparing ${uidA} vs ${uidB}`, { uid_a: uidA, uid_b: uidB });
 
   const btn = document.getElementById('compare-btn');
   btn.disabled = true;

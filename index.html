@@ -1290,10 +1290,12 @@
           ✨ Advertise with Us
         </a>
         <a id="merge-trees-link" href="merge.html" target="_blank" rel="noopener"
-          style="display:none;align-items:center;gap:6px;padding:7px 14px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Lato',sans-serif;font-size:0.78rem;font-weight:700;text-decoration:none;letter-spacing:0.06em;text-transform:uppercase;transition:all 0.18s"
-          onmouseover="this.style.borderColor='var(--gold2)';this.style.color='var(--gold)'"
-          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
-          🔀 Merge Trees
+          onclick="logActivity('merge_trees_clicked','Opened Merge Trees tool',{})"
+          style="display:none;align-items:center;gap:7px;padding:8px 16px;background:#c2410c;color:#fff;font-family:'Lato',sans-serif;font-size:0.78rem;font-weight:700;text-decoration:none;letter-spacing:0.07em;text-transform:uppercase;border:none;border-radius:3px;box-shadow:0 2px 8px rgba(194,65,12,0.35);transition:background 0.18s,box-shadow 0.18s"
+          onmouseover="this.style.background='#9a3412';this.style.boxShadow='0 3px 12px rgba(154,52,18,0.5)'"
+          onmouseout="this.style.background='#c2410c';this.style.boxShadow='0 2px 8px rgba(194,65,12,0.35)'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M21 3l-7 7"/><path d="M3 3l7 7"/><path d="M16 21h5v-5"/><path d="M8 21H3v-5"/><path d="M21 21l-7-7"/><path d="M3 21l7-7"/></svg>
+          Merge Trees
         </a>
       </div>
       <div class="search-wrap">

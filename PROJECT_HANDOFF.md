@@ -1,6 +1,6 @@
 # Apnon Ki Talash / Iraqi Biradari Project Handoff
 
-Last updated: 2026-06-04 (security patch)
+Last updated: 2026-06-05
 
 ## Project Overview
 
@@ -278,6 +278,53 @@ After the RLS fix, `findVisitorForUser()` in auth-flow.js reads the `visitors` t
 
 **If `get_my_visitor()` is ever dropped or missing**, blocked users with null `auth_user_id` will bypass blocking again. Always ensure this function exists.
 
+### Second RLS gap — ad_impressions UPDATE/INSERT (discovered 2026-06-05)
+
+**The same null `auth_user_id` pattern also broke ad dismissal recording.**
+
+The `ad_impressions_self_update` and `ad_impressions_self_insert` policies used:
+```sql
+USING (visitor_id IN (SELECT id FROM visitors WHERE auth_user_id = auth.uid()))
+```
+
+For users with `auth_user_id = null`, this returns no rows → UPDATE silently fails → `dismissed_at` never recorded → all impressions show as "Shown only" in admin panel even when user clearly clicked ×.
+
+**Fix applied (must run in Supabase):**
+```sql
+DROP POLICY IF EXISTS "ad_impressions_self_update" ON public.ad_impressions;
+CREATE POLICY "ad_impressions_self_update" ON public.ad_impressions
+FOR UPDATE TO authenticated
+USING (
+  visitor_id IN (
+    SELECT id FROM public.visitors v
+    WHERE v.auth_user_id = auth.uid()
+       OR lower(v.email) = lower(
+            coalesce((SELECT email FROM auth.users WHERE id = auth.uid() LIMIT 1), '')
+          )
+  )
+) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "ad_impressions_self_insert" ON public.ad_impressions;
+CREATE POLICY "ad_impressions_self_insert" ON public.ad_impressions
+FOR INSERT TO authenticated
+WITH CHECK (
+  visitor_id IN (
+    SELECT id FROM public.visitors v
+    WHERE v.auth_user_id = auth.uid()
+       OR lower(v.email) = lower(
+            coalesce((SELECT email FROM auth.users WHERE id = auth.uid() LIMIT 1), '')
+          )
+  )
+);
+```
+
+**General pattern:** Any RLS policy that does `WHERE auth_user_id = auth.uid()` will silently fail for users with null `auth_user_id`. Always add the email fallback: `OR lower(email) = lower((SELECT email FROM auth.users WHERE id = auth.uid() LIMIT 1))`.
+
+**Also fixed (code-side):**
+- Ad × dismiss button enlarged to 44×44px for mobile touch targets
+- Backdrop click (dark area outside ad) now also triggers dismissal
+- Error logging added to `dismissAd()` — check browser console if dismissals stop recording
+
 **To fix a specific user's null auth_user_id:**
 ```sql
 UPDATE public.visitors
@@ -358,3 +405,5 @@ ORDER BY pg_total_relation_size(relid) DESC LIMIT 15;
 - New GEDCOM imports remain superadmin-only (admins redirected away from admin.html)
 - **`get_my_visitor()` SQL function must always exist** — if dropped, blocked users with null `auth_user_id` bypass blocking. See Database Schema Notes for full explanation.
 - After any RLS change, verify blocked users cannot access the archive by checking that `findVisitorForUser()` correctly identifies their visitor record
+- **RLS policy pattern for user-owned data:** Never use `WHERE auth_user_id = auth.uid()` alone. Always add email fallback: `OR lower(email) = lower((SELECT email FROM auth.users WHERE id = auth.uid() LIMIT 1))`. Missing this causes silent failures for users with null `auth_user_id` (common for users registered before the RLS fix).
+- **ad_impressions policies** must use the email fallback pattern (see Database Schema Notes). Without it, dismissed_at is never recorded for ~50% of users.

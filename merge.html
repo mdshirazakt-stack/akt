@@ -466,20 +466,23 @@ async function linkPairById(pairId, uidA, uidB) {
 }
 
 function updateProgress() {
-  const rows = document.querySelectorAll('.pair-row[data-uid-a][data-uid-b]');
-  let linked = 0, skipped = 0, pending = 0;
-  rows.forEach(r => {
-    const hasMatch = r.dataset.uidA && r.dataset.uidB;
-    if (!hasMatch) return;
-    if (r.classList.contains('linked')) linked++;
-    else if (r.classList.contains('skipped')) skipped++;
-    else pending++;
+  const allRows = document.querySelectorAll('.pair-row');
+  let linked = 0, skipped = 0, pending = 0, unmatched = 0;
+  allRows.forEach(r => {
+    const hasA = !!r.dataset.uidA;
+    const hasB = !!r.dataset.uidB;
+    if (hasA && hasB) {
+      if (r.classList.contains('linked'))       linked++;
+      else if (r.classList.contains('skipped')) skipped++;
+      else                                       pending++;
+    } else {
+      unmatched++;
+    }
   });
-  const unmatchedRows = document.querySelectorAll('.pair-row:not([data-uid-b=]):not([data-uid-a=])');
-  document.getElementById('stat-linked').textContent   = `${linked} linked`;
-  document.getElementById('stat-skipped').textContent  = `${skipped} skipped`;
-  document.getElementById('stat-pending').textContent  = `${pending} pending review`;
-  document.getElementById('stat-unmatched').textContent = `${unmatchedRows.length + (document.querySelectorAll('.pair-row').length - rows.length)} unmatched`;
+  document.getElementById('stat-linked').textContent    = `${linked} linked`;
+  document.getElementById('stat-skipped').textContent   = `${skipped} skipped`;
+  document.getElementById('stat-pending').textContent   = `${pending} pending review`;
+  document.getElementById('stat-unmatched').textContent = `${unmatched} unmatched`;
 }
 
 function showToast(msg, isError = false) {

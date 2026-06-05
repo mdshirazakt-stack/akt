@@ -318,7 +318,15 @@ WITH CHECK (
 );
 ```
 
-**General pattern:** Any RLS policy that does `WHERE auth_user_id = auth.uid()` will silently fail for users with null `auth_user_id`. Always add the email fallback: `OR lower(email) = lower((SELECT email FROM auth.users WHERE id = auth.uid() LIMIT 1))`.
+**General pattern:** Any RLS policy OR helper function that does `WHERE auth_user_id = auth.uid()` will silently fail for users with null `auth_user_id`. Always add the email fallback: `OR lower(email) = lower((SELECT email FROM auth.users WHERE id = auth.uid() LIMIT 1))`.
+
+**This also affects the three helper functions** (`akt_is_visitor`, `akt_is_staff`, `akt_is_admin`) — they also used `auth_user_id = auth.uid()` alone. All three must include the email fallback. Staff activity was not being recorded for admins with null `auth_user_id` because `akt_is_staff()` returned false. Run this to fix all three:
+```sql
+CREATE OR REPLACE FUNCTION public.akt_is_visitor() ...
+CREATE OR REPLACE FUNCTION public.akt_is_staff() ...  
+CREATE OR REPLACE FUNCTION public.akt_is_admin() ...
+```
+(See supabase_rls_fix.sql — update all three functions to add the email OR clause.)
 
 **Also fixed (code-side):**
 - Ad × dismiss button enlarged to 44×44px for mobile touch targets

@@ -1455,7 +1455,22 @@
         <h2>User Guide</h2>
         <p class="help-lead">This archive is private and community maintained. Use it slowly, verify what you find, and send corrections when you see missing or doubtful information.</p>
 
-        <div class="help-grid">
+        <!-- Index -->
+        <div style="background:var(--goldl);border:1px solid var(--gold2);padding:16px 20px;margin-bottom:28px;font-size:0.85rem;line-height:2">
+          <div style="font-size:0.7rem;font-weight:900;text-transform:uppercase;letter-spacing:0.14em;color:var(--gold);margin-bottom:8px">Contents</div>
+          <a href="#guide-first-visit" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">1. First Visit &amp; Finding Family</a>
+          <a href="#guide-search" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">2. How to Search Effectively</a>
+          <a href="#guide-duplicates" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">3. Reporting Duplicate Profiles</a>
+          <a href="#guide-corrections" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">4. Corrections and Missing People</a>
+          <a href="#guide-claims" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">5. Profile Claims Policy</a>
+          <a href="#guide-blocked" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">6. Blocked Accounts and Reinstatement Policy</a>
+          <a href="#guide-print" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">7. How to Print a Family Tree</a>
+          <a href="#guide-mobile-privacy" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">8. Mobile Number Privacy</a>
+          <a href="#guide-dob-privacy" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">9. Date of Birth Privacy</a>
+          <a href="#guide-contact" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">10. Contacting Site Admins</a>
+        </div>
+
+        <div class="help-grid" id="guide-first-visit">
           <div class="help-card">
             <h4>First visit</h4>
             <p>Sign in, complete the registration and consent form, then search for your own profile. Claim only your own profile so admins can privately connect your email and mobile number with the correct record.</p>
@@ -1466,7 +1481,7 @@
           </div>
         </div>
 
-        <div class="help-section">
+        <div class="help-section" id="guide-search">
           <h3>How to search effectively</h3>
           <ul>
             <li>The search bar looks across <strong>names, birth place, current place, root place, and death place</strong> at the same time — type a town or village name to find everyone connected to it.</li>
@@ -1480,17 +1495,17 @@
           </ul>
         </div>
 
-        <div class="help-section">
+        <div class="help-section" id="guide-duplicates">
           <h3>Reporting duplicate profiles</h3>
           <p>If two profiles look like the same person, open one profile, click Share to copy its profile URL, then paste that URL into the Profile Duplicacy section while raising a correction from the other profile.</p>
         </div>
 
-        <div class="help-section">
+        <div class="help-section" id="guide-corrections">
           <h3>Corrections and missing people</h3>
           <p>Use Add / Correct Family for spelling issues, place corrections, missing dates, missing relatives, duplicate profiles, and requests to add a person who is not yet represented. For duplicate profiles, use the Profile Duplicacy chevron and paste the copied profile URL from the Share button, plus a short note explaining why the two records seem to be the same person. Include enough context for an admin to verify the request: names, places, approximate dates, and known family links.</p>
         </div>
 
-        <div class="help-section">
+        <div class="help-section" id="guide-claims">
           <h3>Profile Claims Policy</h3>
           <p>The purpose of profile claiming is to protect the integrity, privacy, and authenticity of the family lineage database.</p>
           <p style="margin-top:8px">Profile claiming helps verify that a registered user is genuinely connected to the family line they represent. It allows administrators to link a real individual to their lineage records and reduces the risk of unknown, unrelated, or unverified users accessing family information for inappropriate purposes.</p>
@@ -1509,21 +1524,52 @@
           <p style="margin-top:8px">Our goal is not to restrict access, but to ensure that every active account on the platform belongs to a genuine and identifiable member of the family community.</p>
         </div>
 
-        <div class="help-section">
+        <div class="help-section" id="guide-blocked">
+          <h3>Blocked Accounts and Reinstatement Policy</h3>
+          <p>To maintain the integrity and security of the family database, all registered users must claim their personal profile within <strong>72 hours</strong> of registration.</p>
+          <p style="margin-top:8px">Accounts that remain unclaimed after this period will be <strong>automatically blocked by the system</strong> and will no longer be able to sign in until their identity and lineage connection have been reviewed.</p>
+          <p style="margin-top:14px"><strong>How to Restore Access</strong></p>
+          <p style="margin-top:6px">Blocked users must contact the Community Administrator through the designated WhatsApp support channel and request account review.</p>
+          <p style="margin-top:6px"><a href="https://chat.whatsapp.com/HtSTOEqyDx644pLLdbnnlm?s=sh&p=a&ilr=1" target="_blank" rel="noopener" style="color:var(--green);font-weight:700">→ Join the Community WhatsApp Group</a></p>
+          <p style="margin-top:10px">During the review process, administrators may:</p>
+          <ul style="margin-top:6px">
+            <li>Help identify an existing profile belonging to the user.</li>
+            <li>Verify the user's lineage connection to the family tree.</li>
+            <li>Locate the appropriate ancestral branch.</li>
+            <li>Create a new profile if no suitable profile exists.</li>
+            <li>Connect the user to the correct lineage before restoring access.</li>
+          </ul>
+          <p style="margin-top:14px"><strong>Profile Claim Requirement</strong></p>
+          <p style="margin-top:6px">Once a profile has been identified or created, the user must promptly claim their personal profile. The purpose of profile claiming is to verify identity and establish a legitimate connection between the registered account and the family lineage database.</p>
+          <p style="margin-top:14px"><strong>Failure to Claim After Review</strong></p>
+          <p style="margin-top:6px">If a user's profile has been identified or created and the user still fails to claim their profile after administrator assistance, the account may be flagged for additional review. In such cases, administrators may request an explanation for the repeated failure to complete the profile claim process before considering any further access requests.</p>
+          <p style="margin-top:14px"><strong>Administrative Discretion</strong></p>
+          <p style="margin-top:6px">The administration team reserves the right to:</p>
+          <ul style="margin-top:6px">
+            <li>Approve or reject any profile claim.</li>
+            <li>Request additional verification information.</li>
+            <li>Restrict or suspend accounts where identity or lineage cannot be reasonably verified.</li>
+            <li>Decline repeated reinstatement requests where users fail to comply with profile claiming requirements.</li>
+            <li>Grant or deny additional opportunities for account restoration at their sole discretion.</li>
+          </ul>
+          <p style="margin-top:10px">These measures exist to protect family privacy, preserve lineage accuracy, and ensure that access is limited to genuine and verifiable members of the community.</p>
+        </div>
+
+        <div class="help-section" id="guide-mobile-privacy">
           <h3>Mobile number privacy</h3>
           <p>To protect the privacy and security of individuals and families listed in the Shajra, mobile numbers are <strong>not displayed publicly</strong> on the website.</p>
           <p>While mobile numbers may be collected and securely stored in our backend systems for administrative, verification, moderation, and record-management purposes, they remain accessible only to authorised administrators and are never exposed to public users.</p>
           <p>This policy has been adopted to minimise the risk of misuse, unsolicited contact, spam, fraud, data scraping, and other privacy concerns. The primary purpose of Apnon Ki Talash and the Iraqi Biradari Shajra is to help individuals understand family connections, ancestry, and lineage relationships. It is <strong>not intended to serve as a public directory for contacting or socialising with individuals listed in the family tree.</strong></p>
         </div>
 
-        <div class="help-section">
+        <div class="help-section" id="guide-dob-privacy">
           <h3>Date of birth privacy</h3>
           <p>Where available, dates of birth may be collected and stored within our records to improve the accuracy of genealogy data and family relationships.</p>
           <p>However, dates of birth are <strong>not displayed publicly</strong> on the website. This information is retained only for administrative and record-keeping purposes and is accessible solely to authorised administrators where required.</p>
           <p>This policy helps protect individuals from identity-related risks, privacy violations, unauthorised profiling, and misuse of personal information. The objective of the Shajra is to provide a meaningful understanding of family history and connections while maintaining appropriate safeguards for personal information and respecting the privacy of living individuals.</p>
         </div>
 
-        <div class="help-section">
+        <div class="help-section" id="guide-print">
           <h3>How to print a family tree</h3>
           <p><strong>Step 1 — Find your focus person in Search.</strong> Go to the Search tab and search for the person you want to be the root of the printed tree — ideally the oldest ancestor whose family line you want to capture. Open their profile by clicking their name.</p>
           <p style="margin-top:8px"><strong>Step 2 — Click Browse Tree from their profile.</strong> On the profile page, click the 🌳 Browse Tree button. This takes you directly to the Browse Tree tab with that person already set as the focus. You will see the label <em>"Showing tree for: [Name]"</em> confirming who the tree is built around.</p>
@@ -1533,7 +1579,7 @@
           <p style="margin-top:10px"><strong>Limitations:</strong> The tree displays a maximum of <strong>6 ancestor generations</strong> upward and <strong>6 descendant generations</strong> downward from the focus person. If your family spans more, choose a different focus person from the middle of the line to capture that section and print separately. The tree follows the paternal line upward — wives appear as spouses at each level but their own ancestry is not traversed.</p>
         </div>
 
-        <div class="help-section">
+        <div class="help-section" id="guide-contact">
           <h3>Contacting site admins</h3>
           <p>For access problems, incorrect records, blocked accounts, urgent privacy concerns, or large shajra datasets, use Add / Correct Family with clear details. If you want to help review data regularly, use the Contribution tab to apply for a moderator or admin role.</p>
         </div>

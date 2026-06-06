@@ -2071,7 +2071,7 @@ let currentUserRole = 'visitor';
 const ROLE_LEVELS = { visitor: 1, moderator: 2, admin: 3, superadmin: 4 };
 const SEARCH_STATE_KEY = 'akt_search_state_v2';
 const SEARCH_COLUMNS_KEY = 'akt_search_columns_v1';
-const PRIVATE_BIRTH_YEAR_CUTOFF = 1990;
+const PRIVATE_BIRTH_YEAR_CUTOFF = 1979; // show DOB for born before 1980
 const SEARCH_COLUMNS = [
   { key: 'name', label: 'Name', required: true },
   { key: 'sex', label: 'Sex' },
@@ -3746,7 +3746,8 @@ async function renderPersonDetail(uid, el) {
 
       <div class="detail-grid">
         <div class="detail-field"><div class="key">Given Name</div><div class="val">${p.given_name || p.name || '—'}</div></div>
-        <!-- Birth Place and Birth Date hidden site-wide (to be re-enabled later) -->
+        ${p.birth_place ? `<div class="detail-field"><div class="key">Birth Place</div><div class="val">${p.birth_place}</div></div>` : ''}
+        ${visibleBirthDate ? `<div class="detail-field"><div class="key">Birth Date</div><div class="val">${visibleBirthDate}</div></div>` : ''}
         ${p.death_date ? `<div class="detail-field"><div class="key">Death Date</div><div class="val">${p.death_date}</div></div>` : ''}
         ${p.death_place ? `<div class="detail-field"><div class="key">Death Place</div><div class="val">${p.death_place}</div></div>` : ''}
         ${p.occupation ? `<div class="detail-field"><div class="key">Occupation</div><div class="val">${p.occupation}</div></div>` : ''}
@@ -3896,10 +3897,9 @@ async function loadTree(uid) {
     if (!p) return '<div class="tree-box ' + cls + '" style="min-width:110px;opacity:0.35"><div class="tname" style="font-style:italic;color:var(--muted)">\u2014</div></div>';
     var parts = [];
     if (p.sex) parts.push(p.sex);
-    // Birth date and birth place hidden site-wide (to be re-enabled later)
-    // var birthDate = publicBirthDate(p.birth_date);
-    // if (birthDate) parts.push(birthDate);
-    // if (p.birth_place) parts.push(p.birth_place);
+    var birthDate = publicBirthDate(p.birth_date);
+    if (birthDate) parts.push(birthDate);
+    // birth_place still hidden site-wide
     if (p.death_flag) parts.push('\u2020');
     var meta = parts.join(' \u00b7 ');
     return '<div class="tree-box ' + cls + '" style="min-width:110px;max-width:180px;cursor:pointer" onclick="loadTree(\'' + p.uid + '\')">'

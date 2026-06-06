@@ -2088,6 +2088,33 @@ function showAccessMessage(message, isError) {
   err.style.display = 'block';
 }
 
+async function getClaimedProfileUid(visitorRecord) {
+  // Find an applied profile claim for this user
+  // Match by auth_user_id, email, or mobile — whichever is available
+  const authUid = (await sb.auth.getUser()).data?.user?.id || '';
+  const email   = visitorRecord?.email || '';
+  const mobile  = visitorRecord?.mobile || '';
+
+  const clauses = [];
+  if (authUid) clauses.push(`auth_user_id.eq.${authUid}`);
+  if (email)   clauses.push(`claimant_email.ilike.${email}`);
+  if (mobile)  clauses.push(`claimant_mobile.eq.${mobile.replace(/\D/g,'')}`);
+  if (!clauses.length) return null;
+
+  const { data } = await sb.from('profile_claims')
+    .select('person_uid,status,applied_at')
+    .or(clauses.join(','))
+    .not('person_uid', 'is', null)
+    .limit(1);
+
+  const claim = data?.[0];
+  // Only redirect if claim has been applied (admin reviewed it)
+  if (claim && (claim.status === 'applied' || claim.applied_at)) {
+    return claim.person_uid;
+  }
+  return null;
+}
+
 async function startApp(name, role = 'visitor', visitorRecord = null) {
   currentUser = name;
   currentUserRole = normalizeAccessRole(role || sessionStorage.getItem('akt_visitor_role'));
@@ -2100,6 +2127,16 @@ async function startApp(name, role = 'visitor', visitorRecord = null) {
   checkAndShowAd(visitorRecord);
   await loadGedcomSources();
   logActivity('login', `Logged in: ${name}`, { visit_count: currentVisitCount });
+
+  // Redirect to claimed profile on first login this session
+  if (!sessionStorage.getItem('akt_profile_redirect_done')) {
+    sessionStorage.setItem('akt_profile_redirect_done', '1');
+    const claimedUid = await getClaimedProfileUid(visitorRecord);
+    if (claimedUid) {
+      window.location.href = 'person.html?uid=' + encodeURIComponent(claimedUid);
+      return;
+    }
+  }
 
   const params = new URLSearchParams(location.search);
 

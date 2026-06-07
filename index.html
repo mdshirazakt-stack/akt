@@ -3953,7 +3953,7 @@ async function loadTree(uid) {
     h += pBox(person, cls);
     if (spouse) {
       var connectorHtml = isDivorced
-        ? '<div style="padding:8px 5px 0;font-size:0.72rem;color:#92400e;font-weight:700;text-align:center;line-height:1.2">Divorced</div>'
+        ? '<div style="padding:10px 5px 0;font-size:0.9rem;color:#92400e;font-weight:700;line-height:1">\u26ae</div>'
         : '<div style="padding:10px 5px 0;font-size:0.9rem;color:' + spouseColor + ';font-weight:700;line-height:1">\u26ad</div>';
       h += connectorHtml;
       h += pBox(spouse, spouseCls);

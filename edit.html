@@ -344,6 +344,7 @@
     <div class="conflict-matches" id="conflict-matches"></div>
     <div class="conflict-foot">
       <button class="conflict-btn-view" id="conflict-view-btn" type="button" style="display:none" onclick="conflictViewFamily()">🔍 View existing family</button>
+      <button class="conflict-btn-link" id="conflict-link-btn" type="button" style="display:none;background:#166534;color:#fff;border-color:#166534" onclick="conflictLinkFamily()">🔗 Yes — this is the same family, link me in</button>
       <button class="conflict-btn-primary" type="button" onclick="conflictProceed()">I understand — continue anyway</button>
       <button class="conflict-btn-cancel" type="button" onclick="conflictCancel()">Cancel — go back to search</button>
     </div>
@@ -1759,6 +1760,21 @@ async function checkRelationshipConflict(proposedUid, proposedName, kind) {
       .eq('family_uid', fam.uid)
       .eq('role', 'child');
     const theirChildUids = (famMemberRows || []).map(m => m.person_uid);
+    const theirChildren = theirChildUids.map(u => peopleByUid[u]).filter(Boolean);
+
+    // ── Linkable check (spouse only): does this family have an EMPTY parent
+    // slot that the focus person could fill, instead of creating a brand-new,
+    // separate family group? This is the "same family, just connect us" case
+    // (e.g. children already recorded under one known parent + "spouse unknown",
+    // and we've now identified who that spouse is).
+    let linkableSlot = null; // 'husband' | 'wife' | null
+    if (kind === 'spouse' && !theirSpouseUid) {
+      linkableSlot = fam.husband_uid === proposedUid ? 'wife' : 'husband';
+      const expectedSex = linkableSlot === 'wife' ? 'F' : 'M';
+      // Don't offer to link if the focus person's recorded sex clearly conflicts
+      // with the empty slot's role (but allow when sex is unknown/unset).
+      if (focusPerson?.sex && focusPerson.sex !== expectedSex) linkableSlot = null;
+    }
 
     let score = 0;
     const reasons = [];
@@ -1836,13 +1852,23 @@ async function checkRelationshipConflict(proposedUid, proposedName, kind) {
       }
     }
 
+    // A linkable family is always worth surfacing — even with a low conflict
+    // score — because "link me into this existing family" is a valuable choice
+    // on its own (avoids creating a redundant, separate family group).
+    if (linkableSlot && theirChildren.length) {
+      score = Math.max(score, 2);
+      reasons.push(`This family has ${theirChildren.length} child${theirChildren.length > 1 ? 'ren' : ''} recorded with no ${linkableSlot} listed: ${theirChildren.map(c => c.name).join(', ')}.`);
+    }
+
     if (score >= 2) {
       conflicts.push({
         score,
         familyUid: fam.uid,
         viewUid: theirSpouseUid || proposedUid,
         spouseName: theirSpouse?.name || null,
-        reasons
+        reasons,
+        linkableSlot,
+        linkChildren: linkableSlot ? theirChildren : []
       });
     }
   }
@@ -1854,15 +1880,21 @@ async function checkRelationshipConflict(proposedUid, proposedName, kind) {
 // ── Conflict dialog ───────────────────────────────────────────────
 
 let _conflictOnProceed = null;
+let _conflictLinkable = null; // { familyUid, slot, children, spouseUid } for the "link me in" action
 
 function showConflictDialog(conflicts, onProceed) {
   _conflictOnProceed = onProceed;
+  _conflictLinkable = null;
   const strongest = conflicts[0];
+
+  // Prefer the strongest conflict that's also linkable, for the link action
+  const linkable = conflicts.find(c => c.linkableSlot);
 
   const matchesHtml = conflicts.map(c => `
     <div class="conflict-match-card">
       <strong>${c.spouseName ? `Existing family with: ${esc(c.spouseName)}` : 'Existing family record'}</strong>
       <div class="conflict-match-reason">${c.reasons.map(r => `• ${esc(r)}`).join('<br>')}</div>
+      ${c.linkableSlot ? `<div class="conflict-match-reason" style="color:#166534;font-weight:700;margin-top:4px">↳ This family is missing a ${esc(c.linkableSlot)} — could this be the same family, with the focus person as the missing ${esc(c.linkableSlot)}?</div>` : ''}
     </div>
   `).join('');
 
@@ -1874,6 +1906,21 @@ function showConflictDialog(conflicts, onProceed) {
     viewBtn.dataset.uid = strongest.viewUid;
   } else {
     viewBtn.style.display = 'none';
+  }
+
+  const linkBtn = document.getElementById('conflict-link-btn');
+  if (linkable) {
+    _conflictLinkable = {
+      familyUid: linkable.familyUid,
+      slot: linkable.linkableSlot,
+      children: linkable.linkChildren,
+      spouseUid: linkable.viewUid
+    };
+    const spouseName = linkable.spouseName || 'this person';
+    linkBtn.textContent = `🔗 Yes — link me in as ${spouseName}'s missing ${linkable.linkableSlot} (shares ${linkable.linkChildren.length} child${linkable.linkChildren.length > 1 ? 'ren' : ''})`;
+    linkBtn.style.display = '';
+  } else {
+    linkBtn.style.display = 'none';
   }
 
   const backdrop = document.getElementById('conflict-modal-backdrop');
@@ -1902,10 +1949,50 @@ function conflictViewFamily() {
   if (uid) window.open('person.html?uid=' + encodeURIComponent(uid), '_blank');
 }
 
+// "Yes — link me into this existing family" — fills the EMPTY husband/wife
+// slot of an already-existing family group with the focus person, instead of
+// creating a brand-new, separate (and now duplicate) family group. This is the
+// correct way to connect "children already recorded with one known parent +
+// spouse unknown" once that spouse's identity has been determined — the
+// children then correctly show under both parents with zero copying/risk of
+// misattribution (they were never duplicated; just one record gets completed).
+async function conflictLinkFamily() {
+  if (!requireRelationshipEdit('link existing family records')) return;
+  const link = _conflictLinkable;
+  if (!link) return;
+  const childNames = (link.children || []).map(c => c.name || '(unnamed)').join(', ');
+  const ok = confirm(
+    `Link ${focusPerson?.name || 'this person'} into the existing family as the missing ${link.slot}?\n\n` +
+    `This will connect the existing ${link.children.length} child${link.children.length > 1 ? 'ren' : ''} ` +
+    `(${childNames}) to ${focusPerson?.name || 'this person'} as well — they will correctly show under both parents.\n\n` +
+    `Use this only if you're confident this is genuinely the SAME family (not a different relationship).`
+  );
+  if (!ok) return;
+
+  const update = link.slot === 'husband' ? { husband_uid: focusUid } : { wife_uid: focusUid };
+  const { error } = await sb.from('families').update(update).eq('uid', link.familyUid);
+  if (error) { setStatus(error.message, true); return; }
+
+  await logTreeChange('tree_spouse_family_linked', `Linked into existing family as ${link.slot}`, {
+    profile_uid: focusUid,
+    related_uid: link.spouseUid || null,
+    family_uid: link.familyUid,
+    relation: link.slot
+  });
+
+  closeConflictModal();
+  closeRelationshipModal();
+  setStatus(`Linked into the existing family as ${link.slot}. Shared children now show under both parents.`);
+  _conflictLinkable = null;
+  _conflictOnProceed = null;
+  await loadEditor();
+}
+
 function closeConflictModal() {
   const backdrop = document.getElementById('conflict-modal-backdrop');
   backdrop.classList.remove('open');
   backdrop.setAttribute('aria-hidden', 'true');
+  _conflictLinkable = null;
 }
 
 async function createAndAttachPerson() {

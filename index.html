@@ -2967,6 +2967,28 @@ function cleanGedcomTitle(filename) {
     .trim();
 }
 
+// Returns "1st", "2nd", "3rd", "4th"... for a positive integer
+function ordinal(n) {
+  n = Number(n);
+  if (!n || n < 1) return '';
+  const rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return n + 'th';
+  switch (n % 10) {
+    case 1: return n + 'st';
+    case 2: return n + 'nd';
+    case 3: return n + 'rd';
+    default: return n + 'th';
+  }
+}
+
+// Marriage order is recorded per-side (husband_marriage_seq / wife_marriage_seq).
+// Returns an ordinal label for whichever side `personUid` is on, or '' if unset.
+function marriageOrdinalFor(fam, personUid) {
+  if (!fam || !personUid) return '';
+  const seq = fam.husband_uid === personUid ? fam.husband_marriage_seq : fam.wife_uid === personUid ? fam.wife_marriage_seq : null;
+  return seq ? ordinal(seq) : '';
+}
+
 function escapeHtml(value) {
   return String(value || '')
     .replace(/&/g, '&amp;')
@@ -3784,7 +3806,7 @@ async function renderPersonDetail(uid, el) {
         ${spouseFamilies.map(({ f, spouseUid, spouseName, children }, idx) => `
           <div class="family-card">
             <div class="fc-title">
-              ${spouseFamilies.length > 1 ? `<span style="font-size:0.75rem;color:var(--muted);margin-right:6px">Marriage ${idx+1}</span>` : ''}
+              ${spouseFamilies.length > 1 ? `<span style="font-size:0.75rem;color:var(--muted);margin-right:6px">${(() => { const ord = marriageOrdinalFor(f, uid); return ord ? `${ord} marriage` : `Marriage ${idx+1}`; })()}</span>` : ''}
               Spouse: ${spouseUid
                 ? `<span class="person-name" onclick="showPerson('${spouseUid}')">${spouseName}</span>`
                 : `<span style="color:var(--muted)">${spouseName}</span>`}

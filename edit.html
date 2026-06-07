@@ -313,6 +313,17 @@
           <input id="marriage-place" placeholder="City, country"/>
         </div>
       </div>
+      <label id="marriage-seq-label">Marriage order</label>
+      <select id="marriage-seq">
+        <option value="">— Not specified (order by date if known)</option>
+        <option value="1">1st marriage</option>
+        <option value="2">2nd marriage</option>
+        <option value="3">3rd marriage</option>
+        <option value="4">4th marriage</option>
+        <option value="5">5th marriage</option>
+        <option value="6">6th marriage</option>
+      </select>
+      <div class="modal-context" style="margin-top:-6px">Which numbered marriage this is — useful when there are multiple spouses and the order isn't obvious from dates alone (e.g. remarriage after widowhood/divorce). This is recorded separately for each side of the couple.</div>
       <label>Notes (optional)</label>
       <textarea id="marriage-notes" placeholder="Anything to remember about this marriage..."></textarea>
     </div>
@@ -697,18 +708,44 @@ function emptyFamilySlot(text) {
   return `<div class="person-card empty" aria-disabled="true">${esc(text)}</div>`;
 }
 
+// Returns "1st", "2nd", "3rd", "4th"... for a positive integer
+function ordinal(n) {
+  n = Number(n);
+  if (!n || n < 1) return '';
+  const rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return n + 'th';
+  switch (n % 10) {
+    case 1: return n + 'st';
+    case 2: return n + 'nd';
+    case 3: return n + 'rd';
+    default: return n + 'th';
+  }
+}
+
+// Marriage order is recorded per-side (husband_marriage_seq / wife_marriage_seq).
+// Returns the ordinal label for whichever side `personUid` is on, or '' if unset.
+function marriageOrdinalFor(fam, personUid) {
+  if (!personUid) return '';
+  const seq = fam.husband_uid === personUid ? fam.husband_marriage_seq : fam.wife_uid === personUid ? fam.wife_marriage_seq : null;
+  return seq ? ordinal(seq) : '';
+}
+
 function spouseLine(fam) {
   const spouseUid = fam.husband_uid === focusUid ? fam.wife_uid : fam.husband_uid;
   const spouse = spouseUid ? peopleByUid[spouseUid] : null;
-  if (!spouseUid) return 'm. <span style="color:var(--muted)">spouse not recorded</span>';
-  return `m. <a href="edit.html?uid=${encodeURIComponent(spouseUid)}">${esc(spouse?.name || '(spouse not set)')}</a>${spouse?.death_flag ? '<span class="deceased-mark">†</span>' : ''}`;
+  const ord = marriageOrdinalFor(fam, focusUid);
+  const ordTag = ord ? `<span style="color:var(--gold);font-weight:700;font-size:0.82em">(${ord} marriage)</span> ` : '';
+  if (!spouseUid) return ordTag + 'm. <span style="color:var(--muted)">spouse not recorded</span>';
+  return `${ordTag}m. <a href="edit.html?uid=${encodeURIComponent(spouseUid)}">${esc(spouse?.name || '(spouse not set)')}</a>${spouse?.death_flag ? '<span class="deceased-mark">†</span>' : ''}`;
 }
 
 function familySection(fam, idx) {
   const spouseUid = fam.husband_uid === focusUid ? fam.wife_uid : fam.husband_uid;
   const spouse = spouseUid ? peopleByUid[spouseUid] : null;
   const spouseName = spouse ? `${spouse.name || 'spouse'}${spouse.death_flag ? ' †' : ''}` : 'spouse not recorded';
-  const title = spouse ? `${focusPerson.name || 'Person'} and ${spouseName}'s children` : `${focusPerson.name || 'Person'}'s children (${spouseName})`;
+  const ord = marriageOrdinalFor(fam, focusUid);
+  const ordPrefix = ord ? `(${ord} marriage) ` : '';
+  const title = spouse ? `${ordPrefix}${focusPerson.name || 'Person'} and ${spouseName}'s children` : `${ordPrefix}${focusPerson.name || 'Person'}'s children (${spouseName})`;
   const children = fam.children || [];
   const relationshipActions = canEditRelationships();
   const isDivorced = ['divorced', 'separated'].includes(fam.marr_status);
@@ -1944,6 +1981,12 @@ function openMarriageModal(fam) {
   document.getElementById('marriage-date').value = fam.marr_date || '';
   document.getElementById('marriage-place').value = fam.marr_place || '';
   document.getElementById('marriage-notes').value = fam.marr_notes || '';
+  // Marriage order is recorded per-side (husband_marriage_seq / wife_marriage_seq)
+  // — show/save whichever column belongs to the focus person.
+  const isFocusHusband = fam.husband_uid === focusUid;
+  const focusSeq = isFocusHusband ? fam.husband_marriage_seq : fam.wife_marriage_seq;
+  document.getElementById('marriage-seq-label').textContent = `Marriage order — for ${focusPerson?.name || 'this person'}`;
+  document.getElementById('marriage-seq').value = focusSeq ? String(focusSeq) : '';
   renderMarriageStatuses();
   const modal = document.getElementById('marriage-modal');
   modal.classList.add('open');
@@ -1979,17 +2022,29 @@ async function saveMarriageDetails() {
   const familyUid = marriageContext.uid;
   const gedcomId = marriageContext.gedcom_id || null;
   const notesValue = value('marriage-notes');
+  const seqRaw = value('marriage-seq');
+  const seqValue = seqRaw ? parseInt(seqRaw, 10) : null;
+  const isFocusHusband = marriageContext.husband_uid === focusUid;
   const payload = {
     marr_date: value('marriage-date') || null,
     marr_place: value('marriage-place') || null,
     marr_status: selectedMarriageStatus || null,
-    marr_notes: notesValue || null
+    marr_notes: notesValue || null,
+    ...(isFocusHusband ? { husband_marriage_seq: seqValue } : { wife_marriage_seq: seqValue })
   };
   let savedWithoutNotes = false;
+  let savedWithoutSeq = false;
   let { error } = await sb.from('families').update(payload).eq('uid', familyUid);
   if (error && /schema cache|marr_notes/i.test(error.message || '')) {
     delete payload.marr_notes;
     savedWithoutNotes = Boolean(notesValue);
+    const retry = await sb.from('families').update(payload).eq('uid', familyUid);
+    error = retry.error;
+  }
+  if (error && /schema cache|marriage_seq/i.test(error.message || '')) {
+    delete payload.husband_marriage_seq;
+    delete payload.wife_marriage_seq;
+    savedWithoutSeq = Boolean(seqValue);
     const retry = await sb.from('families').update(payload).eq('uid', familyUid);
     error = retry.error;
   }
@@ -2001,7 +2056,11 @@ async function saveMarriageDetails() {
     marriage_status: payload.marr_status || '',
     gedcom_id: gedcomId
   });
-  setStatus(savedWithoutNotes ? 'Marriage details saved, but notes need the marr_notes database column. Run supabase_family_editor_updates.sql.' : 'Marriage details saved.');
+  setStatus(
+    savedWithoutNotes ? 'Marriage details saved, but notes need the marr_notes database column. Run supabase_family_editor_updates.sql.'
+    : savedWithoutSeq ? 'Marriage details saved, but marriage order needs the husband_marriage_seq/wife_marriage_seq columns. Run supabase_marriage_sequence.sql.'
+    : 'Marriage details saved.'
+  );
   await loadEditor();
 }
 

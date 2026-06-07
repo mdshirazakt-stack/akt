@@ -1083,8 +1083,13 @@ async function createSpouseFamilyWith(spouseUid) {
   const { error } = await sb.from('families').update(update).eq('uid', fam.uid);
   if (error) return setStatus(error.message, true);
 
-  // Auto-import existing children of the selected spouse from their GEDCOM families
-  await importSpouseExistingChildren(spouseUid, fam.uid);
+  // NOTE: Do NOT auto-import the spouse's existing children here. Blindly copying
+  // "any family where this spouse appears as a parent" into the brand-new family
+  // group risks misattributing children from a *different* relationship (e.g. the
+  // focus person's children with a prior spouse got silently copied into a new
+  // spouse's group). If the admin genuinely wants to pull in a spouse's existing
+  // children, they can use the explicit "⬇ Import <spouse>'s children" button on
+  // the family card — that's a deliberate, reviewable action, not an automatic one.
 
   await refreshGedcomCounts(fam.gedcom_id);
   await logTreeChange('tree_spouse_group_created', 'Spouse/partner group created', {

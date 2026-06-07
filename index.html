@@ -5144,44 +5144,57 @@ let _currentAdId = null;
 let _currentVisitorId = null;
 
 async function checkAndShowAd(visitorRecord) {
-  if (!visitorRecord?.id) return;
+  // TEMPORARY DIAGNOSTIC LOGGING — remove once the "ad not showing for some users"
+  // issue is resolved. Writes breadcrumbs to activity_logs (action='ad_debug') so
+  // we can see exactly where this exits without needing console access on the
+  // user's device (useful for phones).
+  const _dbg = (stage, extra) => { try { logActivity('ad_debug', stage, extra || {}); } catch (e) {} };
+
+  if (!visitorRecord?.id) { _dbg('no_visitor_id', { visitorRecord }); return; }
   _currentVisitorId = visitorRecord.id;
+  _dbg('start', { visitor_id: visitorRecord.id });
 
   // Fetch the single active ad (target_impressions needed for auto-complete)
-  const { data: ads } = await sb.from('ads')
+  const { data: ads, error: adsErr } = await sb.from('ads')
     .select('id,image_url,link_url,target_impressions')
     .eq('status', 'active')
     .limit(1);
+  if (adsErr) { _dbg('ads_query_error', { message: adsErr.message, code: adsErr.code }); return; }
   const ad = ads?.[0];
-  if (!ad) return;
+  if (!ad) { _dbg('no_active_ad', { ads_returned: (ads || []).length }); return; }
+  _dbg('active_ad_found', { ad_id: ad.id, image_url: ad.image_url });
 
   // Check if this visitor already has an impression row (visitor needs SELECT policy — see supabase_ads.sql fix)
-  const { data: existing } = await sb.from('ad_impressions')
+  const { data: existing, error: existingErr } = await sb.from('ad_impressions')
     .select('id,shown_at,reshow_count')
     .eq('ad_id', ad.id)
     .eq('visitor_id', visitorRecord.id)
     .limit(1);
+  if (existingErr) { _dbg('existing_query_error', { message: existingErr.message, code: existingErr.code }); return; }
 
   const row = existing?.[0];
+  _dbg('existing_row', { found: Boolean(row), shown_at: row?.shown_at || null });
 
   if (row) {
     // Returning visitor: enforce 24-hour window based on shown_at.
     // Dismiss status does NOT affect re-show — dismissed visitors still see the ad after 24h.
     const hoursAgo = (Date.now() - new Date(row.shown_at).getTime()) / (1000 * 60 * 60);
-    if (hoursAgo < 24) return; // Too soon — skip silently
+    if (hoursAgo < 24) { _dbg('within_24h_skip', { hoursAgo }); return; } // Too soon — skip silently
 
     // 24h+ passed: re-show. Update shown_at (resets window) and increment reshow_count.
     // Do NOT touch dismissed_at — impression and dismiss counts stay unchanged for this visitor.
-    await sb.from('ad_impressions')
+    const { error: updErr } = await sb.from('ad_impressions')
       .update({ shown_at: new Date().toISOString(), reshow_count: (row.reshow_count || 0) + 1 })
       .eq('id', row.id);
+    if (updErr) _dbg('reshow_update_error', { message: updErr.message, code: updErr.code });
   } else {
     // First-time visitor: insert the billable impression row
     const { error } = await sb.from('ad_impressions').insert({
       ad_id: ad.id,
       visitor_id: visitorRecord.id
     });
-    if (error) return;
+    if (error) { _dbg('insert_error', { message: error.message, code: error.code, details: error.details, hint: error.hint }); return; }
+    _dbg('insert_ok', {});
 
     // Auto-complete: has this campaign now reached its target unique viewers?
     // Count is based on total rows (unique visitors shown), not dismissals.
@@ -5198,7 +5211,8 @@ async function checkAndShowAd(visitorRecord) {
   const img      = document.getElementById('ad-popup-img');
   const link     = document.getElementById('ad-popup-link');
   const backdrop = document.getElementById('ad-popup-backdrop');
-  if (!img || !backdrop) return;
+  if (!img || !backdrop) { _dbg('dom_missing', { img: Boolean(img), backdrop: Boolean(backdrop) }); return; }
+  _dbg('showing_popup', { ad_id: ad.id });
 
   img.src = ad.image_url;
   if (link) { link.href = ad.link_url || '#'; if (!ad.link_url) link.style.pointerEvents = 'none'; }

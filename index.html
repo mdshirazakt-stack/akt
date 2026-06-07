@@ -4012,16 +4012,16 @@ async function loadTree(uid) {
     var isDivorced = marrStatus === 'divorced' || marrStatus === 'separated';
     var spouseColor = cls === 'tree-box-focus' ? 'var(--gold)' : cls === 'tree-box-anc' ? '#6a9a50' : '#5a8ab0';
     var spouseCls   = cls === 'tree-box-anc'   ? 'tree-box-anc' : cls === 'tree-box-focus' ? 'tree-box-desc' : 'tree-box-spouse';
-    var cardBorder  = isDivorced ? 'border:2px solid #f59e0b;' : '';
-    var h = '<div class="fam-group" id="' + tid + '_wrap" style="' + cardBorder + '">';
-    if (isDivorced) {
-      h += '<div style="background:#fef3c7;color:#92400e;font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:3px 10px;text-align:center">Divorced</div>';
-    }
+    var h = '<div class="fam-group" id="' + tid + '_wrap">';
     h += '<div class="fam-group-header">';
     h += pBox(person, cls);
     if (spouse) {
+      // A single, consistent glyph between the spouse boxes is enough to
+      // indicate status \u2014 \u26ae (amber) for divorced/separated, \u26ad (status color)
+      // for married \u2014 mirroring how the rest of the site shows it, without
+      // an extra banner/border competing for attention.
       var connectorHtml = isDivorced
-        ? '<div style="padding:10px 5px 0;font-size:0.9rem;color:#92400e;font-weight:700;line-height:1">\u26ae</div>'
+        ? '<div title="Divorced" style="padding:10px 5px 0;font-size:0.9rem;color:#92400e;font-weight:700;line-height:1">\u26ae</div>'
         : '<div style="padding:10px 5px 0;font-size:0.9rem;color:' + spouseColor + ';font-weight:700;line-height:1">\u26ad</div>';
       h += connectorHtml;
       h += pBox(spouse, spouseCls);

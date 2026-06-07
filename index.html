@@ -5125,16 +5125,17 @@ async function checkAndShowAd(visitorRecord) {
   if (!visitorRecord?.id) return;
   _currentVisitorId = visitorRecord.id;
 
-  // Fetch the single active ad
+  // Fetch the single active ad (target_impressions needed for auto-complete)
   const { data: ads } = await sb.from('ads')
-    .select('id,image_url,link_url')
+    .select('id,image_url,link_url,target_impressions')
     .eq('status', 'active')
     .limit(1);
   const ad = ads?.[0];
   if (!ad) return;
 
+  // Check if this visitor already has an impression row (visitor needs SELECT policy — see supabase_ads.sql fix)
   const { data: existing } = await sb.from('ad_impressions')
-    .select('id,shown_at,dismissed_at')
+    .select('id,shown_at')
     .eq('ad_id', ad.id)
     .eq('visitor_id', visitorRecord.id)
     .limit(1);
@@ -5142,23 +5143,32 @@ async function checkAndShowAd(visitorRecord) {
   const row = existing?.[0];
 
   if (row) {
-    // Dismissed → never show again
-    if (row.dismissed_at) return;
-    // Shown within last 24 hours → skip
-    const shownAt = new Date(row.shown_at);
-    const hoursAgo = (Date.now() - shownAt.getTime()) / (1000 * 60 * 60);
-    if (hoursAgo < 24) return;
-    // 24h+ passed and still not dismissed → update shown_at and re-show
+    // Returning visitor: enforce 24-hour window based on shown_at.
+    // Dismiss status does NOT affect re-show — dismissed visitors still see the ad after 24h.
+    const hoursAgo = (Date.now() - new Date(row.shown_at).getTime()) / (1000 * 60 * 60);
+    if (hoursAgo < 24) return; // Too soon — skip silently
+
+    // 24h+ passed: re-show. Update shown_at to reset the window.
+    // Do NOT touch dismissed_at — impression and dismiss counts stay unchanged for this visitor.
     await sb.from('ad_impressions')
       .update({ shown_at: new Date().toISOString() })
       .eq('id', row.id);
   } else {
-    // First time — insert impression row
+    // First-time visitor: insert the billable impression row
     const { error } = await sb.from('ad_impressions').insert({
       ad_id: ad.id,
       visitor_id: visitorRecord.id
     });
     if (error) return;
+
+    // Auto-complete: has this campaign now reached its target unique viewers?
+    // Count is based on total rows (unique visitors shown), not dismissals.
+    const { count } = await sb.from('ad_impressions')
+      .select('id', { count: 'exact', head: true })
+      .eq('ad_id', ad.id);
+    if (ad.target_impressions && count >= ad.target_impressions) {
+      await sb.from('ads').update({ status: 'completed', updated_at: new Date().toISOString() }).eq('id', ad.id);
+    }
   }
 
   _currentAdId = ad.id;
@@ -5179,22 +5189,15 @@ async function dismissAd() {
     console.warn('dismissAd: missing _currentAdId or _currentVisitorId', _currentAdId, _currentVisitorId);
     return;
   }
-
+  // Record first dismiss only — so the admin "dismissed" counter = unique visitors who dismissed ≥ once.
+  // Subsequent dismisses by the same visitor are intentional no-ops (count stays accurate).
+  // Uses .is('dismissed_at', null) so repeated dismisses never inflate the count.
   const { error: dismissErr } = await sb.from('ad_impressions')
     .update({ dismissed_at: new Date().toISOString() })
     .eq('ad_id', _currentAdId)
-    .eq('visitor_id', _currentVisitorId);
+    .eq('visitor_id', _currentVisitorId)
+    .is('dismissed_at', null);
   if (dismissErr) console.warn('dismissAd update failed:', dismissErr.message);
-
-  // Auto-complete if target reached
-  const { count } = await sb.from('ad_impressions')
-    .select('id', { count: 'exact', head: true })
-    .eq('ad_id', _currentAdId)
-    .not('dismissed_at', 'is', null);
-  const { data: adRow } = await sb.from('ads').select('target_impressions').eq('id', _currentAdId).single();
-  if (adRow && count >= adRow.target_impressions) {
-    await sb.from('ads').update({ status: 'completed', updated_at: new Date().toISOString() }).eq('id', _currentAdId);
-  }
 }
 
 // ===================== ALL NAMES TAB =====================

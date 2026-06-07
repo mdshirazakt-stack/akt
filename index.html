@@ -4146,7 +4146,7 @@ async function loadTree(uid) {
       if (!fam) return;
       var father = fam.husband_uid ? ancMap[fam.husband_uid] : null;
       var mother = fam.wife_uid   ? ancMap[fam.wife_uid]   : null;
-      html += famCard(father, 'tree-box-anc', mother, null, 0);
+      html += famCard(father, 'tree-box-anc', mother, null, 0, fam.marr_status || '');
     });
     html += '</div>';
     html += genDivider();

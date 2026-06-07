@@ -2252,7 +2252,11 @@ async function startApp(name, role = 'visitor', visitorRecord = null) {
   document.getElementById('auth-gate').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   showEidPopupIfActive();
-  checkAndShowAd(visitorRecord);
+  // NOTE: checkAndShowAd is intentionally NOT called here.
+  // It must run AFTER the claimed-profile redirect check so that:
+  //  - Users being redirected to person.html don't get a counted impression
+  //    for an ad they never actually see (race condition with navigation).
+  //  - The ad shows correctly on their next index.html load (Back to Search).
   await loadGedcomSources();
   logActivity('login', `Logged in: ${name}`, { visit_count: currentVisitCount });
 
@@ -2262,9 +2266,12 @@ async function startApp(name, role = 'visitor', visitorRecord = null) {
     const claimedUid = await getClaimedProfileUid(visitorRecord);
     if (claimedUid) {
       window.location.href = 'person.html?uid=' + encodeURIComponent(claimedUid);
-      return;
+      return; // Ad will show when user returns to index.html — no impression counted here
     }
   }
+
+  // User is staying on this page — safe to show ad now
+  checkAndShowAd(visitorRecord);
 
   const params = new URLSearchParams(location.search);
 

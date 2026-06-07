@@ -4615,7 +4615,9 @@ async function loadDbStats() {
               <span style="background:#fee2e2;color:#991b1b;padding:2px 8px;font-weight:700;font-size:0.75rem">${attempts.length}×</span>
             </td>
             <td style="padding:7px 10px;border-bottom:1px solid var(--border);font-size:0.78rem;color:var(--muted)">
-              ${attempts.map(a => formatIST(a.ts)).join('<br>')}
+              ${attempts.length > 1
+                ? `First: ${formatIST(attempts[attempts.length - 1].ts)}<br>Last: ${formatIST(attempts[0].ts)}`
+                : formatIST(attempts[0].ts)}
             </td>
           </tr>`).join('');
 

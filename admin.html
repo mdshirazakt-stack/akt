@@ -1025,6 +1025,7 @@
       <div class="nav-section">
         <div class="nav-section-label">Tree</div>
         <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('familybuilder', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="2.5"/><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M12 6.5v5"/><path d="M12 11.5 5 16.5"/><path d="m12 11.5 7 5"/></svg></span><span class="nav-label">Family Builder</span></button>
+        <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('familyaudit', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M3 7v11a2 2 0 0 0 2 2h11"/><path d="M7 3h11a2 2 0 0 1 2 2v11"/></svg></span><span class="nav-label">Spouse/Family Audit</span><span class="nav-badge" id="badge-familyaudit"></span></button>
       </div>
       <div class="nav-section">
         <div class="nav-section-label">Community</div>
@@ -1682,6 +1683,43 @@
       </div>
     </div>
 
+    <!-- SPOUSE / FAMILY AUDIT PANEL -->
+    <div id="panel-familyaudit" class="panel">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:10px">
+          <h2 style="margin:0">🔍 Spouse / Family Audit</h2>
+          <button class="btn-sm" onclick="loadFamilyAudit()" style="background:var(--gold);color:#fff;border:none;padding:7px 16px;cursor:pointer;font-size:0.85rem">↻ Refresh</button>
+        </div>
+        <p style="margin:0 0 16px;color:var(--muted);font-size:0.85rem;max-width:70ch">
+          Sitewide scan for spouse/family records that are ambiguous or likely need attention — multiple
+          marriages without a clear order, the same child appearing in more than one family group, and
+          "spouse unknown" families that have recorded children (candidates for the "link existing spouse"
+          flow in the editor). Nothing here is changed automatically — review each item and fix it from
+          the person's editor page.
+        </p>
+        <div id="family-audit-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px"></div>
+        <div id="family-audit-status"></div>
+
+        <div class="audit-section" style="margin-bottom:22px">
+          <h3 style="margin:0 0 8px;font-size:1rem">🔀 Multiple marriages without clear order</h3>
+          <p style="margin:0 0 10px;color:var(--muted);font-size:0.8rem">People who appear as husband/wife in 2+ family groups where neither a marriage date nor an explicit "1st/2nd…" order has been recorded — the displayed order may be a guess.</p>
+          <div id="audit-list-order"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+        </div>
+
+        <div class="audit-section" style="margin-bottom:22px">
+          <h3 style="margin:0 0 8px;font-size:1rem">👥 Children listed in more than one family group</h3>
+          <p style="margin:0 0 10px;color:var(--muted);font-size:0.8rem">The same person appears as a "child" in 2+ different family groups. This can be correct (e.g. custody splits across divorced parents) — but it's also the exact pattern that caused the Affaf/Tauseef misattribution bug, so each one is worth a quick look.</p>
+          <div id="audit-list-multichild"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+        </div>
+
+        <div class="audit-section">
+          <h3 style="margin:0 0 8px;font-size:1rem">❓ "Spouse unknown" families with recorded children</h3>
+          <p style="margin:0 0 10px;color:var(--muted);font-size:0.8rem">Family groups with only one parent on record and at least one child — good candidates for completing once the missing spouse's identity is known (use "link existing spouse" in the editor instead of re-creating the family).</p>
+          <div id="audit-list-unknown"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+        </div>
+      </div>
+    </div>
+
     <!-- FORUM MODERATION PANEL -->
     <div id="panel-forum" class="panel">
       <div class="card">
@@ -1932,6 +1970,7 @@ function switchTab(name, btn) {
   if (name === 'corrections') loadCorrections();
   if (name === 'suggestions') loadSuggestions();
   if (name === 'familybuilder') loadFamilyBuilder();
+  if (name === 'familyaudit') loadFamilyAudit();
   if (name === 'forum') loadForumAdmin();
 }
 
@@ -6849,6 +6888,188 @@ async function createSourceFamilyGedcom() {
   setTimeout(() => {
     window.location.href = 'edit.html?uid=' + encodeURIComponent(rootUid);
   }, 350);
+}
+
+// ===================== SPOUSE / FAMILY AUDIT =====================
+// Sitewide scan that surfaces ambiguous spouse/family records for manual
+// review — part of the spouse-handling revamp. Nothing here mutates data;
+// it only highlights records worth a second look from the editor.
+
+// Bypass PostgREST's 1000-row cap by paging with .range(). A stable .order()
+// is required so that consecutive pages don't skip/duplicate rows (Postgres
+// gives no ordering guarantee across separate queries without one).
+async function _auditFetchAll(table, select, orderCols, extra) {
+  const BATCH = 900;
+  let all = [];
+  let from = 0;
+  while (true) {
+    let q = sb.from(table).select(select);
+    (orderCols || []).forEach(c => { q = q.order(c); });
+    q = q.range(from, from + BATCH - 1);
+    if (extra) q = extra(q);
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data || !data.length) break;
+    all = all.concat(data);
+    if (data.length < BATCH) break;
+    from += BATCH;
+  }
+  return all;
+}
+
+function _auditPersonLink(p) {
+  if (!p) return '<span style="color:var(--muted)">(unknown person)</span>';
+  return `<a href="person.html?uid=${encodeURIComponent(p.uid)}" target="_blank" style="color:var(--accent);font-weight:600;text-decoration:none">${escapeHtml(p.name || p.uid)}</a>
+    <a href="edit.html?uid=${encodeURIComponent(p.uid)}" target="_blank" style="margin-left:6px;font-size:0.75rem;color:var(--gold)">✎ edit</a>`;
+}
+
+async function loadFamilyAudit() {
+  const summaryEl = document.getElementById('family-audit-summary');
+  const statusEl = document.getElementById('family-audit-status');
+  const orderEl = document.getElementById('audit-list-order');
+  const multiEl = document.getElementById('audit-list-multichild');
+  const unknownEl = document.getElementById('audit-list-unknown');
+  if (!summaryEl) return;
+
+  [orderEl, multiEl, unknownEl].forEach(el => { if (el) el.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>'; });
+  summaryEl.innerHTML = '';
+  statusEl.innerHTML = '';
+
+  let families, childRows, people;
+  try {
+    families = await _auditFetchAll('families',
+      'uid,husband_uid,wife_uid,marr_status,marr_date,husband_marriage_seq,wife_marriage_seq,gedcom_id', ['uid']);
+  } catch (err) {
+    // Migration not run yet — retry without the seq columns
+    if (/schema cache|husband_marriage_seq|wife_marriage_seq/i.test(err.message || '')) {
+      statusEl.innerHTML = `<div class="empty" style="color:var(--amber, #b45309)">Note: marriage-order columns aren't in the schema yet — run <code>supabase_marriage_sequence.sql</code> for fully accurate results. Showing what's available.</div>`;
+      try {
+        families = await _auditFetchAll('families', 'uid,husband_uid,wife_uid,marr_status,marr_date,gedcom_id', ['uid']);
+        families.forEach(f => { f.husband_marriage_seq = null; f.wife_marriage_seq = null; });
+      } catch (err2) {
+        [orderEl, multiEl, unknownEl].forEach(el => { if (el) el.innerHTML = `<div class="empty" style="color:var(--red)">${escapeHtml(err2.message || '')}</div>`; });
+        return;
+      }
+    } else {
+      [orderEl, multiEl, unknownEl].forEach(el => { if (el) el.innerHTML = `<div class="empty" style="color:var(--red)">${escapeHtml(err.message || '')}</div>`; });
+      return;
+    }
+  }
+
+  try {
+    [childRows, people] = await Promise.all([
+      _auditFetchAll('family_members', 'family_uid,person_uid', ['family_uid', 'person_uid'], q => q.eq('role', 'child')),
+      _auditFetchAll('people', 'uid,name,sex', ['uid'])
+    ]);
+  } catch (err) {
+    [orderEl, multiEl, unknownEl].forEach(el => { if (el) el.innerHTML = `<div class="empty" style="color:var(--red)">${escapeHtml(err.message || '')}</div>`; });
+    return;
+  }
+
+  const peopleByUid = {};
+  people.forEach(p => { peopleByUid[p.uid] = p; });
+
+  // ── 1. Multiple marriages without a clear order ──
+  // Group families by each spouse; flag spouses with 2+ family groups where
+  // NEITHER marr_date nor an explicit per-side seq is recorded on 2+ of them.
+  const famsByPerson = {};
+  families.forEach(f => {
+    if (f.husband_uid) (famsByPerson[f.husband_uid] = famsByPerson[f.husband_uid] || []).push({ fam: f, side: 'husband' });
+    if (f.wife_uid)    (famsByPerson[f.wife_uid]    = famsByPerson[f.wife_uid]    || []).push({ fam: f, side: 'wife' });
+  });
+  const orderIssues = [];
+  Object.entries(famsByPerson).forEach(([personUid, entries]) => {
+    if (entries.length < 2) return;
+    const ambiguous = entries.filter(({ fam, side }) => {
+      const seq = side === 'husband' ? fam.husband_marriage_seq : fam.wife_marriage_seq;
+      return !seq && !fam.marr_date;
+    });
+    if (ambiguous.length >= 2) {
+      orderIssues.push({ person: peopleByUid[personUid], count: entries.length, ambiguousCount: ambiguous.length });
+    }
+  });
+  orderIssues.sort((a, b) => (b.ambiguousCount - a.ambiguousCount) || (a.person?.name || '').localeCompare(b.person?.name || ''));
+
+  // ── 2. Children listed in more than one family group ──
+  const familiesByChild = {};
+  childRows.forEach(r => {
+    (familiesByChild[r.person_uid] = familiesByChild[r.person_uid] || new Set()).add(r.family_uid);
+  });
+  const multiChildIssues = [];
+  Object.entries(familiesByChild).forEach(([childUid, famUidSet]) => {
+    if (famUidSet.size < 2) return;
+    const famUids = [...famUidSet];
+    const groups = famUids.map(fu => {
+      const fam = families.find(f => f.uid === fu);
+      const dad = fam?.husband_uid ? peopleByUid[fam.husband_uid] : null;
+      const mom = fam?.wife_uid ? peopleByUid[fam.wife_uid] : null;
+      return { familyUid: fu, dad, mom };
+    });
+    multiChildIssues.push({ child: peopleByUid[childUid], groups });
+  });
+  multiChildIssues.sort((a, b) => (a.child?.name || '').localeCompare(b.child?.name || ''));
+
+  // ── 3. "Spouse unknown" families with recorded children ──
+  const childCountByFamily = {};
+  childRows.forEach(r => { childCountByFamily[r.family_uid] = (childCountByFamily[r.family_uid] || 0) + 1; });
+  const unknownIssues = families
+    .filter(f => (!f.husband_uid || !f.wife_uid) && childCountByFamily[f.uid])
+    .map(f => {
+      const known = f.husband_uid ? peopleByUid[f.husband_uid] : (f.wife_uid ? peopleByUid[f.wife_uid] : null);
+      const missingSlot = f.husband_uid ? 'husband' : 'wife';
+      return { family: f, known, missingSlot, childCount: childCountByFamily[f.uid] };
+    })
+    .sort((a, b) => (b.childCount - a.childCount) || (a.known?.name || '').localeCompare(b.known?.name || ''));
+
+  // ── Summary chips ──
+  const chip = (label, count, color) => `<span style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;background:${color}1a;color:${color};font-size:0.8rem;font-weight:700;border:1px solid ${color}40">${count} ${label}</span>`;
+  summaryEl.innerHTML = [
+    chip('ambiguous marriage orders', orderIssues.length, '#b45309'),
+    chip('children in 2+ family groups', multiChildIssues.length, '#991b1b'),
+    chip('spouse-unknown families with children', unknownIssues.length, '#1d4ed8')
+  ].join('');
+  setNavBadge('familyaudit', orderIssues.length + multiChildIssues.length + unknownIssues.length);
+
+  // ── Render section 1 ──
+  if (!orderIssues.length) {
+    orderEl.innerHTML = '<div class="empty">Nothing to review — every multi-marriage person has either a date or an explicit order recorded. ✓</div>';
+  } else {
+    orderEl.innerHTML = orderIssues.map(({ person, count, ambiguousCount }) => `
+      <div class="forum-admin-item">
+        <div class="forum-admin-title">${_auditPersonLink(person)}</div>
+        <div class="forum-admin-meta">${count} family groups recorded — ${ambiguousCount} of them have neither a marriage date nor an explicit order. Open the editor's "Marriage details" for each to set the order.</div>
+      </div>
+    `).join('');
+  }
+
+  // ── Render section 2 ──
+  if (!multiChildIssues.length) {
+    multiEl.innerHTML = '<div class="empty">No child appears in more than one family group. ✓</div>';
+  } else {
+    multiEl.innerHTML = multiChildIssues.map(({ child, groups }) => `
+      <div class="forum-admin-item">
+        <div class="forum-admin-title">${_auditPersonLink(child)}</div>
+        <div class="forum-admin-meta">Recorded as a child in ${groups.length} family groups:
+          <ul style="margin:6px 0 0;padding-left:20px">
+            ${groups.map(g => `<li>${g.dad ? _auditPersonLink(g.dad) : '<span style="color:var(--muted)">unknown father</span>'} &amp; ${g.mom ? _auditPersonLink(g.mom) : '<span style="color:var(--muted)">unknown mother</span>'}</li>`).join('')}
+          </ul>
+          If this is a genuine custody/step-family situation, no action is needed (use the "custody" marker on the child). Otherwise, this may be a duplicated/misattributed record — open each family in the editor to verify.
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ── Render section 3 ──
+  if (!unknownIssues.length) {
+    unknownEl.innerHTML = '<div class="empty">No "spouse unknown" families with children found. ✓</div>';
+  } else {
+    unknownEl.innerHTML = unknownIssues.map(({ known, missingSlot, childCount }) => `
+      <div class="forum-admin-item">
+        <div class="forum-admin-title">${known ? _auditPersonLink(known) : '<span style="color:var(--muted)">(unknown person)</span>'} <span style="color:var(--muted);font-weight:400;font-size:0.8rem">— missing ${missingSlot}</span></div>
+        <div class="forum-admin-meta">${childCount} child${childCount > 1 ? 'ren' : ''} recorded with no ${missingSlot} listed. If this person's spouse has since been identified, add them via the editor — the conflict dialog will offer to "link" them into this exact family group instead of creating a duplicate.</div>
+      </div>
+    `).join('');
+  }
 }
 
 async function loadFamilyBuilder() {

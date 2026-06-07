@@ -2260,11 +2260,19 @@ async function startApp(name, role = 'visitor', visitorRecord = null) {
   await loadGedcomSources();
   logActivity('login', `Logged in: ${name}`, { visit_count: currentVisitCount });
 
-  // Redirect to claimed profile on first login this session
+  // Redirect to claimed profile on first login this session.
+  // IMPORTANT: only stamp 'akt_profile_redirect_done' when we actually redirect.
+  // If we stamp it preemptively (before knowing whether a claim is applied yet),
+  // a user who logs in BEFORE their claim is approved gets permanently skipped
+  // for the rest of that browser session — even after the admin applies the claim
+  // and they log in again later (sessionStorage persists across reloads/relogins
+  // in the same tab). Stamping only on actual redirect still prevents loops
+  // (search -> profile -> back to search -> profile...) while letting the check
+  // re-run on a later login once the claim becomes applied.
   if (!sessionStorage.getItem('akt_profile_redirect_done')) {
-    sessionStorage.setItem('akt_profile_redirect_done', '1');
     const claimedUid = await getClaimedProfileUid(visitorRecord);
     if (claimedUid) {
+      sessionStorage.setItem('akt_profile_redirect_done', '1');
       window.location.href = 'person.html?uid=' + encodeURIComponent(claimedUid);
       return; // Ad will show when user returns to index.html — no impression counted here
     }

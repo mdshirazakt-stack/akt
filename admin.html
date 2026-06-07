@@ -2503,10 +2503,10 @@ async function loadAds() {
 
   // Fetch all impressions with visitor details
   const adIds = allAds.map(a => a.id);
-  let shownMap = {}, dismissedMap = {}, impressionsMap = {};
+  let shownMap = {}, dismissedMap = {}, reshowMap = {}, impressionsMap = {};
   if (adIds.length) {
     const { data: imps } = await sb.from('ad_impressions')
-      .select('ad_id,visitor_id,shown_at,dismissed_at')
+      .select('ad_id,visitor_id,shown_at,dismissed_at,reshow_count')
       .in('ad_id', adIds)
       .order('shown_at', { ascending: false });
 
@@ -2523,6 +2523,7 @@ async function loadAds() {
     (imps || []).forEach(r => {
       shownMap[r.ad_id] = (shownMap[r.ad_id] || 0) + 1;
       if (r.dismissed_at) dismissedMap[r.ad_id] = (dismissedMap[r.ad_id] || 0) + 1;
+      reshowMap[r.ad_id] = (reshowMap[r.ad_id] || 0) + (r.reshow_count || 0);
       if (!impressionsMap[r.ad_id]) impressionsMap[r.ad_id] = [];
       impressionsMap[r.ad_id].push({ ...r, visitor: visitorMap[r.visitor_id] || null });
     });
@@ -2534,10 +2535,16 @@ async function loadAds() {
   const statusBg    = { pending:'#fef3c7', active:'#dcfce7', paused:'#dbeafe', completed:'#f3f4f6' };
 
   list.innerHTML = allAds.map(ad => {
-    const shown     = shownMap[ad.id] || 0;
-    const dismissed = dismissedMap[ad.id] || 0;
+    const shown       = shownMap[ad.id] || 0;
+    const dismissed   = dismissedMap[ad.id] || 0;
+    const reshows     = reshowMap[ad.id] || 0;
     const notDismissed = shown - dismissed;
-    const progress = ad.target_impressions ? Math.round(shown / ad.target_impressions * 100) : 0;
+    const progress    = ad.target_impressions ? Math.round(shown / ad.target_impressions * 100) : 0;
+    const isActive    = ad.status === 'active';
+    const allRows     = impressionsMap[ad.id] || [];
+    const reshowRows  = allRows.filter(r => (r.reshow_count || 0) > 0)
+                               .sort((a,b) => new Date(b.shown_at) - new Date(a.shown_at));
+
     return `
     <div style="border:1px solid var(--border);padding:16px;margin-bottom:12px;background:#fff">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
@@ -2553,7 +2560,9 @@ async function loadAds() {
         </div>
       </div>
       ${ad.image_url ? `<img src="${escapeHtml(ad.image_url)}" style="max-height:80px;max-width:200px;object-fit:cover;border:1px solid var(--border);margin-bottom:8px"/>` : ''}
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:0.82rem;margin-bottom:8px">
+
+      <!-- ── Impression stats cards ── -->
+      <div style="display:grid;grid-template-columns:repeat(${isActive ? 5 : 4},1fr);gap:8px;font-size:0.82rem;margin-bottom:8px">
         <div style="text-align:center;padding:8px;background:#dcfce7;border:1px solid #86efac">
           <div style="font-size:1.4rem;font-weight:700;color:#166534">${shown}</div>
           <div style="color:#166534;font-size:0.7rem;text-transform:uppercase;font-weight:700">Impressions (billed)</div>
@@ -2570,36 +2579,42 @@ async function loadAds() {
           <div style="font-size:1.4rem;font-weight:700;color:var(--ink)">${ad.target_impressions}</div>
           <div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase">Target</div>
         </div>
+        ${isActive ? `
+        <div style="text-align:center;padding:8px;background:#eff6ff;border:1px solid #93c5fd">
+          <div style="font-size:1.4rem;font-weight:700;color:#1d4ed8">${reshows}</div>
+          <div style="color:#1d4ed8;font-size:0.7rem;text-transform:uppercase;font-weight:700">Returning Views</div>
+        </div>` : ''}
       </div>
+
+      <!-- ── Progress bar ── -->
       <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
         <div style="height:100%;width:${Math.min(progress,100)}%;background:#166534;transition:width 0.4s"></div>
       </div>
       <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">${progress}% of target impressions delivered (${shown} shown / ${ad.target_impressions} target)</div>
 
+      <!-- ── Unique impressions log ── -->
       ${(() => {
-        const rows = impressionsMap[ad.id] || [];
-        if (!rows.length) return '';
-        const toggleId = 'ad-log-' + ad.id;
+        if (!allRows.length) return '';
         return `
         <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
-          <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.textContent=this.textContent.includes('▶')?'▼ Hide user interaction log':'▶ Show user interaction log (${rows.length} users)'"
+          <button onclick="const n=this.nextElementSibling;n.style.display=n.style.display==='none'?'block':'none';this.textContent=this.textContent.includes('▶')?'▼ Hide unique impression log':'▶ Show unique impression log (${allRows.length} visitors)'"
             style="background:none;border:none;font-family:inherit;font-size:0.78rem;color:var(--gold);cursor:pointer;font-weight:700;padding:0">
-            ▶ Show user interaction log (${rows.length} users)
+            ▶ Show unique impression log (${allRows.length} visitors)
           </button>
-          <div style="display:none;margin-top:10px">
+          <div style="display:none;margin-top:10px;overflow-x:auto">
             <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
               <thead>
                 <tr style="background:var(--bg)">
                   <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">#</th>
                   <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">User</th>
                   <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Mobile</th>
-                  <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Shown at</th>
-                  <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Dismissed at</th>
+                  <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Last shown</th>
+                  <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Dismissed</th>
                   <th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Status</th>
                 </tr>
               </thead>
               <tbody>
-                ${rows.map((r, i) => `
+                ${allRows.map((r, i) => `
                 <tr style="border-bottom:1px solid var(--border)">
                   <td style="padding:6px 10px;border:1px solid var(--border);color:var(--muted)">${i+1}</td>
                   <td style="padding:6px 10px;border:1px solid var(--border)">
@@ -2621,6 +2636,54 @@ async function loadAds() {
           </div>
         </div>`;
       })()}
+
+      <!-- ── Returning visitor views (active ads only) ── -->
+      ${isActive && reshowRows.length ? `
+      <div style="margin-top:10px;border-top:2px dashed #93c5fd;padding-top:10px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:0.78rem;font-weight:700;color:#1d4ed8">🔁 Returning Visitor Views</span>
+          <span style="background:#eff6ff;color:#1d4ed8;padding:1px 8px;font-size:0.68rem;font-weight:700;border:1px solid #93c5fd">${reshows} total re-shows across ${reshowRows.length} visitor${reshowRows.length !== 1 ? 's' : ''}</span>
+          <span style="font-size:0.68rem;color:var(--muted)">Does not count toward impression target</span>
+        </div>
+        <button onclick="const n=this.nextElementSibling;n.style.display=n.style.display==='none'?'block':'none';this.textContent=this.textContent.includes('▶')?'▼ Hide returning views':'▶ Show returning views (${reshowRows.length} visitors)'"
+          style="background:none;border:none;font-family:inherit;font-size:0.78rem;color:#1d4ed8;cursor:pointer;font-weight:700;padding:0">
+          ▶ Show returning views (${reshowRows.length} visitors)
+        </button>
+        <div style="display:none;margin-top:8px;overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+            <thead>
+              <tr style="background:#eff6ff">
+                <th style="padding:7px 10px;text-align:left;border:1px solid #bfdbfe;font-size:0.68rem;text-transform:uppercase;color:#1d4ed8">User</th>
+                <th style="padding:7px 10px;text-align:left;border:1px solid #bfdbfe;font-size:0.68rem;text-transform:uppercase;color:#1d4ed8">Mobile</th>
+                <th style="padding:7px 10px;text-align:center;border:1px solid #bfdbfe;font-size:0.68rem;text-transform:uppercase;color:#1d4ed8">Times re-shown</th>
+                <th style="padding:7px 10px;text-align:left;border:1px solid #bfdbfe;font-size:0.68rem;text-transform:uppercase;color:#1d4ed8">Last shown</th>
+                <th style="padding:7px 10px;text-align:left;border:1px solid #bfdbfe;font-size:0.68rem;text-transform:uppercase;color:#1d4ed8">Dismissed?</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reshowRows.map(r => `
+              <tr style="border-bottom:1px solid #bfdbfe">
+                <td style="padding:6px 10px;border:1px solid #bfdbfe">
+                  <strong>${escapeHtml(r.visitor?.name_entered || '—')}</strong>
+                </td>
+                <td style="padding:6px 10px;border:1px solid #bfdbfe;white-space:nowrap">
+                  ${r.visitor?.mobile ? `<a href="tel:${escapeHtml(r.visitor.mobile)}" style="color:var(--green);font-weight:700;font-size:0.8rem">${escapeHtml(r.visitor.mobile)}</a>` : '<span style="color:var(--muted)">—</span>'}
+                </td>
+                <td style="padding:6px 10px;border:1px solid #bfdbfe;text-align:center">
+                  <span style="background:#1d4ed8;color:#fff;padding:2px 10px;font-size:0.78rem;font-weight:700;border-radius:10px">${r.reshow_count}</span>
+                </td>
+                <td style="padding:6px 10px;border:1px solid #bfdbfe;color:var(--muted);white-space:nowrap">${formatIST(r.shown_at)}</td>
+                <td style="padding:6px 10px;border:1px solid #bfdbfe">
+                  ${r.dismissed_at
+                    ? '<span style="color:#166534;font-size:0.78rem;font-weight:700">✔ Yes</span>'
+                    : '<span style="color:var(--muted);font-size:0.78rem">—</span>'}
+                </td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>` : ''}
+
     </div>`;
   }).join('');
 }

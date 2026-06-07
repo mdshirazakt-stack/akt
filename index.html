@@ -5135,7 +5135,7 @@ async function checkAndShowAd(visitorRecord) {
 
   // Check if this visitor already has an impression row (visitor needs SELECT policy — see supabase_ads.sql fix)
   const { data: existing } = await sb.from('ad_impressions')
-    .select('id,shown_at')
+    .select('id,shown_at,reshow_count')
     .eq('ad_id', ad.id)
     .eq('visitor_id', visitorRecord.id)
     .limit(1);
@@ -5148,10 +5148,10 @@ async function checkAndShowAd(visitorRecord) {
     const hoursAgo = (Date.now() - new Date(row.shown_at).getTime()) / (1000 * 60 * 60);
     if (hoursAgo < 24) return; // Too soon — skip silently
 
-    // 24h+ passed: re-show. Update shown_at to reset the window.
+    // 24h+ passed: re-show. Update shown_at (resets window) and increment reshow_count.
     // Do NOT touch dismissed_at — impression and dismiss counts stay unchanged for this visitor.
     await sb.from('ad_impressions')
-      .update({ shown_at: new Date().toISOString() })
+      .update({ shown_at: new Date().toISOString(), reshow_count: (row.reshow_count || 0) + 1 })
       .eq('id', row.id);
   } else {
     // First-time visitor: insert the billable impression row

@@ -3,6 +3,13 @@
   const ONBOARDING_DRAFT_KEY = 'akt_onboarding_draft_v1';
   const REQUIRED_CONSENT_SECTIONS = ['6', '7', '8', '18'];
   const ROLE_LEVELS = { visitor: 1, moderator: 2, admin: 3, superadmin: 4 };
+  const WHATSAPP_COMMUNITY_URL = 'https://chat.whatsapp.com/HtSTOEqyDx644pLLdbnnlm';
+
+  function escapeHtmlLocal(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
 
   let sb = null;
   let callbacks = {};
@@ -87,6 +94,64 @@
 
   function showPendingApprovalMessage() {
     showMessage('Thank you for registering. Your account is pending review by the site admin and is not active yet — you will not be able to view the archive until it is approved. This usually takes up to 24 hours. Please check back later by signing in again.', false);
+  }
+
+  // Look up an unread "your claim was revoked" notice for this visitor.
+  // Admins create these (source_type = 'claim_revoked') via revokeProfileClaim()
+  // in admin.html — but ONLY when the visitor had no other valid claim left
+  // (a genuine wrong-profile case), never for routine duplicate-claim cleanup.
+  async function getClaimRevokeNotice(visitor) {
+    if (!visitor || !sb) return null;
+    try {
+      const email  = userEmail(currentSession?.user) || visitor?.email || '';
+      const mobile = visitor?.mobile || '';
+      const authId = currentSession?.user?.id || visitor?.auth_user_id || '';
+      const clauses = [];
+      if (authId)  clauses.push(`recipient_auth_uid.eq.${authId}`);
+      if (email)   clauses.push(`recipient_email.ilike.${email}`);
+      if (mobile)  clauses.push(`recipient_mobile.eq.${String(mobile).replace(/\D/g,'')}`);
+      if (!clauses.length) return null;
+      const { data, error } = await sb.from('user_notifications')
+        .select('id,title,message,source_type,created_at')
+        .eq('source_type', 'claim_revoked')
+        .or(clauses.join(','))
+        .is('shown_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (error || !data?.length) return null;
+      return data[0];
+    } catch { return null; }
+  }
+
+  // Blocking, must-acknowledge interstitial shown (once) right before a
+  // visitor whose only claim was revoked is routed back into onboarding —
+  // explains why, gives them a path forward, and a way to reach admins.
+  // Rendered as HTML directly into #auth-err (the established "message view"
+  // element) since showMessage() only supports plain text.
+  function showClaimRevokedInterstitial(adminNote, onContinue) {
+    const err = byId('auth-err');
+    if (!err) { onContinue(); return; }
+    setNote('');
+    err.style.color = '#7a3a32';
+    err.style.display = 'block';
+    err.innerHTML = `
+      <div style="text-align:left;background:#fff3f2;border:1px solid rgba(192,57,43,0.32);border-left:4px solid #c0392b;border-radius:6px;color:#7a3a32;font-size:0.82rem;line-height:1.6;padding:14px 16px">
+        <strong style="color:#c0392b">Your previous profile claim was removed by the site admin.</strong>
+        ${adminNote ? `<div style="margin-top:8px;font-style:italic">Admin note: "${escapeHtmlLocal(adminNote)}"</div>` : ''}
+        <p style="margin:10px 0 0">To continue, please sign in again and claim the profile that genuinely belongs to you.</p>
+        <p style="margin:8px 0 0">If your profile does not yet exist on the site, please contact the site admin <strong>within the next 3 days</strong> to have it created — accounts left unresolved beyond that may remain restricted.</p>
+        <p style="margin:8px 0 0">Have any other issue to raise with the admins? Join our WhatsApp community: <a href="${WHATSAPP_COMMUNITY_URL}" target="_blank" rel="noopener" style="color:#2e6e4a;font-weight:700">Join WhatsApp Community</a></p>
+        <div style="margin-top:14px;text-align:right">
+          <button type="button" id="claim-revoke-ack-btn" style="background:#2e6e4a;border:1px solid #2e6e4a;color:#fff;cursor:pointer;font-family:'Lato',sans-serif;font-size:0.76rem;font-weight:700;letter-spacing:0.05em;padding:9px 16px;text-transform:uppercase">OK, continue</button>
+        </div>
+      </div>`;
+    const btn = byId('claim-revoke-ack-btn');
+    if (btn) btn.onclick = () => {
+      err.style.display = 'none';
+      err.innerHTML = '';
+      err.style.color = '#c0392b';
+      onContinue();
+    };
   }
 
   function setView(view) {
@@ -787,6 +852,35 @@
         visitor_id: visitor.id
       });
       return;
+    }
+
+    // Visitor is being routed back into onboarding — if that's because the
+    // admin just revoked their (sole, genuine) profile claim, show a one-time
+    // blocking explanation first so they understand why, before they redo
+    // sign-up. They must press "OK, continue" to proceed.
+    if (visitor) {
+      const revokeNotice = await getClaimRevokeNotice(visitor);
+      if (revokeNotice) {
+        await logSignupEvent('claim_revoke_notice_shown', {
+          stage: 'signin', visitor_id: visitor.id, notice_id: revokeNotice.id
+        });
+        setView('message');
+        showClaimRevokedInterstitial(revokeNotice.message, async () => {
+          sb.from('user_notifications')
+            .update({ shown_at: new Date().toISOString(), acknowledged_at: new Date().toISOString() })
+            .eq('id', revokeNotice.id)
+            .then(() => {});
+          fillOnboarding(currentSession.user, visitor);
+          setView('onboarding');
+          await logSignupEvent('onboarding_started', {
+            stage: 'onboarding',
+            step: currentOnboardingStep,
+            form_snapshot: formSnapshot()
+          });
+          setNote('Complete this once. You will enter as a visitor by default; admins can block or update access later.');
+        });
+        return;
+      }
     }
 
     fillOnboarding(currentSession.user, visitor);

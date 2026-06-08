@@ -4170,32 +4170,84 @@ async function revokeProfileClaim(claimId, btnEl) {
     }
     allProfileClaims = allProfileClaims.filter(r => r.id !== claimId);
 
-    // Reset onboarding so the user goes through sign-up again on next login
     const matchVisitor = allVisitors.find(v =>
       (claim?.auth_user_id && v.auth_user_id === claim.auth_user_id) ||
       (claim?.claimant_email && v.email?.toLowerCase() === claim.claimant_email?.toLowerCase())
     );
-    if (matchVisitor) {
-      const { error: visitorError } = await withTimeout(
-        sb.from('visitors').update({
-          visitor_form_completed: false,
-          consent_terms_accepted: false,
-          admin_notes: reason || null,
-          updated_at: new Date().toISOString()
-        }).eq('id', matchVisitor.id),
-        15000, 'Reset onboarding'
+
+    // Does this person still have ANOTHER valid claim? Some genuine users
+    // accidentally claim more than one profile — when we clean up the wrong
+    // (extra) one, their original claim still stands and NOTHING changes for
+    // them: no onboarding reset, no "you've been signed out" message. Only a
+    // visitor with NO claims left after this deletion needs to redo sign-up
+    // and be told why.
+    let hasOtherClaim = false;
+    if (claim?.auth_user_id || claim?.claimant_email) {
+      const orParts = [];
+      if (claim.auth_user_id) orParts.push(`auth_user_id.eq.${claim.auth_user_id}`);
+      if (claim.claimant_email) orParts.push(`claimant_email.eq.${claim.claimant_email}`);
+      const { data: remaining } = await withTimeout(
+        sb.from('profile_claims').select('id').or(orParts.join(',')).limit(1),
+        15000, 'Check remaining claims'
       );
-      if (visitorError) {
-        toast('Claim deleted but could not reset onboarding: ' + visitorError.message, true);
+      hasOtherClaim = Boolean(remaining && remaining.length);
+    }
+
+    if (matchVisitor) {
+      if (hasOtherClaim) {
+        // Quiet cleanup — their real claim is untouched, so leave their
+        // account exactly as-is. Just record the admin note for our records.
+        const { error: noteError } = await withTimeout(
+          sb.from('visitors').update({
+            admin_notes: reason || null,
+            updated_at: new Date().toISOString()
+          }).eq('id', matchVisitor.id),
+          15000, 'Save admin note'
+        );
+        if (noteError) toast('Claim deleted, but could not save admin note: ' + noteError.message, true);
+      } else {
+        // Their only claim — reset onboarding so they redo sign-up, and
+        // leave them a one-time explanation they'll see before the sign-up
+        // form (handled in auth-flow.js via the 'claim_revoked' notification).
+        const { error: visitorError } = await withTimeout(
+          sb.from('visitors').update({
+            visitor_form_completed: false,
+            consent_terms_accepted: false,
+            admin_notes: reason || null,
+            updated_at: new Date().toISOString()
+          }).eq('id', matchVisitor.id),
+          15000, 'Reset onboarding'
+        );
+        if (visitorError) {
+          toast('Claim deleted but could not reset onboarding: ' + visitorError.message, true);
+        }
+
+        const notifPayload = {
+          recipient_email: matchVisitor.email || claim?.claimant_email || null,
+          recipient_mobile: matchVisitor.mobile || claim?.claimant_mobile || null,
+          recipient_auth_uid: matchVisitor.auth_user_id || claim?.auth_user_id || null,
+          title: 'Your profile claim was removed',
+          message: reason || 'Your profile claim was removed by the site admin. Please sign in again and claim the profile that genuinely belongs to you.',
+          source_type: 'claim_revoked',
+          source_id: claimId
+        };
+        const { error: notifError } = await withTimeout(
+          sb.from('user_notifications').insert(notifPayload),
+          15000, 'Send revoke notice'
+        );
+        if (notifError) console.warn('Could not record claim-revoke notice:', notifError.message);
       }
     }
 
     logStaffActivity('profile_claim_revoked', claimantLabel, {
       claim_id: claimId,
       person_uid: claim?.person_uid || '',
-      admin_note: reason || ''
+      admin_note: reason || '',
+      had_other_claim: hasOtherClaim
     });
-    toast(`Claim revoked — ${claimantLabel} will redo sign-up on next login.`);
+    toast(hasOtherClaim
+      ? `Duplicate claim removed for ${claimantLabel} — their original claim is untouched.`
+      : `Claim revoked — ${claimantLabel} will see why and redo sign-up on next login.`);
     loadVisitors(); // full reload from DB so UI reflects actual state
   } catch (e) {
     toast(e?.message || 'Could not revoke claim — request timed out. Please try again.', true);

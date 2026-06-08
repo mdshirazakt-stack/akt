@@ -606,6 +606,21 @@
     .activity-detail-item { grid-template-columns: 1fr; }
   }
 
+  /* IN-PAGE CONFIRM MODAL — replaces native confirm()/prompt(), which can
+     hang the tab in some browser/embedded contexts. */
+  .confirm-modal-backdrop { position: fixed; inset: 0; background: rgba(22,17,12,0.42); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 20px; }
+  .confirm-modal-backdrop.open { display: flex; }
+  .confirm-modal { background: var(--surface); border: 1px solid var(--border); box-shadow: 0 24px 80px rgba(0,0,0,0.24); max-width: 460px; width: min(460px, 100%); padding: 20px; }
+  .confirm-modal h3 { color: var(--gold); font-family: 'Amiri', serif; font-size: 1.2rem; margin: 0 0 10px; }
+  .confirm-modal p { color: var(--text); font-size: 0.86rem; line-height: 1.55; margin: 0 0 14px; white-space: pre-line; }
+  .confirm-modal label { display: block; color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .confirm-modal textarea {
+    width: 100%; box-sizing: border-box; border: 1px solid var(--border); background: var(--bg);
+    color: var(--text); font-family: 'Lato', sans-serif; font-size: 0.85rem;
+    padding: 9px 11px; resize: vertical; min-height: 64px;
+  }
+  .confirm-modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+
   /* FORUM MODERATION */
   .forum-admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
   .forum-admin-item { border: 1px solid var(--border); background: var(--bg); padding: 15px; margin-bottom: 12px; }
@@ -4056,6 +4071,52 @@ async function applyProfileClaimToPerson(claimId) {
   filterVisitors();
 }
 
+// In-page replacement for confirm()/prompt(). Native blocking dialogs have
+// caused real tab freezes here (the renderer can wedge waiting on them in
+// some browser/embedded contexts) — this renders a normal DOM modal instead,
+// so the page never blocks on browser-native UI.
+//   confirmWithNote({ title, message, noteLabel, confirmLabel, danger })
+//   → Promise<{ confirmed: boolean, note: string }>
+// noteLabel omitted ⇒ no textarea is shown (pure yes/no confirm).
+function confirmWithNote({ title = 'Please confirm', message = '', noteLabel = null, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false } = {}) {
+  return new Promise(resolve => {
+    let backdrop = document.getElementById('confirm-modal-backdrop');
+    if (!backdrop) {
+      backdrop = document.createElement('div');
+      backdrop.id = 'confirm-modal-backdrop';
+      backdrop.className = 'confirm-modal-backdrop';
+      document.body.appendChild(backdrop);
+    }
+    backdrop.innerHTML = `
+      <div class="confirm-modal" role="dialog" aria-modal="true">
+        <h3>${escapeHtml(title)}</h3>
+        <p>${escapeHtml(message)}</p>
+        ${noteLabel ? `<label for="confirm-modal-note">${escapeHtml(noteLabel)}</label><textarea id="confirm-modal-note"></textarea>` : ''}
+        <div class="confirm-modal-actions">
+          <button class="btn-sm" id="confirm-modal-cancel">${escapeHtml(cancelLabel)}</button>
+          <button class="btn-sm ${danger ? 'btn-danger' : 'btn-gold'}" id="confirm-modal-ok">${escapeHtml(confirmLabel)}</button>
+        </div>
+      </div>`;
+    backdrop.classList.add('open');
+
+    const finish = confirmed => {
+      const note = (document.getElementById('confirm-modal-note')?.value || '').trim();
+      backdrop.classList.remove('open');
+      backdrop.removeEventListener('click', onBackdropClick);
+      document.removeEventListener('keydown', onKeydown);
+      resolve({ confirmed, note });
+    };
+    const onBackdropClick = e => { if (e.target === backdrop) finish(false); };
+    const onKeydown = e => { if (e.key === 'Escape') finish(false); };
+
+    backdrop.addEventListener('click', onBackdropClick);
+    document.addEventListener('keydown', onKeydown);
+    document.getElementById('confirm-modal-cancel').onclick = () => finish(false);
+    document.getElementById('confirm-modal-ok').onclick = () => finish(true);
+    (document.getElementById('confirm-modal-note') || document.getElementById('confirm-modal-ok'))?.focus();
+  });
+}
+
 // Wrap a Supabase call (or any promise) so it can never hang the page forever.
 // Some network hiccups leave a fetch() promise neither resolved nor rejected —
 // without this, an `await` on it freezes the calling function (and, combined
@@ -4079,18 +4140,18 @@ async function revokeProfileClaim(claimId, btnEl) {
   const claim = allProfileClaims.find(r => r.id === claimId);
   const claimantLabel = claim?.claimant_name || claim?.claimant_email || claimId;
 
-  // Use confirm() (simple yes/no) instead of prompt() — text-input prompts are
-  // the more failure-prone of the two native dialogs across browsers/embedded
-  // contexts, and we don't strictly need free text here. Admin note is optional
-  // and collected via a follow-up confirm so the flow degrades gracefully.
-  const ok = confirm(`Revoke claim for "${claimantLabel}"?\n\nTheir claim will be deleted and they will be sent back through sign-up on next login.\n\nThis cannot be undone. Continue?`);
-  if (!ok) return;
-  let reason = '';
-  try {
-    reason = (prompt('Optional admin note for your records (leave blank to skip):') || '').trim();
-  } catch {
-    reason = ''; // if prompt() is unavailable/blocked in this context, just skip the note
-  }
+  // Native confirm()/prompt() dialogs have caused real tab freezes on this
+  // page — use the in-page confirmWithNote() modal instead, which never
+  // blocks the renderer on browser-native UI. One dialog covers both the
+  // yes/no confirmation and the optional admin note.
+  const { confirmed, note: reason } = await confirmWithNote({
+    title: 'Revoke this claim?',
+    message: `Revoke claim for "${claimantLabel}"?\n\nTheir claim will be deleted and they will be sent back through sign-up on next login.\n\nThis cannot be undone.`,
+    noteLabel: 'Optional admin note for your records (leave blank to skip)',
+    confirmLabel: 'Revoke Claim',
+    danger: true
+  });
+  if (!confirmed) return;
 
   const btn = btnEl || null;
   const originalLabel = btn ? btn.textContent : '';

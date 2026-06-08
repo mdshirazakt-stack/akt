@@ -1775,6 +1775,7 @@ let registeredUsers = [];
 let registeredSort = { key: 'registered', dir: 'desc' };
 let visitorSort = { key: 'last_seen', dir: 'desc' };
 let allProfileClaims = [];
+let claimRevokeNotifMap = {}; // visitor.id → most-recent claim_revoked notification {shown_at, acknowledged_at, message, created_at}
 let roleApplications = [];
 let staffActivityRows = [];
 let staffActivityRange = 'last24';
@@ -3757,18 +3758,42 @@ async function deleteUpload(id, name) {
 async function loadVisitors() {
   const tbody = document.getElementById('visitors-tbody');
   tbody.innerHTML = '<tr><td colspan="12" class="empty"><span class="spinner"></span> Loading…</td></tr>';
-  const [visitorResult, claimResult] = await Promise.all([
+  const [visitorResult, claimResult, revokeNotifResult] = await Promise.all([
     sb.from('visitors').select('*').order('last_seen', { ascending: false }),
-    sb.from('profile_claims').select('*').order('claimed_at', { ascending: false }).limit(10000)
+    sb.from('profile_claims').select('*').order('claimed_at', { ascending: false }).limit(10000),
+    sb.from('user_notifications')
+      .select('id,recipient_email,recipient_mobile,recipient_auth_uid,message,shown_at,acknowledged_at,created_at')
+      .eq('source_type', 'claim_revoked')
+      .order('created_at', { ascending: false })
+      .limit(2000)
   ]);
   allVisitors = visitorResult.data || [];
   allProfileClaims = claimResult.error ? [] : (claimResult.data || []);
   if (claimResult.error && !/does not exist|schema cache|relation/i.test(claimResult.error.message || '')) {
     console.warn('Profile claims could not be loaded:', claimResult.error.message);
   }
+  buildClaimRevokeNotifMap(revokeNotifResult.error ? [] : (revokeNotifResult.data || []));
   setNavBadge('visitors', allVisitors.filter(v => visitorAccessStatus(v) === 'pending' || visitorClaimNeedsAttention(v)).length);
   setNavBadge('registered', allVisitors.filter(v => v.visitor_form_completed || v.consent_terms_accepted || v.auth_user_id).length);
   renderVisitors(allVisitors);
+}
+
+// Match each "claim revoked" notice to the visitor it was sent to (by
+// auth_user_id, then email, then mobile — same precedence as the gate uses
+// when looking the notice up) so the admin can see, per kicked-off user,
+// whether they've actually seen and acknowledged the explanation. Keeps only
+// the most recent notice per visitor (rows are pre-sorted newest-first).
+function buildClaimRevokeNotifMap(notifRows) {
+  claimRevokeNotifMap = {};
+  if (!notifRows.length || !allVisitors.length) return;
+  notifRows.forEach(n => {
+    const match = allVisitors.find(v =>
+      (n.recipient_auth_uid && v.auth_user_id === n.recipient_auth_uid) ||
+      (n.recipient_email && v.email && String(v.email).toLowerCase() === String(n.recipient_email).toLowerCase()) ||
+      (n.recipient_mobile && v.mobile && String(v.mobile).replace(/\D/g, '') === String(n.recipient_mobile).replace(/\D/g, ''))
+    );
+    if (match && !claimRevokeNotifMap[match.id]) claimRevokeNotifMap[match.id] = n;
+  });
 }
 
 async function loadRegisteredUsers() {
@@ -3894,7 +3919,7 @@ function renderRegisteredUsers(users) {
         <td><strong>${escapeHtml(user.name_entered || '(unnamed)')}</strong></td>
         <td>${escapeHtml(user.email || '-')}</td>
         <td><span class="badge" style="background:#ede9fe;color:#5b21b6">${escapeHtml(user.access_role || 'visitor')}</span></td>
-        <td>${profileClaimSummaryHtml(user, claim)}</td>
+        <td>${profileClaimSummaryHtml(user, claim)}${claimRevokeNoticeMiniBadge(user)}</td>
         <td>${user.last_seen ? formatIST(user.last_seen, false) : '-'}</td>
       </tr>
       <tr class="registered-details-row" id="${rowId}">
@@ -3916,7 +3941,7 @@ function renderRegisteredUsers(users) {
                 Version: ${escapeHtml(user.consent_version || '-')}
               </div></div>
               <div class="registered-detail-item"><div class="k">Status</div><div class="v"><span class="badge" style="background:${status === 'approved' ? '#dcfce7' : status === 'blocked' ? '#fee2e2' : '#fef3c7'};color:${status === 'approved' ? '#166534' : status === 'blocked' ? '#991b1b' : '#92400e'}">${escapeHtml(status)}</span></div></div>
-              <div class="registered-detail-item"><div class="k">Profile Claim Details</div><div class="v">${profileClaimStatusHtml(user, claim)}</div></div>
+              <div class="registered-detail-item"><div class="k">Profile Claim Details</div><div class="v">${profileClaimStatusHtml(user, claim)}${claimRevokeNoticeHtml(user)}</div></div>
             </div>
           </div>
         </td>
@@ -3928,6 +3953,14 @@ function renderRegisteredUsers(users) {
     </div>
   `;
   updateRegisteredSortIndicators();
+}
+
+function claimRevokeNoticeMiniBadge(visitor) {
+  const n = claimRevokeNotifMap[visitor.id];
+  if (!n) return '';
+  return n.acknowledged_at
+    ? `<div style="margin-top:4px"><span style="font-size:0.64rem;padding:1px 6px;background:#dcfce7;color:#166534;border:1px solid #86efac;font-weight:700">✔ saw revoke notice</span></div>`
+    : `<div style="margin-top:4px"><span style="font-size:0.64rem;padding:1px 6px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-weight:700">⏳ notice unseen</span></div>`;
 }
 
 function profileClaimSummaryHtml(visitor, claim) {
@@ -4008,6 +4041,33 @@ function profileClaimStatusHtml(visitor, claim) {
   return `
     <span class="badge" style="background:${overdue ? '#fee2e2' : '#fef3c7'};color:${overdue ? '#991b1b' : '#92400e'}">${overdue ? 'claim overdue' : 'claim needed'}</span>
     ${deadline ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:4px">Deadline: ${formatIST(deadline, false)}</div>` : ''}
+  `;
+}
+
+// Renders whether a user who was sent a "claim revoked" explanation has
+// actually seen the blocking interstitial and pressed "OK, continue" — so an
+// admin can tell at a glance whether a kicked-off user is aware of why, and
+// it's now simply up to them whether they re-do sign-up.
+function claimRevokeNoticeHtml(visitor) {
+  const n = claimRevokeNotifMap[visitor.id];
+  if (!n) return '';
+  const seenLabel = n.shown_at
+    ? `✔ Seen ${formatIST(n.shown_at, false)}`
+    : '⏳ Not seen yet';
+  const ackLabel = n.acknowledged_at
+    ? `✔ Pressed “OK, continue” ${formatIST(n.acknowledged_at, false)}`
+    : '— Not acknowledged yet';
+  const badge = n.acknowledged_at
+    ? `<span style="padding:2px 8px;background:#dcfce7;color:#166534;border:1px solid #86efac;font-size:0.67rem;font-weight:700;letter-spacing:0.06em">✔ USER SAW REVOKE NOTICE</span>`
+    : `<span style="padding:2px 8px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-size:0.67rem;font-weight:700;letter-spacing:0.06em">⏳ NOTICE NOT YET SEEN</span>`;
+  return `
+    <div style="margin-top:8px;padding:8px 10px;background:#f9fafb;border:1px solid var(--border);border-left:3px solid ${n.acknowledged_at ? '#16a34a' : '#d97706'}">
+      <div style="margin-bottom:5px">${badge}</div>
+      <div style="font-size:0.72rem;color:var(--muted);white-space:pre-wrap;margin-bottom:6px">${escapeHtml(n.message || '')}</div>
+      <div style="display:flex;gap:16px;font-size:0.72rem;color:var(--muted);flex-wrap:wrap">
+        <span>${seenLabel}</span><span>${ackLabel}</span>
+      </div>
+    </div>
   `;
 }
 
@@ -4283,7 +4343,7 @@ function renderVisitors(visitors) {
       </td>
       <td><strong>${Number(v.visit_count || 0).toLocaleString()}</strong></td>
       <td>${formatIST(v.last_seen, false)}<br><span style="font-size:0.72rem;color:var(--muted)">${timeAgo(v.last_seen)}</span><br><span style="font-size:0.68rem;color:var(--muted)">${formatVisitorTimezone(v.ip_hint)}</span></td>
-      <td>${profileClaimSummaryHtml(v, claim)}</td>
+      <td>${profileClaimSummaryHtml(v, claim)}${claimRevokeNoticeMiniBadge(v)}</td>
       <td>
         <select onchange="setVisitorRole('${v.id}', this.value)" style="min-width:132px;padding:7px 9px;font-size:0.78rem">
           ${visitorRoleOptions(v.access_role || 'visitor')}
@@ -4320,7 +4380,7 @@ function renderVisitors(visitors) {
                 ${consentSections ? `<br>Sections ${escapeHtml(consentSections)}` : ''}
               </div></div>
               <div class="registered-detail-item"><div class="k">Status</div><div class="v"><span class="badge" style="${statusStyles[status] || statusStyles.pending}">${escapeHtml(status)}</span></div></div>
-              <div class="registered-detail-item"><div class="k">Profile Claim</div><div class="v">${profileClaimStatusHtml(v, claim)}</div></div>
+              <div class="registered-detail-item"><div class="k">Profile Claim</div><div class="v">${profileClaimStatusHtml(v, claim)}${claimRevokeNoticeHtml(v)}</div></div>
             </div>
           </div>
         </td>

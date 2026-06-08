@@ -1876,6 +1876,39 @@ async function lookupPersonByUid(raw) {
   return data;
 }
 
+// Cache: does the CURRENT VISITOR (by auth id / email / mobile) already have
+// a profile claim ANYWHERE — regardless of which profile is being viewed?
+// Used to stop already-claimed users from being invited to claim a *second*
+// (usually wrong) profile while browsing — a real source of confusion where
+// people who'd already correctly claimed their own profile went on to claim
+// random relatives' profiles too, simply because THOSE pages didn't know the
+// visitor already had a claim elsewhere.
+let _visitorOwnClaimCache = null; // null = not yet checked
+
+async function currentVisitorHasOwnClaim() {
+  if (_visitorOwnClaimCache !== null) return _visitorOwnClaimCache;
+  try {
+    const { data: sessionData } = await sb.auth.getSession();
+    const user = sessionData?.session?.user;
+    const email = user?.email || user?.user_metadata?.email || '';
+    const mobile = sessionStorage.getItem('akt_visitor_mobile') || '';
+    const authId = user?.id || sessionStorage.getItem('akt_auth_user_id') || '';
+    const clauses = [];
+    if (authId) clauses.push(`auth_user_id.eq.${authId}`);
+    if (email)  clauses.push(`claimant_email.eq.${email}`);
+    if (mobile) clauses.push(`claimant_mobile.eq.${mobile}`);
+    if (!clauses.length) { _visitorOwnClaimCache = false; return false; }
+    const { data, error } = await sb.from('profile_claims')
+      .select('id')
+      .or(clauses.join(','))
+      .limit(1);
+    _visitorOwnClaimCache = !error && Boolean(data && data.length);
+  } catch {
+    _visitorOwnClaimCache = false;
+  }
+  return _visitorOwnClaimCache;
+}
+
 async function loadProfileClaim(uid) {
   const { data, error } = await sb.from('profile_claims')
     .select('*')
@@ -1890,10 +1923,14 @@ async function loadProfileClaim(uid) {
   return data || null;
 }
 
-function profileClaimButtonHtml(uid, claim) {
+function profileClaimButtonHtml(uid, claim, visitorHasOwnClaim) {
   if (claim) {
     return '<button class="btn-back claim-btn claimed" disabled>Claimed</button>';
   }
+  // Visitor already has their own claim somewhere — never invite them to
+  // claim a second (almost always wrong) profile while browsing. They'll
+  // land on their own claimed profile naturally once admin approves it.
+  if (visitorHasOwnClaim) return '';
   return `<button class="btn-back claim-btn" style="border-color:var(--green);color:var(--green)" onclick="openProfileClaimBox('${escHtml(uid)}')">Claim this profile as yours</button>`;
 }
 
@@ -2016,6 +2053,7 @@ async function submitProfileClaim() {
     return;
   }
   currentProfileClaim = data;
+  _visitorOwnClaimCache = true; // they just created a claim — never invite a second one this session
   closeProfileClaimBox();
   window.AKT_AUTH?.refreshProfileClaimBanner?.();
   await renderPerson(currentPerson.uid, document.getElementById('person-container'));
@@ -2040,6 +2078,7 @@ async function renderPerson(uid, el) {
   const profileOverlay = overlayError ? null : overlay;
   currentProfileOverlay = profileOverlay;
   currentProfileClaim = await loadProfileClaim(uid);
+  const visitorHasOwnClaim = await currentVisitorHasOwnClaim();
   const displayName = firstText(profileOverlay?.corrected_name, p.name, '(unnamed)');
   const displayGender = firstText(profileOverlay?.corrected_gender, p.sex);
   const displayBirthDate = publicBirthDate(firstText(profileOverlay?.birth_date_text, p.birth_date));
@@ -2226,7 +2265,7 @@ async function renderPerson(uid, el) {
           <a class="btn-back" style="background:var(--green);color:#fff;border-color:var(--green)"
              href="index.html?tree=${encodeURIComponent(p.uid)}">🌳 Browse Tree</a>
           ${hasRole('moderator') ? `<a class="btn-back" style="border-color:var(--green);color:var(--green)" href="edit.html?uid=${encodeURIComponent(p.uid)}">Edit Profile</a>` : ''}
-          ${profileClaimButtonHtml(p.uid, currentProfileClaim)}
+          ${profileClaimButtonHtml(p.uid, currentProfileClaim, visitorHasOwnClaim)}
           <button class="btn-back" onclick="shareProfile()" title="Copy link to this profile" id="share-btn">📤 Share</button>
           <button class="btn-back" style="border-color:var(--red);color:var(--red)"
                   onclick="openCorrectionForm()">✏️ Raise Corrections</button>

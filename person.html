@@ -353,13 +353,6 @@
   .profile-claim-grid input:focus { border-color: var(--gold2); box-shadow: 0 0 0 3px rgba(201,168,76,0.12); }
   .claim-status-note { color: var(--muted); font-size: 0.78rem; margin-top: 10px; }
   @media(max-width:600px){ .profile-claim-grid { grid-template-columns: 1fr; } }
-  .aka-card {
-    background: #fffaf0; border: 1px solid rgba(201,168,76,0.4); border-left: 3px solid var(--gold2);
-    display: inline-flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
-    margin: 0 0 16px; padding: 9px 14px;
-  }
-  .aka-card .key { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
-  .aka-card .val { font-size: 0.95rem; color: var(--ink); font-weight: 600; font-style: italic; }
   .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
   @media(max-width:600px){ .detail-grid { grid-template-columns: 1fr; } }
   .detail-field { padding: 12px 14px; background: var(--bg); border: 1px solid var(--border); }
@@ -2228,7 +2221,6 @@ async function renderPerson(uid, el) {
                 ${p.community_role === 'superadmin' ? `&nbsp;<span class="badge badge-role-superadmin">👑 Superadmin</span>` : ''}
                 ${profileOverlay ? `&nbsp;<span class="badge" style="background:#fef3c7;color:#92400e">Community updated</span>` : ''}
               </div>
-              ${p.nickname ? `<div class="aka-card"><span class="key">Also Known As</span><span class="val">${escHtml(p.nickname)}</span></div>` : ''}
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <a class="btn-back" style="background:var(--green);color:#fff;border-color:var(--green)"
@@ -2245,6 +2237,7 @@ async function renderPerson(uid, el) {
 
       <div class="detail-grid">
         <div class="detail-field"><div class="key">Given Name</div><div class="val">${escHtml(displayName || p.given_name || '—')}</div></div>
+        ${p.nickname ? `<div class="detail-field"><div class="key">Also Known As</div><div class="val">${escHtml(p.nickname)}</div></div>` : ''}
         ${displayBirthPlace    ? `<div class="detail-field"><div class="key">Place of Birth</div><div class="val">${escHtml(displayBirthPlace)}</div></div>` : ''}
         ${displayRootLocation  ? `<div class="detail-field"><div class="key">Root Place</div><div class="val">${escHtml(displayRootLocation)}</div></div>` : ''}
         ${displayCurrentLocation ? `<div class="detail-field"><div class="key">Current Location</div><div class="val">${escHtml(displayCurrentLocation)}</div></div>` : ''}

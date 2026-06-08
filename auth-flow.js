@@ -85,6 +85,10 @@
     if (note) note.textContent = message;
   }
 
+  function showPendingApprovalMessage() {
+    showMessage('Thank you for registering. Your account is pending review by the site admin and is not active yet — you will not be able to view the archive until it is approved. This usually takes up to 24 hours. Please check back later by signing in again.', false);
+  }
+
   function setView(view) {
     const gate = byId('auth-gate');
     const hasWarmSession = sessionStorage.getItem('akt_access_granted') === '1';
@@ -763,6 +767,19 @@
       return;
     }
 
+    if (status === 'pending') {
+      // Account exists but admin has not approved it yet — do not let them in.
+      await logSignupEvent('pending_access_attempt', {
+        stage: 'signin',
+        status,
+        email: userEmail(currentSession.user) || '',
+        visitor_id: visitor?.id || null
+      });
+      setView('message');
+      showPendingApprovalMessage();
+      return;
+    }
+
     if (visitor && isOnboardingComplete(visitor)) {
       await enterVisitor(visitor);
       await logSignupEvent('registered_user_entered', {
@@ -982,7 +999,11 @@
       heard_from_relative_name: snapshot.heard_from_relative_name || null,
       heard_from_relative_place: snapshot.heard_from_relative_place || null,
       heard_from_details: snapshot.heard_from_details || null,
-      access_status: currentVisitor?.access_status || 'approved',
+      // New accounts start as 'pending' and require admin approval before they
+      // can enter the archive (see handleSession's pending check + the
+      // "pending approval" message below). Existing visitors keep whatever
+      // status they already have — this only affects brand-new inserts.
+      access_status: currentVisitor?.access_status || 'pending',
       access_role: currentVisitor?.access_role || 'visitor',
       is_blocked: currentVisitor?.is_blocked || false,
       visitor_form_completed: true,
@@ -1039,6 +1060,20 @@
       visitor_id: saved?.id || null,
       form_snapshot: snapshot
     });
+
+    currentVisitor = saved;
+    if (visitorStatus(saved) === 'pending') {
+      // Brand-new (or still-unapproved) accounts do not enter the archive —
+      // show the pending-approval message instead.
+      await logSignupEvent('pending_after_onboarding', {
+        stage: 'completed',
+        visitor_id: saved?.id || null
+      });
+      setView('message');
+      showPendingApprovalMessage();
+      return;
+    }
+
     await enterVisitor(saved);
   }
 

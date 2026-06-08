@@ -1,6 +1,6 @@
 # Apnon Ki Talash / Iraqi Biradari Project Handoff
 
-Last updated: 2026-06-05
+Last updated: 2026-06-08
 
 ## Project Overview
 
@@ -148,6 +148,77 @@ trouble.html    — login troubleshooting, WhatsApp community links (public)
 
 ---
 
+## Session Update — Spouse-Handling Revamp Completion & Browse Tree Fixes (2026-06-06 → 2026-06-08)
+
+This session finished the multi-part "spouse-handling revamp" plan from the prior session and fixed several display bugs reported directly by the user while reviewing the live tree. All changes are pushed to `main` (commits below, newest first):
+
+```text
+bf0bf40  Simplify divorced-couple indicator in Browse Tree (was too showy)
+db67a6f  Fix: ancestor-row couples in Browse Tree always showed as married
+97b638d  Sort spouse/marriage family groups chronologically (fixes 2nd-before-1st order)
+e593206  Add Spouse/Family Audit panel — sitewide scan for ambiguous family records
+f8775ea  Add "link existing spouse into existing family" flow to conflict dialog
+131a823  Add explicit marriage ordering ("1st wife"/"2nd marriage" labels)
+```
+
+### 1. "Link existing spouse into existing family" flow (`f8775ea`)
+Completes the conflict-dialog flow in `edit.html`. When an admin tries to add a spouse relationship that looks like it duplicates an existing family group (e.g. the new spouse should actually be the *missing* husband/wife slot of a family that already has children recorded), the conflict dialog now offers a **"Link into existing family"** action (`conflictLinkFamily()`).
+
+- Fills the empty `husband_uid`/`wife_uid` slot on the existing `families` row directly (`UPDATE families SET husband_uid|wife_uid = focusUid WHERE uid = familyUid`) instead of creating a duplicate family group.
+- Shows a confirmation dialog naming the shared children so the admin can verify it's genuinely the same family before proceeding.
+- Logs the action via `logTreeChange('tree_spouse_family_linked', ...)` with `profile_uid`, `related_uid`, `family_uid`, `relation`.
+- Reuses `_conflictLinkable` / `_conflictOnProceed` state set up by the existing conflict-detection code; `closeConflictModal()` now also resets `_conflictLinkable = null`.
+
+This was the final piece of the original 6-scenario spouse-handling plan (the others — explicit marriage ordering, stop auto-importing spouse's children, dedupe divorced label — landed in earlier commits `131a823`, `a538a09`, `e0dd36c`).
+
+### 2. Spouse / Family Audit admin panel (`e593206`)
+New **read-only** superadmin-only tab in `admin.html` ("Spouse/Family Audit", `data-min-role="superadmin"`, `id="badge-familyaudit"`) that scans the whole archive for the kinds of ambiguous family records the spouse-handling work was designed to fix. Three categories surfaced:
+
+1. **Ambiguous marriage order** — a person has 2+ family groups with no `marr_date` and no `husband_marriage_seq`/`wife_marriage_seq` set, so the UI can't determine 1st vs 2nd marriage.
+2. **Multi-family children** — a child appears as a `family_members` row (`role='child'`) under 2+ different family groups (possible duplicate/misattributed record).
+3. **Spouse-unknown families with children** — a family group has `husband_uid` or `wife_uid` null but already has children recorded (candidate for the new "link into existing family" flow above).
+
+Implementation notes:
+- New helper `_auditFetchAll(table, select, orderCols, extra)` does paginated `.range()` fetches. **Critically, it requires an `orderCols` argument and always calls `.order()`** — PostgREST/Postgres gives no ordering guarantee across separate `.range()` page queries without explicit `ORDER BY`, which would otherwise silently skip or duplicate rows and corrupt the audit counts. (Caught and fixed during self-review, before committing.) Called as `_auditFetchAll('families', '...', ['uid'])`, `_auditFetchAll('family_members', 'family_uid,person_uid', ['family_uid','person_uid'], q => q.eq('role','child'))`, `_auditFetchAll('people', 'uid,name,sex', ['uid'])`.
+- `_auditPersonLink(p)` builds escaped links to `person.html`/`edit.html` for each flagged person.
+- `loadFamilyAudit()` is the loader/renderer — pure `.select()`, no writes.
+- Wired into `switchTab()`: `if (name === 'familyaudit') loadFamilyAudit();`
+
+### 3. Chronological marriage ordering fix (`97b638d`)
+**Bug reported by user:** "sometimes marriage2 is listed before marriage 1" when marriage dates are missing or out of order.
+
+Added `dateSortKey(str)` (loose GEDCOM-date parser — pulls year/month/day out of free-text strings like "ABT 1980" or "12 JUN 1985") and `compareFamiliesForPerson(a, b, personUid)` (3-tier comparator: explicit `husband_marriage_seq`/`wife_marriage_seq` first, then parsed `marr_date`, then stable `uid` tiebreak) to `edit.html`, `person.html`, and `index.html` (identical copies, placed after `marriageOrdinalFor()`). All three files now sort `spouseFamilies` with this comparator before rendering, so marriage order is deterministic even with incomplete/missing dates.
+
+### 4. Browse Tree: divorced ancestor couples showing as married (`db67a6f`)
+**Bug reported by user (with screenshot):** drawing a lineage from the children of a divorced ancestor couple still showed them connected by the married-rings (⚭) glyph instead of the divorced glyph.
+
+Root cause: the ancestor-row call site to `famCard()` in `index.html`'s `loadTree()` omitted the 6th argument (`marrStatus`), so the function always fell through to the "married" branch for ancestor rows (the other two `famCard()` call sites passed it correctly). Fixed: `famCard(father, 'tree-box-anc', mother, null, 0, fam.marr_status || '')`.
+
+### 5. Simplified divorced-couple indicator styling (`bf0bf40`)
+**User feedback:** "amber divorced banner is very show-off, can this be reduced a bit more simpler and indicative."
+
+Reduced the divorced-couple display in `famCard()` from a 3-signal indicator (amber "DIVORCED" banner + 2px amber border + glyph) down to a single glyph — ⚮ (U+26AE) with `title="Divorced"` tooltip — matching the existing married-couple convention which uses a single ⚭ (U+26AD) glyph. No banner, no border.
+
+### Data-cleanup guidance given (no code change)
+User asked how to retroactively show a divorce between "Tauseef" and "Affaf Zia" (who have since remarried with different spouses and different children, no children together). Guidance given: there's no "remove child from family" button in `edit.html` (only drag-and-drop move + delete-person). The correct mechanism is to open the editor focused on the person whose two family groups both list the misattributed child, then **drag the child from the wrong family box into the correct one** — `moveChildToFamily()` deletes the child's `family_members` rows across *all* of that focus person's families and re-inserts into the target family, cleanly resolving the misattribution in one operation. Then set `marr_status = 'divorced'` (with a sensible `marr_date`/notes) on the Tauseef↔Affaf family group via the Marriage Details editor.
+
+### ⚠️ Pending migration — must be run in Supabase SQL editor
+`supabase_marriage_sequence.sql` (in repo root) has **NOT yet been run**. It adds the two nullable columns the marriage-ordering UI (`131a823`, `97b638d`) and the audit panel (`e593206`) read/write:
+
+```sql
+ALTER TABLE public.families
+  ADD COLUMN IF NOT EXISTS husband_marriage_seq smallint
+  CHECK (husband_marriage_seq IS NULL OR husband_marriage_seq > 0);
+
+ALTER TABLE public.families
+  ADD COLUMN IF NOT EXISTS wife_marriage_seq smallint
+  CHECK (wife_marriage_seq IS NULL OR wife_marriage_seq > 0);
+```
+
+Both columns are nullable — the UI degrades gracefully (falls back to `marr_date` sort, then stable `uid` order) when they're absent, so this is not urgent, but the explicit "1st wife"/"2nd marriage" labels and the audit panel's "ambiguous marriage order" category will be more useful once it's run. User said they'd batch this with other pending SQL ("I will run all sql together").
+
+---
+
 ## SQL Files — All Run Status
 
 All SQL files are confirmed run in Supabase **except**:
@@ -156,6 +227,13 @@ All SQL files are confirmed run in Supabase **except**:
 supabase_profile_overrides.sql  — NOT run (person_profile_overrides table missing)
                                    Needed for "Apply Safe Fields" in Corrections tab.
                                    Skip if corrections overlay feature not needed.
+
+supabase_marriage_sequence.sql  — NOT run (husband_marriage_seq / wife_marriage_seq
+                                   columns missing on `families`)
+                                   Adds explicit "1st/2nd marriage" ordering support.
+                                   UI degrades gracefully without it (falls back to
+                                   marr_date, then uid) — not urgent, but run when
+                                   batching other pending SQL. See session notes above.
 ```
 
 All other SQL files confirmed run:

@@ -468,10 +468,25 @@ async function logTreeChange(action, target, details = {}) {
 async function bootEditor() {
   currentUser = sessionStorage.getItem('akt_visitor_name') || '';
   currentUserRole = normalizeAccessRole(sessionStorage.getItem('akt_visitor_role'));
+
+  // sessionStorage is only populated once the auth gate on index.html /
+  // person.html has fully resolved the visitor's role during sign-in. A
+  // direct load of edit.html — a fresh tab, a bookmark, a page refresh —
+  // can reach here BEFORE that's happened (or with nothing cached at all),
+  // which wrongly showed genuine admins/superadmins "Moderator access is
+  // required". Before throwing that gate, check the real login session +
+  // visitor record (the actual source of truth) and only block if that
+  // confirms the signed-in user truly isn't a moderator or above.
+  if (!hasRole('moderator')) {
+    const confirmedRole = await resolveRoleFromLiveSession();
+    if (confirmedRole) currentUserRole = confirmedRole;
+  }
+
   if (!hasRole('moderator')) {
     document.querySelector('main').innerHTML = `
       <div class="status" style="display:block;border-left-color:var(--red);color:var(--red);background:#fff4f3">
-        Moderator access is required to use the profile editor.
+        Moderator access is required to use the profile editor.<br>
+        <span style="font-size:0.85em;font-weight:400">If you're an admin or moderator and see this by mistake, your session may not have loaded yet — please sign in again from the main archive.</span>
       </div>
       <a class="btn" href="index.html">Back to archive</a>
     `;
@@ -480,6 +495,49 @@ async function bootEditor() {
   setupUnsavedChangeGuard();
   applyEditorRoleVisibility();
   await loadEditor();
+}
+
+// Confirms the signed-in user's role directly against Supabase (bypassing any
+// stale/missing sessionStorage cache from this tab). Mirrors the lookup order
+// auth-flow.js uses: get_my_visitor() RPC first (SECURITY DEFINER — works even
+// when auth_user_id hasn't been linked yet), then a direct table fallback by
+// auth_user_id, then by email. Returns the confirmed role, or null if there's
+// no live session / no matching approved visitor record.
+async function resolveRoleFromLiveSession() {
+  try {
+    const { data: sessionData } = await sb.auth.getSession();
+    const user = sessionData?.session?.user;
+    if (!user) return null;
+
+    let visitor = null;
+    const { data: rpcData, error: rpcError } = await sb.rpc('get_my_visitor');
+    if (!rpcError && rpcData) visitor = rpcData;
+
+    if (!visitor) {
+      const email = (user.email || user.user_metadata?.email || '').trim();
+      const { data: idRows } = await sb.from('visitors')
+        .select('*').eq('auth_user_id', user.id)
+        .order('last_seen', { ascending: false }).limit(1);
+      if (idRows && idRows.length) visitor = idRows[0];
+      if (!visitor && email) {
+        const { data: emailRows } = await sb.from('visitors')
+          .select('*').ilike('email', email)
+          .order('last_seen', { ascending: false }).limit(1);
+        if (emailRows && emailRows.length) visitor = emailRows[0];
+      }
+    }
+    if (!visitor || visitor.is_blocked) return null;
+    if (visitor.access_status && visitor.access_status !== 'approved') return null;
+
+    const role = normalizeAccessRole(visitor.access_role);
+    currentUser = currentUser || visitor.name_entered || '';
+    sessionStorage.setItem('akt_visitor_role', role);
+    sessionStorage.setItem('akt_auth_user_id', user.id || '');
+    if (currentUser) sessionStorage.setItem('akt_visitor_name', currentUser);
+    return role;
+  } catch {
+    return null;
+  }
 }
 
 function setupUnsavedChangeGuard() {

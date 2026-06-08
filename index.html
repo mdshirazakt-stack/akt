@@ -2959,7 +2959,7 @@ function personBadgeHtml(p) {
 }
 
 function renderResultCell(key, p, rawTokens, src) {
-  if (key === 'name') return `<td data-label="Name"><span class="person-name">${highlightName(p.name || '(unnamed)', rawTokens)}</span>${personBadgeHtml(p)}</td>`;
+  if (key === 'name') return `<td data-label="Name"><span class="person-name">${highlightName(p.name || '(unnamed)', rawTokens)}</span>${p.nickname ? ` <span class="person-nickname" style="color:var(--muted);font-style:italic;font-size:0.85em">"${escapeHtml(p.nickname)}"</span>` : ''}${personBadgeHtml(p)}</td>`;
   if (key === 'sex') return `<td data-label="Sex">${escapeHtml(p.sex || '-')}</td>`;
   if (key === 'birth_place') return `<td data-label="Birth Place">—</td>`; // hidden site-wide
   if (key === 'root_place') return `<td data-label="Root Place">${escapeHtml(p.root_place || '-')}</td>`;
@@ -3476,7 +3476,7 @@ async function loadSearch(q) {
   if (!el) return;
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
-  const baseSelect = 'uid,name,given_name,surname,sex,birth_place,death_place,root_place,current_place,death_flag,marr_status,gedcom_id,is_contributor,community_role';
+  const baseSelect = 'uid,name,given_name,surname,nickname,sex,birth_place,death_place,root_place,current_place,death_flag,marr_status,gedcom_id,is_contributor,community_role';
 
   try {
   // Split query into meaningful tokens (ignore short words, trim)
@@ -3538,7 +3538,7 @@ async function loadSearch(q) {
     let query = sb.from('people').select(baseSelect, { count: 'exact' });
     rawTokens.forEach(tok => {
       const t = tok.replace(/[%_]/g, '').replace(/'/g, "''");
-      query = query.or(`name.ilike.%${t}%,birth_place.ilike.%${t}%,current_place.ilike.%${t}%,root_place.ilike.%${t}%,death_place.ilike.%${t}%`);
+      query = query.or(`name.ilike.%${t}%,nickname.ilike.%${t}%,birth_place.ilike.%${t}%,current_place.ilike.%${t}%,root_place.ilike.%${t}%,death_place.ilike.%${t}%`);
     });
     if (searchFilter === 'M') query = query.eq('sex', 'M');
     else if (searchFilter === 'F') query = query.eq('sex', 'F');
@@ -3584,9 +3584,10 @@ async function loadSearch(q) {
         const safe = pat.replace(/'/g, "''");
         orClauses.push('name.ilike.' + safe);
       }
-      // Also match exact token against place fields
+      // Also match exact token against nickname and place fields
       const t = tok.replace(/[%_]/g, '').replace(/'/g, "''");
       if (t.length >= 2) {
+        orClauses.push(`nickname.ilike.%${t}%`);
         orClauses.push(`birth_place.ilike.%${t}%`);
         orClauses.push(`current_place.ilike.%${t}%`);
         orClauses.push(`root_place.ilike.%${t}%`);

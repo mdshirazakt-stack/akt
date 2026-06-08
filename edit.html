@@ -187,6 +187,8 @@
         <input type="hidden" id="edit-uid"/>
         <label>Name</label>
         <input id="edit-name" placeholder="Full name"/>
+        <label>Nickname / Also Known As</label>
+        <input id="edit-nickname" placeholder="e.g. Bunty (optional, shown on profile and searchable)"/>
         <div class="grid2">
           <div>
             <label>Gender</label>
@@ -882,6 +884,7 @@ async function selectPerson(uid) {
     document.getElementById('editing-label').textContent = p.name || '(unnamed)';
     document.getElementById('edit-uid').value = p.uid;
     document.getElementById('edit-name').value = p.name || '';
+    document.getElementById('edit-nickname').value = p.nickname || '';
     document.getElementById('edit-sex').value = p.sex || '';
     document.getElementById('edit-alive').value = p.death_flag ? 'deceased' : 'alive';
     document.getElementById('edit-birth-date').value = p.birth_date || '';
@@ -959,6 +962,7 @@ async function savePerson(event) {
   const deceased = value('edit-alive') === 'deceased';
   const payload = {
     name: value('edit-name') || null,
+    nickname: value('edit-nickname') || null,
     sex: value('edit-sex') || null,
     birth_date: value('edit-birth-date') || null,
     birth_place: value('edit-birth-place') || null,

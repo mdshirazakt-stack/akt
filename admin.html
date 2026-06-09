@@ -1242,9 +1242,8 @@
           <input class="search-bar" id="visitor-search" placeholder="Search users by name, email, mobile, places, ancestor..." oninput="filterVisitors()" style="flex:1;margin:0"/>
           <button class="btn-sm" onclick="loadVisitors()">↻ Refresh</button>
         </div>
-        <div class="insight-note" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px">
-          <span>Manage signed-in users, visitor registration records, roles, and access status in one table.</span>
-          <button class="btn-sm btn-danger" onclick="clearPublicVisitors()">Clear Public Visitors</button>
+        <div class="insight-note" style="margin-bottom:16px">
+          Manage signed-in users, visitor registration records, roles, and access status in one table.
         </div>
         <div id="visitors-table-wrap">
           <table style="min-width:1120px">
@@ -4368,14 +4367,15 @@ function renderVisitors(visitors) {
           ${visitorRoleOptions(v.access_role || 'visitor')}
         </select>
       </td>
-      <td style="min-width:190px">
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <td style="min-width:160px">
+        <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
           ${status !== 'approved' ? `<button class="btn-sm" onclick="approveVisitor('${v.id}')" style="border-color:var(--green);color:var(--green)">Approve</button>` : ''}
           ${status !== 'rejected' && status !== 'blocked' ? `<button class="btn-sm btn-export" onclick="rejectVisitor('${v.id}')">Reject</button>` : ''}
           ${status === 'blocked'
-            ? `<button class="btn-sm" onclick="unblockVisitor('${v.id}')">Unblock</button>`
-            : `<button class="btn-sm btn-danger" onclick="blockVisitor('${v.id}')">Block</button>`
+            ? `<button class="btn-sm" title="Unblock" onclick="unblockVisitor('${v.id}')" style="padding:6px 9px;font-size:1rem" aria-label="Unblock">🔓</button>`
+            : `<button class="btn-sm btn-danger" title="Block" onclick="blockVisitor('${v.id}')" style="padding:6px 9px;font-size:1rem" aria-label="Block">🚫</button>`
           }
+          <button class="btn-sm" title="Delete record" data-vid="${v.id}" onclick="deleteVisitor(this.dataset.vid)" style="padding:6px 9px;font-size:1rem;border-color:#b91c1c;color:#b91c1c" aria-label="Delete">🗑️</button>
         </div>
       </td>
     </tr>
@@ -4606,6 +4606,41 @@ async function rejectVisitor(id) {
   }).eq('id', id);
   logStaffActivity('user_rejected', visitor?.name_entered || visitor?.email || id, { visitor_id: id, notes });
   toast('Access rejected');
+  loadVisitors();
+}
+
+async function deleteVisitor(id) {
+  if (!hasAdminRole('superadmin')) {
+    toast('Only superadmin can delete visitor records.', true);
+    return;
+  }
+  const visitor = allVisitors.find(v => v.id === id);
+  const label = visitor?.name_entered || visitor?.email || id;
+  const ok = confirm(
+    `Permanently delete record for "${label}"?\n\n` +
+    `Step 1: Any profile claim they hold will be released so the profile can be claimed again.\n` +
+    `Step 2: Their visitor record will be removed from the database.\n\n` +
+    `This cannot be undone.`
+  );
+  if (!ok) return;
+
+  // Step 1: Release profile claim first so the profile can be claimed again
+  // (requires supabase_superadmin_delete_policy.sql to have been run in Supabase)
+  const { error: claimErr } = await sb.from('profile_claims').delete().eq('visitor_id', id);
+  if (claimErr) {
+    toast('Could not release profile claim — aborting. Check that supabase_superadmin_delete_policy.sql has been run. Error: ' + claimErr.message, true);
+    return;
+  }
+
+  // Step 2: Delete the visitor record
+  const { error: visitorErr } = await sb.from('visitors').delete().eq('id', id);
+  if (visitorErr) {
+    toast('Profile claim released but visitor delete failed: ' + visitorErr.message, true);
+    return;
+  }
+
+  logStaffActivity('user_deleted', label, { visitor_id: id });
+  toast(`"${label}" deleted — profile claim released, visitor record removed.`);
   loadVisitors();
 }
 

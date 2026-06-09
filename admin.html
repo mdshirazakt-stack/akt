@@ -1777,6 +1777,8 @@ let visitorSort = { key: 'last_seen', dir: 'desc' };
 let allProfileClaims = [];
 let claimRevokeNotifMap = {}; // visitor.id → most-recent claim_revoked notification {shown_at, acknowledged_at, message, created_at}
 let roleApplications = [];
+let blockedAttemptRows = [];           // aggregated rows for the blocked-attempts table
+let blockedAttemptSort = { key: 'attempts', dir: 'desc' };
 let staffActivityRows = [];
 let staffActivityRange = 'last24';
 let signupDropoffRows = [];
@@ -4851,47 +4853,26 @@ async function loadDbStats() {
 
     ${(() => {
       const history = blockedHistory || [];
-      if (!history.length) return '';
-
-      // Group by email: {email → [{created_at, status}]}
+      if (!history.length) return '<div id="blocked-attempts-table-wrap" style="grid-column:1/-1"></div>';
+      // Build aggregated rows and store in module-level variable for re-sorting
       const byEmail = {};
       history.forEach(r => {
-        const key = r.email || '(unknown)';
-        if (!byEmail[key]) byEmail[key] = [];
-        byEmail[key].push({ ts: r.created_at, status: r.details?.status || 'blocked' });
+        const key = (r.email || '').toLowerCase() || '(unknown)';
+        if (!byEmail[key]) byEmail[key] = { email: r.email || '(unknown)', attempts: [] };
+        byEmail[key].attempts.push(r.created_at);
       });
-
-      const rows = Object.entries(byEmail)
-        .sort((a, b) => b[1].length - a[1].length) // most attempts first
-        .map(([email, attempts]) => `
-          <tr>
-            <td style="padding:7px 10px;border-bottom:1px solid var(--border);font-size:0.82rem;font-weight:700;color:#991b1b">${escapeHtml(email)}</td>
-            <td style="padding:7px 10px;border-bottom:1px solid var(--border);font-size:0.82rem;text-align:center">
-              <span style="background:#fee2e2;color:#991b1b;padding:2px 8px;font-weight:700;font-size:0.75rem">${attempts.length}×</span>
-            </td>
-            <td style="padding:7px 10px;border-bottom:1px solid var(--border);font-size:0.78rem;color:var(--muted)">
-              ${attempts.length > 1
-                ? `First: ${formatIST(attempts[attempts.length - 1].ts)}<br>Last: ${formatIST(attempts[0].ts)}`
-                : formatIST(attempts[0].ts)}
-            </td>
-          </tr>`).join('');
-
-      return `
-        <div style="grid-column:1/-1;margin-top:12px;border:1px solid #fecaca;background:#fff">
-          <div style="padding:10px 14px;background:#fee2e2;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#991b1b">
-            🚫 Blocked users who attempted sign-in (last 7 days)
-          </div>
-          <table style="width:100%;border-collapse:collapse">
-            <thead>
-              <tr style="background:var(--bg)">
-                <th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Email</th>
-                <th style="padding:7px 10px;text-align:center;border-bottom:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Attempts</th>
-                <th style="padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;color:var(--muted)">Timestamps (IST)</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>`;
+      blockedAttemptRows = Object.values(byEmail).map(({ email, attempts }) => {
+        const sorted = attempts.slice().sort();
+        const visitor = allVisitors.find(v => v.email && v.email.toLowerCase() === email.toLowerCase());
+        return {
+          email,
+          count: attempts.length,
+          first: sorted[0],
+          last: sorted[sorted.length - 1],
+          visitor
+        };
+      });
+      return '<div id="blocked-attempts-table-wrap" style="grid-column:1/-1;margin-top:12px"></div>';
     })()}
 
     ${grp('Archive')}
@@ -4905,6 +4886,93 @@ async function loadDbStats() {
 
   renderDuplicateUploadStats(duplicateGroups);
   renderRecentUploadStats(uploadRows.slice(0, 8));
+  renderBlockedAttemptsTable();
+}
+
+function sortBlockedAttempts(key) {
+  if (blockedAttemptSort.key === key) {
+    blockedAttemptSort.dir = blockedAttemptSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    blockedAttemptSort.key = key;
+    blockedAttemptSort.dir = key === 'email' ? 'asc' : 'desc';
+  }
+  renderBlockedAttemptsTable();
+}
+
+function renderBlockedAttemptsTable() {
+  const wrap = document.getElementById('blocked-attempts-table-wrap');
+  if (!wrap) return;
+  if (!blockedAttemptRows.length) { wrap.innerHTML = ''; return; }
+
+  const { key, dir } = blockedAttemptSort;
+  const mul = dir === 'asc' ? 1 : -1;
+  const sorted = [...blockedAttemptRows].sort((a, b) => {
+    if (key === 'attempts') return mul * (a.count - b.count);
+    if (key === 'first')    return mul * (a.first || '').localeCompare(b.first || '');
+    if (key === 'last')     return mul * (a.last  || '').localeCompare(b.last  || '');
+    if (key === 'email')    return mul * (a.email || '').localeCompare(b.email || '');
+    if (key === 'status') {
+      const rank = r => { const s = currentBlockedStatus(r.visitor); return s === 'blocked' ? 1 : s === 'approved' ? 3 : 2; };
+      return mul * (rank(a) - rank(b));
+    }
+    return 0;
+  });
+
+  function thStyle(col) {
+    const active = blockedAttemptSort.key === col;
+    return `padding:8px 10px;text-align:${col === 'attempts' ? 'center' : 'left'};border-bottom:1px solid var(--border);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.07em;color:${active ? '#991b1b' : 'var(--muted)'};cursor:pointer;white-space:nowrap;user-select:none`;
+  }
+  function sortArrow(col) {
+    if (blockedAttemptSort.key !== col) return ' <span style="opacity:0.3">↕</span>';
+    return blockedAttemptSort.dir === 'asc' ? ' ▲' : ' ▼';
+  }
+
+  function currentBlockedStatus(visitor) {
+    if (!visitor) return 'unknown';
+    if (visitor.is_blocked) return 'blocked';
+    return visitor.access_status || 'unknown';
+  }
+
+  function statusBadge(visitor) {
+    const s = currentBlockedStatus(visitor);
+    if (s === 'blocked')  return `<span style="background:#fee2e2;color:#991b1b;padding:2px 9px;font-size:0.72rem;font-weight:700">blocked</span>`;
+    if (s === 'approved') return `<span style="background:#dcfce7;color:#166534;padding:2px 9px;font-size:0.72rem;font-weight:700">✓ unblocked</span>`;
+    if (s === 'pending')  return `<span style="background:#fef3c7;color:#92400e;padding:2px 9px;font-size:0.72rem;font-weight:700">pending</span>`;
+    if (s === 'rejected') return `<span style="background:#f3f4f6;color:#6b7280;padding:2px 9px;font-size:0.72rem;font-weight:700">rejected</span>`;
+    return `<span style="background:#f3f4f6;color:#9ca3af;padding:2px 9px;font-size:0.72rem;font-weight:700">unknown</span>`;
+  }
+
+  const rows = sorted.map(r => `
+    <tr style="background:${r.visitor && !r.visitor.is_blocked && r.visitor.access_status === 'approved' ? '#f0fdf4' : '#fff'}">
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:0.82rem;font-weight:700;color:#991b1b">${escapeHtml(r.email)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:center">
+        <span style="background:#fee2e2;color:#991b1b;padding:2px 10px;font-weight:700;font-size:0.78rem">${r.count}×</span>
+      </td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:0.78rem;color:var(--muted);white-space:nowrap">${formatIST(r.first, false)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:0.78rem;color:var(--muted);white-space:nowrap">${formatIST(r.last, false)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border)">${statusBadge(r.visitor)}</td>
+    </tr>`).join('');
+
+  wrap.innerHTML = `
+    <div style="border:1px solid #fecaca;background:#fff">
+      <div style="padding:10px 14px;background:#fee2e2;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#991b1b">
+        🚫 Blocked users who attempted sign-in (last 7 days) — ${sorted.length} users
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:700px">
+          <thead>
+            <tr style="background:var(--bg)">
+              <th onclick="sortBlockedAttempts('email')"   style="${thStyle('email')}">Email${sortArrow('email')}</th>
+              <th onclick="sortBlockedAttempts('attempts')" style="${thStyle('attempts')}">Attempts${sortArrow('attempts')}</th>
+              <th onclick="sortBlockedAttempts('first')"   style="${thStyle('first')}">First Attempt${sortArrow('first')}</th>
+              <th onclick="sortBlockedAttempts('last')"    style="${thStyle('last')}">Last Attempt${sortArrow('last')}</th>
+              <th onclick="sortBlockedAttempts('status')"  style="${thStyle('status')}">Current Status${sortArrow('status')}</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
 }
 
 function isRegisteredVisitor(visitor) {

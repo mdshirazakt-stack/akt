@@ -3837,10 +3837,12 @@ async function loadSearch(q) {
       (chunk_data || []).forEach(row => { if (!allResults.has(row.uid)) allResults.set(row.uid, row); });
     }
 
-    // Score and sort
+    // Score and sort.
+    // scoreMatch is checked against both name and nickname — a row fetched via
+    // nickname.ilike would otherwise score 0 on name alone and be dropped.
     const scored = [...allResults.values()].map(row => ({
       ...row,
-      _score: scoreMatch(row.name, rawTokens)
+      _score: Math.max(scoreMatch(row.name, rawTokens), scoreMatch(row.nickname, rawTokens))
     })).filter(r => r._score > 0)
       .sort((a, b) => b._score - a._score);
 

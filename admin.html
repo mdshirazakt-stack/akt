@@ -4624,23 +4624,37 @@ async function deleteVisitor(id) {
   );
   if (!ok) return;
 
-  // Step 1: Release profile claim first so the profile can be claimed again
-  // (requires supabase_superadmin_delete_policy.sql to have been run in Supabase)
-  const { error: claimErr } = await sb.from('profile_claims').delete().eq('visitor_id', id);
+  // Step 1: Release profile claim first so the profile can be claimed again.
+  // .select('id') makes Supabase return the rows it actually deleted, letting us
+  // detect a silent RLS block (which returns error:null but data:[]).
+  const { data: claimData, error: claimErr } = await sb
+    .from('profile_claims').delete().eq('visitor_id', id).select('id');
   if (claimErr) {
-    toast('Could not release profile claim — aborting. Check that supabase_superadmin_delete_policy.sql has been run. Error: ' + claimErr.message, true);
+    toast('Could not release profile claim — aborting. Error: ' + claimErr.message, true);
     return;
   }
+  // claimData.length === 0 is fine here — it just means no active claim existed.
 
-  // Step 2: Delete the visitor record
-  const { error: visitorErr } = await sb.from('visitors').delete().eq('id', id);
+  // Step 2: Delete the visitor record.
+  // If RLS blocks this silently, data will be [] with no error — we catch that
+  // explicitly so the user gets a clear message rather than a false success toast.
+  const { data: deleted, error: visitorErr } = await sb
+    .from('visitors').delete().eq('id', id).select('id');
   if (visitorErr) {
-    toast('Profile claim released but visitor delete failed: ' + visitorErr.message, true);
+    toast('Visitor delete failed: ' + visitorErr.message, true);
+    return;
+  }
+  if (!deleted || deleted.length === 0) {
+    toast(
+      'Delete was silently blocked by the database policy.\n' +
+      'Run supabase_superadmin_delete_policy.sql in the Supabase SQL Editor, then try again.',
+      true
+    );
     return;
   }
 
-  logStaffActivity('user_deleted', label, { visitor_id: id });
-  toast(`"${label}" deleted — profile claim released, visitor record removed.`);
+  logStaffActivity('user_deleted', label, { visitor_id: id, claims_released: claimData?.length || 0 });
+  toast(`"${label}" deleted — visitor record removed, ${claimData?.length || 0} claim(s) released.`);
   loadVisitors();
 }
 

@@ -2864,43 +2864,60 @@ async function loadPrintPayments() {
   document.getElementById('print-mon-disable-btn') && (document.getElementById('print-mon-disable-btn').style.background = !enabled ? 'var(--red2)' : '');
   document.getElementById('print-mon-disable-btn') && (document.getElementById('print-mon-disable-btn').style.color = !enabled ? '#fff' : '');
 
-  // Load attempt analytics from activity_logs
+  // Load print funnel analytics from activity_logs.
+  // NOTE: print_tree_attempt is unreliable — window.print() suspends JS mid-flight
+  // and drops the async Supabase insert before it completes (~half the events are
+  // lost). print_tree is logged synchronously before window.print() and is the
+  // correct baseline for "how many times did someone actually print".
   const thirtyDaysAgo = new Date(Date.now() - 30*24*60*60*1000).toISOString();
-  const { data: attempts } = await sb.from('activity_logs')
-    .select('visitor_name,created_at')
-    .eq('action','print_tree_attempt')
-    .gte('created_at', thirtyDaysAgo);
 
-  const { data: prints } = await sb.from('activity_logs')
-    .select('visitor_name,created_at')
-    .eq('action','print_tree')
-    .gte('created_at', thirtyDaysAgo);
-
-  const { data: payments, error } = await sb.from('print_payments')
-    .select('*, visitor:visitors(name_entered, mobile, email)')
-    .order('created_at', { ascending: false });
+  const [
+    { data: treeViews },
+    { data: prints },
+    { data: payments, error }
+  ] = await Promise.all([
+    sb.from('activity_logs')
+      .select('visitor_name', { count: 'exact', head: false })
+      .eq('action', 'tree_view')
+      .gte('created_at', thirtyDaysAgo)
+      .limit(5000),
+    sb.from('activity_logs')
+      .select('visitor_name,details')
+      .eq('action', 'print_tree')
+      .gte('created_at', thirtyDaysAgo)
+      .limit(5000),
+    sb.from('print_payments')
+      .select('*, visitor:visitors(name_entered, mobile, email)')
+      .order('created_at', { ascending: false })
+  ]);
 
   // Funnel stats
   const funnel = document.getElementById('print-funnel');
   if (funnel) {
-    const attemptCount = (attempts||[]).length;
-    const paidCount    = (payments||[]).length;
-    const printCount   = (prints||[]).length;
-    const didntPay     = attemptCount - paidCount;
-    const convRate     = attemptCount ? Math.round(paidCount/attemptCount*100) : 0;
-    const totalRev     = (payments||[]).reduce((s,r)=>s+(r.amount||0),0);
+    const treeViewCount  = (treeViews||[]).length;
+    const uniqueViewers  = new Set((treeViews||[]).map(r => r.visitor_name).filter(Boolean)).size;
+    const printCount     = (prints||[]).length;
+    const uniquePrinters = new Set((prints||[]).map(r => r.visitor_name).filter(Boolean)).size;
+    const freePrintCount = (prints||[]).filter(r => r.details?.free === true).length;
+    const paidCount      = (payments||[]).filter(r => r.status === 'verified').length;
+    const pendingCount   = (payments||[]).filter(r => r.status === 'pending').length;
+    const convRate       = printCount ? Math.round(paidCount/printCount*100) : 0;
+    const totalRev       = (payments||[]).filter(r => r.status === 'verified').reduce((s,r)=>s+(r.amount||0),0);
+
     const statBox = (label, val, sub, color='var(--ink)') =>
       `<div style="padding:12px 16px;background:var(--bg);border:1px solid var(--border);text-align:center;min-width:110px">
         <div style="font-size:1.5rem;font-weight:700;color:${color}">${val}</div>
         <div style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;margin-top:2px">${label}</div>
         ${sub ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:2px">${sub}</div>` : ''}
       </div>`;
+
     funnel.innerHTML =
-      statBox('Attempted print', attemptCount, 'last 30 days') +
-      statBox('Paid & printed', paidCount, '', '#166534') +
-      statBox("Didn't pay", didntPay < 0 ? 0 : didntPay, '', '#92400e') +
-      statBox('Conversion', convRate+'%', 'paid / attempted') +
-      statBox('Revenue', '₹'+totalRev.toLocaleString('en-IN'), 'total collected', 'var(--green)');
+      statBox('Tree Views',      treeViewCount,  `${uniqueViewers} unique · last 30 days`) +
+      statBox('Printed',         printCount,     `${uniquePrinters} unique visitors`, '#1d4ed8') +
+      statBox('Printed Free',    freePrintCount, 'no payment needed', '#92400e') +
+      statBox('Paid & Verified', paidCount,      pendingCount ? `+${pendingCount} pending` : '', '#166534') +
+      statBox('Conversion',      convRate+'%',   'paid / printed') +
+      statBox('Revenue',         '₹'+totalRev.toLocaleString('en-IN'), 'verified only', 'var(--green)');
   }
 
   // Payment records

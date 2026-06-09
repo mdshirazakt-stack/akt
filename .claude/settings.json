@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/shiraz/apnonkitalash/akt/.claude/hooks/pre-push-check.sh",
+            "timeout": 60,
+            "statusMessage": "AKT pre-push checks (syntax + review gate)…"
+          }
+        ]
+      }
+    ]
+  }
+}

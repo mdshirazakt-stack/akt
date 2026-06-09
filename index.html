@@ -1475,14 +1475,15 @@
           <a href="#guide-how-to-use" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">1. How to Use This Website</a>
           <a href="#guide-first-visit" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">2. First Visit &amp; Finding Family</a>
           <a href="#guide-search" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">3. How to Search Effectively</a>
-          <a href="#guide-duplicates" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">4. Reporting Duplicate Profiles</a>
-          <a href="#guide-corrections" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">5. Corrections and Missing People</a>
-          <a href="#guide-claims" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">6. Profile Claims Policy</a>
-          <a href="#guide-blocked" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">7. Blocked Accounts and Reinstatement Policy</a>
-          <a href="#guide-print" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">8. How to Print a Family Tree</a>
-          <a href="#guide-mobile-privacy" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">9. Mobile Number Privacy</a>
-          <a href="#guide-dob-privacy" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">10. Date of Birth Privacy</a>
-          <a href="#guide-contact" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">11. Contacting Site Admins</a>
+          <a href="#guide-search-operators" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">4. Relation Search Operators</a>
+          <a href="#guide-duplicates" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">5. Reporting Duplicate Profiles</a>
+          <a href="#guide-corrections" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">6. Corrections and Missing People</a>
+          <a href="#guide-claims" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">7. Profile Claims Policy</a>
+          <a href="#guide-blocked" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">8. Blocked Accounts and Reinstatement Policy</a>
+          <a href="#guide-print" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">9. How to Print a Family Tree</a>
+          <a href="#guide-mobile-privacy" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">10. Mobile Number Privacy</a>
+          <a href="#guide-dob-privacy" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">11. Date of Birth Privacy</a>
+          <a href="#guide-contact" style="display:block;color:var(--green);text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">12. Contacting Site Admins</a>
         </div>
 
         <!-- Section 1: How to Use This Website -->
@@ -1559,7 +1560,7 @@
           </div>
           <div class="help-card">
             <h4>Finding family</h4>
-            <p>Search by name, place, or badge. The search bar looks across names, birth place, current place, root place, and death place simultaneously. Open a profile to view details, then use Browse Tree to understand parents, spouses, and children around that profile.</p>
+            <p>Search by name, place, or badge. The search bar looks across names, birth place, current place, root place, and death place simultaneously. You can also use relation operators — type <strong>Shiraz s/o Anwar</strong> or <strong>Shiraz of Rasra</strong> to narrow results by parentage or place. Open a profile to view details, then use Browse Tree to understand parents, spouses, and children around that profile.</p>
           </div>
         </div>
 
@@ -1574,6 +1575,95 @@
             <li>Use the Filter drawer to narrow by gender, badge type, location group, or source family.</li>
             <li>Use source-family labels to understand which GEDCOM file a profile came from.</li>
             <li>If a name is missing, use Add / Correct Family rather than creating duplicate assumptions.</li>
+          </ul>
+        </div>
+
+        <div class="help-section" id="guide-search-operators">
+          <h3>Relation Search Operators</h3>
+          <p>The search bar understands natural-language relationship phrases. Type the person's name followed by an operator and the related person's name or place, and the archive will look up the family links for you.</p>
+
+          <p style="margin-top:16px"><strong>Parentage operators</strong></p>
+          <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:0.84rem">
+            <thead>
+              <tr style="border-bottom:2px solid var(--border)">
+                <th style="text-align:left;padding:6px 10px 6px 0;color:var(--ink);font-weight:700;width:46%">What you type</th>
+                <th style="text-align:left;padding:6px 0;color:var(--ink);font-weight:700">What it finds</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:7px 10px 7px 0;color:var(--accent);font-family:monospace">Shiraz s/o Anwar Ahmad</td>
+                <td style="padding:7px 0;color:var(--muted)">People named Shiraz whose father or mother is named Anwar Ahmad</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:7px 10px 7px 0;color:var(--accent);font-family:monospace">Shiraz son of Anwar</td>
+                <td style="padding:7px 0;color:var(--muted)">Same as above — male children only</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:7px 10px 7px 0;color:var(--accent);font-family:monospace">Ayesha d/o Anwar</td>
+                <td style="padding:7px 0;color:var(--muted)">Female children of Anwar named Ayesha</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:7px 10px 7px 0;color:var(--accent);font-family:monospace">Ayesha daughter of Anwar</td>
+                <td style="padding:7px 0;color:var(--muted)">Same as above</td>
+              </tr>
+              <tr>
+                <td style="padding:7px 10px 7px 0;color:var(--accent);font-family:monospace">Ali c/o Anwar</td>
+                <td style="padding:7px 0;color:var(--muted)">Any child of Anwar named Ali (no gender filter)</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p style="margin-top:16px"><strong>Place operator</strong></p>
+          <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:0.84rem">
+            <tbody>
+              <tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:7px 10px 7px 0;color:var(--accent);font-family:monospace;width:46%">Shiraz of Rasra</td>
+                <td style="padding:7px 0;color:var(--muted)">People named Shiraz connected to Rasra as root place, birth place, or current place</td>
+              </tr>
+              <tr>
+                <td style="padding:7px 10px 7px 0;color:var(--accent);font-family:monospace">Ahmad of Garhwa</td>
+                <td style="padding:7px 0;color:var(--muted)">People named Ahmad connected to Garhwa</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p style="margin-top:16px"><strong>Family relationship operators</strong></p>
+          <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:0.84rem">
+            <tbody>
+              <tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:7px 10px 7px 0;color:var(--accent);font-family:monospace;width:46%">Shiraz father of Ayesha</td>
+                <td style="padding:7px 0;color:var(--muted)">People named Shiraz who have a child named Ayesha</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:7px 10px 7px 0;color:var(--accent);font-family:monospace">Fatima mother of Ali</td>
+                <td style="padding:7px 0;color:var(--muted)">People named Fatima who have a child named Ali</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:7px 10px 7px 0;color:var(--accent);font-family:monospace">Shiraz brother of Shahnawaz</td>
+                <td style="padding:7px 0;color:var(--muted)">People named Shiraz who share a parent with Shahnawaz</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:7px 10px 7px 0;color:var(--accent);font-family:monospace">Ayesha sister of Ali</td>
+                <td style="padding:7px 0;color:var(--muted)">People named Ayesha who share a parent with Ali</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:7px 10px 7px 0;color:var(--accent);font-family:monospace">Fatima w/o Anwar</td>
+                <td style="padding:7px 0;color:var(--muted)">People named Fatima who are married to someone named Anwar</td>
+              </tr>
+              <tr>
+                <td style="padding:7px 10px 7px 0;color:var(--accent);font-family:monospace">Anwar h/o Fatima</td>
+                <td style="padding:7px 0;color:var(--muted)">People named Anwar who are married to someone named Fatima</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p style="margin-top:16px"><strong>Tips</strong></p>
+          <ul>
+            <li>Fuzzy matching applies to both sides — <strong>Dr. Anwar Ahmad</strong>, <strong>Anwar Ahmed</strong>, and <strong>Anwar Ahmad</strong> are all treated as the same name.</li>
+            <li>Honorifics like Dr., Haji, Hafiz, and Syed are automatically ignored on both sides of the operator.</li>
+            <li>When a relation operator is recognised, a green badge appears below the search bar confirming how the query was interpreted.</li>
+            <li>If no results appear, try using fewer words on either side, or check the spelling of the related person's name.</li>
           </ul>
         </div>
 

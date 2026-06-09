@@ -2873,6 +2873,7 @@ async function loadPrintPayments() {
   const [
     { data: treeViews },
     { data: prints },
+    { data: dismissed },
     { data: payments, error }
   ] = await Promise.all([
     sb.from('activity_logs')
@@ -2885,23 +2886,32 @@ async function loadPrintPayments() {
       .eq('action', 'print_tree')
       .gte('created_at', thirtyDaysAgo)
       .limit(5000),
+    sb.from('activity_logs')
+      .select('visitor_name')
+      .eq('action', 'print_payment_dismissed')
+      .gte('created_at', thirtyDaysAgo)
+      .order('created_at', { ascending: false })
+      .limit(5000),
     sb.from('print_payments')
       .select('*, visitor:visitors(name_entered, mobile, email)')
       .order('created_at', { ascending: false })
+      .limit(2000)
   ]);
 
   // Funnel stats
   const funnel = document.getElementById('print-funnel');
   if (funnel) {
-    const treeViewCount  = (treeViews||[]).length;
-    const uniqueViewers  = new Set((treeViews||[]).map(r => r.visitor_name).filter(Boolean)).size;
-    const printCount     = (prints||[]).length;
-    const uniquePrinters = new Set((prints||[]).map(r => r.visitor_name).filter(Boolean)).size;
-    const freePrintCount = (prints||[]).filter(r => r.details?.free === true).length;
-    const paidCount      = (payments||[]).filter(r => r.status === 'verified').length;
-    const pendingCount   = (payments||[]).filter(r => r.status === 'pending').length;
-    const convRate       = printCount ? Math.round(paidCount/printCount*100) : 0;
-    const totalRev       = (payments||[]).filter(r => r.status === 'verified').reduce((s,r)=>s+(r.amount||0),0);
+    const treeViewCount    = (treeViews||[]).length;
+    const uniqueViewers    = new Set((treeViews||[]).map(r => r.visitor_name).filter(Boolean)).size;
+    const printCount       = (prints||[]).length;
+    const uniquePrinters   = new Set((prints||[]).map(r => r.visitor_name).filter(Boolean)).size;
+    const freePrintCount   = (prints||[]).filter(r => r.details?.free === true).length;
+    const dismissCount     = (dismissed||[]).length;
+    const uniqueDismissers = new Set((dismissed||[]).map(r => r.visitor_name).filter(Boolean)).size;
+    const paidCount        = (payments||[]).filter(r => r.status === 'verified').length;
+    const pendingCount     = (payments||[]).filter(r => r.status === 'pending').length;
+    const convRate         = printCount ? Math.round(paidCount/printCount*100) : 0;
+    const totalRev         = (payments||[]).filter(r => r.status === 'verified').reduce((s,r)=>s+(r.amount||0),0);
 
     const statBox = (label, val, sub, color='var(--ink)') =>
       `<div style="padding:12px 16px;background:var(--bg);border:1px solid var(--border);text-align:center;min-width:110px">
@@ -2914,6 +2924,7 @@ async function loadPrintPayments() {
       statBox('Tree Views',      treeViewCount,  `${uniqueViewers} unique · last 30 days`) +
       statBox('Printed',         printCount,     `${uniquePrinters} unique visitors`, '#1d4ed8') +
       statBox('Printed Free',    freePrintCount, 'no payment needed', '#92400e') +
+      statBox('Saw QR · Left',   dismissCount,   `${uniqueDismissers} unique · didn't pay`, '#b45309') +
       statBox('Paid & Verified', paidCount,      pendingCount ? `+${pendingCount} pending` : '', '#166534') +
       statBox('Conversion',      convRate+'%',   'paid / printed') +
       statBox('Revenue',         '₹'+totalRev.toLocaleString('en-IN'), 'verified only', 'var(--green)');

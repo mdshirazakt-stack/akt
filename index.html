@@ -2056,6 +2056,8 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
 let currentVisitCount = 0;
+let _printModalOpen = false;       // true while payment QR modal is visible
+let _printPaymentSubmitted = false; // true once UTR submitted (so close ≠ dismiss)
 let activityLogDisabled = false;
 let currentActivitySessionId = sessionStorage.getItem('akt_activity_session_id') || '';
 let locationHintPromise = null;
@@ -4240,6 +4242,8 @@ async function printTree() {
 }
 
 function openPrintPayModal(price = 49) {
+  _printModalOpen = true;
+  _printPaymentSubmitted = false;
   document.getElementById('print-utr-input').value = '';
   document.getElementById('print-pay-status').textContent = '';
   document.getElementById('print-pay-btn').disabled = false;
@@ -4280,6 +4284,12 @@ function openPrintPayModal(price = 49) {
 }
 
 function closePrintPayModal() {
+  // Only log a dismiss if the modal was genuinely open and the user didn't pay
+  if (_printModalOpen && !_printPaymentSubmitted) {
+    logActivity('print_payment_dismissed', 'Closed payment QR without paying', {});
+  }
+  _printModalOpen = false;
+  _printPaymentSubmitted = false;
   document.getElementById('print-pay-backdrop').style.display = 'none';
 }
 
@@ -4294,6 +4304,7 @@ async function submitPrintPayment() {
     return;
   }
 
+  _printPaymentSubmitted = true; // mark as submitted so close won't log a dismiss
   btn.disabled = true;
   btn.textContent = 'Verifying…';
   statusEl.textContent = '';

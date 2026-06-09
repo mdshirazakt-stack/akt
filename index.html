@@ -3468,6 +3468,186 @@ function highlightName(name, tokens) {
   return result;
 }
 
+// ── RELATION QUERY PARSER ────────────────────────────────────────────────────
+// Detects natural-language operators in a search query and returns
+// { subject, rel, object } or null if no operator found.
+// Operators must be checked MOST-SPECIFIC-FIRST so "son of" beats bare "of".
+function parseRelationQuery(q) {
+  if (!q || q.trim().length < 5) return null;
+  const OPS = [
+    [/^(.+?)\s+(?:s\/o|son\s+of)\s+(.+)$/i,           'son_of'],
+    [/^(.+?)\s+(?:d\/o|daughter\s+of)\s+(.+)$/i,       'daughter_of'],
+    [/^(.+?)\s+(?:c\/o|child\s+of)\s+(.+)$/i,          'child_of'],
+    [/^(.+?)\s+(?:w\/o|wife\s+of)\s+(.+)$/i,           'wife_of'],
+    [/^(.+?)\s+(?:h\/o|husband\s+of)\s+(.+)$/i,        'husband_of'],
+    [/^(.+?)\s+(?:father\s+of)\s+(.+)$/i,              'father_of'],
+    [/^(.+?)\s+(?:mother\s+of)\s+(.+)$/i,              'mother_of'],
+    [/^(.+?)\s+(?:brother\s+of|bhai\s+of)\s+(.+)$/i,   'sibling_of'],
+    [/^(.+?)\s+(?:sister\s+of|behen\s+of)\s+(.+)$/i,   'sibling_of'],
+    [/^(.+?)\s+sibling\s+of\s+(.+)$/i,                 'sibling_of'],
+    [/^(.+?)\s+of\s+(.+)$/i,                            'of_place'],  // LAST — catches "Shiraz of Rasra"
+  ];
+  for (const [re, rel] of OPS) {
+    const m = q.match(re);
+    if (m && m[1].trim().length >= 2 && m[2].trim().length >= 2)
+      return { subject: m[1].trim(), rel, object: m[2].trim() };
+  }
+  return null;
+}
+
+// Intermediate helper — finds people by name using fuzzy patterns.
+// Used for the "object" side of relation queries (parent/sibling/child name).
+async function findPeopleByName(nameStr, maxResults = 60) {
+  const tokens = nameStr.trim().split(/\s+/).filter(t => t.length >= 2);
+  if (!tokens.length) return [];
+  const orClauses = [];
+  for (const tok of tokens) {
+    for (const pat of fuzzyPatterns(tok)) orClauses.push('name.ilike.' + pat.replace(/'/g, "''"));
+    const t = tok.replace(/[%_]/g, '').replace(/'/g, "''");
+    if (t.length >= 2) orClauses.push(`name.ilike.%${t}%`);
+  }
+  const unique = [...new Set(orClauses)];
+  if (!unique.length) return [];
+  const results = new Map();
+  const CHUNK = 30;
+  for (let ci = 0; ci < unique.length; ci += CHUNK) {
+    const { data } = await sb.from('people').select('uid,name,sex')
+      .or(unique.slice(ci, ci + CHUNK).join(',')).limit(maxResults);
+    (data || []).forEach(r => { if (!results.has(r.uid)) results.set(r.uid, r); });
+  }
+  return [...results.values()];
+}
+
+// Run a relation-aware search and return an array of people rows.
+// Returns null if the request became stale (requestSeq mismatch).
+async function loadRelationSearch(parsed, requestSeq) {
+  const { subject, rel, object } = parsed;
+  const BASE = 'uid,name,given_name,surname,nickname,sex,birth_place,death_place,root_place,current_place,death_flag,marr_status,gedcom_id,is_contributor,community_role';
+
+  // Score + filter a list of UIDs against the subject name
+  async function filterBySubject(uids) {
+    if (!uids.length) return [];
+    const CHUNK = 200;
+    const rows = [];
+    for (let i = 0; i < uids.length; i += CHUNK) {
+      const { data } = await sb.from('people').select(BASE).in('uid', uids.slice(i, i + CHUNK)).limit(CHUNK);
+      if (data) rows.push(...data);
+      if (searchRequestSeq !== requestSeq) return null; // stale
+    }
+    const toks = subject.trim().split(/\s+/).filter(t => t.length >= 2);
+    if (!toks.length) return rows;
+    return rows
+      .map(r => ({ ...r, _score: scoreMatch(r.name, toks) }))
+      .filter(r => r._score > 0)
+      .sort((a, b) => b._score - a._score);
+  }
+
+  // ── of <place> — name + place as two separate AND conditions ─────────────
+  if (rel === 'of_place') {
+    const sToks = subject.split(/\s+/).filter(t => t.length >= 2);
+    const oToks = object.split(/\s+/).filter(t => t.length >= 2);
+    if (!sToks.length || !oToks.length) return [];
+    let query = sb.from('people').select(BASE);
+    // AND: subject matches name
+    sToks.forEach(tok => {
+      const pats = [...new Set(fuzzyPatterns(tok).map(p => 'name.ilike.' + p.replace(/'/g, "''")))];
+      query = query.or(pats.join(','));
+    });
+    // AND: object matches any place field
+    oToks.forEach(tok => {
+      const t = tok.replace(/[%_]/g, '').replace(/'/g, "''");
+      query = query.or(`birth_place.ilike.%${t}%,root_place.ilike.%${t}%,current_place.ilike.%${t}%,death_place.ilike.%${t}%`);
+    });
+    const { data } = await query.limit(300);
+    if (searchRequestSeq !== requestSeq) return null;
+    return data || [];
+  }
+
+  // ── son_of / daughter_of / child_of — parent name → children ─────────────
+  if (['son_of', 'daughter_of', 'child_of'].includes(rel)) {
+    const parents = await findPeopleByName(object, 60);
+    if (!parents.length || searchRequestSeq !== requestSeq) return parents.length ? null : [];
+    const pUids = parents.map(p => p.uid).join(',');
+    const { data: fams } = await sb.from('families').select('uid')
+      .or(`husband_uid.in.(${pUids}),wife_uid.in.(${pUids})`).limit(200);
+    if (!fams?.length) return [];
+    const famUids = fams.map(f => f.uid);
+    const { data: mems } = await sb.from('family_members').select('person_uid')
+      .in('family_uid', famUids).eq('role', 'child').limit(500);
+    if (!mems?.length) return [];
+    if (searchRequestSeq !== requestSeq) return null;
+    let results = await filterBySubject([...new Set(mems.map(m => m.person_uid))]);
+    if (!results) return null;
+    if (rel === 'son_of')      results = results.filter(r => r.sex === 'M');
+    if (rel === 'daughter_of') results = results.filter(r => r.sex === 'F');
+    return results;
+  }
+
+  // ── father_of / mother_of — child name → family → parent ────────────────
+  if (['father_of', 'mother_of'].includes(rel)) {
+    const children = await findPeopleByName(object, 60);
+    if (!children.length || searchRequestSeq !== requestSeq) return children.length ? null : [];
+    const cUids = children.map(p => p.uid);
+    const { data: mems } = await sb.from('family_members').select('family_uid')
+      .in('person_uid', cUids).eq('role', 'child').limit(200);
+    if (!mems?.length) return [];
+    const famUids = [...new Set(mems.map(m => m.family_uid))];
+    const { data: fams } = await sb.from('families').select('uid,husband_uid,wife_uid')
+      .in('uid', famUids).limit(200);
+    if (!fams?.length) return [];
+    const parentUids = [...new Set(fams
+      .map(f => rel === 'father_of' ? f.husband_uid : f.wife_uid)
+      .filter(Boolean))];
+    if (!parentUids.length) return [];
+    if (searchRequestSeq !== requestSeq) return null;
+    return filterBySubject(parentUids);
+  }
+
+  // ── sibling_of — sibling name → shared parent family → other children ────
+  if (rel === 'sibling_of') {
+    const sibs = await findPeopleByName(object, 60);
+    if (!sibs.length || searchRequestSeq !== requestSeq) return sibs.length ? null : [];
+    const sibUids = sibs.map(p => p.uid);
+    const { data: mems } = await sb.from('family_members').select('family_uid')
+      .in('person_uid', sibUids).eq('role', 'child').limit(200);
+    if (!mems?.length) return [];
+    const famUids = [...new Set(mems.map(m => m.family_uid))];
+    const { data: allMems } = await sb.from('family_members').select('person_uid')
+      .in('family_uid', famUids).eq('role', 'child').limit(500);
+    if (!allMems?.length) return [];
+    const otherUids = [...new Set(allMems.map(m => m.person_uid).filter(u => !sibUids.includes(u)))];
+    if (!otherUids.length) return [];
+    if (searchRequestSeq !== requestSeq) return null;
+    return filterBySubject(otherUids);
+  }
+
+  // ── wife_of / husband_of — spouse name → family → other spouse ──────────
+  if (['wife_of', 'husband_of'].includes(rel)) {
+    const spouses = await findPeopleByName(object, 60);
+    if (!spouses.length || searchRequestSeq !== requestSeq) return spouses.length ? null : [];
+    const sUids = spouses.map(p => p.uid);
+    const inClause = sUids.join(',');
+    const { data: fams } = await sb.from('families').select('uid,husband_uid,wife_uid')
+      .or(`husband_uid.in.(${inClause}),wife_uid.in.(${inClause})`).limit(200);
+    if (!fams?.length) return [];
+    const otherUids = [...new Set(fams
+      .map(f => rel === 'wife_of' ? f.wife_uid : f.husband_uid)
+      .filter(u => u && !sUids.includes(u)))];
+    if (!otherUids.length) return [];
+    if (searchRequestSeq !== requestSeq) return null;
+    return filterBySubject(otherUids);
+  }
+
+  return [];
+}
+
+const REL_LABELS = {
+  son_of: 'son/child of', daughter_of: 'daughter/child of', child_of: 'child of',
+  wife_of: 'wife of', husband_of: 'husband of',
+  father_of: 'father of', mother_of: 'mother of',
+  sibling_of: 'sibling of', of_place: 'from'
+};
+
 // ── MAIN SEARCH ───────────────────────────────────────────────────
 
 async function loadSearch(q) {
@@ -3494,8 +3674,22 @@ async function loadSearch(q) {
   }
 
   let data = [], count = 0;
+  let relNote = ''; // extra note shown in results header for relation queries
 
-  if (!rawTokens.length) {
+  // ── Relation query (s/o, son of, of <place>, brother of, etc.) ──────────
+  const relParsed = rawTokens.length ? parseRelationQuery(q) : null;
+  if (relParsed) {
+    const relResults = await loadRelationSearch(relParsed, requestSeq);
+    if (requestSeq !== searchRequestSeq) return; // stale request
+    if (relResults === null) return;             // stale inside multi-step lookup
+    data = relResults.slice(searchPage * PAGE_SIZE, (searchPage + 1) * PAGE_SIZE);
+    count = relResults.length;
+    // Narrow highlight tokens to just the subject name for cleaner highlighting
+    rawTokens = relParsed.subject.trim().split(/\s+/).filter(t => t.length >= 2);
+    const label = REL_LABELS[relParsed.rel] || relParsed.rel.replace(/_/g, ' ');
+    relNote = `<span style="font-size:0.75rem;background:rgba(46,110,74,0.10);color:var(--green);padding:2px 8px;border-radius:10px;margin-left:8px">🔗 ${escapeHtml(label)} "${escapeHtml(relParsed.object)}"</span>`;
+
+  } else if (!rawTokens.length) {
     // No query — just apply filters and paginate
     let query = sb.from('people').select(baseSelect, { count: 'exact' });
     query = query
@@ -3663,9 +3857,9 @@ async function loadSearch(q) {
   if (selectedLocationNames.size) appliedFilters.push(`${selectedLocationNames.size} location${selectedLocationNames.size === 1 ? '' : 's'}`);
   if (selectedSourceIds.size) appliedFilters.push(`${selectedSourceIds.size} source ${selectedSourceIds.size === 1 ? 'family' : 'families'}`);
   const filterDesc = appliedFilters.length ? ` in <em>${appliedFilters.join(' + ')}</em>` : '';
-  const fuzzyNote = rawTokens.length
+  const fuzzyNote = relNote || (rawTokens.length
     ? `<span style="font-size:0.75rem;color:var(--muted);margin-left:8px">${fuzzySearchEnabled ? '✦ fuzzy + variant matching active' : 'exact name matching active'}</span>`
-    : '';
+    : '');
 
   if (!data.length) {
     el.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>No results found${q ? ` for "<strong>${escapeHtml(q)}</strong>"` : ''}.<br><span style="font-size:0.82rem;color:var(--muted)">Try fewer words, clear a filter, or check the spelling.</span></p></div>`;

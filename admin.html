@@ -4779,7 +4779,7 @@ async function loadDbStats() {
   ] = await Promise.all([
     sb.from('people').select('*', { count: 'exact', head: true }),
     sb.from('families').select('*', { count: 'exact', head: true }),
-    sb.from('visitors').select('id,visitor_form_completed,access_status,is_blocked,approved_at,updated_at,last_seen,first_seen').limit(10000),
+    sb.from('visitors').select('id,email,visitor_form_completed,access_status,is_blocked,approved_at,updated_at,last_seen,first_seen').limit(10000),
     sb.from('gedcom_uploads').select('id,filename,people_count,families_count,uploaded_at,notes').order('uploaded_at', { ascending: false }),
     sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', todayStart.toISOString()).order('created_at',{ascending:false}).limit(5000),
     sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', yesterdayStart.toISOString()).lt('created_at', todayStart.toISOString()).order('created_at',{ascending:false}).limit(5000),
@@ -4790,8 +4790,15 @@ async function loadDbStats() {
 
   if (visErr) console.warn('Visitors query failed:', visErr.message);
 
-  const uploadRows = uploads || [];
-  const allVisitors     = visitorRows || [];
+  const uploadRows   = uploads || [];
+  const insightVisitors = visitorRows || [];
+  // Build a fast email→visitor lookup using the rows we just fetched
+  // (these have email; global allVisitors may not be loaded yet)
+  const insightVisitorsByEmail = {};
+  insightVisitors.forEach(v => {
+    if (v.email) insightVisitorsByEmail[v.email.toLowerCase()] = v;
+  });
+  const allVisitors = insightVisitors; // local alias for card count logic below
   const registeredTotal = allVisitors.filter(v => v.visitor_form_completed || v.access_status === 'approved').length;
   const approvedTotal   = allVisitors.filter(v => v.access_status === 'approved' && !v.is_blocked).length;
   const blockedTotal    = allVisitors.filter(v => v.is_blocked || v.access_status === 'blocked').length;
@@ -4828,6 +4835,25 @@ async function loadDbStats() {
   const totalUploadedFamilies = uploadRows.reduce((s, r) => s + Number(r.families_count || 0), 0);
   const duplicateGroups = getDuplicateUploadGroups(uploadRows);
 
+  // Build blocked-attempts rows before el.innerHTML so we can use insightVisitorsByEmail
+  // (which has email; global allVisitors may not be loaded yet if Visitors tab wasn't opened)
+  const _blockedHistory = blockedHistory || [];
+  if (_blockedHistory.length) {
+    const byEmail = {};
+    _blockedHistory.forEach(r => {
+      const key = (r.email || '').toLowerCase() || '(unknown)';
+      if (!byEmail[key]) byEmail[key] = { email: r.email || '(unknown)', attempts: [] };
+      byEmail[key].attempts.push(r.created_at);
+    });
+    blockedAttemptRows = Object.values(byEmail).map(({ email, attempts }) => {
+      const sorted = attempts.slice().sort();
+      const visitor = insightVisitorsByEmail[email.toLowerCase()] || null;
+      return { email, count: attempts.length, first: sorted[0], last: sorted[sorted.length - 1], visitor };
+    });
+  } else {
+    blockedAttemptRows = [];
+  }
+
   const grp = (label) => `<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--gold);grid-column:1/-1;margin:12px 0 4px">${label}</div>`;
   const card = (num, label) => `<div class="insight-card"><div class="num">${num}</div><div class="lbl">${label}</div></div>`;
 
@@ -4851,29 +4877,7 @@ async function loadDbStats() {
       'Blocked Attempted Yesterday'
     )}
 
-    ${(() => {
-      const history = blockedHistory || [];
-      if (!history.length) return '<div id="blocked-attempts-table-wrap" style="grid-column:1/-1"></div>';
-      // Build aggregated rows and store in module-level variable for re-sorting
-      const byEmail = {};
-      history.forEach(r => {
-        const key = (r.email || '').toLowerCase() || '(unknown)';
-        if (!byEmail[key]) byEmail[key] = { email: r.email || '(unknown)', attempts: [] };
-        byEmail[key].attempts.push(r.created_at);
-      });
-      blockedAttemptRows = Object.values(byEmail).map(({ email, attempts }) => {
-        const sorted = attempts.slice().sort();
-        const visitor = allVisitors.find(v => v.email && v.email.toLowerCase() === email.toLowerCase());
-        return {
-          email,
-          count: attempts.length,
-          first: sorted[0],
-          last: sorted[sorted.length - 1],
-          visitor
-        };
-      });
-      return '<div id="blocked-attempts-table-wrap" style="grid-column:1/-1;margin-top:12px"></div>';
-    })()}
+    <div id="blocked-attempts-table-wrap" style="grid-column:1/-1;${blockedAttemptRows.length ? 'margin-top:12px' : ''}"></div>
 
     ${grp('Archive')}
     ${card((pc || 0).toLocaleString(),               'People in Database')}

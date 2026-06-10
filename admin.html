@@ -4034,7 +4034,10 @@ function profileClaimForVisitor(visitor) {
 }
 
 function visitorClaimDeadline(visitor) {
-  const basis = visitor.visitor_form_completed_at || visitor.created_at || visitor.first_seen || visitor.updated_at || visitor.last_seen;
+  // Prefer claim_clock_started_at (first successful login post-approval) —
+  // see supabase_claim_clock_login.sql. Falls back to the old signup-time
+  // basis for visitors who haven't logged in again since this was added.
+  const basis = visitor.claim_clock_started_at || visitor.visitor_form_completed_at || visitor.created_at || visitor.first_seen || visitor.updated_at || visitor.last_seen;
   const time = new Date(basis || 0).getTime();
   return time ? new Date(time + 72 * 60 * 60 * 1000) : null;
 }
@@ -4302,6 +4305,11 @@ async function revokeProfileClaim(claimId, btnEl) {
           sb.from('visitors').update({
             visitor_form_completed: false,
             consent_terms_accepted: false,
+            // Reset the 72h profile-claim clock too — when this visitor
+            // redoes onboarding and re-enters, enterVisitor() will stamp a
+            // fresh claim_clock_started_at instead of reusing the old one
+            // from their original (now-revoked) claim.
+            claim_clock_started_at: null,
             admin_notes: reason || null,
             updated_at: new Date().toISOString()
           }).eq('id', matchVisitor.id),

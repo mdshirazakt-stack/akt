@@ -317,14 +317,31 @@
     const name = visitor?.name_entered || userName(currentSession?.user) || 'Visitor';
     const mobile = visitor?.mobile || '';
     const visitCount = Number(visitor?.visit_count || 0) + 1;
-    await sb.from('visitors').update({
-      last_seen: new Date().toISOString(),
+    const now = new Date().toISOString();
+    const updatePayload = {
+      last_seen: now,
       visit_count: visitCount,
       auth_user_id: currentSession?.user?.id || visitor?.auth_user_id || null,
       email: userEmail(currentSession?.user) || visitor?.email || null,
       ip_hint: getIpHint(),
-      updated_at: new Date().toISOString()
-    }).eq('id', visitor.id);
+      updated_at: now
+    };
+    // Start the 72h profile-claim clock on the visitor's first successful
+    // entry into the archive (i.e. after admin approval), not at signup —
+    // a user approved a week after registering still gets a fair window.
+    // Set once; never overwritten on later logins.
+    if (!visitor?.claim_clock_started_at) {
+      updatePayload.claim_clock_started_at = now;
+    }
+    let { error: updateError } = await sb.from('visitors').update(updatePayload).eq('id', visitor.id);
+    if (updateError && updatePayload.claim_clock_started_at && /schema cache|claim_clock_started_at/i.test(updateError.message || '')) {
+      // supabase_claim_clock_login.sql hasn't been applied to this project
+      // yet — retry without the new column so last_seen/visit_count/
+      // auth_user_id/email still get recorded. claim_clock_started_at will
+      // be set on this visitor's next login once the column exists.
+      delete updatePayload.claim_clock_started_at;
+      ({ error: updateError } = await sb.from('visitors').update(updatePayload).eq('id', visitor.id));
+    }
 
     sessionStorage.setItem('akt_visitor_name', name);
     sessionStorage.setItem('akt_visitor_mobile', mobile);
@@ -332,11 +349,12 @@
     sessionStorage.setItem('akt_visitor_role', role);
     sessionStorage.setItem('akt_auth_user_id', currentSession?.user?.id || '');
 
+    const updatedVisitor = { ...visitor, visit_count: visitCount, claim_clock_started_at: visitor?.claim_clock_started_at || updatePayload.claim_clock_started_at || null };
     if (typeof callbacks.onStart === 'function') {
-      await callbacks.onStart(name, role, { ...visitor, visit_count: visitCount });
+      await callbacks.onStart(name, role, updatedVisitor);
     }
     appLaunched = true; // mark app as fully initialised
-    await refreshProfileClaimBanner({ ...visitor, visit_count: visitCount });
+    await refreshProfileClaimBanner(updatedVisitor);
     await showPendingNotifications(visitor);
   }
 
@@ -475,7 +493,10 @@
   }
 
   function profileClaimDeadline(visitor, days) {
-    const basis = visitor?.visitor_form_completed_at || visitor?.created_at || visitor?.first_seen || visitor?.updated_at || visitor?.last_seen;
+    // Prefer claim_clock_started_at (first successful login post-approval).
+    // Falls back to the old signup-time basis for visitors who haven't
+    // logged in again since this column was introduced.
+    const basis = visitor?.claim_clock_started_at || visitor?.visitor_form_completed_at || visitor?.created_at || visitor?.first_seen || visitor?.updated_at || visitor?.last_seen;
     const time = new Date(basis || 0).getTime();
     return time ? new Date(time + days * 24 * 60 * 60 * 1000) : null;
   }

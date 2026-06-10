@@ -4854,6 +4854,7 @@ async function loadDbStats() {
   const [
     { count: pc },
     { count: fc },
+    { count: cc },
     { data: visitorRows, error: visErr },
     { data: uploads },
     { data: loginLogsToday },
@@ -4864,6 +4865,7 @@ async function loadDbStats() {
   ] = await Promise.all([
     sb.from('people').select('*', { count: 'exact', head: true }),
     sb.from('families').select('*', { count: 'exact', head: true }),
+    sb.from('profile_claims').select('*', { count: 'exact', head: true }),
     sb.from('visitors').select('id,email,visitor_form_completed,access_status,is_blocked,approved_at,updated_at,last_seen,first_seen').limit(10000),
     sb.from('gedcom_uploads').select('id,filename,people_count,families_count,uploaded_at,notes').order('uploaded_at', { ascending: false }),
     sb.from('activity_logs').select('visitor_name').eq('action','login').gte('created_at', todayStart.toISOString()).order('created_at',{ascending:false}).limit(5000),
@@ -4948,6 +4950,7 @@ async function loadDbStats() {
     ${card(approvedTotal.toLocaleString(),    'Total Approved')}
     ${card(blockedTotal.toLocaleString(),     'Total Blocked')}
     ${card(newApprovedToday.toLocaleString(), 'New Approved Today')}
+    ${card((cc || 0).toLocaleString(),        'Total Profile Claimed')}
 
     ${grp('Visits')}
     ${card(uniqueToday.toLocaleString(),     'Unique Visitors Today')}

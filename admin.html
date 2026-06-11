@@ -1027,9 +1027,10 @@
       <div class="nav-section">
         <div class="nav-section-label">Imports</div>
         <button class="nav-tab active" data-min-role="admin" onclick="switchTab('upload', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="M7 8l5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg></span><span class="nav-label">Import GEDCOM</span></button>
-        <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('uploads', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/><path d="M12 7v5l3 2"/></svg></span><span class="nav-label">Export GEDCOM</span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('uploads', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/><path d="M12 7v5l3 2"/></svg></span><span class="nav-label">Export GEDCOM</span></button>
         <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('printpayments', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></span><span class="nav-label">Print Payments</span></button>
-        <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('settings', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/></svg></span><span class="nav-label">Site stats</span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('settings', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/></svg></span><span class="nav-label">Site stats</span></button>
+        <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('sitesettings', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="nav-label">Settings</span></button>
       </div>
       <div class="nav-section">
         <div class="nav-section-label">Review Queue</div>
@@ -1046,10 +1047,10 @@
         <div class="nav-section-label">Community</div>
         <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('ads', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg></span><span class="nav-label">Ads</span></button>
         <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('contributors', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span><span class="nav-label">Badges</span></button>
-        <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('visitors', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/><circle cx="17" cy="8" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5 4.5v1"/></svg></span><span class="nav-label">Users</span><span class="nav-badge" id="badge-visitors"></span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('visitors', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/><circle cx="17" cy="8" r="2.5"/><path d="M16 14.5a5 5 0 0 1 5 4.5v1"/></svg></span><span class="nav-label">Users</span><span class="nav-badge" id="badge-visitors"></span></button>
         <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('roleapps', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l3 6 6 .9-4.5 4.4 1.1 6.2L12 17.5 6.4 20.5l1.1-6.2L3 9.9 9 9z"/></svg></span><span class="nav-label">Role applications</span><span class="nav-badge" id="badge-roleapps"></span></button>
         <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('dropoffs', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v5H4z"/><path d="M4 15h10"/><path d="M4 20h7"/><path d="M18 14v6"/><path d="m15 17 3 3 3-3"/></svg></span><span class="nav-label">Signup drop-offs</span><span class="nav-badge" id="badge-dropoffs"></span></button>
-        <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('activity', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-7 5 14 2.5-7h4"/></svg></span><span class="nav-label">Visitor activity</span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('activity', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-7 5 14 2.5-7h4"/></svg></span><span class="nav-label">Visitor activity</span></button>
         <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('staffactivity', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span class="nav-label">Staff activity</span></button>
         <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('forum', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-12.1 7.7L3 21l1.8-5.4A8.5 8.5 0 1 1 21 11.5Z"/></svg></span><span class="nav-label">Forum</span><span class="nav-badge" id="badge-forum"></span></button>
       </div>
@@ -1451,7 +1452,10 @@
         <h3 style="margin-top:22px">Recent Uploads</h3>
         <div id="recent-upload-stats" class="mini-list"><div class="empty">Loading...</div></div>
       </div>
+    </div>
 
+    <!-- SITE SETTINGS (superadmin only) -->
+    <div id="panel-sitesettings" class="panel">
       <div class="card">
         <h2>Settings</h2>
         <div class="setting-row">
@@ -4407,7 +4411,7 @@ function renderVisitors(visitors) {
             ? `<button class="btn-sm" title="Unblock" onclick="unblockVisitor('${v.id}')" style="padding:6px 9px;font-size:1rem" aria-label="Unblock">🔓</button>`
             : `<button class="btn-sm btn-danger" title="Block" onclick="blockVisitor('${v.id}')" style="padding:6px 9px;font-size:1rem" aria-label="Block">🚫</button>`
           }
-          <button class="btn-sm" title="Delete record" data-vid="${v.id}" onclick="deleteVisitor(this.dataset.vid)" style="padding:6px 9px;font-size:1rem;border-color:#b91c1c;color:#b91c1c" aria-label="Delete">🗑️</button>
+          ${hasAdminRole('superadmin') ? `<button class="btn-sm" title="Delete record" data-vid="${v.id}" onclick="deleteVisitor(this.dataset.vid)" style="padding:6px 9px;font-size:1rem;border-color:#b91c1c;color:#b91c1c" aria-label="Delete">🗑️</button>` : ''}
         </div>
       </td>
     </tr>
@@ -5636,6 +5640,10 @@ function escapeHtml(value) {
 }
 
 async function changePassword() {
+  if (!hasAdminRole('superadmin')) {
+    toast('Only superadmin can change the admin password.', true);
+    return;
+  }
   const pw = document.getElementById('new-pw').value.trim();
   if (!pw || pw.length < 4) { toast('Password must be at least 4 characters', true); return; }
   const { error } = await sb.from('admin_config').update({ value: pw, updated_at: new Date().toISOString() }).eq('key', 'admin_password');
@@ -5647,6 +5655,10 @@ async function changePassword() {
 }
 
 async function confirmNuke() {
+  if (!hasAdminRole('superadmin')) {
+    toast('Only superadmin can delete all data.', true);
+    return;
+  }
   const confirm1 = confirm('⚠️ This will DELETE ALL people, families, and uploads. Are you absolutely sure?');
   if (!confirm1) return;
   const typed = prompt('Type DELETE to confirm:');

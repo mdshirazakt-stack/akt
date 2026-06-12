@@ -4019,7 +4019,7 @@ function profileClaimSummaryHtml(visitor, claim) {
     return `<span class="badge" style="background:#dcfce7;color:#166534">${applied ? 'applied' : 'claimed'}</span>${profileLink}`;
   }
   if (!isRegisteredVisitor(visitor)) return '<span class="badge" style="background:#f3f4f6;color:#6b7280">not registered</span>';
-  if (visitorAccessStatus(visitor) !== 'approved') return '<span class="badge" style="background:#f3f4f6;color:#6b7280">pending approval</span>';
+  if (!visitorClaimClockApplies(visitor)) return '<span class="badge" style="background:#f3f4f6;color:#6b7280">pending approval</span>';
   const overdue = visitorClaimIsOverdue(visitor);
   return `<span class="badge" style="background:${overdue ? '#fee2e2' : '#fef3c7'};color:${overdue ? '#991b1b' : '#92400e'}">${overdue ? 'claim overdue' : 'claim needed'}</span>`;
 }
@@ -4065,11 +4065,17 @@ function visitorClaimNeedsAttention(visitor) {
   return true;
 }
 
+function visitorClaimClockApplies(visitor) {
+  // The 72h claim clock (visitorClaimDeadline) only makes sense for visitors
+  // who are currently approved, or who are blocked but were approved at some
+  // point (e.g. auto-blocked by the overdue-claim cron job, or manually
+  // blocked after approval). Visitors stuck in 'pending'/'rejected' and not
+  // blocked have never had the clock apply to them.
+  return Boolean(visitor.is_blocked) || (visitor.access_status || 'pending') === 'approved';
+}
+
 function visitorClaimIsOverdue(visitor) {
-  // The 72h claim clock only starts on first login post-approval (see
-  // visitorClaimDeadline). Visitors who aren't approved yet can't have
-  // started that clock, so they can never be "overdue" — just pending.
-  if (visitorAccessStatus(visitor) !== 'approved') return false;
+  if (!visitorClaimClockApplies(visitor)) return false;
   const deadline = visitorClaimDeadline(visitor);
   return Boolean(deadline && Date.now() > deadline.getTime());
 }
@@ -4090,7 +4096,7 @@ function profileClaimStatusHtml(visitor, claim) {
   if (!isRegisteredVisitor(visitor)) {
     return '<span class="badge" style="background:#f3f4f6;color:#6b7280">not registered</span>';
   }
-  if (visitorAccessStatus(visitor) !== 'approved') {
+  if (!visitorClaimClockApplies(visitor)) {
     return '<span class="badge" style="background:#f3f4f6;color:#6b7280">pending approval</span>';
   }
   const overdue = visitorClaimIsOverdue(visitor);

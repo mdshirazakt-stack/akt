@@ -2259,6 +2259,7 @@ async function renderPerson(uid, el) {
     .eq('profile_uid', uid)
     .order('created_at', { ascending: false })
     .limit(50);
+  const creationLogEntry = (changeLog || []).find(entry => entry.action === 'tree_person_created');
 
   el.innerHTML = `
     <div style="margin-bottom:16px">
@@ -2503,13 +2504,21 @@ async function renderPerson(uid, el) {
 
       <div class="section-h">Activity History</div>
       <div class="family-card">
-        ${(changeLog && changeLog.length) ? changeLog.map(entry => `
-          <div style="padding:9px 0;border-bottom:1px solid var(--border)">
-            <div class="fc-title">${escHtml(entry.summary)}</div>
-            <div class="fc-detail">${escHtml(formatLogDate(entry.created_at))} · ${escHtml(entry.actor_name)}</div>
-            <div class="fc-detail" style="margin-top:3px">Source: ${entry.source_of_info ? escHtml(entry.source_of_info) : 'not recorded'}</div>
-          </div>
-        `).join('') : `<div class="fc-detail">No recorded changes yet.</div>`}
+        ${hasRole('moderator') ? (
+          (changeLog && changeLog.length) ? changeLog.map(entry => `
+            <div style="padding:9px 0;border-bottom:1px solid var(--border)">
+              <div class="fc-title">${escHtml(entry.summary)}</div>
+              <div class="fc-detail">${escHtml(formatLogDate(entry.created_at))} · ${escHtml(entry.actor_name)}</div>
+              <div class="fc-detail" style="margin-top:3px">Source: ${entry.source_of_info ? escHtml(entry.source_of_info) : 'not recorded'}</div>
+            </div>
+          `).join('') : `<div class="fc-detail">No recorded changes yet.</div>`
+        ) : (
+          creationLogEntry ? `
+            <div class="fc-detail">Timestamp: ${escHtml(formatLogDate(creationLogEntry.created_at))}</div>
+            <div class="fc-detail" style="margin-top:3px">Admin Name: ${escHtml(creationLogEntry.actor_name)}</div>
+            <div class="fc-detail" style="margin-top:3px">Info Source: ${creationLogEntry.source_of_info ? escHtml(creationLogEntry.source_of_info) : 'not recorded'}</div>
+          ` : `<div class="fc-detail">No recorded changes yet.</div>`
+        )}
       </div>
     </div>
   `;

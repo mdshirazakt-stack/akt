@@ -251,7 +251,7 @@
           <div><label>Mobile number</label><input id="edit-mobile" type="tel"/></div>
           <div><label>Email</label><input id="edit-email" type="email"/></div>
         </div>
-        <label>Source of info <span style="color:var(--red)">*</span></label>
+        <label>Source of info</label>
         <input id="edit-source-of-info" placeholder="e.g. Family Bible, WhatsApp - Asad Bhai, told verbally by Razia Aunty"/>
         <label>Notes</label>
         <textarea id="edit-notes" maxlength="2500"></textarea>
@@ -292,7 +292,7 @@
     </div>
     <div class="modal-body" id="relationship-body"></div>
     <div class="modal-body" id="relationship-source-row" style="display:none;padding-top:0">
-      <label>Source of info <span style="color:var(--red)">*</span></label>
+      <label>Source of info</label>
       <input id="relationship-source-of-info" placeholder="e.g. Family Bible, WhatsApp - Asad Bhai, told verbally by Razia Aunty"/>
     </div>
     <div class="modal-footer" id="relationship-footer"></div>
@@ -1037,7 +1037,6 @@ async function savePerson(event) {
   const uid = value('edit-uid');
   if (!uid) return;
   const sourceOfInfo = value('edit-source-of-info');
-  if (!sourceOfInfo) return setStatus('Please record the source of this information before saving.', true);
   const deceased = value('edit-alive') === 'deceased';
   const payload = {
     name: value('edit-name') || null,
@@ -1768,7 +1767,6 @@ async function getParentSummaries(rows) {
 
 async function selectExistingForRelationship(personUid) {
   const sourceOfInfo = value('relationship-source-of-info');
-  if (!sourceOfInfo) return setStatus('Please record the source of this information before continuing.', true);
   if (relationshipContext) relationshipContext.sourceOfInfo = sourceOfInfo;
 
   const person = await getPerson(personUid);
@@ -2146,7 +2144,6 @@ async function createAndAttachPerson() {
   const name = value('new-person-name');
   if (!name) return setStatus('Please enter a name before creating the profile.', true);
   const sourceOfInfo = value('relationship-source-of-info');
-  if (!sourceOfInfo) return setStatus('Please record the source of this information before saving.', true);
   if (relationshipContext) relationshipContext.sourceOfInfo = sourceOfInfo;
   const submitBtn = document.getElementById('create-person-submit');
   if (submitBtn) submitBtn.disabled = true;

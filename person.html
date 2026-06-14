@@ -1548,7 +1548,18 @@ function sameSpouseReference(a, b) {
   return aNames.some(aName => bNames.some(bName => spouseNamesLookSame(aName, bName)));
 }
 
+const SPOUSE_PLACEHOLDER_RE = /^(first|second|third|fourth|fifth|sixth|seventh)\s*(?:wife|husband|spouse)\s+of\s+/i;
+
 function spouseNamesLookSame(a, b) {
+  // GEDCOM-generated numbered placeholders ("First Wife of X, Place", "Second
+  // Wife of X, Place") share nearly every token with the husband's own name
+  // and places, which would otherwise satisfy the overlap heuristic below and
+  // incorrectly merge two different spouses (and their children) into one
+  // marriage. The ordinal prefix is the one thing that distinguishes them.
+  const aOrdinal = String(a || '').match(SPOUSE_PLACEHOLDER_RE);
+  const bOrdinal = String(b || '').match(SPOUSE_PLACEHOLDER_RE);
+  if (aOrdinal && bOrdinal) return aOrdinal[1].toLowerCase() === bOrdinal[1].toLowerCase();
+
   const aTokens = meaningfulNameTokens(a);
   const bTokens = meaningfulNameTokens(b);
   if (!aTokens.length || !bTokens.length) return false;

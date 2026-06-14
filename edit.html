@@ -27,6 +27,7 @@
   .site-footer a { color:var(--gold); font-weight:800; margin:0 8px; text-decoration:none; }
   .site-footer a:hover { text-decoration:underline; }
   button, .btn { border:1px solid var(--line); background:#fffaf0; color:var(--green); padding:8px 12px; font-weight:700; cursor:pointer; text-decoration:none; font:inherit; }
+  button:disabled, .btn:disabled { opacity:.55; cursor:not-allowed; }
   button.primary { background:var(--green); color:#fff; border-color:var(--green); }
   button.gold { background:var(--gold); color:#fff; border-color:var(--gold); }
   button.danger { color:var(--red); border-color:var(--red); background:#fff; }
@@ -1505,7 +1506,7 @@ function openCreatePersonModal(kind = relationshipContext?.kind || 'child', fami
     ${kind === 'child' ? `<button type="button" onclick="openChildSexChooser('${esc(familyUid)}')">Back</button>` : `<button type="button" onclick="openRelationshipChooser('${kind}', '${esc(familyUid)}')">Back</button>`}
     <div style="display:flex;gap:10px">
       <button type="button" onclick="closeRelationshipModal()">Cancel</button>
-      <button class="primary" type="button" onclick="createAndAttachPerson()">Add new ${esc(label.toLowerCase())}</button>
+      <button class="primary" type="button" id="create-person-submit" onclick="createAndAttachPerson()">Add new ${esc(label.toLowerCase())}</button>
     </div>
   `;
   openRelationshipModal();
@@ -2104,6 +2105,8 @@ async function createAndAttachPerson() {
   if (!requireRelationshipEdit('create people through family relationships')) return;
   const name = value('new-person-name');
   if (!name) return setStatus('Please enter a name before creating the profile.', true);
+  const submitBtn = document.getElementById('create-person-submit');
+  if (submitBtn) submitBtn.disabled = true;
   const gedcomId = inferGedcomForNewPerson();
   const identity = await nextGedcomIdentity(gedcomId, 'I');
   const living = value('new-person-living') !== 'deceased';
@@ -2124,7 +2127,10 @@ async function createAndAttachPerson() {
     payload.raw_gedcom_id = `@I${Date.now()}@`;
     error = (await sb.from('people').insert(payload)).error;
   }
-  if (error) return setStatus(error.message, true);
+  if (error) {
+    if (submitBtn) submitBtn.disabled = false;
+    return setStatus(error.message, true);
+  }
   peopleByUid[payload.uid] = payload;
   await refreshGedcomCounts(payload.gedcom_id);
   await logTreeChange('tree_person_created', `Created person: ${payload.name}`, {

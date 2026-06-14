@@ -2254,6 +2254,12 @@ async function renderPerson(uid, el) {
     ...displayMarriageGroups.flatMap(group => group.children || [])
   ]);
 
+  const { data: changeLog } = await sb.from('profile_change_log')
+    .select('action,summary,source_of_info,actor_name,created_at')
+    .eq('profile_uid', uid)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
   el.innerHTML = `
     <div style="margin-bottom:16px">
       <a class="btn-back" href="index.html">← Back to Search</a>
@@ -2494,6 +2500,17 @@ async function renderPerson(uid, el) {
           📁 Source: <a href="index.html?byfile=${encodeURIComponent(p.gedcom_id)}" style="font-size:0.78rem;color:#2563eb;text-decoration:underline;cursor:pointer">${escHtml(srcLabel)}</a>
         </div>
       ` : ''}
+
+      <div class="section-h">Activity History</div>
+      <div class="family-card">
+        ${(changeLog && changeLog.length) ? changeLog.map(entry => `
+          <div style="padding:9px 0;border-bottom:1px solid var(--border)">
+            <div class="fc-title">${escHtml(entry.summary)}</div>
+            <div class="fc-detail">${escHtml(formatLogDate(entry.created_at))} · ${escHtml(entry.actor_name)}</div>
+            <div class="fc-detail" style="margin-top:3px">Source: ${entry.source_of_info ? escHtml(entry.source_of_info) : 'not recorded'}</div>
+          </div>
+        `).join('') : `<div class="fc-detail">No recorded changes yet.</div>`}
+      </div>
     </div>
   `;
 
@@ -3520,6 +3537,13 @@ function escHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function formatLogDate(value) {
+  return new Date(value).toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: true
+  });
 }
 
 function escAttr(str) {

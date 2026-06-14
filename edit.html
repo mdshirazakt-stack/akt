@@ -251,6 +251,8 @@
           <div><label>Mobile number</label><input id="edit-mobile" type="tel"/></div>
           <div><label>Email</label><input id="edit-email" type="email"/></div>
         </div>
+        <label>Source of info <span style="color:var(--red)">*</span></label>
+        <input id="edit-source-of-info" placeholder="e.g. Family Bible, WhatsApp - Asad Bhai, told verbally by Razia Aunty"/>
         <label>Notes</label>
         <textarea id="edit-notes" maxlength="2500"></textarea>
         <div style="display:flex;gap:8px;margin-top:12px">
@@ -289,6 +291,10 @@
       <button class="modal-close" type="button" onclick="closeRelationshipModal()" aria-label="Close">&times;</button>
     </div>
     <div class="modal-body" id="relationship-body"></div>
+    <div class="modal-body" id="relationship-source-row" style="display:none;padding-top:0">
+      <label>Source of info <span style="color:var(--red)">*</span></label>
+      <input id="relationship-source-of-info" placeholder="e.g. Family Bible, WhatsApp - Asad Bhai, told verbally by Razia Aunty"/>
+    </div>
     <div class="modal-footer" id="relationship-footer"></div>
   </div>
 </div>
@@ -463,6 +469,17 @@ async function logTreeChange(action, target, details = {}) {
     const fallbackPayload = { ...payload };
     delete fallbackPayload.location_hint;
     await sb.from('activity_logs').insert(fallbackPayload);
+  }
+
+  if (details.profile_uid) {
+    await sb.from('profile_change_log').insert({
+      profile_uid: details.profile_uid,
+      action,
+      summary: target,
+      source_of_info: details.source_of_info || '',
+      actor_name: actor,
+      actor_role: currentUserRole
+    });
   }
 }
 
@@ -954,6 +971,7 @@ async function selectPerson(uid) {
     document.getElementById('edit-current-place').value = p.current_place || '';
     document.getElementById('edit-mobile').value = p.contact_address || '';
     document.getElementById('edit-email').value = p.email || '';
+    document.getElementById('edit-source-of-info').value = '';
     document.getElementById('edit-notes').value = p.notes || '';
     await loadSelectedBirthOrder(uid);
     toggleDeathFields();
@@ -1018,6 +1036,8 @@ async function savePerson(event) {
   if (!requireRole('moderator', 'save profile changes')) return;
   const uid = value('edit-uid');
   if (!uid) return;
+  const sourceOfInfo = value('edit-source-of-info');
+  if (!sourceOfInfo) return setStatus('Please record the source of this information before saving.', true);
   const deceased = value('edit-alive') === 'deceased';
   const payload = {
     name: value('edit-name') || null,
@@ -1045,7 +1065,8 @@ async function savePerson(event) {
   await logTreeChange('tree_profile_saved', `Saved profile: ${payload.name || uid}`, {
     profile_uid: uid,
     gedcom_id: peopleByUid[uid]?.gedcom_id || focusPerson?.gedcom_id || null,
-    changed_fields: Object.keys(payload).filter(key => key !== 'updated_at')
+    changed_fields: Object.keys(payload).filter(key => key !== 'updated_at'),
+    source_of_info: sourceOfInfo
   });
   resetProfileDirty();
   setStatus('Profile saved to source person record.');
@@ -1150,7 +1171,7 @@ async function addParent(type) {
   openRelationshipChooser(type);
 }
 
-async function setParent(type, parentUid) {
+async function setParent(type, parentUid, sourceOfInfo = '') {
   if (!requireRelationshipEdit('set parents')) return;
   let fam = parentFamily;
   if (!fam) {
@@ -1167,7 +1188,8 @@ async function setParent(type, parentUid) {
     related_uid: parentUid,
     family_uid: fam.uid,
     relation: type,
-    gedcom_id: fam.gedcom_id || null
+    gedcom_id: fam.gedcom_id || null,
+    source_of_info: sourceOfInfo
   });
   setStatus((type === 'father' ? 'Father' : 'Mother') + ' saved.');
   await loadEditor();
@@ -1211,7 +1233,7 @@ async function createFamilyForFocusWithoutSpouse() {
   return data;
 }
 
-async function createSpouseFamilyWith(spouseUid) {
+async function createSpouseFamilyWith(spouseUid, sourceOfInfo = '') {
   if (!requireRelationshipEdit('add spouse groups')) return;
   const spouse = await getPerson(spouseUid);
   const fam = await createFamily();
@@ -1240,7 +1262,8 @@ async function createSpouseFamilyWith(spouseUid) {
     profile_uid: focusUid,
     related_uid: spouseUid,
     family_uid: fam.uid,
-    gedcom_id: fam.gedcom_id || null
+    gedcom_id: fam.gedcom_id || null,
+    source_of_info: sourceOfInfo
   });
   setStatus('Spouse/partner group created.');
   await loadEditor();
@@ -1351,7 +1374,7 @@ function attachMoveModeHandlers() {
   });
 }
 
-async function moveChildToFamily(childUid, familyUid) {
+async function moveChildToFamily(childUid, familyUid, sourceOfInfo = '') {
   if (!requireRelationshipEdit('move children between family groups')) return;
   const currentFamilyUids = spouseFamilies.map(f => f.uid);
   if (currentFamilyUids.length) {
@@ -1375,7 +1398,8 @@ async function moveChildToFamily(childUid, familyUid) {
     profile_uid: focusUid,
     child_uid: childUid,
     family_uid: familyUid,
-    gedcom_id: target?.gedcom_id || null
+    gedcom_id: target?.gedcom_id || null,
+    source_of_info: sourceOfInfo
   });
   setStatus('Child assigned to selected spouse/partner group.');
   await loadEditor();
@@ -1409,6 +1433,7 @@ function openRelationshipChooser(kind, familyUid = '') {
     </div>
   `;
   document.getElementById('relationship-footer').innerHTML = `<button type="button" onclick="closeRelationshipModal()">Cancel</button><span></span>`;
+  showRelationshipSourceRow(false);
   openRelationshipModal();
 }
 
@@ -1432,6 +1457,7 @@ function openChildSexChooser(familyUid = '') {
     </div>
   `;
   document.getElementById('relationship-footer').innerHTML = `<button type="button" onclick="closeRelationshipModal()">Cancel</button><span></span>`;
+  showRelationshipSourceRow(false);
   openRelationshipModal();
 }
 
@@ -1465,6 +1491,7 @@ function openRelationshipSearch(kind = relationshipContext?.kind || 'child', fam
     ${isMove ? '<span></span>' : kind === 'child' ? `<button type="button" onclick="openChildSexChooser('${esc(familyUid)}')">Back</button>` : `<button type="button" onclick="openRelationshipChooser('${kind}', '${esc(familyUid)}')">Back</button>`}
     <button type="button" onclick="closeRelationshipModal()">Cancel</button>
   `;
+  showRelationshipSourceRow(true);
   openRelationshipModal();
   document.getElementById('family-board')?.classList.toggle('move-mode', isMove);
   setTimeout(() => document.getElementById('relationship-search-input')?.focus(), 50);
@@ -1509,6 +1536,7 @@ function openCreatePersonModal(kind = relationshipContext?.kind || 'child', fami
       <button class="primary" type="button" id="create-person-submit" onclick="createAndAttachPerson()">Add new ${esc(label.toLowerCase())}</button>
     </div>
   `;
+  showRelationshipSourceRow(true);
   openRelationshipModal();
   setTimeout(() => document.getElementById('new-person-name')?.focus(), 50);
 }
@@ -1517,6 +1545,13 @@ function setRelationshipHeader(kicker, title, context) {
   document.getElementById('relationship-kicker').textContent = kicker;
   document.getElementById('relationship-title').textContent = title;
   document.getElementById('relationship-context').textContent = context;
+}
+
+function showRelationshipSourceRow(show) {
+  const row = document.getElementById('relationship-source-row');
+  if (!row) return;
+  row.style.display = show ? '' : 'none';
+  document.getElementById('relationship-source-of-info').value = '';
 }
 
 function relationshipContextText(kind, familyUid) {
@@ -1543,6 +1578,7 @@ function closeRelationshipModal() {
   modal.setAttribute('aria-hidden', 'true');
   document.body.style.overflow = '';
   document.getElementById('family-board')?.classList.remove('move-mode');
+  showRelationshipSourceRow(false);
   relationshipContext = null;
 }
 
@@ -1731,6 +1767,10 @@ async function getParentSummaries(rows) {
 }
 
 async function selectExistingForRelationship(personUid) {
+  const sourceOfInfo = value('relationship-source-of-info');
+  if (!sourceOfInfo) return setStatus('Please record the source of this information before continuing.', true);
+  if (relationshipContext) relationshipContext.sourceOfInfo = sourceOfInfo;
+
   const person = await getPerson(personUid);
   if (!person) return setStatus('No person found for that UID.', true);
 
@@ -2105,6 +2145,9 @@ async function createAndAttachPerson() {
   if (!requireRelationshipEdit('create people through family relationships')) return;
   const name = value('new-person-name');
   if (!name) return setStatus('Please enter a name before creating the profile.', true);
+  const sourceOfInfo = value('relationship-source-of-info');
+  if (!sourceOfInfo) return setStatus('Please record the source of this information before saving.', true);
+  if (relationshipContext) relationshipContext.sourceOfInfo = sourceOfInfo;
   const submitBtn = document.getElementById('create-person-submit');
   if (submitBtn) submitBtn.disabled = true;
   const gedcomId = inferGedcomForNewPerson();
@@ -2136,7 +2179,8 @@ async function createAndAttachPerson() {
   await logTreeChange('tree_person_created', `Created person: ${payload.name}`, {
     profile_uid: payload.uid,
     gedcom_id: payload.gedcom_id || null,
-    relationship_kind: relationshipContext?.kind || ''
+    relationship_kind: relationshipContext?.kind || '',
+    source_of_info: sourceOfInfo
   });
   await attachPersonToContext(payload.uid);
 }
@@ -2145,10 +2189,11 @@ async function attachPersonToContext(personUid) {
   if (!requireRelationshipEdit('change family relationships')) return;
   const ctx = relationshipContext;
   if (!ctx) return;
+  const sourceOfInfo = ctx.sourceOfInfo || '';
   closeRelationshipModal();
-  if (ctx.kind === 'father' || ctx.kind === 'mother') return setParent(ctx.kind, personUid);
-  if (ctx.kind === 'spouse') return createSpouseFamilyWith(personUid);
-  if (ctx.kind === 'child' || ctx.kind === 'move_child') return moveChildToFamily(personUid, ctx.familyUid);
+  if (ctx.kind === 'father' || ctx.kind === 'mother') return setParent(ctx.kind, personUid, sourceOfInfo);
+  if (ctx.kind === 'spouse') return createSpouseFamilyWith(personUid, sourceOfInfo);
+  if (ctx.kind === 'child' || ctx.kind === 'move_child') return moveChildToFamily(personUid, ctx.familyUid, sourceOfInfo);
 }
 
 function defaultSexFor(kind) {

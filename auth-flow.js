@@ -93,7 +93,39 @@
   }
 
   function showPendingApprovalMessage() {
-    showMessage('Thank you for registering. Your account is pending review by the site admin and is not active yet — you will not be able to view the archive until it is approved. This usually takes up to 24 hours. Please check back later by signing in again.', false);
+    const err = byId('auth-err');
+    if (!err) return;
+    setNote('');
+    err.style.color = '#2e6e4a';
+    err.style.display = 'block';
+    err.innerHTML = `
+      Thank you for registering. Your account is pending review by the site admin and is not
+      active yet — you will not be able to view the archive until it is approved. This usually
+      takes up to 24 hours. Please check back later by signing in again.
+      <br><br>
+      While you wait, please read
+      <a href="trouble.html" target="_blank" rel="noopener" style="color:#2e6e4a;font-weight:700">Trouble Signing In?</a>
+      to understand what to expect next and what to do if your profile isn't on the site yet.
+    `;
+  }
+
+  // Blocked/rejected accounts cannot sign in at all — point them at the
+  // Trouble Signing In page, which explains both statuses and how to
+  // reach an admin if it looks like a mistake.
+  function showBlockedMessage(status) {
+    const err = byId('auth-err');
+    if (!err) return;
+    setNote('');
+    err.style.color = '#c0392b';
+    err.style.display = 'block';
+    const verb = status === 'rejected' ? 'rejected' : 'blocked';
+    err.innerHTML = `
+      Your access is currently ${verb}. Please contact the administrator if this looks incorrect.
+      <br><br>
+      Please read
+      <a href="trouble.html" target="_blank" rel="noopener" style="color:#2e6e4a;font-weight:700">Trouble Signing In?</a>
+      for what this means and how to proceed.
+    `;
   }
 
   // Look up an unread "your claim was revoked" notice for this visitor.
@@ -849,7 +881,7 @@
         visitor_id: visitor?.id || null
       });
       setView('message');
-      showMessage('Your access is currently blocked or rejected. Please contact the administrator if this looks incorrect.', true);
+      showBlockedMessage(status);
       return;
     }
 

@@ -1,6 +1,6 @@
 # Apnon Ki Talash / Iraqi Biradari Project Handoff
 
-Last updated: 2026-06-08
+Last updated: 2026-06-16
 
 ## Project Overview
 
@@ -219,6 +219,71 @@ Both columns are nullable — the UI degrades gracefully (falls back to `marr_da
 
 ---
 
+## Session Update — Activity History, Community Status, Sibling Workflow & Duplicate-Family Fixes (2026-06-14 → 2026-06-16)
+
+Commits this range (newest first):
+
+```text
+(uncommitted) Guard createSpouseFamilyWith() against duplicate family groups — reviewed PASS, ready to push
+1fa9eb8  Replace birth place with native/current place in new-person dialog
+c203c5a  Add Community Status flag for people joined by marriage
+e0207fe  Make source-of-info optional and limit Activity History for visitors
+73c2ca5  Add profile activity history with mandatory source-of-info tracking
+f75978a  Fix double-submit race on person creation and spouse-merge false positive
+```
+
+### 1. Profile Activity History + Source-of-Info tracking (`73c2ca5`, `e0207fe`)
+New `profile_change_log` table (`supabase_profile_change_log.sql`), dual-written from `logTreeChange()` for every tree edit (profile saves, parent/spouse/child changes, family group creation/deletion, spouse-children import, person creation).
+
+- `edit.html` — optional "Source of info" field on the main profile form (`edit-source-of-info`) and inside the relationship modal (`relationship-source-of-info`, used for father/mother/spouse/child flows). Captured into `relationshipContext.sourceOfInfo` before the modal closes and passed through to `setParent()`, `createSpouseFamilyWith()`, `moveChildToFamily()`, `createAndAttachPerson()`.
+- `person.html` — new **"Activity History"** section at the bottom of every profile:
+  - **Moderators/admins** see the full change log (summary, date, actor, source — or "not recorded").
+  - **Regular visitors** see only the profile's creation entry (timestamp, admin name, info source).
+- Note: the field ended up **optional**, not mandatory as originally scoped — `e0207fe` relaxed the original requirement and restricted the full Activity History list to staff.
+
+### 2. Double-submit / spouse-merge fixes (`f75978a`)
+- `edit.html`: "Add new ___" submit buttons are now disabled on click (re-enabled only on error) to stop double-clicks creating near-duplicate person records.
+- `person.html`: fixed a false-positive in the spouse-name matching heuristic that could merge two distinct spouse records.
+
+### 3. Community Status / "Joined by Marriage" note (`c203c5a`)
+New `people.joined_by_marriage boolean default false` column (`supabase_joined_by_marriage.sql`, applied). Admin-only "Community status" dropdown in `edit.html`'s main profile form. When set, `person.html` shows a muted note at the bottom of the profile:
+
+> Not a birth member of the Iraqi Biradari. Connected through marriage.
+
+Designed to be subtle/non-stigmatizing — no badge on search results, just a quiet footer note on the person's own profile.
+
+### 4. Native/Current place + multi-sibling "Next" (`1fa9eb8`)
+The "Add person" dialog in `edit.html` (used for father/mother/spouse/child) now asks for **Native place** (`root_place`) and **Current place** (`current_place`) instead of a single "Birth place".
+
+For **child** relationships only, a new "Save & add another sibling" button keeps the dialog open after saving: the form resets (name/sex/living/birth date) but **keeps the Native/Current place values**, so an admin entering several siblings at once doesn't have to retype the family's places each time. "Cancel" works at any point in the next-next sequence.
+
+### 5. Duplicate family-groups: diagnosis, cleanup, and safeguard (2026-06-16)
+**Reported:** two identical "Family N" cards on a profile — same couple (Mohammad Mazharul Haque & Suraiya), same 3 children listed under both.
+
+**Root cause:** `createSpouseFamilyWith()` always inserted a *new* `families` row for a husband/wife pair, with no check for an existing row for that same pair. Combined with `importSpouseExistingChildren()`'s additive-only upsert (copies a spouse's children from their *other* family rows into the new one, without removing them from the original), using "⬇ Import \<spouse\>'s children" on the new duplicate row copied the same children into both rows.
+
+**Cleanup:** added `supabase_fix_duplicate_families.sql` — a one-time diagnostic/cleanup script:
+- Step 1 finds all `husband_uid`/`wife_uid` pairs with >1 `families` row.
+- Step 2 shows each duplicate row's details + linked children, to identify which to keep.
+- Step 3 deletes the duplicate row's `family_members` + the row itself.
+
+User ran it: **2 duplicate pairs found**. The Mohammad/Suraiya pair was cleaned up. The second pair is being **intentionally left in place** for now — user has a separate fix planned for it later.
+
+**Code safeguard (reviewed PASS, not yet committed/pushed):** `createSpouseFamilyWith()` in `edit.html` now computes the husband/wife pair *before* creating a family row, checks `spouseFamilies` for an existing row with that exact pair, and if found, blocks creation and tells the admin which existing "Family N" card to use instead (via "Import children").
+
+**Outstanding:** push this fix; revisit the second duplicate-family pair when the user is ready.
+
+### Also landed since last handoff (2026-06-10 → 2026-06-12, see `git log` for detail)
+- `38c2ec5` — Grant admin role access to Family Builder panel
+- `e80ebfe` — Fix claim-status regression for visitors blocked after approval
+- `1723a31` — Don't show claim deadline/overdue badges for unapproved visitors
+- `80506c9` — Grant admin role access to Users, Visitor activity, Export GEDCOM and Site Stats panels
+- `26bfb34` — Fix Tree Views stat capped at 1000 by Supabase row-return limit
+- `024d2b4` — Add Total Profile Claimed card to Site Stats
+- `e35351f` — Fix fuzzy search dropping nickname matches
+
+---
+
 ## SQL Files — All Run Status
 
 All SQL files are confirmed run in Supabase **except**:
@@ -258,6 +323,11 @@ All other SQL files confirmed run:
 - supabase_signup_events.sql ✅
 - supabase_role_applications.sql ✅
 - supabase_family_editor_updates.sql ✅
+- supabase_profile_change_log.sql ✅ (Activity History / source-of-info, see Session Update above)
+- supabase_joined_by_marriage.sql ✅ (Community Status note, see Session Update above)
+
+### One-time scripts (not standing migrations)
+- supabase_fix_duplicate_families.sql — diagnostic/cleanup for duplicate `families` rows. Run once 2026-06-16: found 2 duplicate husband/wife pairs, cleaned up 1 (Mohammad Mazharul Haque / Suraiya). The 2nd pair is intentionally left for a later fix — re-run Step 1 to find it again when ready.
 
 ---
 
@@ -307,9 +377,11 @@ All other SQL files confirmed run:
 people              — archive (uid, name, sex, birth_place, death_place, root_place,
                       current_place, birth_date, death_date, death_flag, marr_status,
                       gedcom_id, notes, occupation, contact_address, email,
-                      is_contributor, community_role)
+                      is_contributor, community_role, joined_by_marriage)
 families            — family units (uid, husband_uid, wife_uid, marr_status, marr_date,
                       marr_place, marr_notes, gedcom_id)
+profile_change_log — activity history (profile_uid, action, summary, source_of_info,
+                      actor_name, actor_role, created_at)
 family_members      — (family_uid, person_uid, role, birth_order, custody_parent)
 gedcom_uploads      — (id, filename, people_count, families_count)
 visitors            — registered users (auth_user_id, email, mobile, name_entered,

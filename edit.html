@@ -1248,17 +1248,27 @@ async function createFamilyForFocusWithoutSpouse() {
 async function createSpouseFamilyWith(spouseUid, sourceOfInfo = '') {
   if (!requireRelationshipEdit('add spouse groups')) return;
   const spouse = await getPerson(spouseUid);
+  let husband_uid, wife_uid;
+  if (focusPerson.sex === 'F' || spouse?.sex === 'M') {
+    wife_uid = focusUid;
+    husband_uid = spouseUid;
+  } else {
+    husband_uid = focusUid;
+    wife_uid = spouseUid;
+  }
+
+  // Guard against creating a second families row for a couple that already
+  // has one — this previously produced two identical "Family N" cards with
+  // the same children once "Import <spouse>'s children" was used on the new row.
+  const existingIdx = spouseFamilies.findIndex(f => f.husband_uid === husband_uid && f.wife_uid === wife_uid);
+  if (existingIdx !== -1) {
+    setStatus(`${focusPerson.name || 'This person'} and ${spouse?.name || 'this person'} are already linked as spouses (Family ${existingIdx + 1}). Use that family's "Import children" button instead of creating a new group.`, true);
+    return;
+  }
+
   const fam = await createFamily();
   if (!fam) return;
-  const update = {};
-  if (focusPerson.sex === 'F' || spouse?.sex === 'M') {
-    update.wife_uid = focusUid;
-    update.husband_uid = spouseUid;
-  } else {
-    update.husband_uid = focusUid;
-    update.wife_uid = spouseUid;
-  }
-  const { error } = await sb.from('families').update(update).eq('uid', fam.uid);
+  const { error } = await sb.from('families').update({ husband_uid, wife_uid }).eq('uid', fam.uid);
   if (error) return setStatus(error.message, true);
 
   // NOTE: Do NOT auto-import the spouse's existing children here. Blindly copying

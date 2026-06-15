@@ -253,6 +253,13 @@
         </div>
         <label>Source of info</label>
         <input id="edit-source-of-info" placeholder="e.g. Family Bible, WhatsApp - Asad Bhai, told verbally by Razia Aunty"/>
+        <div id="edit-joined-by-marriage-row">
+          <label>Community status</label>
+          <select id="edit-joined-by-marriage">
+            <option value="no">Birth member of the Iraqi Biradari</option>
+            <option value="yes">Joined the family through marriage</option>
+          </select>
+        </div>
         <label>Notes</label>
         <textarea id="edit-notes" maxlength="2500"></textarea>
         <div style="display:flex;gap:8px;margin-top:12px">
@@ -621,6 +628,8 @@ async function loadEditor() {
 function applyEditorRoleVisibility() {
   const familyOps = document.getElementById('family-ops-panel');
   if (familyOps) familyOps.style.display = canEditRelationships() ? '' : 'none';
+  const joinedByMarriageRow = document.getElementById('edit-joined-by-marriage-row');
+  if (joinedByMarriageRow) joinedByMarriageRow.style.display = hasRole('admin') ? '' : 'none';
 }
 
 async function refreshEditor() {
@@ -972,6 +981,7 @@ async function selectPerson(uid) {
     document.getElementById('edit-mobile').value = p.contact_address || '';
     document.getElementById('edit-email').value = p.email || '';
     document.getElementById('edit-source-of-info').value = '';
+    document.getElementById('edit-joined-by-marriage').value = p.joined_by_marriage ? 'yes' : 'no';
     document.getElementById('edit-notes').value = p.notes || '';
     await loadSelectedBirthOrder(uid);
     toggleDeathFields();
@@ -1054,6 +1064,9 @@ async function savePerson(event) {
     notes: value('edit-notes') || null,
     updated_at: new Date().toISOString()
   };
+  if (hasRole('admin')) {
+    payload.joined_by_marriage = value('edit-joined-by-marriage') === 'yes';
+  }
   let { error } = await sb.from('people').update(payload).eq('uid', uid);
   if (error && /schema cache|root_place|current_place|contact_address|email/i.test(error.message || '')) {
     return setStatus('Profile fields are missing in Supabase. Please run the updated people profile fields SQL before saving root place, current place, mobile, or email.', true);

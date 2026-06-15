@@ -2520,6 +2520,14 @@ async function renderPerson(uid, el) {
           ` : `<div class="fc-detail">No recorded changes yet.</div>`
         )}
       </div>
+
+      ${p.joined_by_marriage ? `
+        <div class="section-h">Community Status</div>
+        <div class="family-card">
+          <div class="fc-detail">Not a birth member of the Iraqi Biradari.</div>
+          <div class="fc-detail" style="margin-top:3px">Connected through marriage.</div>
+        </div>
+      ` : ''}
     </div>
   `;
 

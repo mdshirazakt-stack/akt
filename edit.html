@@ -126,7 +126,7 @@
   .search-result-name { font-family:Georgia,serif; color:var(--green); font-size:1.12rem; font-weight:800; }
   .search-result-meta { color:#667267; font-size:.84rem; margin-top:4px; }
   .uid-pill { display:inline-block; margin-top:6px; padding:4px 8px; background:#efe4c5; border-radius:7px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; color:#546459; font-size:.75rem; }
-  .modal-footer { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:0 28px 24px; }
+  .modal-footer { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:0 28px 24px; flex-wrap:wrap; }
   .field-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .status-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
   .status-option { min-height:92px; border-radius:14px; background:#fffdf7; border:1px solid #d8caa6; color:var(--green); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
@@ -1538,14 +1538,18 @@ function openCreatePersonModal(kind = relationshipContext?.kind || 'child', fami
     </div>
     <div class="field-row">
       <div><label>Birth date / year</label><input id="new-person-birth" placeholder="e.g. 1942"/></div>
-      <div><label>Place</label><input id="new-person-place" placeholder="e.g. Kanpur"/></div>
+      <div><label>Native place</label><input id="new-person-root-place" placeholder="e.g. Kanpur"/></div>
+    </div>
+    <div class="field-row">
+      <div><label>Current place</label><input id="new-person-current-place" placeholder="e.g. Mumbai"/></div>
     </div>
   `;
   document.getElementById('relationship-footer').innerHTML = `
     ${kind === 'child' ? `<button type="button" onclick="openChildSexChooser('${esc(familyUid)}')">Back</button>` : `<button type="button" onclick="openRelationshipChooser('${kind}', '${esc(familyUid)}')">Back</button>`}
-    <div style="display:flex;gap:10px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button type="button" onclick="closeRelationshipModal()">Cancel</button>
-      <button class="primary" type="button" id="create-person-submit" onclick="createAndAttachPerson()">Add new ${esc(label.toLowerCase())}</button>
+      ${kind === 'child' ? `<button type="button" id="create-person-submit-next" onclick="createAndAttachPerson(true)">Save &amp; add another sibling</button>` : ''}
+      <button class="primary" type="button" id="create-person-submit" onclick="createAndAttachPerson(false)">Add new ${esc(label.toLowerCase())}</button>
     </div>
   `;
   showRelationshipSourceRow(true);
@@ -2152,14 +2156,16 @@ function closeConflictModal() {
   _conflictLinkable = null;
 }
 
-async function createAndAttachPerson() {
+async function createAndAttachPerson(addAnother = false) {
   if (!requireRelationshipEdit('create people through family relationships')) return;
   const name = value('new-person-name');
   if (!name) return setStatus('Please enter a name before creating the profile.', true);
   const sourceOfInfo = value('relationship-source-of-info');
   if (relationshipContext) relationshipContext.sourceOfInfo = sourceOfInfo;
   const submitBtn = document.getElementById('create-person-submit');
+  const nextBtn = document.getElementById('create-person-submit-next');
   if (submitBtn) submitBtn.disabled = true;
+  if (nextBtn) nextBtn.disabled = true;
   const gedcomId = inferGedcomForNewPerson();
   const identity = await nextGedcomIdentity(gedcomId, 'I');
   const living = value('new-person-living') !== 'deceased';
@@ -2169,7 +2175,8 @@ async function createAndAttachPerson() {
     name,
     sex: value('new-person-sex') || null,
     birth_date: value('new-person-birth') || null,
-    birth_place: value('new-person-place') || null,
+    root_place: value('new-person-root-place') || null,
+    current_place: value('new-person-current-place') || null,
     death_flag: !living,
     raw_gedcom_id: identity.raw,
     updated_at: new Date().toISOString()
@@ -2182,6 +2189,7 @@ async function createAndAttachPerson() {
   }
   if (error) {
     if (submitBtn) submitBtn.disabled = false;
+    if (nextBtn) nextBtn.disabled = false;
     return setStatus(error.message, true);
   }
   peopleByUid[payload.uid] = payload;
@@ -2192,15 +2200,29 @@ async function createAndAttachPerson() {
     relationship_kind: relationshipContext?.kind || '',
     source_of_info: sourceOfInfo
   });
-  await attachPersonToContext(payload.uid);
+  await attachPersonToContext(payload.uid, { keepOpen: addAnother });
+  if (addAnother) resetCreatePersonFormForNext();
 }
 
-async function attachPersonToContext(personUid) {
+function resetCreatePersonFormForNext() {
+  document.getElementById('new-person-name').value = '';
+  document.getElementById('new-person-sex').value = defaultSexFor(relationshipContext?.kind);
+  document.getElementById('new-person-living').value = 'alive';
+  document.getElementById('new-person-birth').value = '';
+  const submitBtn = document.getElementById('create-person-submit');
+  const nextBtn = document.getElementById('create-person-submit-next');
+  if (submitBtn) submitBtn.disabled = false;
+  if (nextBtn) nextBtn.disabled = false;
+  setStatus('Sibling added. Native and current place are kept below - add the next sibling, or finish from the relationship modal.');
+  document.getElementById('new-person-name')?.focus();
+}
+
+async function attachPersonToContext(personUid, { keepOpen = false } = {}) {
   if (!requireRelationshipEdit('change family relationships')) return;
   const ctx = relationshipContext;
   if (!ctx) return;
   const sourceOfInfo = ctx.sourceOfInfo || '';
-  closeRelationshipModal();
+  if (!keepOpen) closeRelationshipModal();
   if (ctx.kind === 'father' || ctx.kind === 'mother') return setParent(ctx.kind, personUid, sourceOfInfo);
   if (ctx.kind === 'spouse') return createSpouseFamilyWith(personUid, sourceOfInfo);
   if (ctx.kind === 'child' || ctx.kind === 'move_child') return moveChildToFamily(personUid, ctx.familyUid, sourceOfInfo);

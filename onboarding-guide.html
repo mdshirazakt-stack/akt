@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Membership Guide — Apno Ki Talash</title>
+<link rel="icon" type="image/png" href="apnonkitalash-icon-light.png"/>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #faf7f2; --surface: #fffdf8; --ink: #2a2318; --muted: #746958;
+    --line: #dfd0b8; --gold: #9a6f2f; --gold2: #c9a84c; --green: #2f4d37; --soft: #f4ead5;
+    --red: #b91c1c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: linear-gradient(135deg, rgba(250,247,242,0.96), rgba(239,244,234,0.94)),
+      url('apnonkitalash-logo-favicon.png') center/cover fixed no-repeat;
+    color: var(--ink); font-family: 'Lato', sans-serif; line-height: 1.68; min-height: 100vh;
+    padding-bottom: 120px;
+  }
+  header {
+    background: rgba(255,253,248,0.94); border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 30; backdrop-filter: blur(10px);
+  }
+  .topbar {
+    align-items: center; display: flex; gap: 16px; justify-content: space-between;
+    margin: 0 auto; max-width: 1040px; padding: 14px 20px;
+  }
+  .brand { align-items: center; color: var(--ink); display: flex; gap: 12px; text-decoration: none; }
+  .brand img { background: #f8f1e5; border: 1px solid rgba(201,168,76,0.45); height: 46px; width: 46px; }
+  .brand-title { direction: rtl; font-family: 'Amiri', serif; font-size: 1.32rem; line-height: 1; }
+  .brand-sub { color: var(--gold); font-size: 0.7rem; font-weight: 900; letter-spacing: 0.16em; margin-top: 3px; text-transform: uppercase; }
+
+  /* Language tab bar */
+  #lang-bar {
+    position: sticky; top: 75px; z-index: 20;
+    background: rgba(250,247,242,0.96); border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(6px);
+  }
+  .lang-bar-inner {
+    display: flex; gap: 0; max-width: 760px; margin: 0 auto; padding: 0 20px;
+  }
+  .lang-btn {
+    padding: 12px 22px; font-size: 0.88rem; font-weight: 700; border: none;
+    background: none; cursor: pointer; color: var(--muted); border-bottom: 3px solid transparent;
+    font-family: 'Lato', sans-serif; transition: color 0.15s, border-color 0.15s;
+  }
+  .lang-btn.active { color: var(--green); border-bottom-color: var(--green); }
+  .lang-btn:hover:not(.active) { color: var(--ink); }
+
+  /* Loading overlay */
+  #loading-overlay {
+    position: fixed; inset: 0; background: rgba(250,247,242,0.92);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 100; gap: 16px;
+  }
+  .spinner {
+    width: 40px; height: 40px; border: 3px solid var(--line);
+    border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading-overlay p { color: var(--muted); font-size: 0.9rem; }
+
+  /* Main content */
+  main { max-width: 760px; margin: 0 auto; padding: 40px 20px 24px; }
+  .page-eyebrow {
+    color: var(--gold); font-size: 0.72rem; font-weight: 900; letter-spacing: 0.2em;
+    text-transform: uppercase; margin-bottom: 10px;
+  }
+  h1 {
+    font-family: 'Amiri', serif; font-size: clamp(1.8rem, 5vw, 2.6rem);
+    color: var(--green); font-weight: 700; line-height: 1.1; margin-bottom: 8px;
+  }
+  .page-lead { color: var(--muted); font-size: 0.95rem; margin-bottom: 36px; line-height: 1.7; }
+  .divider { height: 1px; background: linear-gradient(90deg, var(--gold2), transparent); margin-bottom: 36px; }
+
+  /* Sections */
+  .guide-section { margin-bottom: 44px; }
+  .guide-section h2 {
+    font-family: 'Amiri', serif; font-size: 1.42rem; color: var(--green);
+    font-weight: 700; margin-bottom: 14px; line-height: 1.2;
+  }
+  .guide-section h3 {
+    font-size: 0.95rem; font-weight: 800; color: var(--ink);
+    margin: 18px 0 8px; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .guide-section p { font-size: 0.92rem; color: var(--ink); margin-bottom: 10px; line-height: 1.72; }
+  .guide-section ul, .guide-section ol {
+    margin: 6px 0 12px 1.4em;
+  }
+  .guide-section li { font-size: 0.92rem; line-height: 1.72; margin-bottom: 5px; }
+
+  /* Flowchart */
+  .flowchart { display: flex; flex-direction: column; align-items: flex-start; gap: 0; margin: 14px 0 20px; }
+  .flow-step {
+    display: flex; align-items: center; gap: 12px;
+    background: #fff; border: 1px solid #d1fae5; padding: 10px 16px;
+    font-size: 0.88rem; font-weight: 700; color: #14532d; width: 100%;
+  }
+  .flow-step .icon { font-size: 1.1rem; flex-shrink: 0; }
+  .flow-arrow { padding: 4px 0 4px 36px; color: var(--green); font-size: 1.1rem; line-height: 1; }
+
+  /* Highlight box */
+  .highlight-box {
+    border-left: 4px solid var(--gold2); background: #fffbeb;
+    padding: 14px 18px; margin: 14px 0; font-size: 0.9rem; line-height: 1.7;
+  }
+  .highlight-box strong { color: var(--gold); }
+
+  /* "Don't do" box */
+  .dont-box {
+    border-left: 4px solid #ef4444; background: #fff5f5;
+    padding: 14px 18px; margin: 14px 0;
+  }
+  .dont-box .dont-title { font-size: 0.88rem; font-weight: 800; color: #991b1b; margin-bottom: 8px; }
+  .dont-box ul { margin-left: 1.2em; }
+  .dont-box li { font-size: 0.88rem; color: #7f1d1d; line-height: 1.7; margin-bottom: 4px; }
+
+  /* I understand checkbox */
+  .ack-row {
+    display: flex; align-items: flex-start; gap: 14px;
+    background: #f0fdf4; border: 2px solid #16a34a; padding: 16px 18px; margin-top: 20px;
+    cursor: pointer; user-select: none;
+  }
+  .ack-row:hover { background: #dcfce7; }
+  .ack-row.checked { background: #dcfce7; border-color: #15803d; }
+  .ack-checkbox {
+    width: 22px; height: 22px; border: 2px solid #16a34a; border-radius: 3px;
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; background: #fff; margin-top: 1px;
+  }
+  .ack-row.checked .ack-checkbox { background: #16a34a; color: #fff; }
+  .ack-label { font-size: 0.9rem; font-weight: 700; color: #14532d; line-height: 1.55; }
+
+  /* Need Help section */
+  .help-box {
+    margin-top: 44px; padding: 24px 28px; background: #264532;
+    color: #f0ede6; display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap;
+  }
+  .help-box h3 { font-size: 1.05rem; font-weight: 800; margin-bottom: 6px; color: #f0ede6; }
+  .help-box p  { font-size: 0.88rem; opacity: 0.85; line-height: 1.65; margin-bottom: 14px; }
+  .help-box ul { margin-left: 1.4em; margin-bottom: 14px; }
+  .help-box li { font-size: 0.85rem; opacity: 0.82; line-height: 1.65; }
+  .wa-btn {
+    display: inline-flex; align-items: center; gap: 9px;
+    background: #25d366; color: #fff; padding: 11px 20px;
+    font-family: 'Lato', sans-serif; font-size: 0.88rem; font-weight: 800;
+    text-decoration: none; letter-spacing: 0.04em;
+  }
+  .wa-btn:hover { background: #1ebe5d; }
+
+  /* Sticky submit bar */
+  #submit-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 25;
+    background: rgba(255,253,248,0.97); border-top: 1px solid var(--line);
+    backdrop-filter: blur(8px); padding: 14px 20px;
+  }
+  .submit-bar-inner {
+    max-width: 760px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  }
+  .ack-progress { font-size: 0.88rem; color: var(--muted); flex-shrink: 0; }
+  .ack-progress strong { color: var(--green); }
+  #submit-btn {
+    padding: 14px 32px; font-family: 'Lato', sans-serif; font-size: 0.96rem; font-weight: 800;
+    letter-spacing: 0.04em; border: none; cursor: pointer;
+    background: var(--green); color: #fff; flex-shrink: 0;
+  }
+  #submit-btn:disabled {
+    background: var(--line); color: var(--muted); cursor: not-allowed;
+  }
+  #submit-btn:not(:disabled):hover { background: #1f3827; }
+
+  /* Hidden language tab */
+  .lang-tab { display: none; }
+  .lang-tab.active { display: block; }
+
+  @media (max-width: 480px) {
+    .topbar { padding: 10px 14px; }
+    main { padding: 28px 14px 20px; }
+    .flowchart { gap: 0; }
+    .submit-bar-inner { flex-direction: column; align-items: stretch; }
+    #submit-btn { text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p>Verifying your session…</p>
+</div>
+
+<header>
+  <div class="topbar">
+    <a class="brand" href="index.html">
+      <img src="apnonkitalash-icon-light.png" alt="Apno Ki Talash"/>
+      <div>
+        <div class="brand-title">اپنوں کی تلاش</div>
+        <div class="brand-sub">Apno Ki Talash</div>
+      </div>
+    </a>
+  </div>
+</header>
+
+<!-- Language tab bar -->
+<div id="lang-bar">
+  <div class="lang-bar-inner">
+    <button class="lang-btn active" id="btn-en" onclick="switchLang('en')">English</button>
+    <button class="lang-btn" id="btn-hi" onclick="switchLang('hi')">हिन्दी</button>
+  </div>
+</div>
+
+<main>
+  <!-- ===== ENGLISH TAB ===== -->
+  <div class="lang-tab active" id="tab-en">
+
+    <div class="page-eyebrow">Welcome — Please read carefully</div>
+    <h1>Your Membership Guide</h1>
+    <p class="page-lead">
+      Your membership request has been approved. Before you can access the website, please
+      read through this short guide and acknowledge each section. This ensures you understand
+      the steps required to complete your membership.
+    </p>
+    <div class="divider"></div>
+
+    <!-- SECTION 1 -->
+    <div class="guide-section">
+      <h2>1. Your Journey After Approval</h2>
+      <p>Your membership approval has started the clock. Here is what happens next:</p>
+      <div class="flowchart">
+        <div class="flow-step"><span class="icon">✅</span> Membership Request Approved</div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step"><span class="icon">✅</span> 72-Hour Time Window Started</div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step"><span class="icon">✅</span> Search for Your Profile — OR — Establish Your Family Lineage and Connections</div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step"><span class="icon">✅</span> Identify Your Profile or Get a New Profile Created</div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step"><span class="icon">✅</span> Click the "Claim This Profile As Yours" Button</div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step"><span class="icon">✅</span> Admin Review and Approval</div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step"><span class="icon">✅</span> Your Account Becomes Permanently Linked to Your Profile</div>
+      </div>
+      <div class="ack-row" id="ack-en-0" onclick="toggleAck(0)">
+        <div class="ack-checkbox" id="ack-check-en-0"></div>
+        <div class="ack-label">I understand that my membership approval has started a 72-hour window, and I must locate and claim my profile before this window expires.</div>
+      </div>
+    </div>
+
+    <!-- SECTION 2 -->
+    <div class="guide-section">
+      <h2>2. Scenario 1: Your Profile Already Exists</h2>
+      <p>
+        In many cases, your profile may already have been added to the website by your relatives,
+        family members, or administrators.
+      </p>
+      <p>If you find your profile:</p>
+      <ol>
+        <li>Make sure the profile actually belongs to you.</li>
+        <li>Open the profile page.</li>
+        <li>Click the <strong>"Claim This Profile As Yours"</strong> button.</li>
+        <li>Your Claim Request will be sent to the administrators.</li>
+        <li>After review and approval, your account will be linked to that profile.</li>
+      </ol>
+      <p>This is the easiest and fastest way to get started.</p>
+
+      <h3>How do I claim my profile?</h3>
+      <div class="highlight-box">
+        <strong>Important:</strong> Simply finding or viewing your profile does <strong>not</strong> send a Claim Request.
+        You must click the <strong>"Claim This Profile As Yours"</strong> button on the profile page.
+        Until you do that, administrators will not know you wish to connect that profile to your account.
+      </div>
+      <div class="ack-row" id="ack-en-1" onclick="toggleAck(1)">
+        <div class="ack-checkbox" id="ack-check-en-1"></div>
+        <div class="ack-label">I understand that simply finding my profile is not enough — I must click the "Claim This Profile As Yours" button to send my Claim Request to the admin team.</div>
+      </div>
+    </div>
+
+    <!-- SECTION 3 -->
+    <div class="guide-section">
+      <h2>3. Scenario 2: Your Profile Does Not Yet Exist</h2>
+      <p>
+        If you cannot find your profile, there is no need to worry. In many cases, this simply
+        means that your family branch has not yet been fully connected within the website.
+        In such situations, a family identification and lineage verification process begins.
+      </p>
+
+      <h3>How does this work?</h3>
+      <p>You may be asked to provide information such as:</p>
+      <ul>
+        <li>Your father's and mother's names</li>
+        <li>Names of your grandparents</li>
+        <li>Information about uncles, aunts, and close relatives</li>
+        <li>Relatives who may already exist on the website</li>
+        <li>Your ancestral village or family branch</li>
+      </ul>
+      <p>In many cases, identifying just one known relative is enough to establish the entire family connection.</p>
+
+      <h3>Why does this take time?</h3>
+      <p>
+        Apno Ki Talash is not simply a website for collecting names. Our goal is to preserve
+        accurate family relationships and lineage records so that future generations can learn
+        about their family history. Before adding a new person, our team ensures that the correct
+        family has been identified, relationships are accurate, and generational links are correct.
+        <strong>Accuracy is more important than speed.</strong>
+      </p>
+
+      <h3>How is a new profile created?</h3>
+      <ol>
+        <li>Administrators establish the required family connections.</li>
+        <li>Your profile is created in the family tree.</li>
+        <li>You are informed about the profile claiming process.</li>
+        <li>You must submit a claim for your profile.</li>
+        <li>Once approved, your account is linked to that profile.</li>
+      </ol>
+      <div class="ack-row" id="ack-en-2" onclick="toggleAck(2)">
+        <div class="ack-checkbox" id="ack-check-en-2"></div>
+        <div class="ack-label">I understand that if my profile does not yet exist, I must share my family information with the admin team so they can verify my lineage and create my profile. Accuracy takes priority over speed.</div>
+      </div>
+    </div>
+
+    <!-- SECTION 4 -->
+    <div class="guide-section">
+      <h2>4. The 72-Hour Time Window</h2>
+      <p>Every approved member receives 72 hours to:</p>
+      <ul>
+        <li>✅ Search for their profile</li>
+        <li>✅ Identify their family connections</li>
+        <li>✅ Seek help from administrators if needed</li>
+        <li>✅ Submit a claim for their profile</li>
+      </ul>
+      <p>
+        Simply having your membership approved does not permanently activate your account.
+        Claiming your profile is a required step to become a permanent member.
+      </p>
+      <div class="highlight-box">
+        If your profile is not claimed within 72 hours, the website's automated systems may
+        <strong>temporarily restrict your membership</strong>. You may then need to go through
+        the identification and verification process again.
+      </div>
+      <p>
+        For this reason, we strongly encourage all members to locate and claim their profile
+        as soon as possible after approval.
+      </p>
+      <div class="ack-row" id="ack-en-3" onclick="toggleAck(3)">
+        <div class="ack-checkbox" id="ack-check-en-3"></div>
+        <div class="ack-label">I understand that if I do not claim my profile within 72 hours of approval, my account may be automatically restricted and I may need to go through the identification process again.</div>
+      </div>
+    </div>
+
+    <!-- SECTION 5 -->
+    <div class="guide-section">
+      <h2>5. Claim Only Your Own Profile</h2>
+      <p>
+        Some members mistakenly claim the profile of their father, grandfather, or another relative.
+        Please do not do this.
+      </p>
+      <div class="dont-box">
+        <div class="dont-title">Do not claim:</div>
+        <ul>
+          <li>Your father's profile</li>
+          <li>Your mother's profile</li>
+          <li>Your grandparents' profiles</li>
+          <li>Any ancestor's profile</li>
+          <li>Any other relative's profile</li>
+        </ul>
+      </div>
+      <p>
+        Each person should claim only their own profile. If you cannot find your profile,
+        please contact the administrators — they will help create and connect the correct
+        profile for you.
+      </p>
+      <div class="ack-row" id="ack-en-4" onclick="toggleAck(4)">
+        <div class="ack-checkbox" id="ack-check-en-4"></div>
+        <div class="ack-label">I understand that I must only claim my own personal profile — I must not claim my father's, mother's, grandparents', ancestors', or any other relative's profile.</div>
+      </div>
+    </div>
+
+    <!-- SECTION 6 -->
+    <div class="guide-section">
+      <h2>6. Profile Integrity Checks</h2>
+      <p>
+        To maintain the accuracy of the family tree, the website may periodically perform
+        automated integrity checks. These checks help identify situations where:
+      </p>
+      <ul>
+        <li>A profile has been claimed by the wrong person</li>
+        <li>Multiple accounts appear to be linked to the same profile</li>
+        <li>A member has claimed the profile of a parent, grandparent, or another relative instead of their own</li>
+      </ul>
+      <p>
+        If any inconsistency is detected, membership may be temporarily restricted until
+        the correct ownership is established. Always claim only your own profile. If you
+        cannot find your profile, please contact the administrators.
+      </p>
+      <div class="ack-row" id="ack-en-5" onclick="toggleAck(5)">
+        <div class="ack-checkbox" id="ack-check-en-5"></div>
+        <div class="ack-label">I understand that the website performs automated integrity checks and if any incorrect claim is detected, my membership may be temporarily restricted until correct ownership is established.</div>
+      </div>
+    </div>
+
+    <!-- Need Help -->
+    <div class="help-box">
+      <div style="font-size:2rem;flex-shrink:0">📱</div>
+      <div style="flex:1">
+        <h3>Need Help?</h3>
+        <p>
+          If you face any difficulty with login, profile search, family identification, or
+          profile claiming, please join our WhatsApp support group.
+        </p>
+        <p>You can ask about:</p>
+        <ul>
+          <li>Login and access issues</li>
+          <li>First-time user guidance</li>
+          <li>Profile claiming assistance</li>
+          <li>Family lineage identification</li>
+          <li>Finding relatives already present on the website</li>
+        </ul>
+        <br>
+        <a class="wa-btn" href="https://chat.whatsapp.com/DhfEZOfBiU4CB5VfF8YEWY" target="_blank" rel="noopener">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          WhatsApp Support Group
+        </a>
+      </div>
+    </div>
+
+  </div><!-- /tab-en -->
+
+  <!-- ===== HINDI TAB ===== -->
+  <div class="lang-tab" id="tab-hi" lang="hi">
+
+    <div class="page-eyebrow">स्वागत है — कृपया ध्यान से पढ़ें</div>
+    <h1>सदस्यता मार्गदर्शिका</h1>
+    <p class="page-lead">
+      आपकी सदस्यता का अनुरोध मंज़ूर कर लिया गया है। वेबसाइट का उपयोग शुरू करने से पहले
+      कृपया यह संक्षिप्त मार्गदर्शिका ध्यान से पढ़ें और प्रत्येक अनुभाग को स्वीकार करें।
+      इससे यह सुनिश्चित होगा कि आप सदस्यता पूरी करने के लिए आवश्यक चरणों को समझते हैं।
+    </p>
+    <div class="divider"></div>
+
+    <!-- SECTION 1 HI -->
+    <div class="guide-section">
+      <h2>१. मंज़ूरी के बाद आगे का सफर</h2>
+      <p>आपकी सदस्यता मंज़ूर होने के साथ ही समय-सीमा शुरू हो गई है। आगे यह होगा:</p>
+      <div class="flowchart">
+        <div class="flow-step"><span class="icon">✅</span> सदस्यता का अनुरोध मंज़ूर हुआ</div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step"><span class="icon">✅</span> 72 घंटे की समय-सीमा शुरू हुई</div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step"><span class="icon">✅</span> अपनी प्रोफ़ाइल खोजें — या — अपने परिवार और रिश्तों की पहचान स्थापित करें</div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step"><span class="icon">✅</span> प्रोफ़ाइल पहचानें या नई प्रोफ़ाइल बनवाएँ</div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step"><span class="icon">✅</span> "Claim This Profile As Yours" बटन दबाएँ</div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step"><span class="icon">✅</span> एडमिन द्वारा जाँच और मंज़ूरी</div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step"><span class="icon">✅</span> आपका खाता आपकी प्रोफ़ाइल से स्थायी रूप से जुड़ जाएगा</div>
+      </div>
+      <div class="ack-row" id="ack-hi-0" onclick="toggleAck(0)">
+        <div class="ack-checkbox" id="ack-check-hi-0"></div>
+        <div class="ack-label">मैं समझता/समझती हूँ कि मेरी सदस्यता मंज़ूर होने के साथ 72 घंटे की समय-सीमा शुरू हो गई है और मुझे इस अवधि में अपनी प्रोफ़ाइल ढूंढ़कर Claim करनी होगी।</div>
+      </div>
+    </div>
+
+    <!-- SECTION 2 HI -->
+    <div class="guide-section">
+      <h2>२. स्थिति १: आपकी प्रोफ़ाइल पहले से मौजूद है</h2>
+      <p>
+        कई बार आपकी प्रोफ़ाइल पहले ही आपके रिश्तेदारों, परिवार के लोगों या एडमिन द्वारा
+        वेबसाइट में जोड़ी जा चुकी होती है।
+      </p>
+      <p>यदि आपको अपनी प्रोफ़ाइल मिल जाती है, तो:</p>
+      <ol>
+        <li>यह यकीन कर लें कि वह प्रोफ़ाइल आपकी ही है।</li>
+        <li>प्रोफ़ाइल का पेज खोलें।</li>
+        <li><strong>"Claim This Profile As Yours"</strong> बटन दबाएँ।</li>
+        <li>आपकी Claim Request एडमिन तक पहुँच जाएगी।</li>
+        <li>एडमिन द्वारा जाँच और मंज़ूरी के बाद आपका खाता उस प्रोफ़ाइल से जोड़ दिया जाएगा।</li>
+      </ol>
+      <p>यह सबसे आसान और तेज़ तरीका है।</p>
+
+      <h3>प्रोफ़ाइल Claim कैसे करें?</h3>
+      <div class="highlight-box">
+        <strong>ज़रूरी बात:</strong> केवल प्रोफ़ाइल खोज लेने या देख लेने से Claim Request <strong>नहीं</strong> भेजी जाती।
+        आपको प्रोफ़ाइल पेज पर <strong>"Claim This Profile As Yours"</strong> बटन पर क्लिक करना होगा।
+        जब तक आप यह बटन नहीं दबाते, एडमिन को पता नहीं चलेगा कि आप यह प्रोफ़ाइल अपने खाते से जोड़ना चाहते हैं।
+      </div>
+      <div class="ack-row" id="ack-hi-1" onclick="toggleAck(1)">
+        <div class="ack-checkbox" id="ack-check-hi-1"></div>
+        <div class="ack-label">मैं समझता/समझती हूँ कि केवल प्रोफ़ाइल ढूंढ़ लेना काफ़ी नहीं है — मुझे "Claim This Profile As Yours" बटन दबाकर ही Claim Request एडमिन तक पहुँचेगी।</div>
+      </div>
+    </div>
+
+    <!-- SECTION 3 HI -->
+    <div class="guide-section">
+      <h2>३. स्थिति २: आपकी प्रोफ़ाइल अभी मौजूद नहीं है</h2>
+      <p>
+        यदि आपको अपनी प्रोफ़ाइल नहीं मिलती है, तो चिंता की बात नहीं है। अक्सर इसका मतलब यह
+        होता है कि आपके परिवार की शाखा अभी तक वेबसाइट में पूरी तरह नहीं जुड़ी है। ऐसी स्थिति में
+        परिवार और रिश्तों की पहचान करने का काम शुरू होता है।
+      </p>
+
+      <h3>यह कैसे होता है?</h3>
+      <p>आपसे कुछ जानकारी माँगी जा सकती है, जैसे:</p>
+      <ul>
+        <li>आपके पिता और माता का नाम</li>
+        <li>दादा-दादी या नाना-नानी का नाम</li>
+        <li>चाचा, ताऊ, मामा, मौसी, बुआ आदि की जानकारी</li>
+        <li>ऐसे रिश्तेदार जो पहले से वेबसाइट में मौजूद हों</li>
+        <li>आपका पैतृक गाँव या परिवार की शाखा</li>
+      </ul>
+      <p>कई बार केवल एक रिश्तेदार की पहचान से पूरा पारिवारिक संबंध स्थापित हो जाता है।</p>
+
+      <h3>इस काम में समय क्यों लगता है?</h3>
+      <p>
+        अपनों की तलाश केवल नाम जोड़ने वाली वेबसाइट नहीं है। हमारा उद्देश्य परिवारों और रिश्तों का
+        सही रिकॉर्ड तैयार करना है ताकि आने वाली पीढ़ियाँ भी अपने परिवार और इतिहास को जान सकें।
+        किसी नए व्यक्ति को जोड़ने से पहले हमारी टीम यह सुनिश्चित करती है कि परिवार, रिश्ते, और
+        पीढ़ियों का क्रम — सब कुछ सही हो। <strong>हमारे लिए सही जानकारी सबसे महत्वपूर्ण है।</strong>
+      </p>
+
+      <h3>नई प्रोफ़ाइल कैसे बनाई जाती है?</h3>
+      <ol>
+        <li>एडमिन आवश्यक पारिवारिक संबंध जोड़ते हैं।</li>
+        <li>आपकी प्रोफ़ाइल परिवार वृक्ष में बनाई जाती है।</li>
+        <li>आपको प्रोफ़ाइल Claim करने की जानकारी दी जाती है।</li>
+        <li>आपको अपनी प्रोफ़ाइल Claim करनी होती है।</li>
+        <li>मंज़ूरी मिलने के बाद आपका खाता उस प्रोफ़ाइल से जोड़ दिया जाता है।</li>
+      </ol>
+      <div class="ack-row" id="ack-hi-2" onclick="toggleAck(2)">
+        <div class="ack-checkbox" id="ack-check-hi-2"></div>
+        <div class="ack-label">मैं समझता/समझती हूँ कि यदि मेरी प्रोफ़ाइल अभी नहीं है, तो मुझे एडमिन टीम को अपने परिवार की जानकारी देनी होगी ताकि वे मेरी वंशावली पहचान कर प्रोफ़ाइल बना सकें। सटीकता गति से ज़्यादा ज़रूरी है।</div>
+      </div>
+    </div>
+
+    <!-- SECTION 4 HI -->
+    <div class="guide-section">
+      <h2>४. 72 घंटे की समय-सीमा</h2>
+      <p>हर मंज़ूर सदस्य को 72 घंटे का समय दिया जाता है ताकि वह:</p>
+      <ul>
+        <li>✅ अपनी प्रोफ़ाइल खोज सके</li>
+        <li>✅ अपने परिवार की पहचान कर सके</li>
+        <li>✅ ज़रूरत पड़ने पर एडमिन की मदद ले सके</li>
+        <li>✅ अपनी प्रोफ़ाइल Claim कर सके</li>
+      </ul>
+      <p>
+        सिर्फ सदस्यता मंज़ूर हो जाने से आपका खाता स्थायी रूप से सक्रिय नहीं होता।
+        स्थायी सदस्य बनने के लिए अपनी प्रोफ़ाइल Claim करना आवश्यक है।
+      </p>
+      <div class="highlight-box">
+        यदि 72 घंटे के भीतर प्रोफ़ाइल Claim नहीं की जाती, तो वेबसाइट की स्वचालित प्रणाली
+        आपकी सदस्यता को <strong>अस्थायी रूप से रोक</strong> सकती है। बाद में आपको दोबारा पहचान
+        और जाँच की प्रक्रिया पूरी करनी पड़ सकती है।
+      </div>
+      <p>
+        इसलिए अनुरोध है कि सदस्यता मंज़ूर होने के बाद जल्द से जल्द अपनी प्रोफ़ाइल खोजें
+        और Claim Request भेजें।
+      </p>
+      <div class="ack-row" id="ack-hi-3" onclick="toggleAck(3)">
+        <div class="ack-checkbox" id="ack-check-hi-3"></div>
+        <div class="ack-label">मैं समझता/समझती हूँ कि यदि मैंने 72 घंटे के भीतर अपनी प्रोफ़ाइल Claim नहीं की, तो मेरा खाता अस्थायी रूप से रोका जा सकता है और मुझे दोबारा पहचान की प्रक्रिया से गुज़रना पड़ सकता है।</div>
+      </div>
+    </div>
+
+    <!-- SECTION 5 HI -->
+    <div class="guide-section">
+      <h2>५. केवल अपनी ही प्रोफ़ाइल Claim करें</h2>
+      <p>
+        कुछ लोग गलती से अपने पिता, दादा या किसी अन्य रिश्तेदार की प्रोफ़ाइल Claim कर लेते हैं।
+        कृपया ऐसा न करें।
+      </p>
+      <div class="dont-box">
+        <div class="dont-title">इनकी प्रोफ़ाइल Claim न करें:</div>
+        <ul>
+          <li>अपने पिता की</li>
+          <li>अपनी माता की</li>
+          <li>अपने दादा-दादी की</li>
+          <li>अपने नाना-नानी की</li>
+          <li>किसी पूर्वज की</li>
+          <li>किसी अन्य रिश्तेदार की</li>
+        </ul>
+      </div>
+      <p>
+        हर व्यक्ति को केवल अपनी ही प्रोफ़ाइल Claim करनी चाहिए। यदि आपकी प्रोफ़ाइल नहीं
+        मिलती है, तो एडमिन से संपर्क करें — वे आपकी सही प्रोफ़ाइल बनवाने में सहायता करेंगे।
+      </p>
+      <div class="ack-row" id="ack-hi-4" onclick="toggleAck(4)">
+        <div class="ack-checkbox" id="ack-check-hi-4"></div>
+        <div class="ack-label">मैं समझता/समझती हूँ कि मुझे केवल अपनी ही प्रोफ़ाइल Claim करनी है — अपने पिता, माता, दादा-दादी, पूर्वजों या किसी भी रिश्तेदार की प्रोफ़ाइल नहीं।</div>
+      </div>
+    </div>
+
+    <!-- SECTION 6 HI -->
+    <div class="guide-section">
+      <h2>६. प्रोफ़ाइल की जाँच (Integrity Check)</h2>
+      <p>
+        परिवार वृक्ष की जानकारी सही बनाए रखने के लिए वेबसाइट समय-समय पर स्वचालित जाँच
+        कर सकती है। इन जाँचों का उद्देश्य यह देखना है कि:
+      </p>
+      <ul>
+        <li>प्रोफ़ाइल सही व्यक्ति द्वारा Claim की गई है या नहीं</li>
+        <li>एक ही प्रोफ़ाइल से कई खाते तो नहीं जुड़े हैं</li>
+        <li>किसी सदस्य ने अपनी जगह किसी रिश्तेदार की प्रोफ़ाइल तो Claim नहीं कर ली है</li>
+      </ul>
+      <p>
+        यदि जाँच के दौरान कोई गड़बड़ी पाई जाती है, तो सदस्यता अस्थायी रूप से रोकी जा सकती
+        है जब तक सही पहचान स्थापित न हो जाए। इसलिए हमेशा केवल अपनी ही प्रोफ़ाइल Claim करें।
+      </p>
+      <div class="ack-row" id="ack-hi-5" onclick="toggleAck(5)">
+        <div class="ack-checkbox" id="ack-check-hi-5"></div>
+        <div class="ack-label">मैं समझता/समझती हूँ कि वेबसाइट स्वचालित जाँच करती है और यदि कोई गलत Claim पाई गई, तो सही पहचान स्थापित होने तक मेरी सदस्यता अस्थायी रूप से रोकी जा सकती है।</div>
+      </div>
+    </div>
+
+    <!-- Need Help HI -->
+    <div class="help-box">
+      <div style="font-size:2rem;flex-shrink:0">📱</div>
+      <div style="flex:1">
+        <h3>सहायता चाहिए?</h3>
+        <p>
+          यदि आपको लॉगिन, प्रोफ़ाइल खोजने, परिवार जोड़ने या Claim करने में कोई परेशानी हो,
+          तो हमारे WhatsApp सहायता समूह से जुड़ें।
+        </p>
+        <p>यहाँ आप पूछ सकते हैं:</p>
+        <ul>
+          <li>लॉगिन संबंधी समस्याएँ</li>
+          <li>पहली बार उपयोग करने से जुड़े प्रश्न</li>
+          <li>प्रोफ़ाइल Claim करने में सहायता</li>
+          <li>परिवार और रिश्तों की पहचान</li>
+          <li>वेबसाइट में मौजूद रिश्तेदारों को खोजने में मदद</li>
+        </ul>
+        <br>
+        <a class="wa-btn" href="https://chat.whatsapp.com/DhfEZOfBiU4CB5VfF8YEWY" target="_blank" rel="noopener">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          WhatsApp सहायता समूह
+        </a>
+      </div>
+    </div>
+
+  </div><!-- /tab-hi -->
+</main>
+
+<!-- Sticky submit bar -->
+<div id="submit-bar">
+  <div class="submit-bar-inner">
+    <div class="ack-progress">
+      <strong id="ack-count">0</strong> of 6 sections acknowledged
+    </div>
+    <button id="submit-btn" disabled onclick="submitGuide()">
+      I have read and understood all 6 sections — Enter Website
+    </button>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://fusairoeiabmqvsbxhfi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1c2Fpcm9laWFibXF2c2J4aGZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MTUwNTgsImV4cCI6MjA5MzQ5MTA1OH0.uTVlBn4iDFZzAeD2i4Bzt4fXVxGequ2W9LIxugBIKsA';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentVisitorId = null;
+let currentLang = 'en';
+const acks = new Array(6).fill(false);
+
+function switchLang(lang) {
+  currentLang = lang;
+  document.getElementById('tab-en').classList.toggle('active', lang === 'en');
+  document.getElementById('tab-hi').classList.toggle('active', lang === 'hi');
+  document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+  document.getElementById('btn-hi').classList.toggle('active', lang === 'hi');
+  renderAcks();
+}
+
+function toggleAck(idx) {
+  acks[idx] = !acks[idx];
+  renderAcks();
+}
+
+function renderAcks() {
+  for (let i = 0; i < 6; i++) {
+    ['en', 'hi'].forEach(lang => {
+      const row = document.getElementById('ack-' + lang + '-' + i);
+      const check = document.getElementById('ack-check-' + lang + '-' + i);
+      if (!row || !check) return;
+      row.classList.toggle('checked', acks[i]);
+      check.textContent = acks[i] ? '✓' : '';
+    });
+  }
+  const doneCount = acks.filter(Boolean).length;
+  document.getElementById('ack-count').textContent = doneCount;
+  document.getElementById('submit-btn').disabled = doneCount < 6;
+}
+
+async function submitGuide() {
+  if (acks.some(v => !v)) return;
+  if (!currentVisitorId) return;
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  const { error } = await sb.from('visitor_onboarding_acknowledgements').insert({
+    visitor_id: currentVisitorId,
+    language_viewed: currentLang
+  });
+  if (error && !/duplicate|already exists/i.test(error.message || '')) {
+    btn.disabled = false;
+    btn.textContent = 'I have read and understood all 6 sections — Enter Website';
+    alert('Could not save your acknowledgement. Please try again or contact support.');
+    return;
+  }
+  window.location.href = 'index.html';
+}
+
+(async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = 'index.html'; return; }
+
+  // Find visitor row via RPC (mirrors auth-flow.js pattern; RPC is SECURITY
+  // DEFINER so it finds rows even when auth_user_id is null).
+  let visitor = null;
+  const { data: rpcData, error: rpcError } = await sb.rpc('get_my_visitor');
+  if (!rpcError && rpcData) {
+    visitor = rpcData;
+  } else {
+    // Fallback: direct table query
+    const uid = session.user.id;
+    const email = session.user.email || '';
+    const { data: byUid } = await sb.from('visitors')
+      .select('id,access_status,is_blocked')
+      .eq('auth_user_id', uid)
+      .order('last_seen', { ascending: false })
+      .limit(1);
+    if (byUid && byUid.length) {
+      visitor = byUid[0];
+    } else if (email) {
+      const { data: byEmail } = await sb.from('visitors')
+        .select('id,access_status,is_blocked')
+        .ilike('email', email)
+        .order('last_seen', { ascending: false })
+        .limit(1);
+      if (byEmail && byEmail.length) visitor = byEmail[0];
+    }
+  }
+
+  if (!visitor || visitor.is_blocked || visitor.access_status !== 'approved') {
+    window.location.href = 'index.html';
+    return;
+  }
+
+  // If already acknowledged — skip to main site
+  const { data: ackRow } = await sb.from('visitor_onboarding_acknowledgements')
+    .select('acknowledged_at')
+    .eq('visitor_id', visitor.id)
+    .maybeSingle();
+  if (ackRow) { window.location.href = 'index.html'; return; }
+
+  currentVisitorId = visitor.id;
+  document.getElementById('loading-overlay').style.display = 'none';
+})();
+</script>
+
+</body>
+</html>

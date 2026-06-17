@@ -1247,7 +1247,7 @@
           Manage signed-in users, visitor registration records, roles, and access status in one table.
         </div>
         <div id="visitors-table-wrap">
-          <table style="min-width:1120px">
+          <table style="min-width:1200px">
             <thead><tr>
               <th style="width:44px"></th>
               <th class="sortable" onclick="sortVisitorsBy('name_entered')">Name / Email <span class="sort-indicator" id="sort-name_entered"></span></th>
@@ -1255,6 +1255,7 @@
               <th class="sortable" onclick="sortVisitorsBy('last_seen')">Last Seen (IST) <span class="sort-indicator" id="sort-last_seen"></span></th>
               <th class="sortable" onclick="sortVisitorsBy('claim')">Profile Claim <span class="sort-indicator" id="sort-claim"></span></th>
               <th class="sortable" onclick="sortVisitorsBy('role')">Role <span class="sort-indicator" id="sort-role"></span></th>
+              <th>Guide</th>
               <th>Actions</th>
             </tr></thead>
             <tbody id="visitors-tbody"></tbody>
@@ -1779,6 +1780,7 @@ let registeredSort = { key: 'registered', dir: 'desc' };
 let visitorSort = { key: 'last_seen', dir: 'desc' };
 let allProfileClaims = [];
 let claimRevokeNotifMap = {}; // visitor.id → most-recent claim_revoked notification {shown_at, acknowledged_at, message, created_at}
+let guideAckMap = {}; // visitor.id → {acknowledged_at, language_viewed}
 let roleApplications = [];
 let blockedAttemptRows = [];           // aggregated rows for the blocked-attempts table
 let blockedAttemptSort = { key: 'attempts', dir: 'desc' };
@@ -3804,14 +3806,17 @@ async function deleteUpload(id, name) {
 async function loadVisitors() {
   const tbody = document.getElementById('visitors-tbody');
   tbody.innerHTML = '<tr><td colspan="12" class="empty"><span class="spinner"></span> Loading…</td></tr>';
-  const [visitorResult, claimResult, revokeNotifResult] = await Promise.all([
+  const [visitorResult, claimResult, revokeNotifResult, guideAckResult] = await Promise.all([
     sb.from('visitors').select('*').order('last_seen', { ascending: false }),
     sb.from('profile_claims').select('*').order('claimed_at', { ascending: false }).limit(10000),
     sb.from('user_notifications')
       .select('id,recipient_email,recipient_mobile,recipient_auth_uid,message,shown_at,acknowledged_at,created_at')
       .eq('source_type', 'claim_revoked')
       .order('created_at', { ascending: false })
-      .limit(2000)
+      .limit(2000),
+    sb.from('visitor_onboarding_acknowledgements')
+      .select('visitor_id,acknowledged_at,language_viewed')
+      .limit(10000)
   ]);
   allVisitors = visitorResult.data || [];
   allProfileClaims = claimResult.error ? [] : (claimResult.data || []);
@@ -3819,6 +3824,7 @@ async function loadVisitors() {
     console.warn('Profile claims could not be loaded:', claimResult.error.message);
   }
   buildClaimRevokeNotifMap(revokeNotifResult.error ? [] : (revokeNotifResult.data || []));
+  buildGuideAckMap(guideAckResult.error ? [] : (guideAckResult.data || []));
   setNavBadge('visitors', allVisitors.filter(v => visitorAccessStatus(v) === 'pending' || visitorClaimNeedsAttention(v)).length);
   setNavBadge('registered', allVisitors.filter(v => v.visitor_form_completed || v.consent_terms_accepted || v.auth_user_id).length);
   renderVisitors(allVisitors);
@@ -3840,6 +3846,11 @@ function buildClaimRevokeNotifMap(notifRows) {
     );
     if (match && !claimRevokeNotifMap[match.id]) claimRevokeNotifMap[match.id] = n;
   });
+}
+
+function buildGuideAckMap(rows) {
+  guideAckMap = {};
+  rows.forEach(r => { guideAckMap[r.visitor_id] = r; });
 }
 
 async function loadRegisteredUsers() {
@@ -4384,9 +4395,18 @@ async function revokeProfileClaim(claimId, btnEl) {
   }
 }
 
+function guideAckCellHtml(v) {
+  const ack = guideAckMap[v.id];
+  if (!ack) return '<span style="color:#b45309;font-size:0.78rem">⏳ Pending</span>';
+  const d = new Date(ack.acknowledged_at);
+  const label = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+  const lang = ack.language_viewed === 'hi' ? 'हिन्दी' : 'English';
+  return `<span title="Language: ${escapeHtml(lang)}" style="color:#166534;font-size:0.78rem;white-space:nowrap">✅ ${escapeHtml(label)}</span>`;
+}
+
 function renderVisitors(visitors) {
   const tbody = document.getElementById('visitors-tbody');
-  if (!visitors.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No users yet.</td></tr>'; return; }
+  if (!visitors.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No users yet.</td></tr>'; return; }
   updateVisitorSortIndicators();
   const sortedVisitors = sortVisitorRows(visitors);
   tbody.innerHTML = sortedVisitors.map((v, idx) => {
@@ -4417,6 +4437,7 @@ function renderVisitors(visitors) {
           ${visitorRoleOptions(v.access_role || 'visitor')}
         </select>
       </td>
+      <td>${guideAckCellHtml(v)}</td>
       <td style="min-width:160px">
         <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
           ${status !== 'approved' ? `<button class="btn-sm" onclick="approveVisitor('${v.id}')" style="border-color:var(--green);color:var(--green)">Approve</button>` : ''}
@@ -4430,7 +4451,7 @@ function renderVisitors(visitors) {
       </td>
     </tr>
       <tr class="registered-details-row" id="${rowId}">
-        <td colspan="7">
+        <td colspan="8">
           <div class="registered-detail-panel">
             <div class="registered-detail-grid">
               <div class="registered-detail-item"><div class="k">Mobile</div><div class="v">${escapeHtml(v.mobile || '-')}</div></div>
@@ -4450,6 +4471,7 @@ function renderVisitors(visitors) {
               </div></div>
               <div class="registered-detail-item"><div class="k">Status</div><div class="v"><span class="badge" style="${statusStyles[status] || statusStyles.pending}">${escapeHtml(status)}</span></div></div>
               <div class="registered-detail-item"><div class="k">Profile Claim</div><div class="v">${profileClaimStatusHtml(v, claim)}${claimRevokeNoticeHtml(v)}</div></div>
+              <div class="registered-detail-item"><div class="k">Guide Acknowledged</div><div class="v">${guideAckMap[v.id] ? `✅ ${escapeHtml(new Date(guideAckMap[v.id].acknowledged_at).toLocaleString('en-IN', {timeZone:'Asia/Kolkata',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true}))} (${escapeHtml(guideAckMap[v.id].language_viewed === 'hi' ? 'हिन्दी' : 'English')})` : '<span style="color:#b45309">⏳ Not yet acknowledged</span>'}</div></div>
             </div>
           </div>
         </td>

@@ -343,6 +343,20 @@
 
   let appLaunched = false; // guard against re-init on tab focus / token refresh
 
+  async function redirectForGuideIfNeeded(visitor) {
+    if (!visitor?.id || !sb) return false;
+    const { data } = await sb
+      .from('visitor_onboarding_acknowledgements')
+      .select('acknowledged_at')
+      .eq('visitor_id', visitor.id)
+      .maybeSingle();
+    if (!data) {
+      window.location.href = 'onboarding-guide.html';
+      return true;
+    }
+    return false;
+  }
+
   async function enterVisitor(visitor) {
     currentVisitor = visitor;
     const role = normalizeAccessRole(visitor?.access_role);
@@ -899,6 +913,7 @@
     }
 
     if (visitor && isOnboardingComplete(visitor)) {
+      if (await redirectForGuideIfNeeded(visitor)) return;
       await enterVisitor(visitor);
       await logSignupEvent('registered_user_entered', {
         stage: 'completed',
@@ -1221,6 +1236,7 @@
       return;
     }
 
+    if (await redirectForGuideIfNeeded(saved)) return;
     await enterVisitor(saved);
   }
 

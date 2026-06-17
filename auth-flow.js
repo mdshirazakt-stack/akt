@@ -345,16 +345,29 @@
 
   async function redirectForGuideIfNeeded(visitor) {
     if (!visitor?.id || !sb) return false;
-    const { data } = await sb
+
+    // Already acknowledged — never show again
+    const { data: ackRow } = await sb
       .from('visitor_onboarding_acknowledgements')
       .select('acknowledged_at')
       .eq('visitor_id', visitor.id)
       .maybeSingle();
-    if (!data) {
-      window.location.href = 'onboarding-guide.html';
-      return true;
-    }
-    return false;
+    if (ackRow) return false;
+
+    // Has an active profile claim — they've been through the process, skip guide.
+    // Use .limit(1) not .maybeSingle() — visitor_id is not unique on profile_claims
+    // (a user can have multiple rows), and .maybeSingle() errors on >1 row.
+    // If the RLS read fails (null auth_user_id edge case), claims is null/empty
+    // and we err on the side of showing the guide.
+    const { data: claims } = await sb
+      .from('profile_claims')
+      .select('visitor_id')
+      .eq('visitor_id', visitor.id)
+      .limit(1);
+    if (claims && claims.length > 0) return false;
+
+    window.location.href = 'onboarding-guide.html';
+    return true;
   }
 
   async function enterVisitor(visitor) {

@@ -4057,8 +4057,7 @@ function profileClaimForVisitor(visitor) {
   return (allProfileClaims || []).find(claim =>
     (visitor.auth_user_id && claim.auth_user_id === visitor.auth_user_id) ||
     (visitor.email && claim.claimant_email && String(claim.claimant_email).toLowerCase() === String(visitor.email).toLowerCase()) ||
-    (visitor.mobile && claim.claimant_mobile && String(claim.claimant_mobile).replace(/\D/g, '') === String(visitor.mobile).replace(/\D/g, '')) ||
-    (visitor.name_entered && claim.claimant_name && String(claim.claimant_name).toLowerCase() === String(visitor.name_entered).toLowerCase())
+    (visitor.mobile && claim.claimant_mobile && String(claim.claimant_mobile).replace(/\D/g, '') === String(visitor.mobile).replace(/\D/g, ''))
   ) || null;
 }
 

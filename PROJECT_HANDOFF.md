@@ -1,6 +1,6 @@
 # Apnon Ki Talash / Iraqi Biradari Project Handoff
 
-Last updated: 2026-06-16
+Last updated: 2026-06-18
 
 ## Project Overview
 
@@ -27,7 +27,7 @@ Current git state:
 ```text
 Branch: main
 Working tree: clean
-Latest commit: 3e01d47 Fix 7-day visitor count lower than yesterday — add explicit limits
+Latest commit: 38854b0 Add post-approval onboarding guide interstitial
 ```
 
 Database:
@@ -66,13 +66,14 @@ superadmin → admin + full admin panel (GEDCOM imports/exports, users, ads, pay
 ## Key Pages
 
 ```text
-index.html      — main archive (search, browse tree, index, user guide, contributions)
-person.html     — individual profile view + edit/correction tools
-edit.html       — native family tree editor (admin+)
-admin.html      — operations panel (superadmin only)
-advertise.html  — ad policy, pricing, interest form (public)
-terms.html      — terms & conditions, privacy policy (public)
-trouble.html    — login troubleshooting, WhatsApp community links (public)
+index.html           — main archive (search, browse tree, index, user guide, contributions)
+person.html          — individual profile view + edit/correction tools
+edit.html            — native family tree editor (admin+)
+admin.html           — operations panel (superadmin only)
+onboarding-guide.html — post-approval first-login guide (EN + हिन्दी, 6 acknowledgements)
+advertise.html       — ad policy, pricing, interest form (public)
+terms.html           — terms & conditions, privacy policy (public)
+trouble.html         — login troubleshooting, WhatsApp community links (public)
 ```
 
 ---
@@ -284,6 +285,56 @@ User ran it: **2 duplicate pairs found**. The Mohammad/Suraiya pair was cleaned 
 
 ---
 
+## Session Update — Onboarding Guide Interstitial & trouble.html (2026-06-18)
+
+Commits:
+
+```text
+38854b0  Add post-approval onboarding guide interstitial
+b5a69a4  trouble.html: reorder issue cards and add email mention
+7445fd1  trouble.html: add pending/blocked login status messages
+```
+
+### 1. Post-approval onboarding guide interstitial (`38854b0`)
+
+New `onboarding-guide.html` — a blocking first-login guide shown **once per approved user** before they can access the archive. The flow intercepts inside `auth-flow.js` at both `enterVisitor()` call sites (post-login and post-onboarding-form paths).
+
+**How it works:**
+- On login, if user is approved + onboarding complete, `redirectForGuideIfNeeded(visitor)` queries `visitor_onboarding_acknowledgements` for that visitor's id.
+- If no row exists → redirect to `onboarding-guide.html`.
+- `onboarding-guide.html` verifies the session, visitor approval, and existing ack row on load. Redirects to `index.html` if any check fails (wrong session, not approved, already done).
+- Page shows 6 content sections (English + हिन्दी tabs). Each section ends with an "I understand" checkbox. The shared acknowledgement state (`const acks = new Array(6).fill(false)`) is synced across both language tabs.
+- Submit button is disabled until all 6 are checked. On submit, inserts a row into `visitor_onboarding_acknowledgements` with `visitor_id` and `language_viewed` ('en' or 'hi'), then redirects to `index.html`.
+- On subsequent logins the ack row already exists → guide is skipped transparently.
+
+**One-time enforcement:** `visitor_id` is the primary key on `visitor_onboarding_acknowledgements` — a duplicate INSERT is handled gracefully (redirects to index.html anyway).
+
+**Admin Users tab:** `loadVisitors()` now fetches `visitor_onboarding_acknowledgements` as a 4th parallel query. New "Guide" column shows ✅ + date (with language tooltip) or ⏳ Pending. Expand panel shows full IST timestamp + language.
+
+**SQL applied:** `supabase_onboarding_guide.sql` — `visitor_onboarding_acknowledgements` table with:
+- Self-insert policy (email fallback, `akt_is_admin()` not needed)
+- Self-read policy (email fallback)
+- Admin-read policy (`akt_is_admin()`)
+- PK on `visitor_id`, index on same column
+
+**Retroactive users:** existing approved users who never saw the guide will be intercepted on their next login — no migration needed.
+
+**Content (6 sections, both languages):**
+1. Your Journey After Approval — 7-step flowchart from approval to permanent account link
+2. Scenario 1: Profile Already Exists — how to find and claim; emphasis that clicking the button is required
+3. Scenario 2: Profile Doesn't Exist — family lineage verification process; accuracy over speed
+4. The 72-Hour Time Window — consequences of not claiming in time
+5. Claim Only Your Own Profile — do not claim father's/mother's/grandparents' profiles
+6. Profile Integrity Checks — automated checks; wrong claims cause temporary restriction
+
+### 2. trouble.html improvements (`b5a69a4`, `7445fd1`)
+
+- Added two new issue cards for auth-flow.js-generated blocking messages: `⏳ Pending Admin Review` (green) and `⏰ Profile not claimed within 72 hours` (amber) — explains what each status means and what to expect.
+- Added "or email" to the Pending Admin Review bullet: "Contacted directly via WhatsApp or email for additional information."
+- Reordered cards to match likely frequency: ⏳ green → ⏰ amber → 🔄 blue → 🚫 red → ❌ purple.
+
+---
+
 ## SQL Files — All Run Status
 
 All SQL files are confirmed run in Supabase **except**:
@@ -325,6 +376,7 @@ All other SQL files confirmed run:
 - supabase_family_editor_updates.sql ✅
 - supabase_profile_change_log.sql ✅ (Activity History / source-of-info, see Session Update above)
 - supabase_joined_by_marriage.sql ✅ (Community Status note, see Session Update above)
+- supabase_onboarding_guide.sql ✅ (visitor_onboarding_acknowledgements table — applied 2026-06-18)
 
 ### One-time scripts (not standing migrations)
 - supabase_fix_duplicate_families.sql — diagnostic/cleanup for duplicate `families` rows. Run once 2026-06-16: found 2 duplicate husband/wife pairs, cleaned up 1 (Mohammad Mazharul Haque / Suraiya). The 2nd pair is intentionally left for a later fix — re-run Step 1 to find it again when ready.
@@ -400,6 +452,8 @@ canonical_family_groups/children — family overlay (community-added)
 relationship_overrides — approved relationship links
 correction_requests — user-submitted corrections
 profile_claims      — user profile claims
+visitor_onboarding_acknowledgements — one row per user who completed the onboarding guide
+                      (visitor_id PK, acknowledged_at, language_viewed 'en'|'hi')
 ```
 
 ### RLS helper functions (created by supabase_rls_fix.sql)

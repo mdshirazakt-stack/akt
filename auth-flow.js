@@ -346,6 +346,9 @@
   async function redirectForGuideIfNeeded(visitor) {
     if (!visitor?.id || !sb) return false;
 
+    // Staff and above manage the site — guide is for regular members only
+    if (ROLE_LEVELS[visitor.access_role] >= ROLE_LEVELS['moderator']) return false;
+
     // Already acknowledged — never show again
     const { data: ackRow } = await sb
       .from('visitor_onboarding_acknowledgements')

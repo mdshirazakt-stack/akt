@@ -1146,7 +1146,8 @@
           </div>
           <div class="export-actions">
             <button class="btn-sm export-action" onclick="exportSelectedGedcoms()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>Export selected</button>
-            <button class="btn-sm export-action" onclick="exportAllGedcoms()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h9a2 2 0 0 1 2 2v12"/><path d="M5 3h9a2 2 0 0 1 2 2v12H5z"/></svg>Export all</button>
+            <button class="btn-sm export-action" onclick="exportAllGedcoms()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h9a2 2 0 0 1 2 2v12"/><path d="M5 3h9a2 2 0 0 1 2 2v12H5z"/></svg>Export all (zip)</button>
+            <button class="btn-sm export-action" id="export-combined-btn" onclick="exportCombinedGedcom()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>Combined GEDCOM</button>
             <button class="btn-sm export-action primary" onclick="exportAllNamesJson()" id="export-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg>Export allnames.json</button>
           </div>
         </section>
@@ -3487,6 +3488,72 @@ async function buildGedcomSourceText(gedcomId, filename) {
     members = data || [];
   }
   return buildGedcomExport({ people: people || [], families: families || [], members, filename });
+}
+
+async function exportCombinedGedcom() {
+  const btn = document.getElementById('export-combined-btn');
+  if (btn) btn.disabled = true;
+  const PAGE = 1000;
+  try {
+    toast('Fetching all people…');
+    const people = [];
+    let offset = 0;
+    while (true) {
+      const { data, error } = await sb.from('people').select('*').order('uid').range(offset, offset + PAGE - 1);
+      if (error) throw error;
+      if (!data || !data.length) break;
+      people.push(...data);
+      if (data.length < PAGE) break;
+      offset += PAGE;
+      toast(`Fetching people… ${people.length.toLocaleString()} so far`);
+    }
+
+    toast(`Fetching all families (${people.length.toLocaleString()} people)…`);
+    const families = [];
+    offset = 0;
+    while (true) {
+      const { data, error } = await sb.from('families').select('*').order('uid').range(offset, offset + PAGE - 1);
+      if (error) throw error;
+      if (!data || !data.length) break;
+      families.push(...data);
+      if (data.length < PAGE) break;
+      offset += PAGE;
+    }
+
+    toast(`Fetching family members (${families.length.toLocaleString()} families)…`);
+    const members = [];
+    offset = 0;
+    while (true) {
+      const { data, error } = await sb.from('family_members')
+        .select('family_uid,person_uid,role,birth_order')
+        .eq('role', 'child')
+        .order('birth_order')
+        .range(offset, offset + PAGE - 1);
+      if (error) throw error;
+      if (!data || !data.length) break;
+      members.push(...data);
+      if (data.length < PAGE) break;
+      offset += PAGE;
+    }
+
+    toast('Building combined GEDCOM…');
+    // Null out raw_gedcom_id so all xrefs are index-based (@I1@, @I2@…)
+    // — prevents collisions when the same raw id appears in multiple source files.
+    const cleanPeople   = people.map(p => ({ ...p, raw_gedcom_id: null }));
+    const cleanFamilies = families.map(f => ({ ...f, raw_gedcom_id: null }));
+
+    const today    = new Date().toISOString().slice(0, 10);
+    const filename = `apnonkitalash-combined-${today}.ged`;
+    const text     = buildGedcomExport({ people: cleanPeople, families: cleanFamilies, members, filename });
+
+    downloadBlob(new Blob([text], { type: 'text/plain; charset=utf-8' }), filename);
+    logStaffActivity('gedcom_combined_export_downloaded', filename, { people: people.length, families: families.length, members: members.length });
+    toast(`Downloaded ${filename} — ${people.length.toLocaleString()} people, ${families.length.toLocaleString()} families.`);
+  } catch (err) {
+    toast('Combined GEDCOM export failed: ' + (err.message || err), true);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function exportSelectedGedcoms() {

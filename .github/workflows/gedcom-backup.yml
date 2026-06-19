@@ -1,0 +1,72 @@
+name: Daily GEDCOM Backup
+
+on:
+  schedule:
+    # 01:00 UTC daily = 06:30 IST
+    - cron: '0 1 * * *'
+  workflow_dispatch:  # allow manual trigger from GitHub Actions UI
+
+permissions:
+  contents: write  # needed to push to gedcom-backups branch
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main (for scripts)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history needed for worktree
+
+      - name: Generate combined GEDCOM
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          mkdir -p backup-out
+          node .github/scripts/generate-gedcom-backup.js backup-out/
+
+      - name: Push backup to gedcom-backups branch
+        run: |
+          TODAY=$(date -u +%Y-%m-%d)
+
+          git config user.name  "akt-backup-bot"
+          git config user.email "actions@github.com"
+
+          # Set up gedcom-backups branch in a separate worktree
+          if git ls-remote --exit-code origin gedcom-backups &>/dev/null; then
+            git fetch origin gedcom-backups:gedcom-backups
+            git worktree add /tmp/gedcom-backups gedcom-backups
+          else
+            # First run: create an empty orphan branch without --orphan flag
+            # (git worktree add --orphan requires Git 2.36+, not always available)
+            EMPTY_TREE=$(git hash-object -t tree /dev/null)
+            INIT_SHA=$(git commit-tree "$EMPTY_TREE" -m "Initialize gedcom-backups branch")
+            git branch gedcom-backups "$INIT_SHA"
+            git push origin gedcom-backups
+            git worktree add /tmp/gedcom-backups gedcom-backups
+          fi
+
+          # Copy newly generated file
+          cp backup-out/*.ged /tmp/gedcom-backups/
+
+          # Remove backups older than 3 days using filename date (not mtime —
+          # git checkout always sets mtime to now, so -mtime would never match)
+          CUTOFF=$(date -u -d "2 days ago" +%Y-%m-%d)
+          for f in /tmp/gedcom-backups/akt_combined_*.ged; do
+            [ -f "$f" ] || continue
+            fname=$(basename "$f")
+            fdate="${fname#akt_combined_}"; fdate="${fdate%.ged}"
+            [[ "$fdate" < "$CUTOFF" ]] && rm "$f" && echo "Removed old backup: $fname"
+          done
+
+          cd /tmp/gedcom-backups
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes — backup already up to date."
+          else
+            git commit -m "backup: ${TODAY}"
+            git push origin gedcom-backups
+            echo "Backup pushed: akt_combined_${TODAY}.ged"
+          fi

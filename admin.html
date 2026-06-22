@@ -1471,6 +1471,13 @@
           <label>Supabase URL</label>
           <span style="font-size:0.8rem;color:var(--muted)">https://fusairoeiabmqvsbxhfi.supabase.co</span>
         </div>
+        <div class="setting-row">
+          <div>
+            <label>Export Genealogy Data</label>
+            <div style="font-size:0.78rem;color:var(--muted);margin-top:3px">Downloads all people, families and family links as a single JSON file for book generation or offline analysis.</div>
+          </div>
+          <button class="btn-sm" id="export-json-btn" onclick="exportGenealogyJson()">⬇ Download JSON</button>
+        </div>
         <div class="setting-row" style="border:none">
           <label style="color:var(--red)">Danger Zone</label>
           <button class="btn-red" onclick="confirmNuke()">🗑 Delete ALL Data</button>
@@ -3488,6 +3495,71 @@ async function buildGedcomSourceText(gedcomId, filename) {
     members = data || [];
   }
   return buildGedcomExport({ people: people || [], families: families || [], members, filename });
+}
+
+async function exportGenealogyJson() {
+  const btn = document.getElementById('export-json-btn');
+  if (btn) btn.disabled = true;
+  const PAGE = 1000;
+  try {
+    toast('Fetching people…');
+    const people = [];
+    let offset = 0;
+    while (true) {
+      const { data, error } = await sb.from('people').select('*').order('uid').range(offset, offset + PAGE - 1);
+      if (error) throw error;
+      if (!data || !data.length) break;
+      people.push(...data);
+      if (data.length < PAGE) break;
+      offset += PAGE;
+      toast(`Fetching people… ${people.length.toLocaleString()}`);
+    }
+
+    toast(`Fetching families (${people.length.toLocaleString()} people)…`);
+    const families = [];
+    offset = 0;
+    while (true) {
+      const { data, error } = await sb.from('families').select('*').order('uid').range(offset, offset + PAGE - 1);
+      if (error) throw error;
+      if (!data || !data.length) break;
+      families.push(...data);
+      if (data.length < PAGE) break;
+      offset += PAGE;
+    }
+
+    toast(`Fetching family members (${families.length.toLocaleString()} families)…`);
+    const family_members = [];
+    offset = 0;
+    while (true) {
+      const { data, error } = await sb.from('family_members')
+        .select('family_uid,person_uid,role,birth_order')
+        .order('family_uid')
+        .range(offset, offset + PAGE - 1);
+      if (error) throw error;
+      if (!data || !data.length) break;
+      family_members.push(...data);
+      if (data.length < PAGE) break;
+      offset += PAGE;
+    }
+
+    const payload = {
+      exported_at: new Date().toISOString(),
+      counts: { people: people.length, families: families.length, family_members: family_members.length },
+      people,
+      families,
+      family_members
+    };
+
+    const today = new Date().toISOString().slice(0, 10);
+    const filename = `akt_genealogy_${today}.json`;
+    downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), filename);
+    logStaffActivity('genealogy_json_exported', filename, payload.counts);
+    toast(`Downloaded ${filename} — ${people.length.toLocaleString()} people, ${families.length.toLocaleString()} families.`);
+  } catch (err) {
+    toast('JSON export failed: ' + (err.message || err), true);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function exportCombinedGedcom() {

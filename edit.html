@@ -2170,6 +2170,9 @@ async function createAndAttachPerson(addAnother = false) {
   if (!requireRelationshipEdit('create people through family relationships')) return;
   const name = value('new-person-name');
   if (!name) return setStatus('Please enter a name before creating the profile.', true);
+  const sexVal = value('new-person-sex');
+  if (!sexVal && relationshipContext?.kind === 'child')
+    return setStatus('Please select a gender (Male or Female) before saving.', true);
   const sourceOfInfo = value('relationship-source-of-info');
   if (relationshipContext) relationshipContext.sourceOfInfo = sourceOfInfo;
   const submitBtn = document.getElementById('create-person-submit');
@@ -2216,7 +2219,9 @@ async function createAndAttachPerson(addAnother = false) {
 
 function resetCreatePersonFormForNext() {
   document.getElementById('new-person-name').value = '';
-  document.getElementById('new-person-sex').value = defaultSexFor(relationshipContext?.kind);
+  // Reset to blank — user must explicitly choose gender each time to avoid
+  // accidentally saving a female sibling as male (the previous default).
+  document.getElementById('new-person-sex').value = '';
   document.getElementById('new-person-living').value = 'alive';
   document.getElementById('new-person-birth').value = '';
   const submitBtn = document.getElementById('create-person-submit');

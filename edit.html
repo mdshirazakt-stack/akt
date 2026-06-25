@@ -1531,9 +1531,9 @@ function openCreatePersonModal(kind = relationshipContext?.kind || 'child', fami
     <input id="new-person-name" placeholder="e.g. Razia Begum"/>
     <div class="field-row">
       <div>
-        <label>Gender</label>
-        <select id="new-person-sex">
-          <option value="">Unknown</option>
+        <label>Gender <span id="new-person-sex-required" style="color:var(--red);font-size:0.8rem;display:none"> — required</span></label>
+        <select id="new-person-sex" style="transition:border-color 0.15s">
+          <option value="">— please select —</option>
           <option value="M" ${sexDefault === 'M' ? 'selected' : ''}>Male</option>
           <option value="F" ${sexDefault === 'F' ? 'selected' : ''}>Female</option>
         </select>
@@ -2171,8 +2171,19 @@ async function createAndAttachPerson(addAnother = false) {
   const name = value('new-person-name');
   if (!name) return setStatus('Please enter a name before creating the profile.', true);
   const sexVal = value('new-person-sex');
-  if (!sexVal && relationshipContext?.kind === 'child')
-    return setStatus('Please select a gender (Male or Female) before saving.', true);
+  if (!sexVal && relationshipContext?.kind === 'child') {
+    const sel = document.getElementById('new-person-sex');
+    const lbl = document.getElementById('new-person-sex-required');
+    if (sel) sel.style.borderColor = 'var(--red)';
+    if (lbl) lbl.style.display = 'inline';
+    sel?.focus();
+    return;
+  }
+  // Clear any previous gender error when proceeding
+  const _sel = document.getElementById('new-person-sex');
+  const _lbl = document.getElementById('new-person-sex-required');
+  if (_sel) _sel.style.borderColor = '';
+  if (_lbl) _lbl.style.display = 'none';
   const sourceOfInfo = value('relationship-source-of-info');
   if (relationshipContext) relationshipContext.sourceOfInfo = sourceOfInfo;
   const submitBtn = document.getElementById('create-person-submit');
@@ -2221,7 +2232,10 @@ function resetCreatePersonFormForNext() {
   document.getElementById('new-person-name').value = '';
   // Reset to blank — user must explicitly choose gender each time to avoid
   // accidentally saving a female sibling as male (the previous default).
-  document.getElementById('new-person-sex').value = '';
+  const sexSel = document.getElementById('new-person-sex');
+  if (sexSel) { sexSel.value = ''; sexSel.style.borderColor = ''; }
+  const sexLbl = document.getElementById('new-person-sex-required');
+  if (sexLbl) sexLbl.style.display = 'none';
   document.getElementById('new-person-living').value = 'alive';
   document.getElementById('new-person-birth').value = '';
   const submitBtn = document.getElementById('create-person-submit');

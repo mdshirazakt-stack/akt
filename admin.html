@@ -1029,6 +1029,7 @@
         <button class="nav-tab active" data-min-role="admin" onclick="switchTab('upload', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="M7 8l5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg></span><span class="nav-label">Import GEDCOM</span></button>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('uploads', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/><path d="M12 7v5l3 2"/></svg></span><span class="nav-label">Export GEDCOM</span></button>
         <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('printpayments', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></span><span class="nav-label">Print Payments</span></button>
+        <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('donations', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></span><span class="nav-label">Donations</span><span class="nav-badge" id="badge-donations"></span></button>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('settings', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/></svg></span><span class="nav-label">Site stats</span></button>
         <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('sitesettings', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="nav-label">Settings</span></button>
       </div>
@@ -1436,6 +1437,25 @@
       <div class="card">
         <h2 style="margin-bottom:16px">Payment Records <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">₹49 · UPI 9818555830@ptsbi</span></h2>
         <div id="print-payments-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+      </div>
+
+    </div>
+
+    <div id="panel-donations" class="panel">
+
+      <!-- Donations summary -->
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <h2 style="margin:0">Support Donations <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">UPI · mdshiraz@oksbi</span></h2>
+          <button class="btn-sm" onclick="loadDonations()">↻ Refresh</button>
+        </div>
+        <div id="donations-funnel" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:4px"></div>
+      </div>
+
+      <!-- Donation records -->
+      <div class="card">
+        <h2 style="margin-bottom:16px">Donation Records</h2>
+        <div id="donations-list"><div class="empty"><span class="spinner"></span> Loading…</div></div>
       </div>
 
     </div>
@@ -1991,6 +2011,7 @@ function switchTab(name, btn) {
   if (name === 'contributors') { document.getElementById('contributor-search')?.focus(); }
   if (name === 'ads') { loadAds(); loadAdvertiseClicks(); loadAdInquiries(); }
   if (name === 'printpayments') { loadPrintPayments(); loadPrintWhitelist(); }
+  if (name === 'donations') loadDonations();
   if (name === 'visitors') loadVisitors();
   if (name === 'roleapps') loadRoleApplications();
   if (name === 'dropoffs') loadSignupDropoffs();
@@ -2999,6 +3020,77 @@ async function setPrintPayStatus(id, status) {
   await sb.from('print_payments').update({ status }).eq('id', id);
   toast(status === 'verified' ? '✔ Payment verified' : '✖ Payment rejected');
   loadPrintPayments();
+}
+
+async function loadDonations() {
+  const funnel = document.getElementById('donations-funnel');
+  const list   = document.getElementById('donations-list');
+  if (list) list.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+
+  const { data: donations, error } = await sb.from('donations')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(2000);
+
+  const statusColor = { pending:'#92400e', verified:'#166534', rejected:'#991b1b' };
+  const statusBg    = { pending:'#fef3c7', verified:'#dcfce7', rejected:'#fee2e2' };
+
+  if (funnel) {
+    const total    = (donations||[]).length;
+    const verified = (donations||[]).filter(r => r.status === 'verified').length;
+    const pending  = (donations||[]).filter(r => r.status === 'pending').length;
+    const revenue  = (donations||[]).filter(r => r.status === 'verified').reduce((s,r)=>s+(r.amount||0),0);
+
+    const statBox = (label, val, sub, color='var(--ink)') =>
+      `<div style="padding:12px 16px;background:var(--bg);border:1px solid var(--border);text-align:center;min-width:110px">
+        <div style="font-size:1.5rem;font-weight:700;color:${color}">${val}</div>
+        <div style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;margin-top:2px">${label}</div>
+        ${sub ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:2px">${sub}</div>` : ''}
+      </div>`;
+
+    funnel.innerHTML =
+      statBox('Total Donations', total, '') +
+      statBox('Pending',  pending,  'awaiting verification', '#92400e') +
+      statBox('Verified', verified, 'confirmed paid', '#166534') +
+      statBox('Total Received', '₹'+revenue.toLocaleString('en-IN'), 'verified only', 'var(--green)');
+
+    const badge = document.getElementById('badge-donations');
+    if (badge) { badge.textContent = pending || ''; badge.style.display = pending ? '' : 'none'; }
+  }
+
+  if (!list) return;
+  if (error) { list.innerHTML = `<div class="empty" style="color:var(--red2)">${escapeHtml(error.message)}</div>`; return; }
+  if (!donations?.length) { list.innerHTML = '<div class="empty">No donations recorded yet.</div>'; return; }
+
+  list.innerHTML = donations.map(r => `
+    <div style="border:1px solid var(--border);padding:12px 16px;margin-bottom:8px;background:#fff">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+        <div>
+          <strong style="font-size:0.92rem">${escapeHtml(r.donor_name || '—')}</strong>
+          ${r.donor_mobile ? `<a href="tel:${escapeHtml(r.donor_mobile)}" style="margin-left:10px;font-size:0.82rem;color:var(--green);font-weight:700">${escapeHtml(r.donor_mobile)}</a>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:0.78rem;color:var(--muted)">${formatIST(r.created_at, false)}</span>
+          <span style="font-weight:700;color:var(--green)">₹${r.amount.toLocaleString('en-IN')}</span>
+          <span style="padding:2px 9px;background:${statusBg[r.status]||'#f3f4f6'};color:${statusColor[r.status]||'#374151'};font-size:0.68rem;font-weight:700;text-transform:uppercase">${r.status}</span>
+        </div>
+      </div>
+      ${r.message ? `<div style="font-size:0.8rem;color:var(--muted);margin-bottom:6px;font-style:italic">"${escapeHtml(r.message)}"</div>` : ''}
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:0.78rem;color:var(--muted)">UTR:</span>
+        <span style="font-family:monospace;font-size:0.85rem;background:var(--bg);padding:2px 8px;border:1px solid var(--border)">${escapeHtml(r.utr)}</span>
+        ${r.status === 'pending' ? `
+          <button class="btn-sm" style="background:var(--green);color:#fff;border-color:var(--green)" onclick="setDonationStatus('${r.id}','verified')">✔ Verify</button>
+          <button class="btn-sm" style="color:var(--red2);border-color:var(--red2)" onclick="setDonationStatus('${r.id}','rejected')">✖ Reject</button>
+        ` : ''}
+      </div>
+    </div>`).join('');
+}
+
+async function setDonationStatus(id, status) {
+  await sb.from('donations').update({ status }).eq('id', id);
+  toast(status === 'verified' ? '✔ Donation verified' : '✖ Donation rejected');
+  loadDonations();
 }
 
 async function setPrintMonetization(value) {

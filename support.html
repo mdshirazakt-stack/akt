@@ -113,6 +113,22 @@
   .amount-row input { border: none; background: transparent; padding: 11px 14px; font-family: 'Lato', sans-serif; font-size: 1.05rem; font-weight: 700; color: var(--ink); outline: none; width: 100%; }
   .amount-row input::placeholder { color: var(--muted); font-weight: 400; font-size: 0.9rem; }
 
+  /* UPI app buttons */
+  .app-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0 4px; }
+  .app-btn {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 11px 10px; border: none; cursor: pointer; border-radius: 3px;
+    font-family: 'Lato', sans-serif; font-size: 0.82rem; font-weight: 800;
+    letter-spacing: 0.04em; color: #fff; transition: opacity 0.15s, transform 0.1s;
+  }
+  .app-btn:hover { opacity: 0.88; }
+  .app-btn:active { transform: scale(0.97); }
+  .app-btn.phonepe  { background: #5f259f; }
+  .app-btn.gpay     { background: #1a73e8; }
+  .app-btn.paytm    { background: #00baf2; }
+  .app-btn.bhim     { background: #00529c; }
+  .app-btns-label { font-size: 0.7rem; color: var(--muted); text-align: center; margin-bottom: 8px; letter-spacing: 0.08em; text-transform: uppercase; }
+
   /* UTR section — hidden until user clicks "I've Paid" */
   #utr-section { display: none; border-top: 1px solid var(--line); padding-top: 18px; margin-top: 18px; }
 
@@ -213,10 +229,29 @@
     <div class="qr-block">
       <img id="qr-img" src="upi-qr.png" alt="UPI QR Code — scan to pay"/>
       <div class="upi-id-row">
-        <div class="upi-id-value">9818555830@ptsbi</div>
+        <div class="upi-id-value" id="upi-id-display">9818555830@ptsbi</div>
         <button class="copy-btn" onclick="copyUpiId()">Copy UPI ID</button>
       </div>
-      <div class="qr-note">Scan with any UPI app · PhonePe · Google Pay · Paytm · BHIM</div>
+      <div class="qr-note">Scan the QR code above, or tap an app below to pay directly</div>
+      <div class="app-btns-label">Open in your UPI app</div>
+      <div class="app-btns">
+        <button class="app-btn phonepe" onclick="openUpiApp('phonepe')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M13.83 2.34L7.1 9.07H4.5a2.5 2.5 0 0 0-2.5 2.5v1a2.5 2.5 0 0 0 2.5 2.5h2.6l6.73 6.73a1 1 0 0 0 1.67-.75V3.09a1 1 0 0 0-1.67-.75z"/></svg>
+          PhonePe
+        </button>
+        <button class="app-btn gpay" onclick="openUpiApp('gpay')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+          Google Pay
+        </button>
+        <button class="app-btn paytm" onclick="openUpiApp('paytm')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20" stroke="#00baf2" stroke-width="2"/></svg>
+          Paytm
+        </button>
+        <button class="app-btn bhim" onclick="openUpiApp('bhim')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-5h2v5zm0-7h-2V7h2v2.5z"/></svg>
+          BHIM
+        </button>
+      </div>
     </div>
 
     <!-- Amount -->
@@ -282,8 +317,6 @@ const SUPABASE_URL = 'https://fusairoeiabmqvsbxhfi.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1c2Fpcm9laWFibXF2c2J4aGZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MTUwNTgsImV4cCI6MjA5MzQ5MTA1OH0.uTVlBn4iDFZzAeD2i4Bzt4fXVxGequ2W9LIxugBIKsA';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const UPI_ID = '9818555830@ptsbi';
-
 let visitorName   = '';
 let visitorMobile = '';
 
@@ -306,14 +339,38 @@ let visitorMobile = '';
   document.getElementById('visitor-info').style.display = 'block';
 })();
 
+const UPI_IDS = {
+  paytm: '9818555830@ptsbi',
+  gpay:  'mdshiraz@okhdfcbank'
+};
+let activeQr = 'paytm';
+
 function switchQr(which, btn) {
+  activeQr = which;
   document.querySelectorAll('.qr-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('qr-img').src = which === 'gpay' ? 'upi-qr-gpay.png' : 'upi-qr.png';
+  document.getElementById('upi-id-display').textContent = UPI_IDS[which];
+}
+
+function openUpiApp(app) {
+  const pa     = encodeURIComponent(UPI_IDS[activeQr]);
+  const pn     = encodeURIComponent('Apno Ki Talash');
+  const amount = parseInt(document.getElementById('donor-amount').value, 10);
+  const am     = (amount >= 1) ? `&am=${amount}` : '';
+  const base   = `pa=${pa}&pn=${pn}${am}&cu=INR&tn=Support%20Apno%20Ki%20Talash`;
+
+  const schemes = {
+    phonepe: `phonepe://pay?${base}`,
+    gpay:    `tez://upi/pay?${base}`,
+    paytm:   `paytmmp://pay?${base}`,
+    bhim:    `bhim://pay?${base}`
+  };
+  window.location.href = schemes[app];
 }
 
 function copyUpiId() {
-  navigator.clipboard.writeText(UPI_ID).then(() => {
+  navigator.clipboard.writeText(UPI_IDS[activeQr]).then(() => {
     const btn = document.querySelector('.copy-btn');
     btn.textContent = 'Copied!';
     btn.style.background = '#166534';

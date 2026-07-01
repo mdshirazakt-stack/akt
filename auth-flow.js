@@ -373,6 +373,20 @@
   }
 
   async function enterVisitor(visitor) {
+    // Enforce 24-hour session limit — sign out and force a fresh login
+    const _uid = currentSession?.user?.id || '';
+    if (_uid) {
+      const _sk = 'akt_session_start_' + _uid;
+      const _t  = parseInt(localStorage.getItem(_sk) || '0', 10);
+      if (!_t) {
+        localStorage.setItem(_sk, Date.now().toString());
+      } else if (Date.now() - _t > 24 * 60 * 60 * 1000) {
+        localStorage.removeItem(_sk);
+        await signOut();
+        return;
+      }
+    }
+
     currentVisitor = visitor;
     const role = normalizeAccessRole(visitor?.access_role);
     const name = visitor?.name_entered || userName(currentSession?.user) || 'Visitor';
@@ -1281,6 +1295,11 @@
   }
 
   async function signOut() {
+    const _authId = currentSession?.user?.id || sessionStorage.getItem('akt_auth_user_id') || '';
+    if (_authId) {
+      localStorage.removeItem('akt_profile_shown_' + _authId);
+      localStorage.removeItem('akt_session_start_' + _authId);
+    }
     removeProfileClaimBanner();
     removeRoleApplicationCallout();
     closeRoleApplicationModal();

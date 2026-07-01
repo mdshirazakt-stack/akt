@@ -2373,26 +2373,19 @@ async function startApp(name, role = 'visitor', visitorRecord = null) {
   await loadGedcomSources();
   logActivity('login', `Logged in: ${name}`, { visit_count: currentVisitCount });
 
-  // Redirect to claimed profile on first login this session.
-  // IMPORTANT: only stamp the flag when we actually redirect.
-  // If we stamp it preemptively (before knowing whether a claim is applied yet),
-  // a user who logs in BEFORE their claim is approved gets permanently skipped
-  // for the rest of that browser session — even after the admin applies the claim
-  // and they log in again later (sessionStorage persists across reloads/relogins
-  // in the same tab). Stamping only on actual redirect still prevents loops
-  // (search -> profile -> back to search -> profile...) while letting the check
-  // re-run on a later login once the claim becomes applied.
-  //
-  // NOTE: key renamed v1 -> v2 deliberately. Sessions affected by the old bug
-  // already have 'akt_profile_redirect_done' stamped to '1' (poisoned — set
-  // before their claim was approved), and we have no way to clear that from
-  // here. Using a fresh key name makes every existing session re-run this
-  // check from a clean slate exactly once, self-healing everyone without
-  // requiring them to close their tab or clear storage.
-  if (!sessionStorage.getItem('akt_profile_redirect_done_v2')) {
+  // Redirect to claimed profile once per login — stored in localStorage keyed
+  // by auth UID so it survives browser restarts (sessionStorage was erased on
+  // browser close, making the redirect fire again every new browser session even
+  // though the Supabase JWT was still valid). Cleared by signOut() so a fresh
+  // login always triggers the redirect again.
+  // Only stamp after we confirm a claim exists — same reason as before: a user
+  // approved after their first login should still get redirected.
+  const _authUid = sessionStorage.getItem('akt_auth_user_id') || '';
+  const _profileShownKey = _authUid ? ('akt_profile_shown_' + _authUid) : null;
+  if (!_profileShownKey || !localStorage.getItem(_profileShownKey)) {
     const claimedUid = await getClaimedProfileUid(visitorRecord);
     if (claimedUid) {
-      sessionStorage.setItem('akt_profile_redirect_done_v2', '1');
+      if (_profileShownKey) localStorage.setItem(_profileShownKey, '1');
       window.location.href = 'person.html?uid=' + encodeURIComponent(claimedUid);
       return; // Ad will show when user returns to index.html — no impression counted here
     }

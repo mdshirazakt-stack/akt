@@ -188,11 +188,10 @@
 
   function setView(view) {
     const gate = byId('auth-gate');
-    const hasWarmSession = sessionStorage.getItem('akt_access_granted') === '1';
     const signIn = byId('auth-signin-panel');
     const form = byId('visitor-onboarding-form');
     const loading = byId('auth-loading');
-    if (gate) gate.style.display = view === 'loading' && hasWarmSession ? 'none' : 'flex';
+    if (gate) gate.style.display = view === 'loading' ? 'none' : 'flex';
     if (gate) gate.dataset.authView = view;
     document.querySelector('.auth-shell')?.classList.toggle('onboarding-mode', view === 'onboarding');
     if (signIn) signIn.style.display = view === 'signin' ? 'block' : 'none';

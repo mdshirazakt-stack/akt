@@ -39,28 +39,51 @@
   }
   .nav-links a:hover { background: var(--soft); }
 
-  main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+  main { max-width: 640px; margin: 0 auto; padding: 48px 20px 80px; }
 
   .page-eyebrow { color: var(--red2); font-size: 0.72rem; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 10px; }
   h1 { font-family: 'Amiri', serif; font-size: clamp(1.9rem, 5vw, 2.8rem); color: var(--green); font-weight: 700; line-height: 1.15; margin-bottom: 10px; }
-  .page-lead { color: var(--muted); font-size: 0.95rem; margin-bottom: 32px; line-height: 1.75; max-width: 680px; }
-  .divider { height: 1px; background: linear-gradient(90deg, var(--gold2), transparent); margin-bottom: 32px; }
+  .page-lead { color: var(--muted); font-size: 0.95rem; margin-bottom: 28px; line-height: 1.75; }
+  .divider { height: 1px; background: linear-gradient(90deg, var(--gold2), transparent); margin-bottom: 28px; }
 
-  .why-section { margin-bottom: 36px; }
-  .why-section h2 { font-family: 'Amiri', serif; font-size: 1.25rem; color: var(--green); margin-bottom: 12px; }
-  .why-section ul { padding-left: 18px; }
-  .why-section li { font-size: 0.9rem; color: #4a3f32; line-height: 1.8; margin-bottom: 6px; }
-  .why-section p { font-size: 0.9rem; color: #4a3f32; line-height: 1.8; margin-bottom: 10px; }
+  .why-list { padding-left: 18px; margin-bottom: 28px; }
+  .why-list li { font-size: 0.88rem; color: #4a3f32; line-height: 1.8; margin-bottom: 4px; }
 
-  /* PAYMENT FORM CARD */
+  /* PAYMENT CARD */
   .pay-card {
     background: var(--surface); border: 1px solid var(--line);
-    border-top: 4px solid var(--red2); padding: 32px 36px; margin-bottom: 36px;
+    border-top: 4px solid var(--red2); padding: 32px 36px; margin-bottom: 32px;
     box-shadow: 0 8px 32px rgba(42,35,24,0.08);
   }
-  .pay-card h2 { font-family: 'Amiri', serif; font-size: 1.5rem; color: var(--green); margin-bottom: 6px; }
-  .pay-card .lead { color: var(--muted); font-size: 0.85rem; margin-bottom: 22px; }
 
+  /* Visitor identity chip */
+  #visitor-chip {
+    display: none; align-items: center; gap: 8px; margin-bottom: 20px;
+    padding: 8px 12px; background: var(--soft); border: 1px solid var(--gold2);
+    font-size: 0.8rem; color: var(--ink);
+  }
+  #visitor-chip .chip-label { color: var(--muted); font-size: 0.72rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
+
+  /* QR block */
+  .qr-block { text-align: center; margin-bottom: 24px; }
+  .qr-block img {
+    width: 200px; height: 200px; object-fit: contain;
+    border: 1px solid var(--line); display: block; margin: 0 auto 12px;
+  }
+  .upi-id-row { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .upi-id-value {
+    font-family: monospace; font-size: 1rem; font-weight: 700; color: var(--green);
+    background: var(--soft); border: 1px solid var(--gold2); padding: 6px 12px;
+  }
+  .copy-btn {
+    padding: 6px 12px; background: var(--green); color: #fff; border: none;
+    font-family: 'Lato', sans-serif; font-size: 0.72rem; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: background 0.18s;
+  }
+  .copy-btn:hover { background: #213b2a; }
+  .qr-note { font-size: 0.78rem; color: var(--muted); }
+
+  /* Amount row */
   .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
   .field label { font-size: 0.72rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink); }
   .field input, .field textarea {
@@ -69,49 +92,25 @@
     transition: border 0.2s;
   }
   .field input:focus, .field textarea:focus { border-color: var(--gold2); box-shadow: 0 0 0 3px rgba(201,168,76,0.12); }
-  .field textarea { min-height: 70px; resize: vertical; }
+  .field textarea { min-height: 65px; resize: vertical; }
   .field .hint { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
-  .field-required { color: var(--red2); }
-
   .amount-row { display: grid; grid-template-columns: auto 1fr; align-items: center; border: 1px solid var(--line); background: rgba(250,247,242,0.8); }
   .amount-prefix { padding: 11px 14px; font-size: 1.2rem; font-weight: 700; color: var(--red2); border-right: 1px solid var(--line); background: rgba(200,60,60,0.05); }
-  .amount-row input { border: none; background: transparent; padding: 11px 14px; font-family: 'Lato', sans-serif; font-size: 1rem; font-weight: 700; color: var(--ink); outline: none; width: 100%; }
+  .amount-row input { border: none; background: transparent; padding: 11px 14px; font-family: 'Lato', sans-serif; font-size: 1.05rem; font-weight: 700; color: var(--ink); outline: none; width: 100%; }
   .amount-row input::placeholder { color: var(--muted); font-weight: 400; font-size: 0.9rem; }
 
-  .proceed-btn {
-    width: 100%; padding: 15px; background: var(--red2); color: #fff;
+  /* UTR section — hidden until user clicks "I've Paid" */
+  #utr-section { display: none; border-top: 1px solid var(--line); padding-top: 18px; margin-top: 18px; }
+
+  .paid-btn {
+    width: 100%; padding: 14px; background: var(--red2); color: #fff;
     border: none; font-family: 'Lato', sans-serif; font-weight: 900;
-    font-size: 0.92rem; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer;
+    font-size: 0.9rem; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer;
     margin-top: 6px; transition: background 0.2s;
   }
-  .proceed-btn:hover { background: #a93226; }
-  .proceed-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .paid-btn:hover { background: #a93226; }
+  .paid-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-  /* UPI DETAILS STEP */
-  #upi-step { display: none; }
-  .upi-box {
-    background: #fff9f9; border: 2px solid var(--red2); padding: 22px 24px; margin-bottom: 18px;
-    text-align: center;
-  }
-  .upi-box .upi-amount { font-size: 2.2rem; font-weight: 900; color: var(--red2); font-family: 'Amiri', serif; }
-  .upi-box .upi-label { font-size: 0.72rem; font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
-  .upi-box .upi-id-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
-  .upi-id-value {
-    font-family: monospace; font-size: 1.1rem; font-weight: 700; color: var(--green);
-    background: var(--soft); border: 1px solid var(--gold2); padding: 8px 14px; letter-spacing: 0.05em;
-  }
-  .copy-btn {
-    padding: 8px 14px; background: var(--green); color: #fff; border: none;
-    font-family: 'Lato', sans-serif; font-size: 0.78rem; font-weight: 700;
-    letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: background 0.18s;
-  }
-  .copy-btn:hover { background: #213b2a; }
-  .upi-box .upi-note { font-size: 0.8rem; color: var(--muted); margin-top: 10px; line-height: 1.6; }
-  .upi-apps { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 12px; }
-  .upi-app-tag { padding: 4px 12px; background: var(--soft); border: 1px solid var(--gold2); font-size: 0.75rem; font-weight: 700; color: var(--gold); }
-
-  .utr-section { margin-top: 20px; }
-  .utr-section .utr-prompt { font-size: 0.88rem; color: var(--ink); font-weight: 700; margin-bottom: 10px; }
   .confirm-btn {
     width: 100%; padding: 14px; background: var(--green); color: #fff;
     border: none; font-family: 'Lato', sans-serif; font-weight: 900;
@@ -121,6 +120,8 @@
   .confirm-btn:hover { background: #213b2a; }
   .confirm-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
+  #pay-status { display:none; margin-top:10px; padding:10px 14px; font-size:0.86rem; font-weight:700; }
+
   /* SUCCESS */
   #success-step { display: none; }
   .success-box {
@@ -129,18 +130,13 @@
   .success-box .check { font-size: 3rem; margin-bottom: 10px; }
   .success-box h3 { font-family: 'Amiri', serif; font-size: 1.6rem; color: var(--green); margin-bottom: 8px; }
   .success-box p { font-size: 0.88rem; color: #4a3f32; line-height: 1.7; margin-bottom: 6px; }
-  .success-box .utr-ref { font-family: monospace; background: var(--soft); border: 1px solid var(--gold2); padding: 4px 10px; font-size: 0.85rem; display: inline-block; margin-top: 4px; }
-
-  #form-status { margin-top: 12px; font-size: 0.86rem; font-weight: 700; padding: 10px 14px; display: none; }
-  .status-err { background: #fee2e2; color: var(--red); }
-  .status-ok  { background: #dcfce7; color: #166534; }
+  .utr-ref { font-family: monospace; background: var(--soft); border: 1px solid var(--gold2); padding: 4px 10px; font-size: 0.85rem; display: inline-block; margin-top: 4px; }
 
   footer { border-top: 1px solid var(--line); padding: 20px; text-align: center; font-size: 0.76rem; color: var(--muted); }
   footer a { color: var(--gold); text-decoration: none; margin: 0 8px; }
 
   @media (max-width: 560px) {
     .pay-card { padding: 22px 18px; }
-    .upi-box .upi-amount { font-size: 1.7rem; }
   }
 </style>
 </head>
@@ -166,113 +162,72 @@
   <div class="page-eyebrow">Support This Project</div>
   <h1>Help Keep the Archive Alive</h1>
   <p class="page-lead">
-    Apno Ki Talash is a volunteer-run genealogy archive documenting the family histories of
-    Shaikh families from Lar, Nawanagar, and across eastern Uttar Pradesh. It is free to use —
-    no subscription, no paywalls. Your contribution helps cover server costs, keeps the search
-    running, and supports ongoing archival work.
+    Apno Ki Talash is a volunteer-run archive documenting family histories of Shaikh families
+    from Lar, Nawanagar, and across eastern UP. It is free for everyone — your contribution
+    keeps it that way.
   </p>
+  <ul class="why-list">
+    <li>Hosting and database costs for the genealogy archive</li>
+    <li>Ongoing research, data entry, and GEDCOM digitisation</li>
+    <li>Family tree corrections, new connections, and source verification</li>
+  </ul>
   <div class="divider"></div>
 
-  <div class="why-section">
-    <h2>Where your contribution goes</h2>
-    <ul>
-      <li>Hosting and database costs for the genealogy archive</li>
-      <li>Ongoing research, data entry, and GEDCOM digitisation</li>
-      <li>Family tree corrections, new connections, and source verification</li>
-      <li>Keeping the service free for every family member worldwide</li>
-    </ul>
-    <p style="margin-top:16px;font-size:0.85rem;color:var(--muted)">
-      This is a non-commercial community project. Contributions are voluntary and go entirely
-      toward the project. Even ₹50 makes a difference.
-    </p>
-  </div>
+  <!-- PAYMENT CARD -->
+  <div class="pay-card" id="pay-card">
 
-  <!-- STEP 1: Donor details -->
-  <div class="pay-card" id="donor-step">
-    <h2>Make a Contribution</h2>
-    <p class="lead">Enter your details and choose any amount. You will be shown a UPI ID to pay after this step.</p>
-
-    <div class="field">
-      <label>Your Name <span class="field-required">*</span></label>
-      <input type="text" id="donor-name" placeholder="Enter your full name" autocomplete="name"/>
+    <!-- Visitor identity (shown once session loaded) -->
+    <div id="visitor-chip">
+      <span class="chip-label">Contributing as</span>
+      <strong id="chip-name"></strong>
     </div>
 
-    <div class="field">
-      <label>Mobile Number <span style="color:var(--muted);font-weight:400;font-size:0.7rem">(optional)</span></label>
-      <input type="tel" id="donor-mobile" placeholder="So we can reach you if needed" autocomplete="tel"/>
+    <!-- QR code — shown immediately -->
+    <div class="qr-block">
+      <img src="upi-qr.png" alt="UPI QR Code — scan with any UPI app"/>
+      <div class="upi-id-row">
+        <div class="upi-id-value">9818555830@ptsbi</div>
+        <button class="copy-btn" onclick="copyUpiId()">Copy UPI ID</button>
+      </div>
+      <div class="qr-note">Scan with any UPI app · PhonePe · Google Pay · Paytm · BHIM</div>
     </div>
 
+    <!-- Amount -->
     <div class="field">
-      <label>Contribution Amount <span class="field-required">*</span></label>
+      <label>Amount you are paying <span style="color:var(--red2)">*</span></label>
       <div class="amount-row">
         <div class="amount-prefix">₹</div>
-        <input type="number" id="donor-amount" placeholder="Any amount, e.g. 100" min="1" max="99999" inputmode="numeric"/>
+        <input type="number" id="donor-amount" placeholder="Enter amount, e.g. 100" min="1" max="99999" inputmode="numeric"/>
       </div>
-      <span class="hint">Enter any amount in Indian Rupees. Minimum ₹1.</span>
+      <span class="hint">Any amount in Indian Rupees. Even ₹50 helps.</span>
     </div>
 
+    <!-- Message -->
     <div class="field">
       <label>Message <span style="color:var(--muted);font-weight:400;font-size:0.7rem">(optional)</span></label>
-      <textarea id="donor-message" placeholder="Leave a message or let us know which family you're from…"></textarea>
+      <textarea id="donor-message" placeholder="Leave a note or let us know which family you're from…"></textarea>
     </div>
 
-    <div id="step1-status" class="form-status" style="display:none;margin-bottom:10px;padding:10px 14px;font-size:0.86rem;font-weight:700"></div>
-
-    <button class="proceed-btn" id="proceed-btn" onclick="proceedToUpi()">
-      ₹ Proceed to Pay via UPI
+    <button class="paid-btn" id="paid-btn" onclick="showUtrField()">
+      ✔ I've Paid — Enter Transaction Reference
     </button>
-  </div>
 
-  <!-- STEP 2: UPI details + UTR entry -->
-  <div class="pay-card" id="upi-step">
-    <h2>Pay via UPI</h2>
-    <p class="lead">Open any UPI app and pay to the ID below. Then enter your transaction reference to confirm.</p>
-
-    <div class="upi-box">
-      <div class="upi-label">Amount to Pay</div>
-      <div class="upi-amount">₹<span id="upi-display-amount"></span></div>
-
-      <img src="upi-qr.png" alt="UPI QR Code — scan with any UPI app"
-        style="width:220px;height:220px;object-fit:contain;margin:16px auto 4px;display:block;border:1px solid #e0e0e0"/>
-
-      <div class="upi-note" style="margin-top:6px">Scan with any UPI app, or pay manually to the UPI ID below</div>
-
-      <div class="upi-id-row">
-        <div class="upi-id-value" id="upi-id-display">9818555830@ptsbi</div>
-        <button class="copy-btn" onclick="copyUpiId()">Copy</button>
-      </div>
-      <div class="upi-apps">
-        <span class="upi-app-tag">PhonePe</span>
-        <span class="upi-app-tag">Google Pay</span>
-        <span class="upi-app-tag">Paytm</span>
-        <span class="upi-app-tag">BHIM</span>
-        <span class="upi-app-tag">Any UPI App</span>
-      </div>
-    </div>
-
-    <div class="utr-section">
-      <div class="utr-prompt">After completing the payment, enter your Transaction Reference (UTR) below:</div>
+    <!-- UTR entry — revealed after clicking above -->
+    <div id="utr-section">
       <div class="field">
-        <label>Transaction Reference / UTR <span class="field-required">*</span></label>
-        <input type="text" id="donor-utr" placeholder="e.g. 426123456789 or T2506271234567890" autocomplete="off" style="font-family:monospace;font-size:0.95rem;letter-spacing:0.03em"/>
-        <span class="hint">Find this in your UPI app under "Payment History" or the payment confirmation screen.</span>
+        <label>Transaction Reference / UTR <span style="color:var(--red2)">*</span></label>
+        <input type="text" id="donor-utr" placeholder="e.g. 426123456789 or T2506271234567890" autocomplete="off" style="font-family:monospace;font-size:0.95rem"/>
+        <span class="hint">Find this in your UPI app under Payment History or the confirmation screen.</span>
       </div>
-
-      <div id="step2-status" style="display:none;margin-bottom:10px;padding:10px 14px;font-size:0.86rem;font-weight:700"></div>
-
+      <div id="pay-status"></div>
       <button class="confirm-btn" id="confirm-btn" onclick="submitDonation()">
-        ✔ I've Paid — Submit Confirmation
-      </button>
-      <button onclick="document.getElementById('upi-step').style.display='none';document.getElementById('donor-step').style.display='block'"
-        style="margin-top:10px;width:100%;padding:10px;background:none;border:1px solid var(--line);color:var(--muted);font-family:'Lato',sans-serif;font-size:0.78rem;cursor:pointer;transition:all 0.15s"
-        onmouseover="this.style.borderColor='var(--ink)';this.style.color='var(--ink)'"
-        onmouseout="this.style.borderColor='var(--line)';this.style.color='var(--muted)'">
-        ← Back to edit details
+        Submit Confirmation
       </button>
     </div>
+
   </div>
 
-  <!-- STEP 3: Success -->
+  <!-- SUCCESS -->
   <div id="success-step">
     <div class="success-box">
       <div class="check">🤲</div>
@@ -302,73 +257,67 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const UPI_ID = '9818555830@ptsbi';
 
-let currentAmount = 0;
+let visitorName   = '';
+let visitorMobile = '';
 
-function setStep1Status(msg, isErr) {
-  const el = document.getElementById('step1-status');
-  el.textContent = msg;
-  el.style.display = msg ? 'block' : 'none';
-  el.style.background = isErr ? '#fee2e2' : '#dcfce7';
-  el.style.color      = isErr ? '#8b2e2e' : '#166534';
-}
-
-function setStep2Status(msg, isErr) {
-  const el = document.getElementById('step2-status');
-  el.textContent = msg;
-  el.style.display = msg ? 'block' : 'none';
-  el.style.background = isErr ? '#fee2e2' : '#dcfce7';
-  el.style.color      = isErr ? '#8b2e2e' : '#166534';
-}
-
-function proceedToUpi() {
-  const name   = document.getElementById('donor-name').value.trim();
-  const amount = parseInt(document.getElementById('donor-amount').value, 10);
-
-  if (!name) {
-    setStep1Status('Please enter your name before proceeding.', true);
-    document.getElementById('donor-name').focus();
-    return;
+// Silently load visitor info from active session
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+  const { data: v } = await sb.from('visitors')
+    .select('name_entered, mobile')
+    .eq('auth_user_id', session.user.id)
+    .maybeSingle();
+  if (v?.name_entered) {
+    visitorName   = v.name_entered;
+    visitorMobile = v.mobile || '';
+    const chip = document.getElementById('visitor-chip');
+    document.getElementById('chip-name').textContent = visitorName;
+    chip.style.display = 'flex';
   }
-  if (!amount || amount < 1) {
-    setStep1Status('Please enter a valid contribution amount.', true);
-    document.getElementById('donor-amount').focus();
-    return;
-  }
-  if (amount > 99999) {
-    setStep1Status('Maximum allowed amount is ₹99,999. Please contact us directly for larger contributions.', true);
-    return;
-  }
-
-  setStep1Status('', false);
-  currentAmount = amount;
-
-  document.getElementById('upi-display-amount').textContent = amount.toLocaleString('en-IN');
-  document.getElementById('donor-step').style.display = 'none';
-  document.getElementById('upi-step').style.display   = 'block';
-  document.getElementById('donor-utr').value = '';
-  setStep2Status('', false);
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+})();
 
 function copyUpiId() {
   navigator.clipboard.writeText(UPI_ID).then(() => {
     const btn = document.querySelector('.copy-btn');
     btn.textContent = 'Copied!';
     btn.style.background = '#166534';
-    setTimeout(() => { btn.textContent = 'Copy'; btn.style.background = 'var(--green)'; }, 2000);
-  }).catch(() => {
-    setStep2Status('Could not copy automatically — please copy the UPI ID manually: ' + UPI_ID, true);
+    setTimeout(() => { btn.textContent = 'Copy UPI ID'; btn.style.background = 'var(--green)'; }, 2000);
   });
+}
+
+function setStatus(msg, isErr) {
+  const el = document.getElementById('pay-status');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+  el.style.background = isErr ? '#fee2e2' : '#dcfce7';
+  el.style.color      = isErr ? '#8b2e2e' : '#166534';
+}
+
+function showUtrField() {
+  const amount = parseInt(document.getElementById('donor-amount').value, 10);
+  if (!amount || amount < 1) {
+    document.getElementById('donor-amount').focus();
+    document.getElementById('donor-amount').style.borderColor = 'var(--red2)';
+    return;
+  }
+  if (amount > 99999) {
+    document.getElementById('donor-amount').style.borderColor = 'var(--red2)';
+    return;
+  }
+  document.getElementById('donor-amount').style.borderColor = '';
+  document.getElementById('utr-section').style.display = 'block';
+  document.getElementById('donor-utr').focus();
+  document.getElementById('paid-btn').style.display = 'none';
 }
 
 async function submitDonation() {
   const utr    = document.getElementById('donor-utr').value.trim();
-  const name   = document.getElementById('donor-name').value.trim();
-  const mobile = document.getElementById('donor-mobile').value.trim();
+  const amount = parseInt(document.getElementById('donor-amount').value, 10);
   const msg    = document.getElementById('donor-message').value.trim();
 
   if (!utr) {
-    setStep2Status('Please enter your transaction reference (UTR) before confirming.', true);
+    setStatus('Please enter your transaction reference before confirming.', true);
     document.getElementById('donor-utr').focus();
     return;
   }
@@ -376,28 +325,28 @@ async function submitDonation() {
   const btn = document.getElementById('confirm-btn');
   btn.disabled = true;
   btn.textContent = 'Submitting…';
-  setStep2Status('', false);
+  setStatus('', false);
 
   const { error } = await sb.from('donations').insert({
-    donor_name:   name,
-    donor_mobile: mobile || null,
-    amount:       currentAmount,
-    utr:          utr,
-    message:      msg || null
+    donor_name:   visitorName   || 'Anonymous',
+    donor_mobile: visitorMobile || null,
+    amount,
+    utr,
+    message: msg || null
   });
 
   if (error) {
-    if (error.code === '23505') {
-      setStep2Status('This transaction reference has already been submitted. If you think this is an error, please contact us.', true);
-    } else {
-      setStep2Status('Something went wrong: ' + error.message, true);
-    }
     btn.disabled = false;
-    btn.textContent = '✔ I\'ve Paid — Submit Confirmation';
+    btn.textContent = 'Submit Confirmation';
+    if (error.code === '23505') {
+      setStatus('This transaction reference has already been submitted.', true);
+    } else {
+      setStatus('Something went wrong: ' + error.message, true);
+    }
     return;
   }
 
-  document.getElementById('upi-step').style.display    = 'none';
+  document.getElementById('pay-card').style.display    = 'none';
   document.getElementById('success-step').style.display = 'block';
   document.getElementById('success-utr').textContent    = utr;
   window.scrollTo({ top: 0, behavior: 'smooth' });

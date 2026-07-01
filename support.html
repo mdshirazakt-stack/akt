@@ -380,6 +380,8 @@ function openUpiApp(app) {
   const amount = parseInt(document.getElementById('donor-amount').value, 10);
   const base   = `pa=${pa}&pn=${pn}&am=${amount}&cu=INR&tn=Support%20Apno%20Ki%20Talash`;
 
+  logSupportEvent('support_upi_tapped', { app, amount, qr: activeQr });
+
   const schemes = {
     phonepe: `phonepe://pay?${base}`,
     gpay:    `tez://upi/pay?${base}`,
@@ -396,6 +398,16 @@ function copyUpiId() {
     btn.style.background = '#166534';
     setTimeout(() => { btn.textContent = 'Copy UPI ID'; btn.style.background = 'var(--green)'; }, 2000);
   });
+}
+
+function logSupportEvent(action, details) {
+  if (!visitorName) return;
+  sb.from('activity_logs').insert({
+    visitor_name: visitorName,
+    action,
+    target: 'support.html',
+    details: { ...details, page: '/support.html' }
+  }).then(() => {});
 }
 
 function proceedToPayment() {
@@ -418,6 +430,7 @@ function proceedToPayment() {
   document.getElementById('confirmed-amount').textContent = amount.toLocaleString('en-IN');
   document.getElementById('step-amount').style.display  = 'none';
   document.getElementById('step-payment').style.display = 'block';
+  logSupportEvent('support_amount_entered', { amount });
 }
 
 function editAmount() {
@@ -477,6 +490,7 @@ async function submitDonation() {
     return;
   }
 
+  logSupportEvent('support_utr_submitted', { amount, utr });
   document.getElementById('pay-card').style.display    = 'none';
   document.getElementById('success-step').style.display = 'block';
   document.getElementById('success-utr').textContent    = utr;

@@ -1449,7 +1449,7 @@
           <h2 style="margin:0">Support Donations <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">UPI · mdshiraz@oksbi</span></h2>
           <button class="btn-sm" onclick="loadDonations()">↻ Refresh</button>
         </div>
-        <div id="donations-funnel" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:4px"></div>
+        <div id="donations-funnel"></div>
       </div>
 
       <!-- Donation records -->
@@ -3025,44 +3025,117 @@ async function setPrintPayStatus(id, status) {
 async function loadDonations() {
   const funnel = document.getElementById('donations-funnel');
   const list   = document.getElementById('donations-list');
-  if (list) list.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+  if (funnel) funnel.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+  if (list)   list.innerHTML   = '<div class="empty"><span class="spinner"></span> Loading…</div>';
 
-  const { data: donations, error } = await sb.from('donations')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(2000);
+  const sixMonthsAgo = new Date(Date.now() - 180*24*60*60*1000).toISOString();
 
+  const [
+    { data: pageVisits },
+    { data: amountsEntered },
+    { data: upiTapped },
+    { data: donations, error: donErr }
+  ] = await Promise.all([
+    sb.from('activity_logs').select('visitor_name,created_at').eq('action','support_page_visit').gte('created_at',sixMonthsAgo).order('created_at',{ascending:false}).limit(5000),
+    sb.from('activity_logs').select('visitor_name,details,created_at').eq('action','support_amount_entered').gte('created_at',sixMonthsAgo).order('created_at',{ascending:false}).limit(5000),
+    sb.from('activity_logs').select('visitor_name,details,created_at').eq('action','support_upi_tapped').gte('created_at',sixMonthsAgo).order('created_at',{ascending:false}).limit(5000),
+    sb.from('donations').select('*').order('created_at',{ascending:false}).limit(2000)
+  ]);
+
+  // Time period boundaries (admin's local time)
+  const now            = new Date();
+  const todayStart     = new Date(now); todayStart.setHours(0,0,0,0);
+  const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(yesterdayStart.getDate()-1);
+  const weekStart      = new Date(now); weekStart.setDate(weekStart.getDate()-6); weekStart.setHours(0,0,0,0);
+  const monthStart     = new Date(now); monthStart.setDate(monthStart.getDate()-29); monthStart.setHours(0,0,0,0);
+
+  const periods = [
+    { key:'today',     label:'Today',      f: r => new Date(r.created_at) >= todayStart },
+    { key:'yesterday', label:'Yesterday',  f: r => new Date(r.created_at) >= yesterdayStart && new Date(r.created_at) < todayStart },
+    { key:'week',      label:'7 Days',     f: r => new Date(r.created_at) >= weekStart },
+    { key:'month',     label:'30 Days',    f: r => new Date(r.created_at) >= monthStart },
+    { key:'all',       label:'All Time',   f: () => true }
+  ];
+
+  const steps = [
+    { key:'visits',  label:'1 · Clicked Support button', rows: pageVisits||[],     nameKey:'visitor_name', extra: null },
+    { key:'amounts', label:'2 · Entered amount',          rows: amountsEntered||[], nameKey:'visitor_name', extra: r => r.details?.amount ? `₹${r.details.amount}` : '' },
+    { key:'upi',     label:'3 · Tapped UPI app',          rows: upiTapped||[],      nameKey:'visitor_name', extra: r => r.details?.app || '' },
+    { key:'paid',    label:'4 · Submitted payment (UTR)', rows: donations||[],      nameKey:'donor_name',   extra: r => `₹${(r.amount||0).toLocaleString('en-IN')} · ${r.status}` }
+  ];
+
+  // Stash for drilldown clicks
+  window._donFunnel = { steps, periods };
+
+  // Summary stats row
+  const allDon    = donations || [];
+  const verified  = allDon.filter(r => r.status === 'verified');
+  const pending   = allDon.filter(r => r.status === 'pending');
+  const revenue   = verified.reduce((s,r) => s+(r.amount||0), 0);
+
+  const statBox = (label, val, sub='', color='var(--ink)') =>
+    `<div style="padding:10px 14px;background:var(--bg);border:1px solid var(--border);text-align:center;min-width:100px">
+      <div style="font-size:1.4rem;font-weight:700;color:${color}">${val}</div>
+      <div style="font-size:0.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px">${label}</div>
+      ${sub ? `<div style="font-size:0.7rem;color:var(--muted);margin-top:1px">${sub}</div>` : ''}
+    </div>`;
+
+  const th = s => `<th style="padding:8px 10px;font-size:0.68rem;font-weight:900;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);background:var(--bg);white-space:nowrap;text-align:${s==='step'?'left':'center'}">${s==='step'?'Funnel Step':s}</th>`;
+
+  let tableRows = '';
+  steps.forEach(step => {
+    tableRows += `<tr>
+      <td style="padding:9px 12px;border:1px solid var(--border);font-size:0.82rem;font-weight:600;color:var(--ink);white-space:nowrap">${step.label}</td>`;
+    periods.forEach(p => {
+      const rows   = step.rows.filter(p.f);
+      const total  = rows.length;
+      const unique = new Set(rows.map(r => r[step.nameKey]).filter(Boolean)).size;
+      tableRows += `<td style="border:1px solid var(--border);text-align:center;padding:6px 8px">
+        ${total
+          ? `<button data-step="${step.key}" data-period="${p.key}"
+               onclick="showDonationDrilldown('${step.key}','${p.key}')"
+               style="background:none;border:none;cursor:pointer;font-family:inherit;padding:2px 4px;line-height:1.3">
+               <span style="font-size:0.9rem;font-weight:700;color:var(--green)">${total}</span>
+               <div style="font-size:0.68rem;color:var(--muted)">${unique} unique</div>
+             </button>`
+          : `<span style="color:var(--border);font-size:0.85rem">—</span>`}
+      </td>`;
+    });
+    tableRows += `</tr>`;
+  });
+
+  if (funnel) {
+    funnel.innerHTML = `
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">
+        ${statBox('Submitted',allDon.length,'')}
+        ${statBox('Pending',pending.length,'awaiting verify','#92400e')}
+        ${statBox('Verified',verified.length,'confirmed','#166534')}
+        ${statBox('₹ Received','₹'+revenue.toLocaleString('en-IN'),'verified only','var(--green)')}
+      </div>
+      <div style="font-size:0.72rem;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Donation Funnel <span style="font-weight:400">(last 6 months · click any number to see who)</span></div>
+      <div style="overflow-x:auto">
+        <table style="border-collapse:collapse;width:100%;min-width:520px;font-family:'Lato',sans-serif">
+          <thead><tr>
+            ${th('step')}${periods.map(p => th(p.label)).join('')}
+          </tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+      <div id="donation-drilldown" style="margin-top:14px"></div>`;
+  }
+
+  const badge = document.getElementById('badge-donations');
+  if (badge) { badge.textContent = pending.length || ''; badge.style.display = pending.length ? '' : 'none'; }
+
+  // Donation records list
   const statusColor = { pending:'#92400e', verified:'#166534', rejected:'#991b1b' };
   const statusBg    = { pending:'#fef3c7', verified:'#dcfce7', rejected:'#fee2e2' };
 
-  if (funnel) {
-    const total    = (donations||[]).length;
-    const verified = (donations||[]).filter(r => r.status === 'verified').length;
-    const pending  = (donations||[]).filter(r => r.status === 'pending').length;
-    const revenue  = (donations||[]).filter(r => r.status === 'verified').reduce((s,r)=>s+(r.amount||0),0);
-
-    const statBox = (label, val, sub, color='var(--ink)') =>
-      `<div style="padding:12px 16px;background:var(--bg);border:1px solid var(--border);text-align:center;min-width:110px">
-        <div style="font-size:1.5rem;font-weight:700;color:${color}">${val}</div>
-        <div style="font-size:0.68rem;color:var(--muted);text-transform:uppercase;margin-top:2px">${label}</div>
-        ${sub ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:2px">${sub}</div>` : ''}
-      </div>`;
-
-    funnel.innerHTML =
-      statBox('Total Donations', total, '') +
-      statBox('Pending',  pending,  'awaiting verification', '#92400e') +
-      statBox('Verified', verified, 'confirmed paid', '#166534') +
-      statBox('Total Received', '₹'+revenue.toLocaleString('en-IN'), 'verified only', 'var(--green)');
-
-    const badge = document.getElementById('badge-donations');
-    if (badge) { badge.textContent = pending || ''; badge.style.display = pending ? '' : 'none'; }
-  }
-
   if (!list) return;
-  if (error) { list.innerHTML = `<div class="empty" style="color:var(--red2)">${escapeHtml(error.message)}</div>`; return; }
-  if (!donations?.length) { list.innerHTML = '<div class="empty">No donations recorded yet.</div>'; return; }
+  if (donErr) { list.innerHTML = `<div class="empty" style="color:var(--red2)">${escapeHtml(donErr.message)}</div>`; return; }
+  if (!allDon.length) { list.innerHTML = '<div class="empty">No donations recorded yet.</div>'; return; }
 
-  list.innerHTML = donations.map(r => `
+  list.innerHTML = allDon.map(r => `
     <div style="border:1px solid var(--border);padding:12px 16px;margin-bottom:8px;background:#fff">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px">
         <div>
@@ -3085,6 +3158,54 @@ async function loadDonations() {
         ` : ''}
       </div>
     </div>`).join('');
+}
+
+function showDonationDrilldown(stepKey, periodKey) {
+  const dd = document.getElementById('donation-drilldown');
+  if (!dd || !window._donFunnel) return;
+  const { steps, periods } = window._donFunnel;
+  const step   = steps.find(s => s.key === stepKey);
+  const period = periods.find(p => p.key === periodKey);
+  if (!step || !period) return;
+
+  const rows = step.rows.filter(period.f);
+  if (!rows.length) { dd.innerHTML = ''; return; }
+
+  // Highlight active cell
+  document.querySelectorAll('[data-step][data-period]').forEach(btn => {
+    btn.style.outline = btn.dataset.step === stepKey && btn.dataset.period === periodKey
+      ? '2px solid var(--green)' : 'none';
+  });
+
+  const rowsHtml = rows.map((r, i) => {
+    const name  = escapeHtml(r[step.nameKey] || 'Anonymous');
+    const extra = step.extra ? escapeHtml(String(step.extra(r) || '')) : '';
+    const ts    = formatIST(r.created_at, false);
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-bottom:1px solid var(--border);${i%2===0?'background:#fafaf8':'background:#fff'}">
+      <span style="font-weight:600;font-size:0.85rem;color:var(--ink)">${name}</span>
+      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+        ${extra ? `<span style="font-size:0.8rem;font-weight:700;color:var(--green)">${extra}</span>` : ''}
+        <span style="font-size:0.72rem;color:var(--muted)">${ts}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const unique = new Set(rows.map(r => r[step.nameKey]).filter(Boolean));
+
+  dd.innerHTML = `
+    <div style="border:1px solid var(--border);background:#fff">
+      <div style="padding:10px 14px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div>
+          <span style="font-size:0.82rem;font-weight:700;color:var(--ink)">${step.label} — ${period.label}</span>
+          <span style="margin-left:10px;font-size:0.76rem;color:var(--muted)">${rows.length} events · ${unique.size} unique</span>
+        </div>
+        <button onclick="document.getElementById('donation-drilldown').innerHTML='';document.querySelectorAll('[data-step][data-period]').forEach(b=>b.style.outline='none')"
+          style="background:none;border:none;cursor:pointer;font-size:0.8rem;color:var(--muted);padding:2px 6px">✕ Close</button>
+      </div>
+      ${rowsHtml}
+    </div>`;
+
+  dd.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
 async function setDonationStatus(id, status) {

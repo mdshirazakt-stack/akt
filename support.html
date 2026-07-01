@@ -56,19 +56,33 @@
     box-shadow: 0 8px 32px rgba(42,35,24,0.08);
   }
 
-  /* Visitor identity chip */
-  #visitor-chip {
-    display: none; align-items: center; gap: 8px; margin-bottom: 20px;
-    padding: 8px 12px; background: var(--soft); border: 1px solid var(--gold2);
-    font-size: 0.8rem; color: var(--ink);
+  /* Visitor info block */
+  #visitor-info {
+    display: none; margin-bottom: 20px;
+    padding: 12px 16px; background: var(--soft); border: 1px solid var(--gold2);
   }
-  #visitor-chip .chip-label { color: var(--muted); font-size: 0.72rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
+  #visitor-info .vi-label { font-size: 0.68rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  #visitor-info .vi-row { display: flex; gap: 24px; flex-wrap: wrap; }
+  #visitor-info .vi-field { display: flex; flex-direction: column; gap: 1px; }
+  #visitor-info .vi-key { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  #visitor-info .vi-val { font-size: 0.92rem; font-weight: 700; color: var(--ink); }
+
+  /* QR tabs */
+  .qr-tabs { display: flex; gap: 0; margin-bottom: 0; border: 1px solid var(--line); }
+  .qr-tab {
+    flex: 1; padding: 9px; background: var(--bg); border: none; cursor: pointer;
+    font-family: 'Lato', sans-serif; font-size: 0.78rem; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+    border-bottom: 2px solid transparent; transition: all 0.15s;
+  }
+  .qr-tab.active { background: var(--surface); color: var(--red2); border-bottom-color: var(--red2); }
+  .qr-tab:not(:last-child) { border-right: 1px solid var(--line); }
 
   /* QR block */
-  .qr-block { text-align: center; margin-bottom: 24px; }
+  .qr-block { text-align: center; margin-bottom: 20px; border: 1px solid var(--line); border-top: none; padding: 20px 20px 14px; }
   .qr-block img {
     width: 200px; height: 200px; object-fit: contain;
-    border: 1px solid var(--line); display: block; margin: 0 auto 12px;
+    border: 1px solid var(--line); display: block; margin: 0 auto 14px;
   }
   .upi-id-row { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
   .upi-id-value {
@@ -176,15 +190,28 @@
   <!-- PAYMENT CARD -->
   <div class="pay-card" id="pay-card">
 
-    <!-- Visitor identity (shown once session loaded) -->
-    <div id="visitor-chip">
-      <span class="chip-label">Contributing as</span>
-      <strong id="chip-name"></strong>
+    <!-- Visitor info — shown once session loaded -->
+    <div id="visitor-info">
+      <div class="vi-label">Payment will be recorded under your profile</div>
+      <div class="vi-row">
+        <div class="vi-field">
+          <span class="vi-key">Name</span>
+          <span class="vi-val" id="vi-name">—</span>
+        </div>
+        <div class="vi-field" id="vi-mobile-field" style="display:none">
+          <span class="vi-key">Mobile</span>
+          <span class="vi-val" id="vi-mobile">—</span>
+        </div>
+      </div>
     </div>
 
-    <!-- QR code — shown immediately -->
+    <!-- QR tabs -->
+    <div class="qr-tabs">
+      <button class="qr-tab active" onclick="switchQr('paytm', this)">Paytm / Any UPI</button>
+      <button class="qr-tab" onclick="switchQr('gpay', this)">Google Pay</button>
+    </div>
     <div class="qr-block">
-      <img src="upi-qr.png" alt="UPI QR Code — scan with any UPI app"/>
+      <img id="qr-img" src="upi-qr.png" alt="UPI QR Code — scan to pay"/>
       <div class="upi-id-row">
         <div class="upi-id-value">9818555830@ptsbi</div>
         <button class="copy-btn" onclick="copyUpiId()">Copy UPI ID</button>
@@ -260,7 +287,7 @@ const UPI_ID = '9818555830@ptsbi';
 let visitorName   = '';
 let visitorMobile = '';
 
-// Silently load visitor info from active session
+// Load visitor info from active session and display it
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return;
@@ -268,14 +295,22 @@ let visitorMobile = '';
     .select('name_entered, mobile')
     .eq('auth_user_id', session.user.id)
     .maybeSingle();
-  if (v?.name_entered) {
-    visitorName   = v.name_entered;
-    visitorMobile = v.mobile || '';
-    const chip = document.getElementById('visitor-chip');
-    document.getElementById('chip-name').textContent = visitorName;
-    chip.style.display = 'flex';
+  if (!v?.name_entered) return;
+  visitorName   = v.name_entered;
+  visitorMobile = v.mobile || '';
+  document.getElementById('vi-name').textContent = visitorName;
+  if (visitorMobile) {
+    document.getElementById('vi-mobile').textContent = visitorMobile;
+    document.getElementById('vi-mobile-field').style.display = '';
   }
+  document.getElementById('visitor-info').style.display = 'block';
 })();
+
+function switchQr(which, btn) {
+  document.querySelectorAll('.qr-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('qr-img').src = which === 'gpay' ? 'upi-qr-gpay.png' : 'upi-qr.png';
+}
 
 function copyUpiId() {
   navigator.clipboard.writeText(UPI_ID).then(() => {

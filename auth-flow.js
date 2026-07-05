@@ -1005,6 +1005,8 @@
     }
   }
 
+  let _magicLinkCooldownTimer = null;
+
   async function sendMagicLink() {
     if (!sb) return;
     const email = value('auth-email').toLowerCase();
@@ -1022,17 +1024,32 @@
       email,
       options: { emailRedirectTo: redirectTo() }
     });
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = 'Send Magic Link';
-    }
     if (error) {
       await logSignupEvent('magic_link_failed', { stage: 'signin', email, error: error.message || '' });
       showMessage(error.message || 'Could not send magic link.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Send Magic Link'; }
       return;
     }
     await logSignupEvent('magic_link_sent', { stage: 'signin', email });
-    showMessage('Magic link sent. Please check your email and return through the link.', false);
+    showMessage('Magic link sent! Check your inbox (and spam folder). The link expires in 60 minutes — do not request another link or this one will stop working.', false);
+
+    // 60-second cooldown — matches Supabase rate limit and prevents users from
+    // invalidating their own link by requesting another one immediately.
+    if (btn) {
+      let secs = 60;
+      btn.disabled = true;
+      clearInterval(_magicLinkCooldownTimer);
+      _magicLinkCooldownTimer = setInterval(() => {
+        secs--;
+        if (secs <= 0) {
+          clearInterval(_magicLinkCooldownTimer);
+          btn.disabled = false;
+          btn.textContent = 'Send Magic Link';
+        } else {
+          btn.textContent = `Resend in ${secs}s`;
+        }
+      }, 1000);
+    }
   }
 
   function hideMessage() {

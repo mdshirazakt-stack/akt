@@ -3556,34 +3556,69 @@ function fuzzyPatterns(token) {
 // Returns { namePats, placePats } for cross-field AND mode.
 // namePats  — applied to name/given_name/surname/nickname (fuzzy patterns + a↔e swap)
 // placePats — applied to all four place fields (exact + ph↔f + first-vowel o↔a)
+// Generates { namePats, placePats } — all spelling variants for a single cross-field token.
+// Rules applied to name fields (personal names) and place fields separately so each
+// set stays targeted without exploding pattern counts.
 function crossFieldPatterns(token) {
   const t = token.toLowerCase().trim();
 
-  // Name patterns: start from fuzzyPatterns + add a↔e suffix swap
-  // covers: Akhtar/Akhter, Anwar/Anwer, Ahmad/Ahmed
+  // ── Name-field patterns ─────────────────────────────────────────────────────
+
   const np = new Set(fuzzyPatterns(t));
+
+  // 1. normWord canonical form — applies kh→k, ph→f, v→w, ee→i, aa→a, oo→u,
+  //    q→k, j→s, strip trailing vowels, collapse doubles — all in one step.
+  //    E.g. tanveer→tanwir, akhtar→aktr, pharbisganj→farbisgans.
+  const norm = normWord(t);
+  if (norm.length >= 3) np.add('%' + norm + '%');
+
+  // 2. Last a↔e suffix swap — Akhtar/Akhter, Anwar/Anwer, Ahmad/Ahmed
   const lastAtoE = t.replace(/a([^a]*)$/, 'e$1');
   const lastEtoA = t.replace(/e([^e]*)$/, 'a$1');
   if (lastAtoE !== t) np.add('%' + lastAtoE + '%');
   if (lastEtoA !== t) np.add('%' + lastEtoA + '%');
 
-  // Place patterns: targeted variants for place-name spellings
+  // 3. v↔w  ×  ee/ii/i cross-product — Tanveer / Tanvir / Tanweer / Tanwir
+  //    Build three base forms (original, v→w, w→v) then expand ee↔i on each.
+  for (const base of new Set([t, t.replace(/v/g, 'w'), t.replace(/w/g, 'v')])) {
+    np.add('%' + base + '%');
+    np.add('%' + base.replace(/ee+/g, 'i')              + '%'); // tanveer→tanvir
+    np.add('%' + base.replace(/i([^aeiou])$/, 'ee$1')   + '%'); // tanvir→tanveer (i+cons at end)
+    np.add('%' + base.replace(/i$/, 'ee')                + '%'); // trailing i → ee
+  }
+
+  // 4. Arabic/Urdu terminal spellings: ique / iq / eek / iek → ik  (Rafique/Rafiq/Rafeek→Rafik)
+  np.add('%' + t.replace(/ique$/i, 'ik') + '%');
+  np.add('%' + t.replace(/eek$/i,  'ik') + '%');
+  np.add('%' + t.replace(/iek$/i,  'ik') + '%');
+  np.add('%' + t.replace(/iq$/i,   'ik') + '%');
+  // Reverse: searching rafik also finds rafique / rafeek
+  if (t.endsWith('ik')) {
+    const stem = t.slice(0, -2);
+    np.add('%' + stem + 'ique' + '%');
+    np.add('%' + stem + 'iq'   + '%');
+    np.add('%' + stem + 'eek'  + '%');
+  }
+
+  // ── Place-field patterns ────────────────────────────────────────────────────
+
   const pp = new Set();
   pp.add('%' + t + '%');
+  if (norm.length >= 3) pp.add('%' + norm + '%');  // normWord for places too
 
-  // ph↔f at word start
+  // 5. ph↔f at word start
   const phToF = t.startsWith('ph') ? 'f' + t.slice(2) : null;
-  const fToPh = t.startsWith('f') ? 'ph' + t.slice(1) : null;
+  const fToPh = t.startsWith('f')  ? 'ph' + t.slice(1) : null;
   if (phToF) pp.add('%' + phToF + '%');
   if (fToPh) pp.add('%' + fToPh + '%');
 
-  // First vowel o↔a: forbisganj↔farbisganj
+  // 6. First-vowel o↔a — forbisganj↔farbisganj
   const firstOtoA = t.replace(/^([^aeiou]*)o/, '$1a');
   const firstAtoO = t.replace(/^([^aeiou]*)a/, '$1o');
   if (firstOtoA !== t) pp.add('%' + firstOtoA + '%');
   if (firstAtoO !== t) pp.add('%' + firstAtoO + '%');
 
-  // ph↔f + first vowel o↔a combined: forbisganj→pharbisganj (via fToPh then o→a)
+  // 7. ph↔f + first-vowel combined — forbisganj→pharbisganj (two-step)
   [phToF, fToPh].filter(Boolean).forEach(v => {
     const oA = v.replace(/^([^aeiou]*)o/, '$1a');
     const aO = v.replace(/^([^aeiou]*)a/, '$1o');
@@ -3591,7 +3626,13 @@ function crossFieldPatterns(token) {
     if (aO !== v) pp.add('%' + aO + '%');
   });
 
-  // Last a↔e for place names too (e.g. Rasra/Rasre)
+  // 8. a↔aa — kanpur/kaanpur  (aa→a already in fuzzyPatterns; add a→aa here)
+  const withAA = t.replace(/a/g, 'aa');
+  if (withAA !== t) pp.add('%' + withAA + '%');
+  const withA  = t.replace(/aa/g, 'a');
+  if (withA  !== t) pp.add('%' + withA  + '%');
+
+  // 9. Last a↔e for place names too
   if (lastAtoE !== t) pp.add('%' + lastAtoE + '%');
   if (lastEtoA !== t) pp.add('%' + lastEtoA + '%');
 

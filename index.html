@@ -3689,16 +3689,24 @@ function crossFieldPatterns(token) {
     }
   }
 
-  // Sweep: upgrade any remaining short name patterns (inner length < 5) to
-  // word-boundary. Catches normWord short forms (%sam% from "jama") and
-  // lastAtoE short forms (%jame% from "jama") that slip through the raw-token
-  // check above. Not applied to pp — short place names like "Lar" legitimately
-  // appear as substrings within compound place strings ("Paschim, Lar/Deoria").
+  // Sweep: upgrade short %inner% patterns to word-boundary to prevent
+  // substring matches on common words.
+  // np: inner < 5 — catches %sam% and %jame% derived from "jama"
+  // pp: inner < 4 — only 3-char forms (e.g. %sam% from "jama" → matches Assam/Sambhal).
+  //     4-char forms like %kuln% (normWord of "khulna") are kept as substring
+  //     so that "Kulna" still matches when searching "Khulna".
   for (const p of [...np]) {
-    if (p.startsWith('%') && p.endsWith('%') && p.length < 7) { // inner < 5 chars
+    if (p.startsWith('%') && p.endsWith('%') && p.length < 7) { // inner < 5
       const inner = p.slice(1, -1);
       np.delete(p);
       for (const wb of [inner, inner + ' %', '% ' + inner, '% ' + inner + ' %']) np.add(wb);
+    }
+  }
+  for (const p of [...pp]) {
+    if (p.startsWith('%') && p.endsWith('%') && p.length < 6) { // inner < 4
+      const inner = p.slice(1, -1);
+      pp.delete(p);
+      for (const wb of [inner, inner + ' %', '% ' + inner, '% ' + inner + ' %']) pp.add(wb);
     }
   }
 

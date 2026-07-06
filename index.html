@@ -3689,6 +3689,19 @@ function crossFieldPatterns(token) {
     }
   }
 
+  // Sweep: upgrade any remaining short name patterns (inner length < 5) to
+  // word-boundary. Catches normWord short forms (%sam% from "jama") and
+  // lastAtoE short forms (%jame% from "jama") that slip through the raw-token
+  // check above. Not applied to pp — short place names like "Lar" legitimately
+  // appear as substrings within compound place strings ("Paschim, Lar/Deoria").
+  for (const p of [...np]) {
+    if (p.startsWith('%') && p.endsWith('%') && p.length < 7) { // inner < 5 chars
+      const inner = p.slice(1, -1);
+      np.delete(p);
+      for (const wb of [inner, inner + ' %', '% ' + inner, '% ' + inner + ' %']) np.add(wb);
+    }
+  }
+
   // 11. Initial aa↔a — Abid/Aabid, Amir/Aamir, Adil/Aadil
   //     Word-boundary so "abid" finds "Aabid" (and vice versa) without matching
   //     "Aabidali" as a substring.

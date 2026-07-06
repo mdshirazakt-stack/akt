@@ -2182,6 +2182,17 @@ let searchFilter = 'all';
 let fuzzySearchEnabled = true;
 let searchMode = 'cross'; // 'fuzzy' | 'exact' | 'cross'
 const CROSS_FIELD_STOPWORDS = new Set(['s/o','d/o','w/o','b/o','c/o','son','daughter','wife','husband','of','late','the','bin','binti','bint','ibn']);
+// Name alias groups — when any member is searched, all members are expanded
+// as word-boundary patterns. Add new groups here for other common alias sets.
+const _CROSS_ALIAS_GROUPS = [
+  ['mohammad','mohammed','mohamad','mohamed','mohd','md','muhammad','muhammed','muhamad','muhamed'],
+];
+function _resolveNameAliases(t) {
+  for (const group of _CROSS_ALIAS_GROUPS) {
+    if (group.includes(t)) return group.filter(a => a !== t);
+  }
+  return [];
+}
 let sourceFilter = null; // gedcom_id UUID or null = all
 let selectedSourceIds = new Set();
 let selectedLocationNames = new Set();
@@ -3676,6 +3687,24 @@ function crossFieldPatterns(token) {
       np.add(wb);
       pp.add(wb);
     }
+  }
+
+  // 11. Initial aa↔a — Abid/Aabid, Amir/Aamir, Adil/Aadil
+  //     Word-boundary so "abid" finds "Aabid" (and vice versa) without matching
+  //     "Aabidali" as a substring.
+  const aaAlt = t.startsWith('aa') ? 'a' + t.slice(2)
+              : t.startsWith('a')  ? 'aa' + t.slice(1)
+              : null;
+  if (aaAlt && aaAlt.length >= 3) {
+    np.delete('%' + aaAlt + '%'); // upgrade any substring variant to word-boundary
+    for (const wb of [aaAlt, aaAlt + ' %', '% ' + aaAlt, '% ' + aaAlt + ' %']) np.add(wb);
+  }
+
+  // 12. Name alias expansion — Mohammad / Mohammed / Mohd / Md / Muhammad etc.
+  //     Each alias gets full word-boundary treatment (not substring) to avoid
+  //     "md" matching "Ahmad" or "mohd" matching "mahmood".
+  for (const alias of _resolveNameAliases(t)) {
+    for (const wb of [alias, alias + ' %', '% ' + alias, '% ' + alias + ' %']) np.add(wb);
   }
 
   return { namePats: [...np], placePats: [...pp] };

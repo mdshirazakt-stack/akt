@@ -1436,7 +1436,7 @@ async function renderFamilyGroupOverlaySpouse(groupId, el) {
         <div class="detail-field"><div class="key">Spouse</div><div class="val">${primary?.uid ? `<a class="person-link" href="person.html?uid=${encodeURIComponent(primary.uid)}">${escHtml(primary.name || '(unnamed)')}</a>` : '—'}</div></div>
         ${group.label ? `<div class="detail-field"><div class="key">Family Group</div><div class="val">${escHtml(group.label)}</div></div>` : ''}
         ${group.relationship_status ? `<div class="detail-field"><div class="key">Relationship Status</div><div class="val">${escHtml(familyRelationshipStatusLabel(group.relationship_status))}</div></div>` : ''}
-        ${group.marriage_date_text ? `<div class="detail-field"><div class="key">Marriage Date</div><div class="val">${escHtml(group.marriage_date_text)}</div></div>` : ''}
+        ${publicBirthDate(group.marriage_date_text) ? `<div class="detail-field"><div class="key">Marriage Date</div><div class="val">${escHtml(publicBirthDate(group.marriage_date_text))}</div></div>` : ''}
         ${group.divorce_date_text ? `<div class="detail-field"><div class="key">Divorce / Separation Date</div><div class="val">${escHtml(group.divorce_date_text)}</div></div>` : ''}
       </div>
       ${children.length ? `
@@ -2095,7 +2095,7 @@ async function renderPerson(uid, el) {
   const displayName = firstText(profileOverlay?.corrected_name, p.name, '(unnamed)');
   const displayGender = firstText(profileOverlay?.corrected_gender, p.sex);
   const displayBirthDate = publicBirthDate(firstText(profileOverlay?.birth_date_text, p.birth_date));
-  const displayDeathDate = firstText(profileOverlay?.death_date_text, p.death_date);
+  const displayDeathDate = publicBirthDate(firstText(profileOverlay?.death_date_text, p.death_date));
   const displayDeathLocation = firstText(profileOverlay?.death_location, p.death_place);
   const displayBirthPlace = firstText(profileOverlay?.birth_location, p.birth_place);
   const displayRootLocation = firstText(profileOverlay?.root_location, p.root_place);
@@ -2365,7 +2365,7 @@ async function renderPerson(uid, el) {
                 ${group.label ? escHtml(group.label) : ''}
                 ${group.label && (group.relationship_status || group.marriage_date_text || group.divorce_date_text || group.notes || marriageAliasText(group)) ? '<br>' : ''}
                 ${group.relationship_status ? `Status: ${escHtml(familyRelationshipStatusLabel(group.relationship_status))}` : ''}
-                ${group.marriage_date_text ? ` · Married: ${escHtml(group.marriage_date_text)}` : ''}
+                ${publicBirthDate(group.marriage_date_text) ? ` · Married: ${escHtml(publicBirthDate(group.marriage_date_text))}` : ''}
                 ${group.divorce_date_text ? ` · Divorce/separation: ${escHtml(group.divorce_date_text)}` : ''}
                 ${(group.relationship_status || group.marriage_date_text || group.divorce_date_text) && (group.notes || marriageAliasText(group)) ? '<br>' : ''}
                 ${group.notes ? escHtml(group.notes) : ''}
@@ -2421,9 +2421,9 @@ async function renderPerson(uid, el) {
             ${sourceMarriageAliasText({ spouseName, aliasFamilies }) ? `
               <div class="fc-detail" style="white-space:normal">${escHtml(sourceMarriageAliasText({ spouseName, aliasFamilies }))}</div>
             ` : ''}
-            ${f.marr_date || f.marr_place ? `
+            ${publicBirthDate(f.marr_date) || f.marr_place ? `
             <div class="fc-detail">
-              ${f.marr_date  ? `📅 ${escHtml(f.marr_date)}`  : ''}
+              ${publicBirthDate(f.marr_date)  ? `📅 ${escHtml(publicBirthDate(f.marr_date))}`  : ''}
               ${f.marr_place ? `&nbsp;📍 ${escHtml(f.marr_place)}` : ''}
             </div>` : ''}
             ${children.length ? `

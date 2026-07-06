@@ -3535,7 +3535,8 @@ function fuzzyPatterns(token) {
   // Common letter substitutions — generate variants
   const variants = new Set([t, stripped]);
   for (const base of [t, stripped]) {
-    variants.add(base.replace(/j/g, 'z').replace(/z/g, 'j'));
+    variants.add(base.replace(/j/g, 'z'));   // j→z: jaman→zaman, jamal→zamal
+    variants.add(base.replace(/z/g, 'j'));   // z→j: zaman→jaman, ziauddin→jiauddin
     variants.add(base.replace(/oo/g, 'u').replace(/ul$/,'ul').replace(/ool$/,'ul'));
     variants.add(base.replace(/oo/g, 'u'));
     variants.add(base.replace(/u([^aeiou])/g, 'oo$1'));

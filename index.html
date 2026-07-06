@@ -1329,11 +1329,11 @@
       </div>
       <div class="search-mode-row">
         <div class="search-mode-seg" role="group" aria-label="Search mode">
-          <button id="search-mode-btn-fuzzy" class="search-mode-btn active" type="button" onclick="setSearchMode('fuzzy')">Fuzzy</button>
+          <button id="search-mode-btn-cross" class="search-mode-btn active" type="button" onclick="setSearchMode('cross')">Cross-field</button>
           <button id="search-mode-btn-exact" class="search-mode-btn" type="button" onclick="setSearchMode('exact')">Exact</button>
-          <button id="search-mode-btn-cross" class="search-mode-btn" type="button" onclick="setSearchMode('cross')">Cross-field</button>
+          <button id="search-mode-btn-fuzzy" class="search-mode-btn" type="button" onclick="setSearchMode('fuzzy')">Fuzzy</button>
         </div>
-        <span id="search-mode-hint" class="search-mode-hint">includes spelling variants</span>
+        <span id="search-mode-hint" class="search-mode-hint">all words matched across name + places</span>
       </div>
       <div class="search-tools">
         <button class="filter-open-btn" type="button" onclick="openFilterDrawer()">
@@ -2180,7 +2180,7 @@ let currentActivitySessionId = sessionStorage.getItem('akt_activity_session_id')
 let locationHintPromise = null;
 let searchFilter = 'all';
 let fuzzySearchEnabled = true;
-let searchMode = 'fuzzy'; // 'fuzzy' | 'exact' | 'cross'
+let searchMode = 'cross'; // 'fuzzy' | 'exact' | 'cross'
 const CROSS_FIELD_STOPWORDS = new Set(['s/o','d/o','w/o','b/o','c/o','son','daughter','wife','husband','of','late','the','bin','binti','bint','ibn']);
 let sourceFilter = null; // gedcom_id UUID or null = all
 let selectedSourceIds = new Set();
@@ -3553,6 +3553,51 @@ function fuzzyPatterns(token) {
   return [...patterns];
 }
 
+// Returns { namePats, placePats } for cross-field AND mode.
+// namePats  — applied to name/given_name/surname/nickname (fuzzy patterns + a↔e swap)
+// placePats — applied to all four place fields (exact + ph↔f + first-vowel o↔a)
+function crossFieldPatterns(token) {
+  const t = token.toLowerCase().trim();
+
+  // Name patterns: start from fuzzyPatterns + add a↔e suffix swap
+  // covers: Akhtar/Akhter, Anwar/Anwer, Ahmad/Ahmed
+  const np = new Set(fuzzyPatterns(t));
+  const lastAtoE = t.replace(/a([^a]*)$/, 'e$1');
+  const lastEtoA = t.replace(/e([^e]*)$/, 'a$1');
+  if (lastAtoE !== t) np.add('%' + lastAtoE + '%');
+  if (lastEtoA !== t) np.add('%' + lastEtoA + '%');
+
+  // Place patterns: targeted variants for place-name spellings
+  const pp = new Set();
+  pp.add('%' + t + '%');
+
+  // ph↔f at word start
+  const phToF = t.startsWith('ph') ? 'f' + t.slice(2) : null;
+  const fToPh = t.startsWith('f') ? 'ph' + t.slice(1) : null;
+  if (phToF) pp.add('%' + phToF + '%');
+  if (fToPh) pp.add('%' + fToPh + '%');
+
+  // First vowel o↔a: forbisganj↔farbisganj
+  const firstOtoA = t.replace(/^([^aeiou]*)o/, '$1a');
+  const firstAtoO = t.replace(/^([^aeiou]*)a/, '$1o');
+  if (firstOtoA !== t) pp.add('%' + firstOtoA + '%');
+  if (firstAtoO !== t) pp.add('%' + firstAtoO + '%');
+
+  // ph↔f + first vowel o↔a combined: forbisganj→pharbisganj (via fToPh then o→a)
+  [phToF, fToPh].filter(Boolean).forEach(v => {
+    const oA = v.replace(/^([^aeiou]*)o/, '$1a');
+    const aO = v.replace(/^([^aeiou]*)a/, '$1o');
+    if (oA !== v) pp.add('%' + oA + '%');
+    if (aO !== v) pp.add('%' + aO + '%');
+  });
+
+  // Last a↔e for place names too (e.g. Rasra/Rasre)
+  if (lastAtoE !== t) pp.add('%' + lastAtoE + '%');
+  if (lastEtoA !== t) pp.add('%' + lastEtoA + '%');
+
+  return { namePats: [...np], placePats: [...pp] };
+}
+
 // Score a result name against the query tokens (higher = better match)
 function scoreMatch(name, tokens) {
   if (!name) return 0;
@@ -3875,9 +3920,15 @@ async function loadSearch(q) {
     }
     rawTokens = crossTokens; // use cleaned tokens for highlighting
     let query = sb.from('people').select(baseSelect, { count: 'exact' });
+    const NAME_FIELDS  = ['name','given_name','surname','nickname'];
+    const PLACE_FIELDS = ['birth_place','current_place','root_place','death_place'];
     crossTokens.forEach(tok => {
-      const t = tok.replace(/[%_]/g, '').replace(/'/g, "''");
-      query = query.or(`name.ilike.%${t}%,given_name.ilike.%${t}%,surname.ilike.%${t}%,nickname.ilike.%${t}%,birth_place.ilike.%${t}%,current_place.ilike.%${t}%,root_place.ilike.%${t}%,death_place.ilike.%${t}%`);
+      const { namePats, placePats } = crossFieldPatterns(tok);
+      const orParts = [
+        ...namePats.flatMap(p => NAME_FIELDS.map(f  => `${f}.ilike.${p.replace(/'/g, "''")}`)),
+        ...placePats.flatMap(p => PLACE_FIELDS.map(f => `${f}.ilike.${p.replace(/'/g, "''")}`)),
+      ];
+      query = query.or([...new Set(orParts)].join(','));
     });
     if (searchFilter === 'M') query = query.eq('sex', 'M');
     else if (searchFilter === 'F') query = query.eq('sex', 'F');

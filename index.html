@@ -502,6 +502,21 @@
     border-top: 8px solid currentColor; flex: 0 0 auto;
   }
   .filter-open-btn:hover { background: var(--goldl); border-color: var(--gold); color: var(--accent); }
+  .search-mode-row {
+    display: flex; align-items: center; gap: 8px; margin: -12px 0 18px;
+    font-size: 0.82rem; color: var(--muted); flex-wrap: wrap;
+  }
+  .search-mode-seg {
+    display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; min-height: 36px;
+  }
+  .search-mode-btn {
+    padding: 8px 12px; background: transparent; border: none;
+    border-right: 1px solid var(--border); cursor: pointer;
+    font-size: 0.82rem; color: var(--muted); font-family: 'Lato', sans-serif;
+  }
+  .search-mode-btn:last-child { border-right: none; }
+  .search-mode-btn.active { background: var(--green); color: #fff; font-weight: 700; }
+  .search-mode-hint { font-style: italic; font-size: 0.78rem; }
   .column-open-btn {
     display: inline-flex; align-items: center; gap: 8px;
     padding: 9px 16px; border: 1px solid var(--border); background: var(--surface);
@@ -1312,10 +1327,14 @@
         <span class="icon">🔍</span>
         <input type="text" id="search-input" placeholder="Search by name, place, or badge…" oninput="onSearch()"/>
       </div>
-      <label style="display:flex;align-items:flex-start;gap:8px;margin:-12px 0 18px;color:var(--muted);font-size:0.82rem;line-height:1.45">
-        <input id="fuzzy-search-toggle" type="checkbox" checked onchange="toggleFuzzySearch(this.checked)" style="margin-top:2px;accent-color:var(--green)"/>
-        <span><strong style="color:var(--ink)">Fuzzy search</strong> includes spelling variants. Turn it off when results look too broad.</span>
-      </label>
+      <div class="search-mode-row">
+        <div class="search-mode-seg" role="group" aria-label="Search mode">
+          <button id="search-mode-btn-fuzzy" class="search-mode-btn active" type="button" onclick="setSearchMode('fuzzy')">Fuzzy</button>
+          <button id="search-mode-btn-exact" class="search-mode-btn" type="button" onclick="setSearchMode('exact')">Exact</button>
+          <button id="search-mode-btn-cross" class="search-mode-btn" type="button" onclick="setSearchMode('cross')">Cross-field</button>
+        </div>
+        <span id="search-mode-hint" class="search-mode-hint">includes spelling variants</span>
+      </div>
       <div class="search-tools">
         <button class="filter-open-btn" type="button" onclick="openFilterDrawer()">
           <span class="filter-open-icon" aria-hidden="true"></span>
@@ -1577,8 +1596,9 @@
             <li>The search bar looks across <strong>names, birth place, current place, root place, and death place</strong> at the same time — type a town or village name to find everyone connected to it.</li>
             <li>Type a badge name — <strong>contributor, moderator, admin,</strong> or <strong>superadmin</strong> — to instantly filter results to that group.</li>
             <li>Try spelling variations and short name fragments for names you are unsure of.</li>
-            <li>Fuzzy search is on by default. It looks for spelling variants and common transliteration differences, such as similar sounds or alternate spellings.</li>
-            <li>If fuzzy search produces too many unrelated names, turn it off. Exact matching is better when you know the spelling or want tighter results.</li>
+            <li><strong>Fuzzy</strong> mode is on by default. It looks for spelling variants and common transliteration differences.</li>
+            <li><strong>Exact</strong> mode is better when you know the spelling or want tighter results — every word must appear somewhere in the record.</li>
+            <li><strong>Cross-field</strong> mode is best for queries mixing a name and a place, e.g. <em>Faisal Jarwal</em> or <em>Shiraz Anwar</em>. It strips relational words (s/o, d/o, late, of) automatically, then requires every remaining word to appear somewhere across name and all place fields.</li>
             <li>Use the Filter drawer to narrow by gender, badge type, location group, or source family.</li>
             <li>Use source-family labels to understand which GEDCOM file a profile came from.</li>
             <li>If a name is missing, use Add / Correct Family rather than creating duplicate assumptions.</li>
@@ -2160,6 +2180,8 @@ let currentActivitySessionId = sessionStorage.getItem('akt_activity_session_id')
 let locationHintPromise = null;
 let searchFilter = 'all';
 let fuzzySearchEnabled = true;
+let searchMode = 'fuzzy'; // 'fuzzy' | 'exact' | 'cross'
+const CROSS_FIELD_STOPWORDS = new Set(['s/o','d/o','w/o','b/o','c/o','son','daughter','wife','husband','of','late','the','bin','binti','bint','ibn']);
 let sourceFilter = null; // gedcom_id UUID or null = all
 let selectedSourceIds = new Set();
 let selectedLocationNames = new Set();
@@ -2976,9 +2998,9 @@ function restoreSearchState() {
     if (!state || typeof state !== 'object') return;
     document.getElementById('search-input').value = state.query || '';
     searchFilter = state.searchFilter || 'all';
-    fuzzySearchEnabled = state.fuzzySearchEnabled !== false;
-    const fuzzyToggle = document.getElementById('fuzzy-search-toggle');
-    if (fuzzyToggle) fuzzyToggle.checked = fuzzySearchEnabled;
+    searchMode = state.searchMode || (state.fuzzySearchEnabled === false ? 'exact' : 'fuzzy');
+    fuzzySearchEnabled = (searchMode === 'fuzzy');
+    _applySearchModeUI(searchMode);
     selectedSourceIds = new Set(Array.isArray(state.selectedSourceIds) ? state.selectedSourceIds : []);
     selectedLocationNames = new Set(Array.isArray(state.selectedLocationNames) ? state.selectedLocationNames : []);
     rebuildSelectedLocationSourceIds();
@@ -3001,6 +3023,7 @@ function saveSearchState() {
     const state = {
       query: document.getElementById('search-input')?.value.trim() || lastQuery || '',
       searchFilter,
+      searchMode,
       fuzzySearchEnabled,
       selectedSourceIds: [...selectedSourceIds],
       selectedLocationNames: [...selectedLocationNames],
@@ -3444,8 +3467,22 @@ function onSearch() {
   }, 300);
 }
 
-function toggleFuzzySearch(enabled) {
-  fuzzySearchEnabled = Boolean(enabled);
+function _applySearchModeUI(mode) {
+  ['fuzzy','exact','cross'].forEach(m => {
+    const btn = document.getElementById('search-mode-btn-' + m);
+    if (btn) btn.classList.toggle('active', m === mode);
+  });
+  const hint = document.getElementById('search-mode-hint');
+  if (hint) {
+    const hints = { fuzzy: 'includes spelling variants', exact: 'all words must match exactly', cross: 'all words matched across name + places' };
+    hint.textContent = hints[mode] || '';
+  }
+}
+
+function setSearchMode(mode) {
+  searchMode = mode;
+  fuzzySearchEnabled = (mode === 'fuzzy');
+  _applySearchModeUI(mode);
   searchPage = 0;
   saveSearchState();
   loadSearch(document.getElementById('search-input').value.trim());
@@ -3820,6 +3857,53 @@ async function loadSearch(q) {
       count = res.count || 0;
     }
 
+  } else if (searchMode === 'cross') {
+    // ── CROSS-FIELD AND SEARCH ──
+    // Strip relational stopwords, deduplicate, then AND every remaining token
+    // across name + given_name + surname + nickname + all four place fields.
+    const seen = new Set();
+    const crossTokens = rawTokens.filter(tok => {
+      const key = tok.toLowerCase();
+      if (CROSS_FIELD_STOPWORDS.has(key)) return false;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (!crossTokens.length) {
+      el.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>No meaningful search terms found.<br><span style="font-size:0.82rem;color:var(--muted)">Try adding a name or place — words like "s/o", "of", "late" are ignored.</span></p></div>`;
+      return;
+    }
+    rawTokens = crossTokens; // use cleaned tokens for highlighting
+    let query = sb.from('people').select(baseSelect, { count: 'exact' });
+    crossTokens.forEach(tok => {
+      const t = tok.replace(/[%_]/g, '').replace(/'/g, "''");
+      query = query.or(`name.ilike.%${t}%,given_name.ilike.%${t}%,surname.ilike.%${t}%,nickname.ilike.%${t}%,birth_place.ilike.%${t}%,current_place.ilike.%${t}%,root_place.ilike.%${t}%,death_place.ilike.%${t}%`);
+    });
+    if (searchFilter === 'M') query = query.eq('sex', 'M');
+    else if (searchFilter === 'F') query = query.eq('sex', 'F');
+    else if (searchFilter === 'deceased') query = query.eq('death_flag', true);
+    if (activeBadgeFilter === 'contributor') query = query.eq('is_contributor', true);
+    else if (activeBadgeFilter === 'moderator') query = query.eq('community_role', 'moderator');
+    else if (activeBadgeFilter === 'admin') query = query.eq('community_role', 'admin');
+    else if (activeBadgeFilter === 'superadmin') query = query.eq('community_role', 'superadmin');
+    const gedcomIds = selectedGedcomIds();
+    if (gedcomIds) {
+      if (!gedcomIds.length) {
+        data = [];
+        count = 0;
+        query = null;
+      } else {
+        query = query.in('gedcom_id', gedcomIds);
+      }
+    }
+    if (query) {
+      query = query.order('name').range(searchPage * PAGE_SIZE, (searchPage + 1) * PAGE_SIZE - 1);
+      const res = await query;
+      if (requestSeq !== searchRequestSeq) return;
+      data = res.data || [];
+      count = res.count || 0;
+    }
+
   } else if (!fuzzySearchEnabled) {
     let query = sb.from('people').select(baseSelect, { count: 'exact' });
     rawTokens.forEach(tok => {
@@ -3949,8 +4033,9 @@ async function loadSearch(q) {
   if (selectedLocationNames.size) appliedFilters.push(`${selectedLocationNames.size} location${selectedLocationNames.size === 1 ? '' : 's'}`);
   if (selectedSourceIds.size) appliedFilters.push(`${selectedSourceIds.size} source ${selectedSourceIds.size === 1 ? 'family' : 'families'}`);
   const filterDesc = appliedFilters.length ? ` in <em>${appliedFilters.join(' + ')}</em>` : '';
+  const _modeLabel = { fuzzy: '✦ fuzzy + variant matching active', exact: 'exact matching active', cross: '✦ cross-field AND active' };
   const fuzzyNote = relNote || (rawTokens.length
-    ? `<span style="font-size:0.75rem;color:var(--muted);margin-left:8px">${fuzzySearchEnabled ? '✦ fuzzy + variant matching active' : 'exact name matching active'}</span>`
+    ? `<span style="font-size:0.75rem;color:var(--muted);margin-left:8px">${_modeLabel[searchMode] || _modeLabel.fuzzy}</span>`
     : '');
 
   if (!data.length) {

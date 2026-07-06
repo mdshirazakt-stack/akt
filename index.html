@@ -3573,7 +3573,13 @@ function crossFieldPatterns(token) {
   const norm = normWord(t);
   if (norm.length >= 3) np.add('%' + norm + '%');
 
-  // 2. Last a↔e suffix swap — Akhtar/Akhter, Anwar/Anwer, Ahmad/Ahmed
+  // 2. Global e↔i mid-vowel swap — Seraj/Siraj, Feroz/Firoz
+  const eToI = t.replace(/e/g, 'i');
+  const iToE = t.replace(/i/g, 'e');
+  if (eToI !== t) np.add('%' + eToI + '%');
+  if (iToE !== t) np.add('%' + iToE + '%');
+
+  // 3. Last a↔e suffix swap — Akhtar/Akhter, Anwar/Anwer, Ahmad/Ahmed
   const lastAtoE = t.replace(/a([^a]*)$/, 'e$1');
   const lastEtoA = t.replace(/e([^e]*)$/, 'a$1');
   if (lastAtoE !== t) np.add('%' + lastAtoE + '%');

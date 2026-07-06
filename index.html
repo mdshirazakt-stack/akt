@@ -3662,6 +3662,22 @@ function crossFieldPatterns(token) {
   if (lastAtoE !== t) pp.add('%' + lastAtoE + '%');
   if (lastEtoA !== t) pp.add('%' + lastEtoA + '%');
 
+  // 10. Word-boundary for the raw token and its trailing-vowel-stripped form.
+  //     Replaces %t% and %stripped% substring patterns with four word-boundary
+  //     forms so "jama" doesn't match "jamal" (via %jam%), "ali" doesn't match
+  //     "balia", "abid" doesn't match "aabida". Spelling variants keep %..%
+  //     since they are already transformed and false positives are less likely.
+  const tStripped = t.replace(/[aeiou]+$/, '');
+  for (const base of new Set([t, tStripped.length >= 3 ? tStripped : null]).values()) {
+    if (!base) continue;
+    np.delete('%' + base + '%');
+    pp.delete('%' + base + '%');
+    for (const wb of [base, base + ' %', '% ' + base, '% ' + base + ' %']) {
+      np.add(wb);
+      pp.add(wb);
+    }
+  }
+
   return { namePats: [...np], placePats: [...pp] };
 }
 

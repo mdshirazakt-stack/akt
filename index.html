@@ -3579,7 +3579,23 @@ function crossFieldPatterns(token) {
   if (eToI !== t) np.add('%' + eToI + '%');
   if (iToE !== t) np.add('%' + iToE + '%');
 
-  // 3. Last a↔e suffix swap — Akhtar/Akhter, Anwar/Anwer, Ahmad/Ahmed
+  // 3. sh↔s prefix bridging — shahina/sahina, sania/shania, shiraz/siraj/seraj
+  //    Run the bridge token through fuzzyPatterns (covers j↔z, aa/ee, etc.) and
+  //    also apply e↔i to it so all three levels chain: sh-strip + j↔z + e↔i.
+  {
+    const shBridge = t.startsWith('sh') ? 's' + t.slice(2)
+                   : (t.startsWith('s') && t.length > 2) ? 'sh' + t.slice(1)
+                   : null;
+    if (shBridge && shBridge.length >= 3) {
+      for (const p of fuzzyPatterns(shBridge)) np.add(p);
+      const sbEtoI = shBridge.replace(/e/g, 'i');
+      const sbItoE = shBridge.replace(/i/g, 'e');
+      if (sbEtoI !== shBridge) { for (const p of fuzzyPatterns(sbEtoI)) np.add(p); }
+      if (sbItoE !== shBridge) { for (const p of fuzzyPatterns(sbItoE)) np.add(p); }
+    }
+  }
+
+  // 4. Last a↔e suffix swap — Akhtar/Akhter, Anwar/Anwer, Ahmad/Ahmed
   const lastAtoE = t.replace(/a([^a]*)$/, 'e$1');
   const lastEtoA = t.replace(/e([^e]*)$/, 'a$1');
   if (lastAtoE !== t) np.add('%' + lastAtoE + '%');

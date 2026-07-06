@@ -3582,9 +3582,12 @@ function crossFieldPatterns(token) {
   //    Build three base forms (original, v→w, w→v) then expand ee↔i on each.
   for (const base of new Set([t, t.replace(/v/g, 'w'), t.replace(/w/g, 'v')])) {
     np.add('%' + base + '%');
-    np.add('%' + base.replace(/ee+/g, 'i')              + '%'); // tanveer→tanvir
-    np.add('%' + base.replace(/i([^aeiou])$/, 'ee$1')   + '%'); // tanvir→tanveer (i+cons at end)
-    np.add('%' + base.replace(/i$/, 'ee')                + '%'); // trailing i → ee
+    np.add('%' + base.replace(/ee+/g, 'i')   + '%'); // tanveer→tanvir, tanweer→tanwir
+    np.add('%' + base.replace(/ir$/, 'eer') + '%'); // tanvir→tanveer, bashir→basheer
+    np.add('%' + base.replace(/eer$/, 'ir') + '%'); // tanveer→tanvir
+    np.add('%' + base.replace(/in$/, 'een') + '%'); // yasin→yaseen
+    np.add('%' + base.replace(/een$/, 'in') + '%'); // yaseen→yasin
+    np.add('%' + base.replace(/i$/, 'ee')   + '%'); // trailing i→ee
   }
 
   // 4. Arabic/Urdu terminal spellings: ique / iq / eek / iek → ik  (Rafique/Rafiq/Rafeek→Rafik)

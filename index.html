@@ -3561,7 +3561,7 @@ function fuzzyPatterns(token) {
 // Rules applied to name fields (personal names) and place fields separately so each
 // set stays targeted without exploding pattern counts.
 function crossFieldPatterns(token) {
-  const t = token.toLowerCase().trim();
+  const t = token.toLowerCase().trim().replace(/[%_]/g, '');
 
   // ── Name-field patterns ─────────────────────────────────────────────────────
 
@@ -3601,7 +3601,7 @@ function crossFieldPatterns(token) {
   if (lastAtoE !== t) np.add('%' + lastAtoE + '%');
   if (lastEtoA !== t) np.add('%' + lastEtoA + '%');
 
-  // 3. v↔w  ×  ee/ii/i cross-product — Tanveer / Tanvir / Tanweer / Tanwir
+  // 5. v↔w  ×  ee/ii/i cross-product — Tanveer / Tanvir / Tanweer / Tanwir
   //    Build three base forms (original, v→w, w→v) then expand ee↔i on each.
   for (const base of new Set([t, t.replace(/v/g, 'w'), t.replace(/w/g, 'v')])) {
     np.add('%' + base + '%');
@@ -3613,7 +3613,7 @@ function crossFieldPatterns(token) {
     np.add('%' + base.replace(/i$/, 'ee')   + '%'); // trailing i→ee
   }
 
-  // 4. Arabic/Urdu terminal spellings: ique / iq / eek / iek → ik  (Rafique/Rafiq/Rafeek→Rafik)
+  // 6. Arabic/Urdu terminal spellings: ique / iq / eek / iek → ik  (Rafique/Rafiq/Rafeek→Rafik)
   np.add('%' + t.replace(/ique$/i, 'ik') + '%');
   np.add('%' + t.replace(/eek$/i,  'ik') + '%');
   np.add('%' + t.replace(/iek$/i,  'ik') + '%');

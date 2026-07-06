@@ -1158,7 +1158,9 @@ function shouldHidePublicBirthDate(value) {
 }
 
 function publicBirthDate(value) {
-  return shouldHidePublicBirthDate(value) ? '' : value;
+  if (shouldHidePublicBirthDate(value)) return '';
+  const year = extractBirthYear(value);
+  return year !== null ? String(year) : (value || '');
 }
 
 // ===== AUTH =====

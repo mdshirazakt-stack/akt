@@ -3722,10 +3722,16 @@ function crossFieldPatterns(token) {
   }
 
   // 12. Name alias expansion — Mohammad / Mohammed / Mohd / Md / Muhammad etc.
-  //     Each alias gets full word-boundary treatment (not substring) to avoid
-  //     "md" matching "Ahmad" or "mohd" matching "mahmood".
+  //     Short aliases (< 5 chars: "md", "mohd") use WB to avoid "md" matching "Ahmad".
+  //     Long aliases (≥ 5 chars: "mohamad", "muhammad") use substring — specific enough
+  //     to not cause false positives, and WB for all 9 aliases would bloat the OR clause
+  //     past PostgREST's URL length limit, silently returning zero results.
   for (const alias of _resolveNameAliases(t)) {
-    for (const wb of [alias, alias + ' %', '% ' + alias, '% ' + alias + ' %']) np.add(wb);
+    if (alias.length < 5) {
+      for (const wb of [alias, alias + ' %', '% ' + alias, '% ' + alias + ' %']) np.add(wb);
+    } else {
+      np.add('%' + alias + '%');
+    }
   }
 
   return { namePats: [...np], placePats: [...pp] };

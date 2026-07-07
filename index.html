@@ -3674,17 +3674,21 @@ function crossFieldPatterns(token) {
   if (lastEtoA !== t) pp.add('%' + lastEtoA + '%');
 
   // 10. Word-boundary for the raw token and its trailing-vowel-stripped form.
-  //     Replaces %t% and %stripped% substring patterns with four word-boundary
-  //     forms so "jama" doesn't match "jamal" (via %jam%), "ali" doesn't match
-  //     "balia", "abid" doesn't match "aabida". Spelling variants keep %..%
-  //     since they are already transformed and false positives are less likely.
+  //     Adds four WB forms; also KEEPS %base% substring for tokens >= 5 chars
+  //     so that long tokens like "wakeel" still match when embedded in a comma-
+  //     separated name field ("Lari, Wakeel, Deoria"). Short tokens have their
+  //     %base% upgraded to WB by the sweep below.
+  //     NOTE: comma-literal patterns (e.g. "base, %") cannot be used here —
+  //     PostgREST's .or() splits on literal commas, breaking the entire clause.
   const tStripped = t.replace(/[aeiou]+$/, '');
   for (const base of new Set([t, tStripped.length >= 3 ? tStripped : null]).values()) {
     if (!base) continue;
-    np.delete('%' + base + '%');
-    pp.delete('%' + base + '%');
-    for (const wb of [base, base + ' %', '% ' + base, '% ' + base + ' %',
-                       base + ', %', '% ' + base + ', %']) {
+    // Keep %base% for long tokens (>= 5 chars); short ones are swept to WB below.
+    if (base.length < 5) {
+      np.delete('%' + base + '%');
+      pp.delete('%' + base + '%');
+    }
+    for (const wb of [base, base + ' %', '% ' + base, '% ' + base + ' %']) {
       np.add(wb);
       pp.add(wb);
     }

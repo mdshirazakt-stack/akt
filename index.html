@@ -3683,7 +3683,8 @@ function crossFieldPatterns(token) {
     if (!base) continue;
     np.delete('%' + base + '%');
     pp.delete('%' + base + '%');
-    for (const wb of [base, base + ' %', '% ' + base, '% ' + base + ' %']) {
+    for (const wb of [base, base + ' %', '% ' + base, '% ' + base + ' %',
+                       base + ', %', '% ' + base + ', %']) {
       np.add(wb);
       pp.add(wb);
     }

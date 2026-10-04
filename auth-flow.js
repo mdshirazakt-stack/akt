@@ -568,11 +568,10 @@
   }
 
   function profileClaimDeadline(visitor, days) {
-    // Prefer claim_clock_started_at (first successful login post-approval).
-    // Falls back to the old signup-time basis for visitors who haven't
-    // logged in again since this column was introduced.
-    const basis = visitor?.claim_clock_started_at || visitor?.visitor_form_completed_at || visitor?.created_at || visitor?.first_seen || visitor?.updated_at || visitor?.last_seen;
-    const time = new Date(basis || 0).getTime();
+    // The window starts at the first login after approval
+    // (claim_clock_started_at). If it isn't stamped yet, this IS that first
+    // login, so count from now — never from registration time.
+    const time = new Date(visitor?.claim_clock_started_at || Date.now()).getTime();
     return time ? new Date(time + days * 24 * 60 * 60 * 1000) : null;
   }
 

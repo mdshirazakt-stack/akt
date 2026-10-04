@@ -4414,11 +4414,13 @@ function profileClaimForVisitor(visitor) {
 }
 
 function visitorClaimDeadline(visitor) {
-  // Prefer claim_clock_started_at (first successful login post-approval) —
-  // see supabase_claim_clock_login.sql. Falls back to the old signup-time
-  // basis for visitors who haven't logged in again since this was added.
-  const basis = visitor.claim_clock_started_at || visitor.visitor_form_completed_at || visitor.created_at || visitor.first_seen || visitor.updated_at || visitor.last_seen;
-  const time = new Date(basis || 0).getTime();
+  // The 72h window starts only at the visitor's first login AFTER approval
+  // (claim_clock_started_at, stamped by enterVisitor() in auth-flow.js).
+  // Not logged in since approval → no deadline yet, never "overdue". Matches
+  // the block_overdue_unclaimed_visitors() cron job
+  // (supabase_visitor_guard_and_claim_clock.sql).
+  if (!visitor.claim_clock_started_at) return null;
+  const time = new Date(visitor.claim_clock_started_at).getTime();
   return time ? new Date(time + 72 * 60 * 60 * 1000) : null;
 }
 
@@ -4463,6 +4465,9 @@ function profileClaimStatusHtml(visitor, claim) {
   }
   const overdue = visitorClaimIsOverdue(visitor);
   const deadline = visitorClaimDeadline(visitor);
+  if (!deadline && !visitor.is_blocked) {
+    return '<span class="badge" style="background:#e0f2fe;color:#075985">awaiting first login</span><div style="font-size:0.72rem;color:var(--muted);margin-top:4px">72h starts at first login</div>';
+  }
   return `
     <span class="badge" style="background:${overdue ? '#fee2e2' : '#fef3c7'};color:${overdue ? '#991b1b' : '#92400e'}">${overdue ? 'claim overdue' : 'claim needed'}</span>
     ${deadline ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:4px">Deadline: ${formatIST(deadline, false)}</div>` : ''}
@@ -4946,7 +4951,7 @@ async function blockVisitor(id) {
 }
 async function unblockVisitor(id) {
   const visitor = allVisitors.find(v => v.id === id);
-  await sb.from('visitors').update({ is_blocked: false, access_status: 'approved', block_reason: null, approved_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', id);
+  await sb.from('visitors').update({ is_blocked: false, access_status: 'approved', block_reason: null, approved_at: new Date().toISOString(), claim_clock_started_at: null, updated_at: new Date().toISOString() }).eq('id', id);
   logStaffActivity('user_unblocked', visitor?.name_entered || visitor?.email || id, { visitor_id: id });
   toast('Visitor unblocked'); loadVisitors();
 }
@@ -4960,6 +4965,10 @@ async function approveVisitor(id) {
     block_reason: null,
     approved_at: new Date().toISOString(),
     rejected_at: null,
+    // Fresh 72h claim window from their next login — also lets an
+    // auto-blocked ("claim overdue") user be re-approved without the cron
+    // job immediately re-blocking them on the old clock.
+    claim_clock_started_at: null,
     updated_at: new Date().toISOString()
   }).eq('id', id);
   if (error) { toast('Approve failed: ' + error.message, true); return; }

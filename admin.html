@@ -4795,6 +4795,7 @@ function renderVisitors(visitors) {
       <td style="min-width:160px">
         <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
           ${status !== 'approved' ? `<button class="btn-sm" onclick="approveVisitor('${v.id}')" style="border-color:var(--green);color:var(--green)">Approve</button>` : ''}
+          ${status === 'approved' ? approvalNotifyButtonsHtml(v) : ''}
           ${status !== 'rejected' && status !== 'blocked' ? `<button class="btn-sm btn-export" onclick="rejectVisitor('${v.id}')">Reject</button>` : ''}
           ${status === 'blocked'
             ? `<button class="btn-sm" title="Unblock" onclick="unblockVisitor('${v.id}')" style="padding:6px 9px;font-size:1rem" aria-label="Unblock">🔓</button>`
@@ -4952,7 +4953,7 @@ async function unblockVisitor(id) {
 
 async function approveVisitor(id) {
   const visitor = allVisitors.find(v => v.id === id);
-  await sb.from('visitors').update({
+  const { error } = await sb.from('visitors').update({
     access_status: 'approved',
     access_role: 'visitor',
     is_blocked: false,
@@ -4961,9 +4962,92 @@ async function approveVisitor(id) {
     rejected_at: null,
     updated_at: new Date().toISOString()
   }).eq('id', id);
+  if (error) { toast('Approve failed: ' + error.message, true); return; }
   logStaffActivity('user_approved', visitor?.name_entered || visitor?.email || id, { visitor_id: id });
-  toast('Access approved');
+  toast('Access approved — sending email…');
+  await sendApprovalEmail(id, false);
   loadVisitors();
+}
+
+// ── Approval notifications (email via notify-approval Edge Function, WhatsApp via click-to-chat) ──
+
+// Normalise an Indian mobile to wa.me format (country code + 10 digits, no '+').
+// Mirrors normaliseToE164() in supabase/functions/send-whatsapp/index.ts.
+function waNumber(raw) {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (digits.length === 10) return '91' + digits;
+  if (digits.length === 12 && digits.startsWith('91')) return digits;
+  if (digits.length === 11 && digits.startsWith('0')) return '91' + digits.slice(1);
+  return null;
+}
+
+function approvalWhatsappUrl(v) {
+  const to = waNumber(v.mobile);
+  if (!to) return null;
+  const name = String(v.name_entered || '').trim().split(/\s+/)[0] || '';
+  const msg = [
+    `Assalamu Alaikum ${name},`,
+    '',
+    'Your request to join *Apno Ki Talash* has been approved. You can now sign in at https://apnonkitalash.com/',
+    '',
+    '⏳ After your first sign-in you have *72 hours* to find and claim your own profile. Please claim only your own profile.',
+    '',
+    `${name} जी, *अपनों की तलाश* से जुड़ने के लिए आपकी रिक्वेस्ट मंज़ूर कर ली गई है। अब आप https://apnonkitalash.com/ पर साइन इन कर सकते हैं।`,
+    '',
+    '⏳ पहली बार साइन इन करने के बाद अपनी प्रोफ़ाइल क्लेम करने के लिए आपके पास *72 घंटे* हैं। कृपया केवल अपनी ही प्रोफ़ाइल क्लेम करें।'
+  ].join('\n');
+  return `https://wa.me/${to}?text=${encodeURIComponent(msg)}`;
+}
+
+function approvalNotifyButtonsHtml(v) {
+  const fmt = ts => new Date(ts).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true });
+  const waUrl = approvalWhatsappUrl(v);
+  const waBtn = waUrl
+    ? `<a class="btn-sm" href="${escapeHtml(waUrl)}" target="_blank" rel="noopener" data-vid="${escapeHtml(v.id)}" onclick="markApprovalWhatsappSent(this.dataset.vid)"
+         title="${v.approval_whatsapp_sent_at ? 'WhatsApp opened ' + escapeHtml(fmt(v.approval_whatsapp_sent_at)) + ' IST — click to open again' : 'Open WhatsApp with the approval message'}"
+         style="text-decoration:none;border-color:#25d366;color:${v.approval_whatsapp_sent_at ? 'var(--muted)' : '#128c4a'}">${v.approval_whatsapp_sent_at ? '✓ WA' : 'WhatsApp'}</a>`
+    : `<span title="No valid mobile number" style="font-size:0.72rem;color:var(--muted)">no mobile</span>`;
+  let emailBtn;
+  if (v.approval_email_sent_at) {
+    emailBtn = `<button class="btn-sm" data-vid="${escapeHtml(v.id)}" onclick="resendApprovalEmail(this.dataset.vid)"
+      title="Approval email sent ${escapeHtml(fmt(v.approval_email_sent_at))} IST — click to send again" style="color:var(--muted)">✓ Email</button>`;
+  } else if (v.approval_email_error) {
+    emailBtn = `<button class="btn-sm" data-vid="${escapeHtml(v.id)}" onclick="sendApprovalEmail(this.dataset.vid, false).then(loadVisitors)"
+      title="Last attempt failed: ${escapeHtml(v.approval_email_error)} — click to retry" style="border-color:#b91c1c;color:#b91c1c">Email failed ↻</button>`;
+  } else {
+    emailBtn = `<button class="btn-sm" data-vid="${escapeHtml(v.id)}" onclick="sendApprovalEmail(this.dataset.vid, false).then(loadVisitors)"
+      title="Send the approval email" >Send email</button>`;
+  }
+  return waBtn + emailBtn;
+}
+
+async function sendApprovalEmail(id, force) {
+  const { data, error } = await sb.functions.invoke('notify-approval', { body: { visitor_id: id, force: !!force } });
+  if (error) {
+    let detail = error.message;
+    try { const b = await error.context?.json?.(); if (b?.detail || b?.error) detail = b.detail || b.error; } catch (_) {}
+    toast('Approval email failed: ' + detail, true);
+    return false;
+  }
+  if (data?.sent) { toast('Approval email sent'); return true; }
+  if (data?.skipped === 'already_sent') { toast('Approval email was already sent'); return true; }
+  if (data?.skipped === 'no_email') { toast('No valid email on record — use WhatsApp instead', true); return false; }
+  toast('Approval email not sent (' + (data?.skipped || 'unknown') + ')', true);
+  return false;
+}
+
+async function resendApprovalEmail(id) {
+  if (!confirm('The approval email was already sent. Send it again?')) return;
+  await sendApprovalEmail(id, true);
+  loadVisitors();
+}
+
+async function markApprovalWhatsappSent(id) {
+  // Click-to-chat: this records that the admin opened the chat, not confirmed delivery.
+  const { error } = await sb.from('visitors').update({ approval_whatsapp_sent_at: new Date().toISOString() }).eq('id', id);
+  if (error) { console.warn('Could not record WhatsApp notification:', error.message); return; }
+  const v = allVisitors.find(x => x.id === id);
+  if (v) { v.approval_whatsapp_sent_at = new Date().toISOString(); renderVisitors(allVisitors); }
 }
 
 async function clearPublicVisitors() {

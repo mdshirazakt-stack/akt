@@ -278,6 +278,17 @@
           <button onclick="addParent('mother')">Add / Set Mother</button>
           <button class="gold" onclick="addSpouseFamily()">Add Spouse / Partner Group</button>
         </div>
+
+        <div class="section-title">Merge Duplicate Profile</div>
+        <div class="hint">
+          Same person recorded twice (e.g. once in their own family and once in their spouse's)?
+          Paste the other profile's link or ID. You'll see a full preview before anything changes.
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <input id="merge-dup-input" placeholder="Profile link or ID" style="flex:1;min-width:180px"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();openMergePreview();}"/>
+          <button class="gold" type="button" onclick="openMergePreview()">Preview merge</button>
+        </div>
       </div>
     </aside>
   </div>
@@ -286,6 +297,20 @@
   <a href="terms.html">Terms & Conditions</a>
   <a href="terms.html#privacy-policy">Privacy Policy</a>
 </footer>
+
+<div class="modal-backdrop" id="merge-modal" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="merge-title">
+    <div class="modal-head">
+      <div>
+        <div class="modal-kicker">Merge duplicate profile</div>
+        <h2 id="merge-title">Review before merging</h2>
+        <div class="modal-context">Nothing changes until you press Merge. The duplicate is hidden and its old link redirects here.</div>
+      </div>
+      <button class="modal-close" type="button" onclick="closeMergeModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body" id="merge-body"></div>
+  </div>
+</div>
 
 <div class="modal-backdrop" id="relationship-modal" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="relationship-title">
@@ -428,6 +453,12 @@ document.addEventListener('keydown', event => {
 });
 document.getElementById('relationship-modal').addEventListener('click', event => {
   if (event.target.id === 'relationship-modal') closeRelationshipModal();
+});
+document.getElementById('merge-modal').addEventListener('click', event => {
+  if (event.target.id === 'merge-modal') closeMergeModal();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && document.getElementById('merge-modal')?.classList.contains('open')) closeMergeModal();
 });
 document.getElementById('marriage-modal').addEventListener('click', event => {
   if (event.target.id === 'marriage-modal') closeMarriageModal();
@@ -611,6 +642,12 @@ async function loadEditor() {
   document.getElementById('family-board').innerHTML = '<div class="hint">Loading family records...</div>';
   focusPerson = await getPerson(focusUid);
   if (!focusPerson) {
+    // Merged-away duplicate? person_redirects maps its old uid to the kept profile.
+    const { data: redirect } = await sb.from('person_redirects').select('new_uid').eq('old_uid', focusUid).maybeSingle();
+    if (redirect?.new_uid) {
+      location.replace('edit.html?uid=' + encodeURIComponent(redirect.new_uid));
+      return;
+    }
     document.getElementById('family-board').innerHTML = '<div class="hint">Person not found.</div>';
     return;
   }
@@ -2454,6 +2491,315 @@ async function refreshGedcomCounts(gedcomId = focusPerson?.gedcom_id || null) {
 
 function value(id) {
   return document.getElementById(id)?.value.trim() || '';
+}
+
+// ===================== MERGE DUPLICATE PROFILE =====================
+// Merges a duplicate into one person node via the akt_merge_people() RPC
+// (supabase_person_merge.sql): fields chosen here go onto the kept profile,
+// every reference moves to it, families with the same husband+wife are
+// combined, and the duplicate is removed with a redirect left behind.
+// Spouses that look like the same person on both sides are offered as extra
+// pairs so both halves of a couple merge in the same transaction.
+
+const MERGE_FIELDS = [
+  ['name', 'Name'], ['nickname', 'Nickname'], ['birth_date', 'Birth date'], ['birth_place', 'Birth place'],
+  ['root_place', 'Root place'], ['current_place', 'Current place'], ['death_flag', 'Deceased'],
+  ['death_date', 'Death date'], ['death_place', 'Death place'], ['occupation', 'Occupation'],
+  ['mobile', 'Mobile'], ['email', 'Email'], ['contact_address', 'Address'], ['notes', 'Notes'],
+  ['community_role', 'Community role'], ['joined_by_marriage', 'Joined by marriage'], ['is_contributor', 'Contributor']
+];
+const MERGE_BOOL_FIELDS = new Set(['death_flag', 'joined_by_marriage', 'is_contributor']);
+let mergeState = null;
+
+function extractProfileUid(raw) {
+  const s = String(raw || '').trim();
+  try {
+    const u = new URL(s);
+    const p = u.searchParams.get('uid') || u.searchParams.get('tree');
+    if (p) return p.trim();
+  } catch (_) {}
+  return s;
+}
+
+function mergeFieldEmpty(field, v) {
+  if (MERGE_BOOL_FIELDS.has(field)) return v !== true;
+  return v === null || v === undefined || String(v).trim() === '';
+}
+
+function mergeFieldDisplay(field, v) {
+  if (MERGE_BOOL_FIELDS.has(field)) return v === true ? 'Yes' : 'No';
+  return String(v ?? '');
+}
+
+// Everything needed to describe one side: person, parents, marriages.
+async function loadMergeSide(uid) {
+  const { data: person } = await sb.from('people').select('*').eq('uid', uid).maybeSingle();
+  if (!person) return null;
+  const [{ data: spouseFams }, { data: childOf }] = await Promise.all([
+    sb.from('families').select('uid,husband_uid,wife_uid').or(`husband_uid.eq.${uid},wife_uid.eq.${uid}`),
+    sb.from('family_members').select('family_uid').eq('person_uid', uid).eq('role', 'child')
+  ]);
+  const parentFamUids = (childOf || []).map(r => r.family_uid);
+  const { data: parentFams } = parentFamUids.length
+    ? await sb.from('families').select('uid,husband_uid,wife_uid').in('uid', parentFamUids)
+    : { data: [] };
+  const famUids = (spouseFams || []).map(f => f.uid);
+  const { data: kids } = famUids.length
+    ? await sb.from('family_members').select('family_uid,person_uid').in('family_uid', famUids).eq('role', 'child')
+    : { data: [] };
+  const relUids = new Set();
+  (spouseFams || []).forEach(f => { relUids.add(f.husband_uid); relUids.add(f.wife_uid); });
+  (parentFams || []).forEach(f => { relUids.add(f.husband_uid); relUids.add(f.wife_uid); });
+  (kids || []).forEach(k => relUids.add(k.person_uid));
+  relUids.delete(uid); relUids.delete(null); relUids.delete(undefined);
+  await loadPeople([...relUids]);
+  const nameOf = u => peopleByUid[u]?.name || '(unknown)';
+  return {
+    person,
+    parents: (parentFams || []).map(f => ({ uid: f.uid, label: [f.husband_uid && nameOf(f.husband_uid), f.wife_uid && nameOf(f.wife_uid)].filter(Boolean).join(' + ') || '(unknown parents)' })),
+    marriages: (spouseFams || []).map(f => {
+      const spouseUid = f.husband_uid === uid ? f.wife_uid : f.husband_uid;
+      return {
+        famUid: f.uid, husband: f.husband_uid, wife: f.wife_uid, spouseUid,
+        spouse: spouseUid ? peopleByUid[spouseUid] : null,
+        children: (kids || []).filter(k => k.family_uid === f.uid).map(k => ({ uid: k.person_uid, name: nameOf(k.person_uid) }))
+      };
+    })
+  };
+}
+
+function mergeSourceLabel(person) {
+  const g = gedcomSourceMap?.[person.gedcom_id];
+  return g || 'Added in editor';
+}
+
+// How "rich" a profile is — used to pick the default spouse to keep.
+function mergeRichness(side) {
+  const filled = MERGE_FIELDS.filter(([f]) => !mergeFieldEmpty(f, side.person[f])).length;
+  return side.parents.length * 10 + side.marriages.reduce((n, m) => n + m.children.length, 0) * 3 + filled;
+}
+
+async function openMergePreview() {
+  if (!requireRelationshipEdit('merge profiles')) return;
+  const otherUid = extractProfileUid(document.getElementById('merge-dup-input').value);
+  if (!otherUid) { setStatus('Paste the duplicate profile\'s link or ID first.', true); return; }
+  // uids are GEDCOM-namespaced xrefs or uuids; reject anything else before it
+  // reaches the PostgREST .or() filter in loadMergeSide().
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(otherUid)) { setStatus('That doesn\'t look like a profile link or ID.', true); return; }
+  if (otherUid === focusUid) { setStatus('That is this same profile — paste the OTHER copy.', true); return; }
+
+  const body = document.getElementById('merge-body');
+  body.innerHTML = '<div class="hint">Loading both profiles…</div>';
+  const modal = document.getElementById('merge-modal');
+  modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden';
+
+  const [a, b] = await Promise.all([loadMergeSide(focusUid), loadMergeSide(otherUid)]);
+  if (!b) {
+    const { data: redirect } = await sb.from('person_redirects').select('new_uid').eq('old_uid', otherUid).maybeSingle();
+    body.innerHTML = `<div class="hint" style="color:var(--red)">${redirect ? 'That profile was already merged into another one.' : 'No profile found for that link or ID.'}</div>`;
+    return;
+  }
+  if (a.person.sex && b.person.sex && a.person.sex !== b.person.sex) {
+    body.innerHTML = '<div class="hint" style="color:var(--red)">These two profiles have different genders, so they can\'t be the same person.</div>';
+    return;
+  }
+
+  // Spouse pairs that look like the same person on both sides.
+  const spousePairs = [];
+  a.marriages.forEach(ma => b.marriages.forEach(mb => {
+    if (!ma.spouse || !mb.spouse || ma.spouseUid === mb.spouseUid) return;
+    if (ma.spouse.sex && mb.spouse.sex && ma.spouse.sex !== mb.spouse.sex) return;
+    if (!namesCloselyMatch(ma.spouse.name, mb.spouse.name)) return;
+    if (spousePairs.some(p => p.uids.includes(ma.spouseUid) || p.uids.includes(mb.spouseUid))) return;
+    spousePairs.push({ uids: [ma.spouseUid, mb.spouseUid], include: true });
+  }));
+  const spouseSides = {};
+  await Promise.all(spousePairs.flatMap(p => p.uids).map(async u => { spouseSides[u] = await loadMergeSide(u); }));
+  spousePairs.forEach(p => {
+    const [x, y] = p.uids.map(u => spouseSides[u]);
+    // Keep the richer spouse record (usually the one with parents attached).
+    p.keep = mergeRichness(x) >= mergeRichness(y) ? x.person.uid : y.person.uid;
+  });
+
+  mergeState = { sides: { [a.person.uid]: a, [b.person.uid]: b, ...spouseSides }, main: { uids: [a.person.uid, b.person.uid], keep: a.person.uid }, spousePairs, choices: {} };
+  renderMergePreview();
+}
+
+function mergePairsForState() {
+  const s = mergeState;
+  const pairs = [{ key: 'main', keep: s.main.keep, drop: s.main.uids.find(u => u !== s.main.keep) }];
+  s.spousePairs.forEach((p, i) => { if (p.include) pairs.push({ key: 'sp' + i, keep: p.keep, drop: p.uids.find(u => u !== p.keep) }); });
+  return pairs;
+}
+
+// Field rows for one pair. Only-one-filled → taken automatically; both filled
+// and different → admin picks (defaults to the kept profile's value).
+function mergeFieldRows(pair) {
+  const kp = mergeState.sides[pair.keep].person, dp = mergeState.sides[pair.drop].person;
+  return MERGE_FIELDS.map(([field, label]) => {
+    const kv = kp[field], dv = dp[field];
+    const kEmpty = mergeFieldEmpty(field, kv), dEmpty = mergeFieldEmpty(field, dv);
+    if (kEmpty && dEmpty) return null;
+    if (mergeFieldDisplay(field, kv).trim() === mergeFieldDisplay(field, dv).trim()) return { field, label, kind: 'same', value: kv };
+    if (dEmpty) return { field, label, kind: 'same', value: kv };
+    if (kEmpty) return { field, label, kind: 'fill', value: dv };
+    return { field, label, kind: 'choose', kv, dv };
+  }).filter(Boolean);
+}
+
+function mergeSideSummary(side, role) {
+  const p = side.person;
+  const parents = side.parents.length ? side.parents.map(x => esc(x.label)).join('; ') : '<span style="color:var(--muted)">no parents recorded</span>';
+  const marriages = side.marriages.length
+    ? side.marriages.map(m => `${esc(m.spouse?.name || 'spouse unknown')} — ${m.children.length} child${m.children.length === 1 ? '' : 'ren'}`).join('<br>')
+    : '<span style="color:var(--muted)">no marriages</span>';
+  return `
+    <div style="border:1px solid #d6c69b;border-radius:12px;padding:12px;background:#fffaf0;min-width:0">
+      <div style="font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:${role === 'keep' ? 'var(--green)' : '#9a6f2f'}">${role === 'keep' ? 'Kept' : 'Merged in &amp; hidden'}</div>
+      <div style="font-weight:800;margin:4px 0 2px">${esc(p.name || '(unnamed)')}</div>
+      <div class="hint">${esc(mergeSourceLabel(p))}</div>
+      <div class="hint" style="margin-top:6px"><strong>Parents:</strong> ${parents}</div>
+      <div class="hint"><strong>Married to:</strong><br>${marriages}</div>
+    </div>`;
+}
+
+function mergePairBlock(pair, title, swapAction, includeToggle) {
+  const rows = mergeFieldRows(pair);
+  const fieldHtml = rows.map(r => {
+    if (r.kind === 'same') return `<tr><td>${esc(r.label)}</td><td colspan="2">${esc(mergeFieldDisplay(r.field, r.value))}</td></tr>`;
+    if (r.kind === 'fill') return `<tr><td>${esc(r.label)}</td><td colspan="2">${esc(mergeFieldDisplay(r.field, r.value))} <span class="hint">(taken from the duplicate)</span></td></tr>`;
+    const name = `mf-${pair.key}-${r.field}`;
+    const chosen = mergeState.choices[pair.key]?.[r.field] || 'keep';
+    return `<tr><td>${esc(r.label)}</td>
+      <td><label style="display:flex;gap:6px;align-items:flex-start"><input type="radio" name="${name}" data-pair="${pair.key}" data-field="${r.field}" value="keep" ${chosen === 'keep' ? 'checked' : ''} onchange="setMergeChoice(this)"> ${esc(mergeFieldDisplay(r.field, r.kv))}</label></td>
+      <td><label style="display:flex;gap:6px;align-items:flex-start"><input type="radio" name="${name}" data-pair="${pair.key}" data-field="${r.field}" value="drop" ${chosen === 'drop' ? 'checked' : ''} onchange="setMergeChoice(this)"> ${esc(mergeFieldDisplay(r.field, r.dv))}</label></td></tr>`;
+  }).join('');
+  return `
+    <div style="margin:18px 0;padding-top:14px;border-top:1px solid #d6c69b">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
+        <div style="font-weight:800">${title}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">${includeToggle || ''}<button type="button" onclick="${swapAction}">⇄ Swap which is kept</button></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px">
+        ${mergeSideSummary(mergeState.sides[pair.keep], 'keep')}
+        ${mergeSideSummary(mergeState.sides[pair.drop], 'drop')}
+      </div>
+      ${rows.length ? `<div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:.84rem">
+        <thead><tr><th style="text-align:left;padding:6px">Field</th><th style="text-align:left;padding:6px" colspan="2">Value after merge (pick where they differ)</th></tr></thead>
+        <tbody>${fieldHtml}</tbody></table></div>` : ''}
+    </div>`;
+}
+
+// What the couple(s) will look like after the merge.
+function mergeOutcomeHtml() {
+  const pairs = mergePairsForState();
+  const remap = {}; pairs.forEach(p => { remap[p.drop] = p.keep; });
+  const r = u => remap[u] || u;
+  const fams = {};
+  const mainSides = mergeState.main.uids.map(u => mergeState.sides[u]);
+  mainSides.forEach(side => side.marriages.forEach(m => {
+    const key = r(m.husband) + '|' + r(m.wife);
+    (fams[key] = fams[key] || { spouse: r(m.spouseUid), kids: new Map(), count: 0 }).count++;
+    m.children.forEach(c => fams[key].kids.set(c.uid, c.name));
+  }));
+  const keeperName = mergeState.sides[mergeState.main.keep].person.name;
+  const parentLabels = [...new Set(mainSides.flatMap(s => s.parents.map(p => p.label)))];
+  const spouseName = u => (mergeState.sides[u]?.person || peopleByUid[u])?.name || 'spouse unknown';
+  const lines = Object.values(fams).map(f =>
+    `<li>Married to <strong>${esc(spouseName(f.spouse))}</strong>${f.count > 1 ? ` <span class="hint">(${f.count} family records combined into one)</span>` : ''} — ${f.kids.size ? [...f.kids.values()].map(esc).join(', ') : 'no children recorded'}</li>`).join('');
+  const twoParents = parentLabels.length > 1;
+  return `
+    <div style="background:#eef6f0;border:1px solid #b9d8c3;border-radius:12px;padding:12px 14px">
+      <div style="font-weight:800;color:var(--green)">After merging: one ${esc(keeperName)}</div>
+      <div class="hint" style="margin-top:4px"><strong>Parents:</strong> ${parentLabels.length ? parentLabels.map(esc).join(' &nbsp;and&nbsp; ') : 'none recorded'}</div>
+      <ul style="margin:6px 0 0 18px;font-size:.84rem;color:var(--ink)">${lines || '<li>No marriages recorded</li>'}</ul>
+      ${twoParents ? '<div class="hint" style="color:#9a3412;margin-top:6px">⚠ Both copies have different parents recorded — the merged profile will appear as a child of both. Make sure that\'s right before merging.</div>' : ''}
+    </div>`;
+}
+
+function renderMergePreview() {
+  const s = mergeState;
+  const pairs = mergePairsForState();
+  const mainPair = pairs[0];
+  let html = mergeOutcomeHtml();
+  html += mergePairBlock(mainPair, 'This person', 'swapMergeKeep(\'main\')');
+  s.spousePairs.forEach((p, i) => {
+    const toggle = `<label style="display:flex;gap:6px;align-items:center;font-size:.84rem"><input type="checkbox" data-idx="${i}" ${p.include ? 'checked' : ''} onchange="toggleSpousePair(this)"> Also merge the spouse</label>`;
+    if (p.include) {
+      html += mergePairBlock(pairs.find(x => x.key === 'sp' + i), 'Spouse — looks like the same person on both sides', `swapMergeKeep('sp${i}')`, toggle);
+    } else {
+      html += `<div style="margin:18px 0;padding-top:14px;border-top:1px solid #d6c69b;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div class="hint">Spouse records ${p.uids.map(u => esc(s.sides[u].person.name)).join(' / ')} will stay separate.</div>${toggle}</div>`;
+    }
+  });
+  html += `
+    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px">
+      <button type="button" onclick="closeMergeModal()">Cancel</button>
+      <button type="button" class="primary" id="merge-confirm-btn" onclick="confirmMerge()">Merge ${pairs.length > 1 ? pairs.length + ' pairs' : 'profiles'}</button>
+    </div>`;
+  document.getElementById('merge-body').innerHTML = html;
+}
+
+function setMergeChoice(input) {
+  const key = input.dataset.pair;
+  mergeState.choices[key] = mergeState.choices[key] || {};
+  mergeState.choices[key][input.dataset.field] = input.value;
+}
+
+function swapMergeKeep(key) {
+  if (key === 'main') {
+    const m = mergeState.main;
+    m.keep = m.uids.find(u => u !== m.keep);
+  } else {
+    const p = mergeState.spousePairs[Number(key.slice(2))];
+    p.keep = p.uids.find(u => u !== p.keep);
+  }
+  delete mergeState.choices[key];   // choices were relative to the old kept side
+  renderMergePreview();
+}
+
+function toggleSpousePair(input) {
+  mergeState.spousePairs[Number(input.dataset.idx)].include = input.checked;
+  renderMergePreview();
+}
+
+function closeMergeModal() {
+  const modal = document.getElementById('merge-modal');
+  modal.classList.remove('open'); modal.setAttribute('aria-hidden', 'true'); document.body.style.overflow = '';
+}
+
+async function confirmMerge() {
+  if (!requireRelationshipEdit('merge profiles')) return;
+  const pairs = mergePairsForState();
+  const payload = pairs.map(p => {
+    const fields = {};
+    mergeFieldRows(p).forEach(r => {
+      if (r.kind === 'fill') fields[r.field] = r.value;
+      if (r.kind === 'choose' && mergeState.choices[p.key]?.[r.field] === 'drop') fields[r.field] = r.dv;
+    });
+    return { keep: p.keep, drop: p.drop, fields };
+  });
+  const names = pairs.map(p => `"${mergeState.sides[p.drop].person.name}" into "${mergeState.sides[p.keep].person.name}"`).join('\n');
+  if (!confirm(`Merge:\n${names}\n\nThe duplicate(s) will be hidden and their links will redirect. Continue?`)) return;
+
+  const btn = document.getElementById('merge-confirm-btn');
+  btn.disabled = true; btn.textContent = 'Merging…';
+  const { data, error } = await sb.rpc('akt_merge_people', { p_pairs: payload, p_actor: currentUser || null });
+  if (error) {
+    btn.disabled = false; btn.textContent = 'Merge';
+    setStatus('Merge failed — nothing was changed: ' + error.message, true);
+    alert('Merge failed — nothing was changed.\n\n' + error.message);
+    return;
+  }
+  const keep = mergeState.main.keep;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(keep);
+  await logTreeChange('tree_profiles_merged', mergeState.sides[keep].person.name || keep, {
+    ...(isUuid ? { profile_uid: keep } : {}),
+    merge_log_id: data?.log_id,
+    merged: data?.merged,
+    families_combined: data?.families_combined
+  });
+  closeMergeModal();
+  location.replace('edit.html?uid=' + encodeURIComponent(keep));
 }
 
 function setStatus(message, isError, hide) {

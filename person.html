@@ -2078,6 +2078,14 @@ async function renderPerson(uid, el) {
 
   const { data: p } = await sb.from('people').select('*').eq('uid', uid).single();
   if (!p) {
+    // Merged-away duplicate? person_redirects maps its old uid to the kept profile.
+    const { data: redirect } = await sb.from('person_redirects').select('new_uid').eq('old_uid', uid).maybeSingle();
+    if (redirect?.new_uid) {
+      const url = new URL(location.href);
+      url.searchParams.set('uid', redirect.new_uid);
+      location.replace(url.toString());
+      return;
+    }
     el.innerHTML = `<div class="empty-state">Person not found. <a href="index.html" style="color:var(--gold)">Go back to search</a>.</div>`;
     return;
   }

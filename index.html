@@ -4294,9 +4294,21 @@ function showPerson(uid) {
   window.location.href = 'person.html?uid=' + encodeURIComponent(uid);
 }
 
+// Merged-away duplicates are removed from people; person_redirects maps the
+// old uid (still present in allnames.json / old links) to the kept profile.
+async function resolveMergedUid(uid) {
+  if (!uid) return uid;
+  const { data } = await sb.from('person_redirects').select('new_uid').eq('old_uid', uid).maybeSingle();
+  return data?.new_uid || uid;
+}
+
 async function renderPersonDetail(uid, el) {
   // Fetch person
-  const { data: p } = await sb.from('people').select('*').eq('uid', uid).single();
+  let { data: p } = await sb.from('people').select('*').eq('uid', uid).single();
+  if (!p) {
+    const mergedInto = await resolveMergedUid(uid);
+    if (mergedInto !== uid) { uid = mergedInto; ({ data: p } = await sb.from('people').select('*').eq('uid', uid).single()); }
+  }
   if (!p) { el.innerHTML = '<div class="empty-state">Person not found.</div>'; return; }
   logActivity('view_person', `Viewed: ${p.name || '(unnamed)'}`, { person_uid: p.uid, source_id: p.gedcom_id || '' });
 
@@ -4530,6 +4542,10 @@ function treeSearch() {
 }
 
 async function loadTree(uid) {
+  {
+    const { data: exists } = await sb.from('people').select('uid').eq('uid', uid).maybeSingle();
+    if (!exists) uid = await resolveMergedUid(uid);
+  }
   document.getElementById('tree-search-results').innerHTML = '';
   document.getElementById('tree-person-label').textContent = 'Loading\u2026';
   document.getElementById('tree-view').innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px;font-size:0.85rem;color:var(--muted)">Building family tree\u2026</p><p style="margin-top:8px;font-size:0.8rem;color:var(--muted)">This may take 1\u20133 minutes for large or complex families. Please wait.</p></div>';

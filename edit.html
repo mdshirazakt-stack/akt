@@ -2502,7 +2502,7 @@ function value(id) {
 // pairs so both halves of a couple merge in the same transaction.
 
 const MERGE_FIELDS = [
-  ['name', 'Name'], ['nickname', 'Nickname'], ['birth_date', 'Birth date'], ['birth_place', 'Birth place'],
+  ['name', 'Name'], ['given_name', 'First name (GEDCOM)'], ['surname', 'Surname (GEDCOM)'], ['nickname', 'Nickname'], ['birth_date', 'Birth date'], ['birth_place', 'Birth place'],
   ['root_place', 'Root place'], ['current_place', 'Current place'], ['death_flag', 'Deceased'],
   ['death_date', 'Death date'], ['death_place', 'Death place'], ['occupation', 'Occupation'],
   ['mobile', 'Mobile'], ['email', 'Email'], ['contact_address', 'Address'], ['notes', 'Notes'],
@@ -2510,6 +2510,11 @@ const MERGE_FIELDS = [
 ];
 const MERGE_BOOL_FIELDS = new Set(['death_flag', 'joined_by_marriage', 'is_contributor']);
 let mergeState = null;
+const MERGE_NOTE_JOIN = '\n\n— From merged duplicate profile —\n';
+
+function mergeChoiceFor(pairKey, field) {
+  return mergeState.choices[pairKey]?.[field] || (field === 'notes' ? 'both' : 'keep');
+}
 
 function extractProfileUid(raw) {
   const s = String(raw || '').trim();
@@ -2535,9 +2540,10 @@ function mergeFieldDisplay(field, v) {
 async function loadMergeSide(uid) {
   const { data: person } = await sb.from('people').select('*').eq('uid', uid).maybeSingle();
   if (!person) return null;
-  const [{ data: spouseFams }, { data: childOf }] = await Promise.all([
+  const [{ data: spouseFams }, { data: childOf }, { data: correction }] = await Promise.all([
     sb.from('families').select('uid,husband_uid,wife_uid').or(`husband_uid.eq.${uid},wife_uid.eq.${uid}`),
-    sb.from('family_members').select('family_uid').eq('person_uid', uid).eq('role', 'child')
+    sb.from('family_members').select('family_uid').eq('person_uid', uid).eq('role', 'child'),
+    sb.from('person_profile_overrides').select('person_uid').eq('person_uid', uid).maybeSingle()
   ]);
   const parentFamUids = (childOf || []).map(r => r.family_uid);
   const { data: parentFams } = parentFamUids.length
@@ -2556,6 +2562,7 @@ async function loadMergeSide(uid) {
   const nameOf = u => peopleByUid[u]?.name || '(unknown)';
   return {
     person,
+    hasCorrections: !!correction,
     parents: (parentFams || []).map(f => ({ uid: f.uid, label: [f.husband_uid && nameOf(f.husband_uid), f.wife_uid && nameOf(f.wife_uid)].filter(Boolean).join(' + ') || '(unknown parents)' })),
     marriages: (spouseFams || []).map(f => {
       const spouseUid = f.husband_uid === uid ? f.wife_uid : f.husband_uid;
@@ -2573,10 +2580,19 @@ function mergeSourceLabel(person) {
   return g || 'Added in editor';
 }
 
-// How "rich" a profile is — used to pick the default spouse to keep.
+// How much each copy knows — shown on each card, and used to keep the fuller
+// copy by default (relationships weigh more than single fields).
+function mergeDataPoints(side) {
+  return {
+    details: MERGE_FIELDS.filter(([f]) => !mergeFieldEmpty(f, side.person[f])).length,
+    parents: side.parents.length,
+    children: side.marriages.reduce((n, m) => n + m.children.length, 0),
+    marriages: side.marriages.length
+  };
+}
 function mergeRichness(side) {
-  const filled = MERGE_FIELDS.filter(([f]) => !mergeFieldEmpty(f, side.person[f])).length;
-  return side.parents.length * 10 + side.marriages.reduce((n, m) => n + m.children.length, 0) * 3 + filled;
+  const d = mergeDataPoints(side);
+  return d.parents * 10 + d.children * 3 + d.marriages * 2 + d.details;
 }
 
 async function openMergePreview() {
@@ -2621,7 +2637,7 @@ async function openMergePreview() {
     p.keep = mergeRichness(x) >= mergeRichness(y) ? x.person.uid : y.person.uid;
   });
 
-  mergeState = { sides: { [a.person.uid]: a, [b.person.uid]: b, ...spouseSides }, main: { uids: [a.person.uid, b.person.uid], keep: a.person.uid }, spousePairs, choices: {} };
+  mergeState = { sides: { [a.person.uid]: a, [b.person.uid]: b, ...spouseSides }, main: { uids: [a.person.uid, b.person.uid], keep: mergeRichness(a) >= mergeRichness(b) ? a.person.uid : b.person.uid }, spousePairs, choices: {} };
   renderMergePreview();
 }
 
@@ -2647,8 +2663,11 @@ function mergeFieldRows(pair) {
   }).filter(Boolean);
 }
 
-function mergeSideSummary(side, role) {
+function mergeSideSummary(side, role, otherSide) {
   const p = side.person;
+  const dp = mergeDataPoints(side);
+  const richer = otherSide && mergeRichness(side) > mergeRichness(otherSide);
+  const points = `${dp.details} detail${dp.details === 1 ? '' : 's'} · ${dp.parents ? 'parents' : 'no parents'} · ${dp.children} child${dp.children === 1 ? '' : 'ren'}${side.hasCorrections ? ' · approved corrections' : ''}`;
   const parents = side.parents.length ? side.parents.map(x => esc(x.label)).join('; ') : '<span style="color:var(--muted)">no parents recorded</span>';
   const marriages = side.marriages.length
     ? side.marriages.map(m => `${esc(m.spouse?.name || 'spouse unknown')} — ${m.children.length} child${m.children.length === 1 ? '' : 'ren'}`).join('<br>')
@@ -2658,6 +2677,7 @@ function mergeSideSummary(side, role) {
       <div style="font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:${role === 'keep' ? 'var(--green)' : '#9a6f2f'}">${role === 'keep' ? 'Kept' : 'Merged in &amp; hidden'}</div>
       <div style="font-weight:800;margin:4px 0 2px">${esc(p.name || '(unnamed)')}</div>
       <div class="hint">${esc(mergeSourceLabel(p))}</div>
+      <div class="hint" style="margin-top:4px">${points}${richer ? ' <span style="background:#dcfce7;color:#166534;padding:1px 7px;border-radius:999px;font-weight:700">more complete</span>' : ''}</div>
       <div class="hint" style="margin-top:6px"><strong>Parents:</strong> ${parents}</div>
       <div class="hint"><strong>Married to:</strong><br>${marriages}</div>
     </div>`;
@@ -2669,10 +2689,13 @@ function mergePairBlock(pair, title, swapAction, includeToggle) {
     if (r.kind === 'same') return `<tr><td>${esc(r.label)}</td><td colspan="2">${esc(mergeFieldDisplay(r.field, r.value))}</td></tr>`;
     if (r.kind === 'fill') return `<tr><td>${esc(r.label)}</td><td colspan="2">${esc(mergeFieldDisplay(r.field, r.value))} <span class="hint">(taken from the duplicate)</span></td></tr>`;
     const name = `mf-${pair.key}-${r.field}`;
-    const chosen = mergeState.choices[pair.key]?.[r.field] || 'keep';
+    const chosen = mergeChoiceFor(pair.key, r.field);
+    const bothOption = r.field === 'notes'
+      ? `<div style="margin-top:6px"><label style="display:flex;gap:6px;align-items:center"><input type="radio" name="${name}" data-pair="${pair.key}" data-field="${r.field}" value="both" ${chosen === 'both' ? 'checked' : ''} onchange="setMergeChoice(this)"> <strong>Keep both notes</strong></label></div>`
+      : '';
     return `<tr><td>${esc(r.label)}</td>
       <td><label style="display:flex;gap:6px;align-items:flex-start"><input type="radio" name="${name}" data-pair="${pair.key}" data-field="${r.field}" value="keep" ${chosen === 'keep' ? 'checked' : ''} onchange="setMergeChoice(this)"> ${esc(mergeFieldDisplay(r.field, r.kv))}</label></td>
-      <td><label style="display:flex;gap:6px;align-items:flex-start"><input type="radio" name="${name}" data-pair="${pair.key}" data-field="${r.field}" value="drop" ${chosen === 'drop' ? 'checked' : ''} onchange="setMergeChoice(this)"> ${esc(mergeFieldDisplay(r.field, r.dv))}</label></td></tr>`;
+      <td><label style="display:flex;gap:6px;align-items:flex-start"><input type="radio" name="${name}" data-pair="${pair.key}" data-field="${r.field}" value="drop" ${chosen === 'drop' ? 'checked' : ''} onchange="setMergeChoice(this)"> ${esc(mergeFieldDisplay(r.field, r.dv))}</label>${bothOption}</td></tr>`;
   }).join('');
   return `
     <div style="margin:18px 0;padding-top:14px;border-top:1px solid #d6c69b">
@@ -2681,8 +2704,10 @@ function mergePairBlock(pair, title, swapAction, includeToggle) {
         <div style="display:flex;gap:8px;flex-wrap:wrap">${includeToggle || ''}<button type="button" onclick="${swapAction}">⇄ Swap which is kept</button></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px">
-        ${mergeSideSummary(mergeState.sides[pair.keep], 'keep')}
-        ${mergeSideSummary(mergeState.sides[pair.drop], 'drop')}
+        ${mergeSideSummary(mergeState.sides[pair.keep], 'keep', mergeState.sides[pair.drop])}
+        ${mergeSideSummary(mergeState.sides[pair.drop], 'drop', mergeState.sides[pair.keep])}
+      </div>
+      <div class="hint" style="margin-top:6px">Anything blank on the kept copy is filled from the other copy automatically.${mergeState.sides[pair.keep].hasCorrections && mergeState.sides[pair.drop].hasCorrections ? ' Both copies have approved corrections — they\'ll be combined, with blanks filled from the other copy.' : ''}
       </div>
       ${rows.length ? `<div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:.84rem">
         <thead><tr><th style="text-align:left;padding:6px">Field</th><th style="text-align:left;padding:6px" colspan="2">Value after merge (pick where they differ)</th></tr></thead>
@@ -2774,7 +2799,11 @@ async function confirmMerge() {
     const fields = {};
     mergeFieldRows(p).forEach(r => {
       if (r.kind === 'fill') fields[r.field] = r.value;
-      if (r.kind === 'choose' && mergeState.choices[p.key]?.[r.field] === 'drop') fields[r.field] = r.dv;
+      if (r.kind === 'choose') {
+        const choice = mergeChoiceFor(p.key, r.field);
+        if (choice === 'drop') fields[r.field] = r.dv;
+        if (choice === 'both') fields[r.field] = String(r.kv).trim() + MERGE_NOTE_JOIN + String(r.dv).trim();
+      }
     });
     return { keep: p.keep, drop: p.drop, fields };
   });

@@ -26,6 +26,13 @@
 -- per-query filtering; person.html / edit.html look up person_redirects when
 -- a uid isn't found and redirect to the merged profile.
 --
+-- DATA IS NEVER SILENTLY DROPPED (2026-10-18 follow-up): any field blank on
+-- the kept profile is filled from the duplicate (edit.html sends it), the
+-- GEDCOM name parts (given_name/surname) are included, two different notes
+-- can be kept together, and two sets of approved corrections
+-- (person_profile_overrides) are combined field by field instead of the
+-- duplicate's being discarded.
+--
 -- UNDO: person_merge_log.snapshot holds every affected row exactly as it was
 -- before the merge (both people, their families, family_members, and rows in
 -- the other tables), so a mistaken merge can be reconstructed.
@@ -141,7 +148,7 @@ begin
     'profile_claims', (select coalesce(jsonb_agg(to_jsonb(r)), '[]') from public.profile_claims r where r.person_uid = any(drops)),
     'correction_requests', (select coalesce(jsonb_agg(to_jsonb(r)), '[]') from public.correction_requests r
                             where r.person_uid = any(drops) or r.duplicate_profile_uid = any(drops)),
-    'person_profile_overrides', (select coalesce(jsonb_agg(to_jsonb(r)), '[]') from public.person_profile_overrides r where r.person_uid = any(drops)),
+    'person_profile_overrides', (select coalesce(jsonb_agg(to_jsonb(r)), '[]') from public.person_profile_overrides r where r.person_uid = any(all_uids)),
     'person_identity_members', (select coalesce(jsonb_agg(to_jsonb(r)), '[]') from public.person_identity_members r where r.person_uid = any(all_uids)),
     'person_identity_groups', (select coalesce(jsonb_agg(to_jsonb(r)), '[]') from public.person_identity_groups r where r.canonical_person_uid = any(drops)),
     'relationship_overrides', (select coalesce(jsonb_agg(to_jsonb(r)), '[]') from public.relationship_overrides r
@@ -164,6 +171,8 @@ begin
     -- 1. Chosen values onto the kept profile (only known, editable columns).
     update public.people set
       name               = case when f ? 'name'               then f->>'name'               else name end,
+      given_name         = case when f ? 'given_name'         then f->>'given_name'         else given_name end,
+      surname            = case when f ? 'surname'            then f->>'surname'            else surname end,
       nickname           = case when f ? 'nickname'           then f->>'nickname'           else nickname end,
       birth_date         = case when f ? 'birth_date'         then f->>'birth_date'         else birth_date end,
       birth_place        = case when f ? 'birth_place'        then f->>'birth_place'        else birth_place end,
@@ -202,8 +211,32 @@ begin
     update public.correction_requests set person_uid = k where person_uid = d;
     update public.correction_requests set duplicate_profile_uid = k where duplicate_profile_uid = d;
 
-    -- 2e. Profile overrides (PK person_uid): keep k's if both exist.
+    -- 2e. Approved corrections (PK person_uid). If both have a row, fill every
+    --     blank on k's row from d's, join two different profile notes, then
+    --     drop d's row — so no approved correction is lost.
     if exists (select 1 from public.person_profile_overrides where person_uid = k) then
+      update public.person_profile_overrides ko set
+        corrected_name    = coalesce(nullif(ko.corrected_name, ''),    nullif(dv.corrected_name, '')),
+        is_deceased       = coalesce(ko.is_deceased, dv.is_deceased),
+        birth_date_text   = coalesce(nullif(ko.birth_date_text, ''),   nullif(dv.birth_date_text, '')),
+        death_date_text   = coalesce(nullif(ko.death_date_text, ''),   nullif(dv.death_date_text, '')),
+        mobile_number     = coalesce(nullif(ko.mobile_number, ''),     nullif(dv.mobile_number, '')),
+        root_location     = coalesce(nullif(ko.root_location, ''),     nullif(dv.root_location, '')),
+        birth_location    = coalesce(nullif(ko.birth_location, ''),    nullif(dv.birth_location, '')),
+        current_location  = coalesce(nullif(ko.current_location, ''),  nullif(dv.current_location, '')),
+        death_location    = coalesce(nullif(ko.death_location, ''),    nullif(dv.death_location, '')),
+        birth_order_text  = coalesce(nullif(ko.birth_order_text, ''),  nullif(dv.birth_order_text, '')),
+        corrected_gender  = coalesce(nullif(ko.corrected_gender, ''),  nullif(dv.corrected_gender, '')),
+        email             = coalesce(nullif(ko.email, ''),             nullif(dv.email, '')),
+        profile_note      = case
+                              when nullif(trim(dv.profile_note), '') is null then ko.profile_note
+                              when nullif(trim(ko.profile_note), '') is null then dv.profile_note
+                              when trim(ko.profile_note) = trim(dv.profile_note) then ko.profile_note
+                              else ko.profile_note || E'\n\n— From merged duplicate profile —\n' || dv.profile_note
+                            end,
+        updated_at        = now()
+        from public.person_profile_overrides dv
+       where ko.person_uid = k and dv.person_uid = d;
       delete from public.person_profile_overrides where person_uid = d;
     else
       update public.person_profile_overrides set person_uid = k where person_uid = d;

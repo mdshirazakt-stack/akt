@@ -471,6 +471,35 @@
 
   /* SEARCH */
   .search-wrap { position: relative; margin-bottom: 20px; }
+  /* Advanced search: button beside the search box + its own drawer (reuses .filter-drawer shell) */
+  .search-row { display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap; margin-bottom: 20px; }
+  .search-row .search-wrap { flex: 1 1 280px; margin-bottom: 0; }
+  .adv-search-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px;
+    padding: 0 18px; border: 1px solid var(--green); background: var(--surface); color: var(--green);
+    font-family: 'Lato', sans-serif; font-size: 0.86rem; font-weight: 700; cursor: pointer; transition: all 0.18s;
+  }
+  .adv-search-btn:hover, .adv-search-btn.active { background: var(--green); color: #fff; }
+  .adv-body { flex: 1; overflow: auto; padding: 18px 22px 26px; min-height: 0; }
+  .adv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 18px; }
+  .adv-field label { display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .adv-field input, .adv-field select {
+    width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border); background: var(--surface);
+    font-family: 'Lato', sans-serif; font-size: 0.92rem; color: var(--ink);
+  }
+  .adv-field input:focus, .adv-field select:focus { outline: none; border-color: var(--gold2); }
+  .adv-age-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .adv-field-age { grid-column: 1 / -1; }
+  .adv-age-row select { flex: 1 1 0; min-width: 90px; max-width: 220px; }
+  .adv-section-title { grid-column: 1 / -1; font-family: 'Amiri', serif; font-size: 1.1rem; color: var(--ink); margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .adv-section-title:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+  .adv-help { grid-column: 1 / -1; color: var(--muted); font-size: 0.78rem; line-height: 1.55; margin-top: -6px; }
+  .adv-active-bar {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 14px;
+    padding: 10px 12px; background: rgba(46,110,74,0.08); border: 1px solid rgba(46,110,74,0.25); font-size: 0.82rem; color: var(--ink);
+  }
+  .adv-active-bar .adv-chip { background: var(--surface); border: 1px solid var(--border); padding: 3px 10px; border-radius: 999px; }
+  .adv-active-bar button { min-height: 44px; padding: 0 14px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-family: 'Lato', sans-serif; font-size: 0.8rem; }
   .search-wrap input {
     width: 100%; padding: 14px 20px 14px 48px;
     border: 1px solid var(--border); background: var(--surface);
@@ -1323,9 +1352,12 @@
           Merge Trees
         </a>
       </div>
-      <div class="search-wrap">
-        <span class="icon">🔍</span>
-        <input type="text" id="search-input" placeholder="Search by name, place, or badge…" oninput="onSearch()"/>
+      <div class="search-row">
+        <div class="search-wrap">
+          <span class="icon">🔍</span>
+          <input type="text" id="search-input" placeholder="Search by name, place, or badge…" oninput="onSearch()"/>
+        </div>
+        <button id="adv-search-btn" class="adv-search-btn" type="button" onclick="openAdvancedSearch()" aria-haspopup="dialog">⚙ Advanced Search</button>
       </div>
       <div class="search-mode-row">
         <div class="search-mode-seg" role="group" aria-label="Search mode">
@@ -1406,6 +1438,69 @@
         <div class="filter-drawer-foot">
           <button class="filter-reset-btn" type="button" onclick="resetAllFilters()">Reset all</button>
           <button class="filter-apply-btn" type="button" onclick="applyDrawerFilters()">Apply Filters</button>
+        </div>
+      </aside>
+      <div id="adv-drawer-backdrop" class="filter-drawer-backdrop" onclick="closeAdvancedSearch()"></div>
+      <aside id="adv-drawer" class="filter-drawer" aria-hidden="true" role="dialog" aria-labelledby="adv-drawer-title">
+        <div class="filter-drawer-head">
+          <div class="filter-drawer-title" id="adv-drawer-title">Advanced Search</div>
+          <button class="filter-drawer-close" type="button" onclick="closeAdvancedSearch()" aria-label="Close advanced search">×</button>
+        </div>
+        <form class="adv-body" id="adv-form" onsubmit="event.preventDefault(); runAdvancedSearch();">
+          <div class="adv-grid">
+            <div class="adv-section-title">Person</div>
+            <div class="adv-field" style="grid-column:1/-1">
+              <label for="adv-name">Name (optional)</label>
+              <input id="adv-name" type="text" placeholder="Any part of the name, e.g. Abid" autocomplete="off"/>
+            </div>
+            <div class="adv-field">
+              <label for="adv-sex">Gender</label>
+              <select id="adv-sex"><option value="">Any</option><option value="M">Male</option><option value="F">Female</option></select>
+            </div>
+            <div class="adv-field">
+              <label for="adv-alive">Living / deceased</label>
+              <select id="adv-alive"><option value="any">Any</option><option value="living">Living</option><option value="deceased">Deceased</option></select>
+            </div>
+            <div class="adv-field">
+              <label for="adv-marital">Marital status</label>
+              <select id="adv-marital">
+                <option value="">Any</option>
+                <option value="married">Married</option>
+                <option value="widowed">Widowed</option>
+                <option value="divorced">Divorced / separated</option>
+                <option value="none">No spouse recorded</option>
+              </select>
+            </div>
+            <div class="adv-field adv-field-age">
+              <label for="adv-age-min">Age range</label>
+              <div class="adv-age-row">
+                <select id="adv-age-min" aria-label="Minimum age"></select>
+                <span>to under</span>
+                <select id="adv-age-max" aria-label="Maximum age"></select>
+              </div>
+            </div>
+            <p class="adv-help">Age is searched in 5-year ranges and is never shown in results. It uses the recorded birth year, only applies to living people, and only a small share of profiles have a birth year recorded, so many people won't appear in an age search.</p>
+
+            <div class="adv-section-title">Places</div>
+            <div class="adv-field">
+              <label for="adv-current">Current place</label>
+              <input id="adv-current" type="text" placeholder="e.g. Kanpur" autocomplete="off"/>
+            </div>
+            <div class="adv-field">
+              <label for="adv-root">Native place</label>
+              <input id="adv-root" type="text" placeholder="e.g. Rasra" autocomplete="off"/>
+            </div>
+            <div class="adv-field">
+              <label for="adv-birth">Birth place</label>
+              <input id="adv-birth" type="text" placeholder="e.g. Kolkata" autocomplete="off"/>
+            </div>
+            <p class="adv-help">Places match any part of the text, ignoring capital letters — "kanpur" also finds "KDA Jajmau Kanpur".</p>
+          </div>
+          <p id="adv-error" class="adv-help" style="color:var(--red);margin-top:12px;display:none"></p>
+        </form>
+        <div class="filter-drawer-foot">
+          <button class="filter-reset-btn" type="button" onclick="resetAdvancedForm()">Clear all</button>
+          <button class="filter-apply-btn" type="submit" form="adv-form">Search</button>
         </div>
       </aside>
       <div id="search-results">
@@ -2466,6 +2561,7 @@ async function startApp(name, role = 'visitor', visitorRecord = null) {
   }
 
   restoreSearchState();
+  if (restoreAdvancedState()) { loadAdvancedSearch(); return; }
   const restoredQuery = document.getElementById('search-input').value.trim();
   loadSearch(restoredQuery);
 }
@@ -3471,6 +3567,7 @@ function setFilter(f, btn) {
 }
 
 function onSearch() {
+  if (advSearch) exitAdvancedSearch(false);   // typing in the main box leaves advanced search
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
     searchPage = 0;
@@ -4267,6 +4364,187 @@ async function loadSearch(q) {
   }
 }
 
+// ===== ADVANCED SEARCH =====
+// Runs the akt_advanced_search() RPC (supabase_advanced_search.sql). Privacy:
+// age is only ever searched in 5-year bands (the RPC rejects anything else)
+// and results never include birth date, age, mobile or email.
+const ADV_STATE_KEY = 'akt_adv_search_v1';
+const ADV_RESULT_COLUMNS = ['name', 'father', 'sex', 'root_place', 'current_place', 'status', 'deceased', 'source'];
+const ADV_COLUMN_LABELS = { father: 'Father', root_place: 'Native Place', status: 'Marital status' };
+const ADV_MARITAL_LABEL = { married: 'Married', widowed: 'Widowed', divorced: 'Divorced / separated', none: 'No spouse recorded' };
+let advSearch = null;   // { filters, page } while advanced search is active
+
+function fillAdvAgeOptions() {
+  const minSel = document.getElementById('adv-age-min');
+  const maxSel = document.getElementById('adv-age-max');
+  if (!minSel || minSel.options.length) return;
+  minSel.innerHTML = '<option value="">Any</option>' + Array.from({ length: 20 }, (_, i) => `<option value="${i * 5}">${i * 5}</option>`).join('');
+  maxSel.innerHTML = '<option value="">Any</option>' + Array.from({ length: 20 }, (_, i) => `<option value="${(i + 1) * 5}">${(i + 1) * 5}</option>`).join('');
+}
+
+function openAdvancedSearch() {
+  fillAdvAgeOptions();
+  const f = advSearch?.filters || {};
+  document.getElementById('adv-name').value = f.name || '';
+  document.getElementById('adv-sex').value = f.sex || '';
+  document.getElementById('adv-alive').value = f.alive || 'any';
+  document.getElementById('adv-marital').value = f.marital || '';
+  document.getElementById('adv-age-min').value = f.age_min ?? '';
+  document.getElementById('adv-age-max').value = f.age_max ?? '';
+  document.getElementById('adv-current').value = f.current_place || '';
+  document.getElementById('adv-root').value = f.root_place || '';
+  document.getElementById('adv-birth').value = f.birth_place || '';
+  document.getElementById('adv-error').style.display = 'none';
+  document.getElementById('adv-drawer-backdrop').classList.add('open');
+  const drawer = document.getElementById('adv-drawer');
+  drawer.classList.add('open');
+  drawer.setAttribute('aria-hidden', 'false');
+  setTimeout(() => document.getElementById('adv-name').focus(), 50);
+}
+
+function closeAdvancedSearch() {
+  document.getElementById('adv-drawer-backdrop').classList.remove('open');
+  const drawer = document.getElementById('adv-drawer');
+  drawer.classList.remove('open');
+  drawer.setAttribute('aria-hidden', 'true');
+}
+
+function resetAdvancedForm() {
+  ['adv-name', 'adv-current', 'adv-root', 'adv-birth'].forEach(id => { document.getElementById(id).value = ''; });
+  ['adv-sex', 'adv-marital', 'adv-age-min', 'adv-age-max'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('adv-alive').value = 'any';
+  document.getElementById('adv-error').style.display = 'none';
+}
+
+function readAdvancedForm() {
+  const v = id => document.getElementById(id).value.trim();
+  const f = {};
+  if (v('adv-name')) f.name = v('adv-name');
+  if (v('adv-sex')) f.sex = v('adv-sex');
+  if (v('adv-alive') && v('adv-alive') !== 'any') f.alive = v('adv-alive');
+  if (v('adv-marital')) f.marital = v('adv-marital');
+  if (v('adv-age-min') !== '') f.age_min = Number(v('adv-age-min'));
+  if (v('adv-age-max') !== '') f.age_max = Number(v('adv-age-max'));
+  if (v('adv-current')) f.current_place = v('adv-current');
+  if (v('adv-root')) f.root_place = v('adv-root');
+  if (v('adv-birth')) f.birth_place = v('adv-birth');
+  return f;
+}
+
+function showAdvError(msg) {
+  const el = document.getElementById('adv-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function runAdvancedSearch() {
+  const f = readAdvancedForm();
+  if (!Object.keys(f).length) { showAdvError('Choose at least one search option.'); return; }
+  if (f.age_min !== undefined && f.age_max !== undefined && f.age_max <= f.age_min) {
+    showAdvError('The "to under" age must be higher than the starting age.');
+    return;
+  }
+  advSearch = { filters: f, page: 0 };
+  searchPage = 0;
+  saveAdvancedState();
+  closeAdvancedSearch();
+  document.getElementById('adv-search-btn').classList.add('active');
+  loadAdvancedSearch();
+}
+
+function exitAdvancedSearch(reload = true) {
+  advSearch = null;
+  try { sessionStorage.removeItem(ADV_STATE_KEY); } catch (e) {}
+  document.getElementById('adv-search-btn')?.classList.remove('active');
+  if (reload) { searchPage = 0; loadSearch(document.getElementById('search-input').value.trim()); }
+}
+
+function saveAdvancedState() {
+  try { if (advSearch) sessionStorage.setItem(ADV_STATE_KEY, JSON.stringify(advSearch)); } catch (e) {}
+}
+
+function restoreAdvancedState() {
+  try {
+    const state = JSON.parse(sessionStorage.getItem(ADV_STATE_KEY) || 'null');
+    if (!state || typeof state.filters !== 'object' || !Object.keys(state.filters).length) return false;
+    advSearch = { filters: state.filters, page: Number(state.page) || 0 };
+    searchPage = advSearch.page;
+    document.getElementById('adv-search-btn')?.classList.add('active');
+    return true;
+  } catch (e) { return false; }
+}
+
+function advFilterChips(f) {
+  const chips = [];
+  if (f.name) chips.push(`Name: ${f.name}`);
+  if (f.sex) chips.push(f.sex === 'M' ? 'Male' : 'Female');
+  if (f.alive) chips.push(f.alive === 'living' ? 'Living' : 'Deceased');
+  if (f.marital) chips.push(ADV_MARITAL_LABEL[f.marital] || f.marital);
+  if (f.age_min !== undefined || f.age_max !== undefined) {
+    chips.push(`Age ${f.age_min ?? 0}${f.age_max !== undefined ? ` to under ${f.age_max}` : '+'}`);
+  }
+  if (f.current_place) chips.push(`Current: ${f.current_place}`);
+  if (f.root_place) chips.push(`Native: ${f.root_place}`);
+  if (f.birth_place) chips.push(`Born: ${f.birth_place}`);
+  return chips.map(c => `<span class="adv-chip">${escapeHtml(c)}</span>`).join('');
+}
+
+async function loadAdvancedSearch() {
+  if (!advSearch) return;
+  const requestSeq = ++searchRequestSeq;
+  const el = document.getElementById('search-results');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const f = advSearch.filters;
+  const bar = `<div class="adv-active-bar"><strong>Advanced search:</strong> ${advFilterChips(f)}
+    <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+      <button type="button" onclick="openAdvancedSearch()">Edit</button>
+      <button type="button" onclick="exitAdvancedSearch()">Clear</button>
+    </span></div>`;
+  try {
+    const { data, error } = await sb.rpc('akt_advanced_search', {
+      p: { ...f, limit: PAGE_SIZE, offset: advSearch.page * PAGE_SIZE }
+    });
+    if (requestSeq !== searchRequestSeq) return;
+    if (error) throw error;
+    const rows = data || [];
+    const count = rows.length ? Number(rows[0].total_count) : 0;
+    if (!rows.length) {
+      el.innerHTML = bar + `<div class="empty-state"><div class="icon">🔍</div><p>No one matches all of these options.<br><span style="font-size:0.82rem;color:var(--muted)">Try removing an option${f.age_min !== undefined || f.age_max !== undefined ? ' — most profiles have no birth year recorded, so age searches find only a few people' : ''}.</span></p></div>`;
+      logActivity('advanced_search', 'Advanced search', { filters: f, result_count: 0 });
+      return;
+    }
+    const srcMap = {};
+    gedcomUploads.forEach(u => srcMap[u.id] = u.filename.replace(/\.ged$/i, ''));
+    const pages = Math.ceil(count / PAGE_SIZE);
+    const nameTokens = f.name ? f.name.split(/\s+/).filter(t => t.length >= 2) : [];
+    el.innerHTML = bar + `
+      <div class="result-count">${count.toLocaleString()} ${count === 1 ? 'person' : 'people'} found</div>
+      <div style="overflow-x:auto">
+      <table class="people-table">
+        <thead><tr>${ADV_RESULT_COLUMNS.map(key => `<th>${escapeHtml(ADV_COLUMN_LABELS[key] || resultColumnLabel(key))}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map(r => {
+          const p = { ...r, marr_status: r.marital_status };
+          return `<tr data-uid="${escapeHtml(p.uid)}" onclick="showPerson(this.dataset.uid)">
+            ${ADV_RESULT_COLUMNS.map(key => key === 'father'
+              ? `<td data-label="Father">${escapeHtml(p.father_name || '-')}</td>`
+              : renderResultCell(key, p, nameTokens, srcMap[p.gedcom_id] || '')).join('')}
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+      </div>
+      ${pages > 1 ? `<div class="pagination">${buildPagination(pages)}</div>` : ''}`;
+    logActivity('advanced_search', 'Advanced search', { filters: f, result_count: count, page: advSearch.page + 1 });
+  } catch (err) {
+    if (requestSeq !== searchRequestSeq) return;
+    console.error('Advanced search failed', err);
+    el.innerHTML = bar + `<div class="empty-state"><div class="icon">🔍</div><p>Advanced search could not run.<br><span style="font-size:0.82rem;color:var(--muted)">${escapeHtml(err?.message || 'Please try again in a moment.')}</span></p></div>`;
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('adv-drawer')?.classList.contains('open')) closeAdvancedSearch();
+});
+
 function buildPagination(pages) {
   let html = '';
   if (searchPage > 0) html += `<button class="page-btn" onclick="goPage(${searchPage-1})">‹ Prev</button>`;
@@ -4277,7 +4555,11 @@ function buildPagination(pages) {
   if (searchPage < pages - 1) html += `<button class="page-btn" onclick="goPage(${searchPage+1})">Next ›</button>`;
   return html;
 }
-function goPage(p) { searchPage = p; saveSearchState(); loadSearch(lastQuery); window.scrollTo(0,0); }
+function goPage(p) {
+  searchPage = p;
+  if (advSearch) { advSearch.page = p; saveAdvancedState(); loadAdvancedSearch(); window.scrollTo(0,0); return; }
+  saveSearchState(); loadSearch(lastQuery); window.scrollTo(0,0);
+}
 
 // ===== PERSON DETAIL =====
 async function showPersonInElement(uid, el) {

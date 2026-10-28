@@ -27,6 +27,7 @@
 -- Father's name (2026-10-28): from the person's parent family (role 'child'
 -- in family_members → families.husband_uid). Looked up only for the rows on
 -- the current page. Changing the return columns needs a DROP first.
+-- Mother's name (2026-10-28): same parent family → families.wife_uid.
 drop function if exists public.akt_advanced_search(jsonb);
 
 create function public.akt_advanced_search(p jsonb)
@@ -34,7 +35,7 @@ returns table (
   uid text, name text, nickname text, sex text,
   root_place text, current_place text, death_flag boolean,
   gedcom_id uuid, is_contributor boolean, community_role text,
-  marital_status text, father_name text, total_count bigint
+  marital_status text, father_name text, mother_name text, total_count bigint
 )
 language plpgsql
 stable
@@ -151,6 +152,13 @@ begin
            where fm.person_uid = pg.uid and fm.role = 'child'
            order by fa.name
            limit 1) as father_name,
+         (select mo.name
+            from public.family_members fm
+            join public.families fp on fp.uid = fm.family_uid
+            join public.people mo on mo.uid = fp.wife_uid
+           where fm.person_uid = pg.uid and fm.role = 'child'
+           order by mo.name
+           limit 1) as mother_name,
          pg.total
     from page pg
    order by pg.name, pg.uid;

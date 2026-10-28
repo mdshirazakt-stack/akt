@@ -4369,8 +4369,8 @@ async function loadSearch(q) {
 // age is only ever searched in 5-year bands (the RPC rejects anything else)
 // and results never include birth date, age, mobile or email.
 const ADV_STATE_KEY = 'akt_adv_search_v1';
-const ADV_RESULT_COLUMNS = ['name', 'father', 'sex', 'root_place', 'current_place', 'status', 'deceased', 'source'];
-const ADV_COLUMN_LABELS = { father: 'Father', root_place: 'Native Place', status: 'Marital status' };
+const ADV_RESULT_COLUMNS = ['name', 'father', 'mother', 'root_place', 'current_place'];
+const ADV_COLUMN_LABELS = { father: 'Father', mother: 'Mother', root_place: 'Native Place' };
 const ADV_MARITAL_LABEL = { married: 'Married', widowed: 'Widowed', divorced: 'Divorced / separated', none: 'No spouse recorded' };
 let advSearch = null;   // { filters, page } while advanced search is active
 
@@ -4527,6 +4527,8 @@ async function loadAdvancedSearch() {
           return `<tr data-uid="${escapeHtml(p.uid)}" onclick="showPerson(this.dataset.uid)">
             ${ADV_RESULT_COLUMNS.map(key => key === 'father'
               ? `<td data-label="Father">${escapeHtml(p.father_name || '-')}</td>`
+              : key === 'mother'
+              ? `<td data-label="Mother">${escapeHtml(p.mother_name || '-')}</td>`
               : renderResultCell(key, p, nameTokens, srcMap[p.gedcom_id] || '')).join('')}
           </tr>`;
         }).join('')}</tbody>

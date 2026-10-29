@@ -815,6 +815,13 @@
   td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.87rem; vertical-align: top; }
   tr:hover td { background: #fdf9f2; }
   .people-table tr { cursor: pointer; }
+  .people-table td { overflow-wrap: anywhere; word-break: normal; }
+  .people-table td[data-label="Name"] { min-width: 160px; }
+  .place-kind {
+    display: inline-block; font-size: 0.66rem; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.06em; border: 1px solid var(--border); padding: 0 5px; border-radius: 2px;
+    vertical-align: middle; white-space: nowrap;
+  }
   .person-name { font-weight: 700; color: var(--ink); cursor: pointer; }
   .person-name:hover { color: var(--gold); text-decoration: underline; }
 
@@ -852,11 +859,13 @@
     }
     .people-table td[data-label="Name"] { padding: 13px 14px 8px; border-bottom: 1px solid var(--border); }
     .people-table td[data-label="Name"]::before { display: none; }
+    .people-table td[data-label="Name"] { display: block; min-width: 0; }
     .people-table td[data-label="Name"] .person-name {
       font-size: 1rem; line-height: 1.35; display: block; padding-right: 8px;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      white-space: normal; overflow-wrap: anywhere;
     }
-    .people-table td[data-label="Birth Place"] { padding-top: 9px; }
+    .people-table td .cell-val { flex: 1 1 auto; min-width: 0; line-height: 1.4; overflow-wrap: anywhere; }
+    .people-table td[data-label="Name"] + td { padding-top: 9px; }
     .people-table td[data-label="Source"] { padding-bottom: 12px; }
     .source-tag {
       max-width: 100%; margin-left: 0; font-size: 0.78rem; font-weight: 600;
@@ -2313,19 +2322,23 @@ let accessRequestMode = false;
 let currentUserRole = 'visitor';
 const ROLE_LEVELS = { visitor: 1, moderator: 2, admin: 3, superadmin: 4 };
 const SEARCH_STATE_KEY = 'akt_search_state_v2';
-const SEARCH_COLUMNS_KEY = 'akt_search_columns_v1';
+// v2 (2026-10-29): Father/Mother/Place columns added as the default. Saved v1
+// column choices are ignored so everyone gets the new default once.
+const SEARCH_COLUMNS_KEY = 'akt_search_columns_v2';
 const PRIVATE_BIRTH_YEAR_CUTOFF = 1979; // show DOB for born before 1980
 const SEARCH_COLUMNS = [
   { key: 'name', label: 'Name', required: true },
+  { key: 'father', label: 'Father' },
+  { key: 'mother', label: 'Mother' },
+  { key: 'place', label: 'Place' },
   { key: 'sex', label: 'Sex' },
-  { key: 'birth_place', label: 'Birth Place' },
   { key: 'root_place', label: 'Root Place' },
   { key: 'current_place', label: 'Current Place' },
   { key: 'deceased', label: 'Deceased' },
   { key: 'status', label: 'Status' },
   { key: 'source', label: 'Source' }
 ];
-let selectedSearchColumns = new Set(['name', 'birth_place', 'source']);
+let selectedSearchColumns = new Set(['name', 'father', 'mother', 'place', 'source']);
 
 function extractBirthYear(value) {
   const match = String(value || '').match(/\b(?:18|19|20)\d{2}\b/);
@@ -3113,8 +3126,8 @@ function restoreSearchState() {
     rebuildSelectedLocationSourceIds();
     syncLegacyFilterIds();
     searchPage = Number(state.searchPage || 0) || 0;
-    if (Array.isArray(state.columns) && state.columns.includes('name')) {
-      selectedSearchColumns = new Set(state.columns.filter(key => SEARCH_COLUMNS.some(c => c.key === key)));
+    if (Array.isArray(state.columnsV2) && state.columnsV2.includes('name')) {
+      selectedSearchColumns = new Set(state.columnsV2.filter(key => SEARCH_COLUMNS.some(c => c.key === key)));
       selectedSearchColumns.add('name');
     }
     setFilterValue(searchFilter);
@@ -3135,7 +3148,7 @@ function saveSearchState() {
       selectedSourceIds: [...selectedSourceIds],
       selectedLocationNames: [...selectedLocationNames],
       searchPage,
-      columns: [...selectedSearchColumns]
+      columnsV2: [...selectedSearchColumns]
     };
     sessionStorage.setItem(SEARCH_STATE_KEY, JSON.stringify(state));
     localStorage.setItem(SEARCH_COLUMNS_KEY, JSON.stringify([...selectedSearchColumns]));
@@ -3180,12 +3193,46 @@ function personBadgeHtml(p) {
   return parts.length ? `<span class="person-badges">${parts.join('')}</span>` : '';
 }
 
+// Place column: native (root) place first, else birth, current, then death place.
+// A non-native place gets a small label so it isn't mistaken for the native place.
+function resultPlace(p) {
+  const order = [['root_place', ''], ['birth_place', 'birth'], ['current_place', 'current'], ['death_place', 'death']];
+  for (const [field, kind] of order) {
+    const v = String(p[field] || '').trim();
+    if (v) return { value: v, kind };
+  }
+  return null;
+}
+
+// Adds father_name / mother_name to a page of result rows (akt_parent_names RPC,
+// supabase_parent_names.sql). Failure just leaves the columns showing "-".
+async function attachParentNames(rows) {
+  if (!rows.length) return;
+  try {
+    const { data, error } = await sb.rpc('akt_parent_names', { p_uids: rows.map(r => r.uid) });
+    if (error) throw error;
+    const byUid = new Map((data || []).map(r => [r.uid, r]));
+    rows.forEach(r => {
+      const hit = byUid.get(r.uid);
+      r.father_name = hit?.father_name || null;
+      r.mother_name = hit?.mother_name || null;
+    });
+  } catch (err) {
+    console.error('Parent names lookup failed', err);
+  }
+}
+
 function renderResultCell(key, p, rawTokens, src) {
   if (key === 'name') return `<td data-label="Name"><span class="person-name">${highlightName(p.name || '(unnamed)', rawTokens)}</span>${p.nickname ? ` <span class="person-nickname" style="color:var(--muted);font-style:italic;font-size:0.85em">"${escapeHtml(p.nickname)}"</span>` : ''}${personBadgeHtml(p)}</td>`;
+  if (key === 'father') return `<td data-label="Father"><span class="cell-val">${escapeHtml(p.father_name || '-')}</span></td>`;
+  if (key === 'mother') return `<td data-label="Mother"><span class="cell-val">${escapeHtml(p.mother_name || '-')}</span></td>`;
+  if (key === 'place') {
+    const pl = resultPlace(p);
+    return `<td data-label="Place"><span class="cell-val">${pl ? `${escapeHtml(pl.value)}${pl.kind ? ` <span class="place-kind">${pl.kind}</span>` : ''}` : '-'}</span></td>`;
+  }
   if (key === 'sex') return `<td data-label="Sex">${escapeHtml(p.sex || '-')}</td>`;
-  if (key === 'birth_place') return `<td data-label="Birth Place">—</td>`; // hidden site-wide
-  if (key === 'root_place') return `<td data-label="Root Place">${escapeHtml(p.root_place || '-')}</td>`;
-  if (key === 'current_place') return `<td data-label="Current Place">${escapeHtml(p.current_place || '-')}</td>`;
+  if (key === 'root_place') return `<td data-label="Root Place"><span class="cell-val">${escapeHtml(p.root_place || '-')}</span></td>`;
+  if (key === 'current_place') return `<td data-label="Current Place"><span class="cell-val">${escapeHtml(p.current_place || '-')}</span></td>`;
   if (key === 'deceased') return `<td data-label="Deceased">${p.death_flag ? 'Yes' : '-'}</td>`;
   if (key === 'status') return `<td data-label="Status">${escapeHtml(p.marr_status || '-')}</td>`;
   if (key === 'source') return `<td data-label="Source">${src ? `<span class="source-tag" title="${escapeHtml(p.gedcom_id)}">${escapeHtml(src)}</span>` : '-'}</td>`;
@@ -4336,8 +4383,12 @@ async function loadSearch(q) {
     return;
   }
 
-  const pages = Math.ceil(count / PAGE_SIZE);
   const resultColumns = SEARCH_COLUMNS.filter(col => selectedSearchColumns.has(col.key));
+  if (resultColumns.some(col => col.key === 'father' || col.key === 'mother')) {
+    await attachParentNames(data);
+    if (requestSeq !== searchRequestSeq) return;
+  }
+  const pages = Math.ceil(count / PAGE_SIZE);
   el.innerHTML = `
     <div class="result-count">${count.toLocaleString()} people found${q ? ` for "<strong>${escapeHtml(q)}</strong>"` : ''}${filterDesc}${fuzzyNote}</div>
     <div style="overflow-x:auto">

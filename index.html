@@ -1370,11 +1370,11 @@
       </div>
       <div class="search-mode-row">
         <div class="search-mode-seg" role="group" aria-label="Search mode">
-          <button id="search-mode-btn-cross" class="search-mode-btn active" type="button" onclick="setSearchMode('cross')">Cross-field</button>
+          <button id="search-mode-btn-fuzzy" class="search-mode-btn active" type="button" onclick="setSearchMode('fuzzy')">Fuzzy</button>
           <button id="search-mode-btn-exact" class="search-mode-btn" type="button" onclick="setSearchMode('exact')">Exact</button>
-          <button id="search-mode-btn-fuzzy" class="search-mode-btn" type="button" onclick="setSearchMode('fuzzy')">Fuzzy</button>
+          <button id="search-mode-btn-cross" class="search-mode-btn" type="button" onclick="setSearchMode('cross')">Cross-field</button>
         </div>
-        <span id="search-mode-hint" class="search-mode-hint">all words matched across name + places</span>
+        <span id="search-mode-hint" class="search-mode-hint">includes spelling variants</span>
       </div>
       <div class="search-tools">
         <button class="filter-open-btn" type="button" onclick="openFilterDrawer()">
@@ -2284,7 +2284,7 @@ let currentActivitySessionId = sessionStorage.getItem('akt_activity_session_id')
 let locationHintPromise = null;
 let searchFilter = 'all';
 let fuzzySearchEnabled = true;
-let searchMode = 'cross'; // 'fuzzy' | 'exact' | 'cross'
+let searchMode = 'fuzzy'; // 'fuzzy' (default) | 'exact' | 'cross'
 const CROSS_FIELD_STOPWORDS = new Set(['s/o','d/o','w/o','b/o','c/o','son','daughter','wife','husband','of','late','the','bin','binti','bint','ibn']);
 // Name alias groups — when any member is searched, all members are expanded
 // as word-boundary patterns. Add new groups here for other common alias sets.

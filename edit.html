@@ -75,6 +75,10 @@
   .side { background:var(--panel); border:1px solid var(--line); padding:16px; position:sticky; top:84px; }
   .side h2 { margin:0 0 12px; font-family:Georgia,serif; color:var(--green); }
   label { display:block; font-size:.74rem; letter-spacing:.08em; text-transform:uppercase; color:var(--gold); font-weight:800; margin:11px 0 5px; }
+  /* Merge review: choice labels read as plain values, not form-field captions. */
+  #merge-body label { font-size:.84rem; letter-spacing:normal; text-transform:none; color:var(--ink); font-weight:400; margin:0; }
+  #merge-body td { padding:6px; vertical-align:top; overflow-wrap:anywhere; }
+  #merge-body input[type=checkbox], #merge-body input[type=radio] { width:18px; height:18px; min-width:18px; flex:0 0 18px; padding:0; margin:2px 0 0; accent-color:var(--green); }
   input, select, textarea { width:100%; border:1px solid var(--line); background:#fff; padding:9px 10px; font:inherit; }
   textarea { min-height:96px; resize:vertical; }
   .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -2512,6 +2516,13 @@ const MERGE_BOOL_FIELDS = new Set(['death_flag', 'joined_by_marriage', 'is_contr
 let mergeState = null;
 const MERGE_NOTE_JOIN = '\n\n— From merged duplicate profile —\n';
 
+// Relationships of the merged-in copy the admin chose NOT to bring over:
+// { [pairKey]: { parents: Set<familyUid>, marriages: Set<familyUid> } }.
+function mergeSkipsFor(pairKey) {
+  mergeState.skips[pairKey] = mergeState.skips[pairKey] || { parents: new Set(), marriages: new Set() };
+  return mergeState.skips[pairKey];
+}
+
 function mergeChoiceFor(pairKey, field) {
   return mergeState.choices[pairKey]?.[field] || (field === 'notes' ? 'both' : 'keep');
 }
@@ -2637,7 +2648,7 @@ async function openMergePreview() {
     p.keep = mergeRichness(x) >= mergeRichness(y) ? x.person.uid : y.person.uid;
   });
 
-  mergeState = { sides: { [a.person.uid]: a, [b.person.uid]: b, ...spouseSides }, main: { uids: [a.person.uid, b.person.uid], keep: mergeRichness(a) >= mergeRichness(b) ? a.person.uid : b.person.uid }, spousePairs, choices: {} };
+  mergeState = { sides: { [a.person.uid]: a, [b.person.uid]: b, ...spouseSides }, main: { uids: [a.person.uid, b.person.uid], keep: mergeRichness(a) >= mergeRichness(b) ? a.person.uid : b.person.uid }, spousePairs, choices: {}, skips: {} };
   renderMergePreview();
 }
 
@@ -2687,7 +2698,10 @@ function mergePairBlock(pair, title, swapAction, includeToggle) {
   const rows = mergeFieldRows(pair);
   const fieldHtml = rows.map(r => {
     if (r.kind === 'same') return `<tr><td>${esc(r.label)}</td><td colspan="2">${esc(mergeFieldDisplay(r.field, r.value))}</td></tr>`;
-    if (r.kind === 'fill') return `<tr><td>${esc(r.label)}</td><td colspan="2">${esc(mergeFieldDisplay(r.field, r.value))} <span class="hint">(taken from the duplicate)</span></td></tr>`;
+    if (r.kind === 'fill') {
+      const take = mergeChoiceFor(pair.key, r.field) !== 'skip';
+      return `<tr><td>${esc(r.label)}</td><td colspan="2"><label style="display:flex;gap:6px;align-items:flex-start"><input type="checkbox" data-pair="${pair.key}" data-field="${r.field}" ${take ? 'checked' : ''} onchange="setMergeFill(this)"> <span>${esc(mergeFieldDisplay(r.field, r.value))} <span class="hint">(${take ? 'brought over from the other copy' : 'not brought over — stays blank'})</span></span></label></td></tr>`;
+    }
     const name = `mf-${pair.key}-${r.field}`;
     const chosen = mergeChoiceFor(pair.key, r.field);
     const bothOption = r.field === 'notes'
@@ -2707,11 +2721,39 @@ function mergePairBlock(pair, title, swapAction, includeToggle) {
         ${mergeSideSummary(mergeState.sides[pair.keep], 'keep', mergeState.sides[pair.drop])}
         ${mergeSideSummary(mergeState.sides[pair.drop], 'drop', mergeState.sides[pair.keep])}
       </div>
-      <div class="hint" style="margin-top:6px">Anything blank on the kept copy is filled from the other copy automatically.${mergeState.sides[pair.keep].hasCorrections && mergeState.sides[pair.drop].hasCorrections ? ' Both copies have approved corrections — they\'ll be combined, with blanks filled from the other copy.' : ''}
+      <div class="hint" style="margin-top:6px">Tick what to bring over from the other copy — anything blank on the kept copy is ticked by default.${mergeState.sides[pair.keep].hasCorrections && mergeState.sides[pair.drop].hasCorrections ? ' Both copies have approved corrections — they\'ll be combined, with blanks filled from the other copy.' : ''}
       </div>
       ${rows.length ? `<div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:.84rem">
         <thead><tr><th style="text-align:left;padding:6px">Field</th><th style="text-align:left;padding:6px" colspan="2">Value after merge (pick where they differ)</th></tr></thead>
         <tbody>${fieldHtml}</tbody></table></div>` : ''}
+      ${mergeRelationshipsHtml(pair)}
+    </div>`;
+}
+
+// Parents and marriages (spouse + children) of the merged-in copy, each with
+// a tick-box: ticked = moved onto the kept profile (the default), unticked =
+// left out (the RPC's skip_parent_families / skip_marriages).
+function mergeRelationshipsHtml(pair) {
+  const drop = mergeState.sides[pair.drop];
+  if (!drop.parents.length && !drop.marriages.length) return '';
+  const skips = mergeSkipsFor(pair.key);
+  const dropName = esc(drop.person.name || 'the other copy');
+  const box = (kind, famUid, checked, label, offNote) => `
+    <label style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-top:1px dashed #e2d6b5">
+      <input type="checkbox" style="margin-top:3px" data-pair="${pair.key}" data-kind="${kind}" data-fam="${esc(famUid)}" ${checked ? 'checked' : ''} onchange="setMergeRelation(this)">
+      <span>${label}${checked ? '' : `<br><span class="hint" style="color:#9a3412">${offNote}</span>`}</span>
+    </label>`;
+  const parents = drop.parents.map(pf => box('parents', pf.uid, !skips.parents.has(pf.uid),
+    `<strong>Parents:</strong> ${esc(pf.label)}`,
+    'Left out — the kept profile won\'t be shown as their child.')).join('');
+  const marriages = drop.marriages.map(m => box('marriages', m.famUid, !skips.marriages.has(m.famUid),
+    `<strong>Spouse:</strong> ${esc(m.spouse?.name || 'spouse unknown')} — ${m.children.length ? `children: ${m.children.map(c => esc(c.name)).join(', ')}` : 'no children recorded'}`,
+    'Left out — this spouse and their children stay in the tree but won\'t be linked to this person.')).join('');
+  return `
+    <div style="margin-top:12px;border:1px solid #d6c69b;border-radius:12px;padding:10px 12px;background:#fffaf0">
+      <div style="font-weight:800;font-size:.86rem">Relationships to bring over from ${dropName}</div>
+      <div class="hint" style="margin:2px 0 4px">Ticked items move onto the kept profile.</div>
+      <div style="font-size:.84rem">${parents}${marriages}</div>
     </div>`;
 }
 
@@ -2722,13 +2764,18 @@ function mergeOutcomeHtml() {
   const r = u => remap[u] || u;
   const fams = {};
   const mainSides = mergeState.main.uids.map(u => mergeState.sides[u]);
+  const mainDrop = pairs[0].drop;
+  const mainSkips = mergeSkipsFor('main');
   mainSides.forEach(side => side.marriages.forEach(m => {
+    if (side.person.uid === mainDrop && mainSkips.marriages.has(m.famUid)) return;
     const key = r(m.husband) + '|' + r(m.wife);
     (fams[key] = fams[key] || { spouse: r(m.spouseUid), kids: new Map(), count: 0 }).count++;
     m.children.forEach(c => fams[key].kids.set(c.uid, c.name));
   }));
   const keeperName = mergeState.sides[mergeState.main.keep].person.name;
-  const parentLabels = [...new Set(mainSides.flatMap(s => s.parents.map(p => p.label)))];
+  const parentLabels = [...new Set(mainSides.flatMap(s => s.parents
+    .filter(p => !(s.person.uid === mainDrop && mainSkips.parents.has(p.uid)))
+    .map(p => p.label)))];
   const spouseName = u => (mergeState.sides[u]?.person || peopleByUid[u])?.name || 'spouse unknown';
   const lines = Object.values(fams).map(f =>
     `<li>Married to <strong>${esc(spouseName(f.spouse))}</strong>${f.count > 1 ? ` <span class="hint">(${f.count} family records combined into one)</span>` : ''} — ${f.kids.size ? [...f.kids.values()].map(esc).join(', ') : 'no children recorded'}</li>`).join('');
@@ -2764,6 +2811,19 @@ function renderMergePreview() {
   document.getElementById('merge-body').innerHTML = html;
 }
 
+function setMergeFill(input) {
+  const key = input.dataset.pair;
+  mergeState.choices[key] = mergeState.choices[key] || {};
+  mergeState.choices[key][input.dataset.field] = input.checked ? 'keep' : 'skip';
+  renderMergePreview();
+}
+
+function setMergeRelation(input) {
+  const set = mergeSkipsFor(input.dataset.pair)[input.dataset.kind];
+  if (input.checked) set.delete(input.dataset.fam); else set.add(input.dataset.fam);
+  renderMergePreview();
+}
+
 function setMergeChoice(input) {
   const key = input.dataset.pair;
   mergeState.choices[key] = mergeState.choices[key] || {};
@@ -2779,6 +2839,7 @@ function swapMergeKeep(key) {
     p.keep = p.uids.find(u => u !== p.keep);
   }
   delete mergeState.choices[key];   // choices were relative to the old kept side
+  delete mergeState.skips[key];
   renderMergePreview();
 }
 
@@ -2798,14 +2859,15 @@ async function confirmMerge() {
   const payload = pairs.map(p => {
     const fields = {};
     mergeFieldRows(p).forEach(r => {
-      if (r.kind === 'fill') fields[r.field] = r.value;
+      if (r.kind === 'fill' && mergeChoiceFor(p.key, r.field) !== 'skip') fields[r.field] = r.value;
       if (r.kind === 'choose') {
         const choice = mergeChoiceFor(p.key, r.field);
         if (choice === 'drop') fields[r.field] = r.dv;
         if (choice === 'both') fields[r.field] = String(r.kv).trim() + MERGE_NOTE_JOIN + String(r.dv).trim();
       }
     });
-    return { keep: p.keep, drop: p.drop, fields };
+    const skips = mergeSkipsFor(p.key);
+    return { keep: p.keep, drop: p.drop, fields, skip_parent_families: [...skips.parents], skip_marriages: [...skips.marriages] };
   });
   const names = pairs.map(p => `"${mergeState.sides[p.drop].person.name}" into "${mergeState.sides[p.keep].person.name}"`).join('\n');
   if (!confirm(`Merge:\n${names}\n\nThe duplicate(s) will be hidden and their links will redirect. Continue?`)) return;

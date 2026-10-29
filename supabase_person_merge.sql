@@ -193,6 +193,23 @@ begin
       updated_at         = now()
     where uid = k;
 
+    -- 2-pre. Relationships the admin chose NOT to bring over (2026-10-29).
+    --   skip_parent_families: families where d is a child — d's child row is
+    --     removed, so the kept profile doesn't become a child of those parents.
+    --   skip_marriages: families where d is husband/wife — d's slot is cleared,
+    --     so that spouse and their children stay in the tree but are no longer
+    --     linked to this person.
+    --   Only families actually linked to d are touched.
+    delete from public.family_members m
+     where m.person_uid = d and m.role = 'child'
+       and m.family_uid in (select jsonb_array_elements_text(coalesce(pair->'skip_parent_families', '[]'::jsonb)));
+    update public.families set husband_uid = null
+     where husband_uid = d
+       and uid in (select jsonb_array_elements_text(coalesce(pair->'skip_marriages', '[]'::jsonb)));
+    update public.families set wife_uid = null
+     where wife_uid = d
+       and uid in (select jsonb_array_elements_text(coalesce(pair->'skip_marriages', '[]'::jsonb)));
+
     -- 2a. Marriages.
     update public.families set husband_uid = k where husband_uid = d;
     update public.families set wife_uid    = k where wife_uid    = d;

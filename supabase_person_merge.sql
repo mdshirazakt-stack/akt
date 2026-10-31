@@ -20,6 +20,13 @@
 -- combined into one: children are moved into the family with the most
 -- children, blank marriage fields are filled from the other, and the empty
 -- family is deleted.
+--   This also covers the merged person's PARENTS (2026-10-31): two copies of
+--   a child, each under a different record of the same couple, used to leave
+--   that couple with two families (Adeeba Firdaus under two "Mohammad Arshad
+--   + Shahida Khatoon" families). The combine step now also checks the
+--   families the merged person is a child of.
+--   akt_combine_duplicate_families() cleans up any such couples already in
+--   the tree (admin only, logged with an undo snapshot like a merge).
 --
 -- "Hidden and redirected": the dropped profile no longer exists in people, so
 -- every existing search, count and list is automatically correct with no
@@ -69,6 +76,55 @@ create policy person_redirects_visitor_read on public.person_redirects
 -- No write policies: written only by akt_merge_people().
 
 -- ── Merge function ──────────────────────────────────────────────────────────
+-- ── Internal: fold every family of one couple into a single family ────────
+-- Keeps the family with the most children, moves the other families' members
+-- into it (same person twice is skipped), fills blank marriage fields, and
+-- deletes the rest. Returns [{kept_family, removed_family}, ...]. Not
+-- callable by clients (execute revoked below); used by the two functions after.
+create or replace function public.akt__combine_couple_families(p_husband text, p_wife text)
+returns jsonb
+language plpgsql
+set search_path to 'public'
+as $$
+declare
+  fams      text[];
+  keep_fam  text;
+  other_fam text;
+  combined  jsonb := '[]'::jsonb;
+begin
+  select array_agg(x.uid order by (select count(*) from public.family_members m
+                                   where m.family_uid = x.uid and m.role = 'child') desc, x.uid)
+    into fams
+    from public.families x
+   where x.husband_uid = p_husband and x.wife_uid = p_wife;
+  if fams is null or array_length(fams, 1) < 2 then return combined; end if;
+
+  keep_fam := fams[1];
+  foreach other_fam in array fams[2:array_length(fams, 1)] loop
+    insert into public.family_members (family_uid, person_uid, role, birth_order, custody_parent)
+    select keep_fam, m.person_uid, m.role, m.birth_order, m.custody_parent
+      from public.family_members m
+     where m.family_uid = other_fam
+    on conflict (family_uid, person_uid) do nothing;
+
+    update public.families kf set
+      marr_date            = coalesce(nullif(kf.marr_date, ''),   nullif(o.marr_date, '')),
+      marr_place           = coalesce(nullif(kf.marr_place, ''),  nullif(o.marr_place, '')),
+      marr_status          = coalesce(nullif(kf.marr_status, ''), nullif(o.marr_status, '')),
+      marr_notes           = coalesce(nullif(kf.marr_notes, ''),  nullif(o.marr_notes, '')),
+      husband_marriage_seq = coalesce(kf.husband_marriage_seq, o.husband_marriage_seq),
+      wife_marriage_seq    = coalesce(kf.wife_marriage_seq, o.wife_marriage_seq)
+      from public.families o
+     where kf.uid = keep_fam and o.uid = other_fam;
+
+    delete from public.families where uid = other_fam;   -- cascades its family_members
+    combined := combined || jsonb_build_object('kept_family', keep_fam, 'removed_family', other_fam);
+  end loop;
+  return combined;
+end;
+$$;
+revoke all on function public.akt__combine_couple_families(text, text) from public, anon, authenticated;
+
 create or replace function public.akt_merge_people(p_pairs jsonb, p_actor text default null)
 returns jsonb
 language plpgsql
@@ -88,8 +144,6 @@ declare
   snap        jsonb;
   log_id      uuid;
   fam         record;
-  keep_fam    text;
-  other_fam   text;
   combined    jsonb := '[]'::jsonb;
   merged      jsonb := '[]'::jsonb;
   is_uuid_re  constant text := '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
@@ -139,12 +193,22 @@ begin
   -- ── Snapshot every row this merge can touch ──
   snap := jsonb_build_object(
     'people', (select coalesce(jsonb_agg(to_jsonb(p)), '[]') from public.people p where p.uid = any(all_uids)),
+    -- their marriages, plus every family of the couples they are children of
+    -- (the combine step can fold those together).
     'families', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.families x
-                 where x.husband_uid = any(all_uids) or x.wife_uid = any(all_uids)),
+                 where x.husband_uid = any(all_uids) or x.wife_uid = any(all_uids)
+                    or (x.husband_uid, x.wife_uid) in (
+                         select y.husband_uid, y.wife_uid from public.families y
+                           join public.family_members cm on cm.family_uid = y.uid
+                          where cm.person_uid = any(all_uids))),
     'family_members', (select coalesce(jsonb_agg(to_jsonb(m)), '[]') from public.family_members m
                        where m.person_uid = any(all_uids)
                           or m.family_uid in (select x.uid from public.families x
-                                              where x.husband_uid = any(all_uids) or x.wife_uid = any(all_uids))),
+                                              where x.husband_uid = any(all_uids) or x.wife_uid = any(all_uids)
+                                                 or (x.husband_uid, x.wife_uid) in (
+                                                      select y.husband_uid, y.wife_uid from public.families y
+                                                        join public.family_members cm on cm.family_uid = y.uid
+                                                       where cm.person_uid = any(all_uids)))),
     'profile_claims', (select coalesce(jsonb_agg(to_jsonb(r)), '[]') from public.profile_claims r where r.person_uid = any(drops)),
     'correction_requests', (select coalesce(jsonb_agg(to_jsonb(r)), '[]') from public.correction_requests r
                             where r.person_uid = any(drops) or r.duplicate_profile_uid = any(drops)),
@@ -295,37 +359,16 @@ begin
   end loop;
 
   -- ── Combine families that now have the same husband AND wife ──
+  -- Couples where a kept person is the husband/wife, or is a child.
   for fam in
-    select x.husband_uid, x.wife_uid,
-           array_agg(x.uid order by (select count(*) from public.family_members m
-                                     where m.family_uid = x.uid and m.role = 'child') desc, x.uid) as fams
-      from public.families x
-     where x.husband_uid is not null and x.wife_uid is not null
-       and (x.husband_uid = any(keepers) or x.wife_uid = any(keepers))
-     group by x.husband_uid, x.wife_uid
-    having count(*) > 1
+    select distinct y.husband_uid, y.wife_uid
+      from public.families y
+     where y.husband_uid is not null and y.wife_uid is not null
+       and (y.husband_uid = any(keepers) or y.wife_uid = any(keepers)
+            or exists (select 1 from public.family_members m
+                        where m.family_uid = y.uid and m.person_uid = any(keepers)))
   loop
-    keep_fam := fam.fams[1];
-    foreach other_fam in array fam.fams[2:array_length(fam.fams, 1)] loop
-      insert into public.family_members (family_uid, person_uid, role, birth_order, custody_parent)
-      select keep_fam, m.person_uid, m.role, m.birth_order, m.custody_parent
-        from public.family_members m
-       where m.family_uid = other_fam
-      on conflict (family_uid, person_uid) do nothing;
-
-      update public.families kf set
-        marr_date            = coalesce(nullif(kf.marr_date, ''),   nullif(o.marr_date, '')),
-        marr_place           = coalesce(nullif(kf.marr_place, ''),  nullif(o.marr_place, '')),
-        marr_status          = coalesce(nullif(kf.marr_status, ''), nullif(o.marr_status, '')),
-        marr_notes           = coalesce(nullif(kf.marr_notes, ''),  nullif(o.marr_notes, '')),
-        husband_marriage_seq = coalesce(kf.husband_marriage_seq, o.husband_marriage_seq),
-        wife_marriage_seq    = coalesce(kf.wife_marriage_seq, o.wife_marriage_seq)
-        from public.families o
-       where kf.uid = keep_fam and o.uid = other_fam;
-
-      delete from public.families where uid = other_fam;   -- cascades its family_members
-      combined := combined || jsonb_build_object('kept_family', keep_fam, 'removed_family', other_fam);
-    end loop;
+    combined := combined || public.akt__combine_couple_families(fam.husband_uid, fam.wife_uid);
   end loop;
 
   update public.person_merge_log
@@ -338,3 +381,55 @@ $$;
 
 revoke all on function public.akt_merge_people(jsonb, text) from public, anon;
 grant execute on function public.akt_merge_people(jsonb, text) to authenticated;
+
+-- ── Clean up couples already recorded twice (2026-10-31) ─────────────────────
+-- Folds every couple that has more than one family record into one family,
+-- the same way a merge does. Admin only; logged in person_merge_log with a
+-- snapshot of every family it touches (pairs = {"action": ...}).
+create or replace function public.akt_combine_duplicate_families(p_actor text default null)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  couple   record;
+  snap     jsonb;
+  log_id   uuid;
+  combined jsonb := '[]'::jsonb;
+begin
+  if not public.akt_is_admin() then
+    raise exception 'Only admins can combine families';
+  end if;
+
+  create temp table _dup_couples on commit drop as
+    select husband_uid, wife_uid
+      from public.families
+     where husband_uid is not null and wife_uid is not null
+     group by husband_uid, wife_uid
+    having count(*) > 1;
+
+  snap := jsonb_build_object(
+    'families', (select coalesce(jsonb_agg(to_jsonb(x)), '[]') from public.families x
+                  join _dup_couples c on c.husband_uid = x.husband_uid and c.wife_uid = x.wife_uid),
+    'family_members', (select coalesce(jsonb_agg(to_jsonb(m)), '[]') from public.family_members m
+                        join public.families x on x.uid = m.family_uid
+                        join _dup_couples c on c.husband_uid = x.husband_uid and c.wife_uid = x.wife_uid)
+  );
+  insert into public.person_merge_log (pairs, snapshot, merged_by)
+  values (jsonb_build_object('action', 'combine_duplicate_families'), snap, p_actor)
+  returning id into log_id;
+
+  for couple in select * from _dup_couples loop
+    combined := combined || public.akt__combine_couple_families(couple.husband_uid, couple.wife_uid);
+  end loop;
+
+  update public.person_merge_log
+     set result = jsonb_build_object('families_combined', combined)
+   where id = log_id;
+  return jsonb_build_object('log_id', log_id, 'families_combined', combined);
+end;
+$$;
+
+revoke all on function public.akt_combine_duplicate_families(text) from public, anon;
+grant execute on function public.akt_combine_duplicate_families(text) to authenticated;

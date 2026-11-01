@@ -1922,6 +1922,23 @@ async function currentVisitorHasOwnClaim() {
   return _visitorOwnClaimCache;
 }
 
+// True when the signed-in viewer is the approved claimant of this profile.
+// Birth dates and contact details stay hidden from everyone else, but a
+// person visiting their OWN claimed profile sees what they provided. Only an
+// admin-applied claim counts, so submitting a claim on someone else's profile
+// doesn't unlock their details. (RLS already limits profile_claims reads to
+// the claimant or an admin; the id/email check excludes admins viewing
+// someone else's claim.)
+async function isViewerOwnClaimedProfile(claim) {
+  if (!claim || !(claim.status === 'applied' || claim.applied_at)) return false;
+  const { data } = await sb.auth.getSession();
+  const user = data?.session?.user;
+  if (!user) return false;
+  const email = String(user.email || user.user_metadata?.email || '').toLowerCase();
+  return (claim.auth_user_id && claim.auth_user_id === user.id)
+    || (!!email && String(claim.claimant_email || '').toLowerCase() === email);
+}
+
 async function loadProfileClaim(uid) {
   const { data, error } = await sb.from('profile_claims')
     .select('*')
@@ -2100,9 +2117,13 @@ async function renderPerson(uid, el) {
   currentProfileOverlay = profileOverlay;
   currentProfileClaim = await loadProfileClaim(uid);
   const visitorHasOwnClaim = await currentVisitorHasOwnClaim();
+  const isOwnProfile = await isViewerOwnClaimedProfile(currentProfileClaim);
   const displayName = firstText(profileOverlay?.corrected_name, p.name, '(unnamed)');
   const displayGender = firstText(profileOverlay?.corrected_gender, p.sex);
-  const displayBirthDate = publicBirthDate(firstText(profileOverlay?.birth_date_text, p.birth_date));
+  const rawBirthDate = firstText(profileOverlay?.birth_date_text, p.birth_date);
+  const displayBirthDate = isOwnProfile ? rawBirthDate : publicBirthDate(rawBirthDate);
+  const ownMobile = isOwnProfile ? firstText(profileOverlay?.mobile_number, p.contact_address, currentProfileClaim?.claimant_mobile) : '';
+  const ownEmail = isOwnProfile ? firstText(profileOverlay?.email, p.email, currentProfileClaim?.claimant_email) : '';
   const displayDeathDate = publicBirthDate(firstText(profileOverlay?.death_date_text, p.death_date));
   const displayDeathLocation = firstText(profileOverlay?.death_location, p.death_place);
   const displayBirthPlace = firstText(profileOverlay?.birth_location, p.birth_place);
@@ -2308,7 +2329,9 @@ async function renderPerson(uid, el) {
         ${displayBirthPlace    ? `<div class="detail-field"><div class="key">Place of Birth</div><div class="val">${escHtml(displayBirthPlace)}</div></div>` : ''}
         ${displayRootLocation  ? `<div class="detail-field"><div class="key">Root Place</div><div class="val">${escHtml(displayRootLocation)}</div></div>` : ''}
         ${displayCurrentLocation ? `<div class="detail-field"><div class="key">Current Location</div><div class="val">${escHtml(displayCurrentLocation)}</div></div>` : ''}
-        ${displayBirthDate     ? `<div class="detail-field"><div class="key">Birth Date</div><div class="val">${escHtml(displayBirthDate)}</div></div>` : ''}
+        ${displayBirthDate     ? `<div class="detail-field"><div class="key">Birth Date${isOwnProfile && displayBirthDate !== publicBirthDate(rawBirthDate) ? ' <span title="Hidden from other visitors">· only you can see this</span>' : ''}</div><div class="val">${escHtml(displayBirthDate)}</div></div>` : ''}
+        ${ownMobile ? `<div class="detail-field"><div class="key">Mobile <span title="Hidden from other visitors">· only you can see this</span></div><div class="val">${escHtml(ownMobile)}</div></div>` : ''}
+        ${ownEmail  ? `<div class="detail-field"><div class="key">Email <span title="Hidden from other visitors">· only you can see this</span></div><div class="val" style="word-break:break-all">${escHtml(ownEmail)}</div></div>` : ''}
         ${displayDeathDate     ? `<div class="detail-field"><div class="key">Death Date</div><div class="val">${escHtml(displayDeathDate)}</div></div>` : ''}
         ${displayDeathLocation ? `<div class="detail-field"><div class="key">Death Place</div><div class="val">${escHtml(displayDeathLocation)}</div></div>` : ''}
         ${p.occupation   ? `<div class="detail-field"><div class="key">Occupation</div><div class="val">${escHtml(p.occupation)}</div></div>` : ''}

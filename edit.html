@@ -949,6 +949,7 @@ function familySection(fam, idx) {
               <option value="mother" ${child._custody === 'mother' ? 'selected' : ''}>👩 With Mother (${esc(motherName)})</option>
               <option value="shared" ${child._custody === 'shared' ? 'selected' : ''}>🤝 Shared custody</option>
             </select>` : ''}
+            ${relationshipActions ? `<button class="small" type="button" style="min-height:44px" title="Takes this child out of this group only — the profile and its other links stay" onclick="removeChildFromFamily('${esc(fam.uid)}','${esc(child.uid)}')">Remove from this group</button>` : ''}
           </div>
         `).join('')}
         ${relationshipActions ? `<button class="person-card add-card" onclick="addChildToFamily('${fam.uid}')">
@@ -972,6 +973,39 @@ async function setCustodyParent(familyUid, personUid, value) {
     if (child) child._custody = value || null;
   }
   setStatus('Custody saved.');
+}
+
+// Detach a child from ONE family group without deleting the person. A child
+// can be listed in several groups (e.g. a duplicate "unknown spouse" group);
+// the card's Delete button removes the person everywhere, so this is the way
+// to drop just one of those listings.
+async function removeChildFromFamily(familyUid, childUid) {
+  if (!requireRelationshipEdit('remove a child from a family group')) return;
+  const fam = spouseFamilies.find(f => f.uid === familyUid);
+  const child = (fam?.children || []).find(c => c.uid === childUid);
+  if (!fam || !child) return;
+  const { count } = await sb.from('family_members')
+    .select('*', { count: 'exact', head: true })
+    .eq('person_uid', childUid)
+    .eq('role', 'child');
+  const lastParents = Number(count || 0) <= 1;
+  const msg = `Remove ${child.name || 'this child'} from this family group?\n\nThe person is NOT deleted — only this parent link is removed.`
+    + (lastParents ? '\n\nThis is their only parent group, so they will have no parents recorded afterwards.' : '');
+  if (!confirm(msg)) return;
+  const { error } = await sb.from('family_members')
+    .delete()
+    .eq('family_uid', familyUid)
+    .eq('person_uid', childUid)
+    .eq('role', 'child');
+  if (error) return setStatus('Could not remove child: ' + error.message, true);
+  await refreshGedcomCounts(fam.gedcom_id);
+  await logTreeChange('tree_child_removed_from_group', `Removed ${child.name || childUid} from a family group`, {
+    profile_uid: childUid,
+    family_uid: familyUid,
+    gedcom_id: fam.gedcom_id || null
+  });
+  setStatus(`${child.name || 'Child'} removed from this group.`);
+  await loadEditor();
 }
 
 async function deleteEmptyFamilyGroup(familyUid) {

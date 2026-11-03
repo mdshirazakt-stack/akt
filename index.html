@@ -3222,6 +3222,20 @@ async function attachParentNames(rows) {
   }
 }
 
+// "Added 3 Nov 2026" / "Edited 3 Nov 2026" for the default (no-search) listing.
+// A row counts as edited once updated_at is more than a minute past created_at
+// (the two are stamped a fraction apart on creation, sometimes out of order).
+function addedEditedCell(p) {
+  const updated = p.updated_at ? new Date(p.updated_at) : null;
+  const created = p.created_at ? new Date(p.created_at) : null;
+  const when = updated || created;
+  if (!when || isNaN(when)) return '<td data-label="Added / edited">-</td>';
+  const edited = updated && created && (updated - created) > 60 * 1000;
+  const date = when.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+  const full = when.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+  return `<td data-label="Added / edited"><span class="cell-val" title="${escapeHtml(full)} IST">${edited ? 'Edited' : 'Added'} ${escapeHtml(date)}</span></td>`;
+}
+
 function renderResultCell(key, p, rawTokens, src) {
   if (key === 'name') return `<td data-label="Name"><span class="person-name">${highlightName(p.name || '(unnamed)', rawTokens)}</span>${p.nickname ? ` <span class="person-nickname" style="color:var(--muted);font-style:italic;font-size:0.85em">"${escapeHtml(p.nickname)}"</span>` : ''}${personBadgeHtml(p)}</td>`;
   if (key === 'father') return `<td data-label="Father"><span class="cell-val">${escapeHtml(p.father_name || '-')}</span></td>`;
@@ -4118,7 +4132,7 @@ async function loadSearch(q) {
   if (!el) return;
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
-  const baseSelect = 'uid,name,given_name,surname,nickname,sex,birth_place,death_place,root_place,current_place,death_flag,marr_status,gedcom_id,is_contributor,community_role';
+  const baseSelect = 'uid,name,given_name,surname,nickname,sex,birth_place,death_place,root_place,current_place,death_flag,marr_status,gedcom_id,is_contributor,community_role,created_at,updated_at';
 
   try {
   // Split query into meaningful tokens (ignore short words, trim)
@@ -4183,7 +4197,8 @@ async function loadSearch(q) {
     if (!query) {
       // no matching source families after combined filters
     } else {
-      query = query.order('name').range(searchPage * PAGE_SIZE, (searchPage + 1) * PAGE_SIZE - 1);
+      // Default listing (no search words): most recently added/edited first.
+      query = query.order('updated_at', { ascending: false, nullsFirst: false }).order('name').range(searchPage * PAGE_SIZE, (searchPage + 1) * PAGE_SIZE - 1);
       const res = await query;
       if (requestSeq !== searchRequestSeq) return;
       data = res.data || [];
@@ -4389,18 +4404,22 @@ async function loadSearch(q) {
     if (requestSeq !== searchRequestSeq) return;
   }
   const pages = Math.ceil(count / PAGE_SIZE);
+  // The default listing is sorted by most recent add/edit, so show that date.
+  const showAddedEdited = !relNote && !rawTokens.length;
   el.innerHTML = `
-    <div class="result-count">${count.toLocaleString()} people found${q ? ` for "<strong>${escapeHtml(q)}</strong>"` : ''}${filterDesc}${fuzzyNote}</div>
+    <div class="result-count">${count.toLocaleString()} people found${q ? ` for "<strong>${escapeHtml(q)}</strong>"` : ''}${filterDesc}${fuzzyNote}${showAddedEdited ? '<span style="font-size:0.75rem;color:var(--muted);margin-left:8px">most recently added or edited first</span>' : ''}</div>
     <div style="overflow-x:auto">
     <table class="people-table">
       <thead><tr>
         ${resultColumns.map(col => `<th>${escapeHtml(resultColumnLabel(col.key))}</th>`).join('')}
+        ${showAddedEdited ? '<th>Added / edited</th>' : ''}
       </tr></thead>
       <tbody>${data.map(p => {
         const src = srcMap[p.gedcom_id] || '';
         return `
         <tr onclick="showPerson('${escapeJs(p.uid)}')">
           ${resultColumns.map(col => renderResultCell(col.key, p, rawTokens, src)).join('')}
+          ${showAddedEdited ? addedEditedCell(p) : ''}
         </tr>`;
       }).join('')}</tbody>
     </table>

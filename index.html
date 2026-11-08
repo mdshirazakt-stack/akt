@@ -4995,6 +4995,18 @@ async function loadTree(uid) {
     return h;
   }
 
+  // A divorced/separated marriage with no children adds nothing to the
+  // lineage, so it is left out of Browse Tree (and therefore Print Tree),
+  // even if it is the person's only marriage. The full marriage history
+  // stays on the profile page. childTotal counts ALL children of that
+  // family, not just the ones not already drawn elsewhere.
+  function hideChildlessPastMarriages(entries) {
+    return entries.filter(function(e) {
+      var ended = e.marrStatus === 'divorced' || e.marrStatus === 'separated';
+      return !(ended && !(e.childTotal > 0));
+    });
+  }
+
   function childLeaves(children) {
     return children.map(function(c) {
       return '<div class="fam-child-col"><div class="fam-child-tick"></div>' + pBox(c, 'tree-box-desc') + '</div>';
@@ -5050,8 +5062,9 @@ async function loadTree(uid) {
     var fChildren = await getChildren(ff.uid);
     var freshFC = fChildren.filter(function(c){ return !visited.has(c.uid); });
     freshFC.forEach(function(c){ visited.add(c.uid); });
-    focusMarriages.push({ spouse: fSpouse, children: freshFC, marrStatus: ff.marr_status || '' });
+    focusMarriages.push({ spouse: fSpouse, children: freshFC, marrStatus: ff.marr_status || '', childTotal: fChildren.length });
   }
+  focusMarriages = hideChildlessPastMarriages(focusMarriages);
 
   // Seed gen 1 people = all children of focus
   var gen1People = [];
@@ -5069,6 +5082,7 @@ async function loadTree(uid) {
       if (pfams.length === 0) {
         genRow.push({ person: person, spouse: null, children: [] });
       } else {
+        var personEntries = [];
         for (var pfi = 0; pfi < pfams.length; pfi++) {
           var pfam = pfams[pfi];
           var pSpouseUid = pfam.husband_uid === person.uid ? pfam.wife_uid : pfam.husband_uid;
@@ -5076,8 +5090,12 @@ async function loadTree(uid) {
           var pChildren = await getChildren(pfam.uid);
           var freshPC = pChildren.filter(function(c){ return !visited.has(c.uid); });
           freshPC.forEach(function(c){ visited.add(c.uid); nextPeople.push(c); });
-          genRow.push({ person: person, spouse: pSpouse, children: freshPC, marrStatus: pfam.marr_status || '' });
+          personEntries.push({ person: person, spouse: pSpouse, children: freshPC, marrStatus: pfam.marr_status || '', childTotal: pChildren.length });
         }
+        var shownEntries = hideChildlessPastMarriages(personEntries);
+        // Every marriage hidden: still show the person, without a spouse.
+        if (!shownEntries.length) shownEntries = [{ person: person, spouse: null, children: [] }];
+        shownEntries.forEach(function(e){ genRow.push(e); });
       }
     }
     if (genRow.length) descGenRows.push(genRow);

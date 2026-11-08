@@ -4970,11 +4970,13 @@ async function loadTree(uid) {
     h += pBox(person, cls);
     if (spouse) {
       // A single, consistent glyph between the spouse boxes is enough to
-      // indicate status \u2014 \u26ae (amber) for divorced/separated, \u26ad (status color)
+      // indicate status \u2014 an amber "D"/"S" badge for divorced/separated, \u26ad (status color)
       // for married \u2014 mirroring how the rest of the site shows it, without
       // an extra banner/border competing for attention.
+      // Divorced/separated gets a plain lettered badge ("D" / "S") rather
+      // than the crossed-ring glyph, which few readers recognised.
       var connectorHtml = isDivorced
-        ? '<div title="Divorced" style="padding:10px 5px 0;font-size:0.9rem;color:#92400e;font-weight:700;line-height:1">\u26ae</div>'
+        ? '<div title="' + (marrStatus === 'separated' ? 'Separated' : 'Divorced') + '" style="margin:8px 5px 0;width:20px;height:20px;border:1.5px solid #92400e;border-radius:50%;color:#92400e;font-size:0.72rem;font-weight:900;line-height:17px;text-align:center;flex-shrink:0;box-sizing:border-box">' + (marrStatus === 'separated' ? 'S' : 'D') + '</div>'
         : '<div style="padding:10px 5px 0;font-size:0.9rem;color:' + spouseColor + ';font-weight:700;line-height:1">\u26ad</div>';
       h += connectorHtml;
       h += pBox(spouse, spouseCls);

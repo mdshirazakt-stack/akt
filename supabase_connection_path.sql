@@ -8,7 +8,9 @@
 -- shared ancestor. One marriage may be used at either end, never both, which
 -- covers in-laws: a brother's wife (sister-in-law), a wife's brother, a son's
 -- wife, and so on. Blood connections are preferred over in-law ones, then the
--- shortest path, then the father's side.
+-- shortest path, then (among equally short paths) the one running through
+-- the fewest women, i.e. male links over female links when both exist, then
+-- the father's side.
 --
 -- Returns NULL when nothing is found, else jsonb:
 --   up, down       generations from `from` up to the shared ancestor, and
@@ -62,17 +64,19 @@ begin
      where p_to in (f.husband_uid, f.wife_uid)
        and f.husband_uid is not null and f.wife_uid is not null
   ),
-  up_a(via_spouse, uid, depth, path, first_father) as (
-    select via_spouse, s, 0, array[s], null::boolean from starts_a
+  up_a(via_spouse, uid, depth, path, first_father, female_links) as (
+    select via_spouse, s, 0, array[s], null::boolean, 0 from starts_a
     union all
-    select u.via_spouse, pe.parent, u.depth + 1, u.path || pe.parent, coalesce(u.first_father, pe.is_father)
+    select u.via_spouse, pe.parent, u.depth + 1, u.path || pe.parent, coalesce(u.first_father, pe.is_father),
+           u.female_links + case when pe.is_father then 0 else 1 end
       from up_a u join parent_edge pe on pe.child = u.uid
      where u.depth < m and not pe.parent = any (u.path)
   ),
-  up_b(via_spouse, uid, depth, path) as (
-    select via_spouse, s, 0, array[s] from starts_b
+  up_b(via_spouse, uid, depth, path, female_links) as (
+    select via_spouse, s, 0, array[s], 0 from starts_b
     union all
-    select u.via_spouse, pe.parent, u.depth + 1, u.path || pe.parent
+    select u.via_spouse, pe.parent, u.depth + 1, u.path || pe.parent,
+           u.female_links + case when pe.is_father then 0 else 1 end
       from up_b u join parent_edge pe on pe.child = u.uid
      where u.depth < m and not pe.parent = any (u.path)
   )
@@ -85,6 +89,7 @@ begin
    where not (a.via_spouse and b.via_spouse)
    order by (a.via_spouse::int + b.via_spouse::int),
             a.depth + b.depth,
+            a.female_links + b.female_links,
             a.first_father desc nulls last,
             a.depth
    limit 1;

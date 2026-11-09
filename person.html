@@ -376,28 +376,26 @@
   .fl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .fl-head .section-h-title { font-family: 'Amiri', serif; font-size: 1.1rem; color: var(--gold); }
   .fl-head .fl-meta { font-size: 0.78rem; color: var(--muted); }
-  .fl-list { list-style: none; padding: 0; margin: 0; max-width: 640px; }
-  .fl-row { position: relative; display: flex; align-items: stretch; }
-  .fl-rail { position: relative; flex: 0 0 44px; display: flex; flex-direction: column; align-items: center; }
-  .fl-rail::before { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; margin-left: -1px; background: var(--border); }
-  .fl-row:first-child .fl-rail::before { top: 50%; }
-  .fl-row:last-child .fl-rail::before { bottom: auto; height: 50%; }
-  .fl-dot { position: relative; z-index: 1; margin-top: 16px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--gold2); background: var(--surface); box-sizing: border-box; }
-  .fl-dot.near { background: var(--gold2); }
-  .fl-dot.ghost { border-style: dashed; border-color: var(--muted); }
-  .fl-dot.self { width: 22px; height: 22px; margin-top: 18px; background: var(--green); border: 3px solid var(--surface); box-shadow: 0 0 0 2px var(--green); }
-  .fl-num { position: relative; z-index: 1; font-size: 0.66rem; font-weight: 700; color: var(--muted); background: var(--surface); padding: 1px 0; }
-  .fl-body { flex: 1; min-width: 0; display: block; margin: 4px 0; padding: 8px 14px; color: var(--ink); text-decoration: none; border: 1px solid transparent; }
-  a.fl-body:hover { border-color: var(--border); background: var(--bg); }
-  a.fl-body:hover .fl-name { color: var(--gold); }
   .fl-gen { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
   .fl-name { font-size: 1rem; font-weight: 700; overflow-wrap: anywhere; }
   .fl-sub { font-size: 0.8rem; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
-  .fl-body.self { background: var(--goldl); border-color: var(--gold2); }
-  .fl-body.self .fl-gen { color: var(--gold); }
-  .fl-body.kids { border: 1px dashed var(--border); }
+  .fl-preview { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; }
+  .fl-preview-label { font-size: 0.82rem; color: var(--muted); }
+  .fl-chip { min-height: 36px; padding: 4px 14px; border: 1px dashed var(--border); border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 0.84rem; font-weight: 700; cursor: pointer; }
+  .fl-chip.active { border: 1.5px solid var(--gold); background: var(--goldl); color: var(--gold); }
+  .fl-chip:hover { border-color: var(--gold2); }
+  .fl-compact { list-style: none; padding: 0; margin: 0; max-width: 760px; border-top: 3px solid #efe8dc; }
+  .fl-compact li { border-bottom: 1px solid var(--border); }
+  .fl-crow { display: flex; align-items: center; gap: 14px; min-height: 52px; padding: 10px 12px; color: var(--ink); text-decoration: none; }
+  a.fl-crow:hover { background: var(--bg); }
+  a.fl-crow:hover .fl-name { color: var(--gold); }
+  .fl-cnum { flex: 0 0 44px; color: var(--gold); font-weight: 700; font-size: 0.9rem; }
+  .fl-ctext { flex: 1; min-width: 0; }
+  .fl-chev { color: var(--muted); font-size: 1.1rem; }
+  .fl-crow.self { background: var(--goldl); }
+  .fl-crow.self .fl-cnum { color: var(--green); }
+  .fl-crow.kids .fl-cnum { color: var(--muted); }
   .fl-more { flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 44px; margin: 4px 0; padding: 8px 14px; border: 1px dashed var(--gold2); background: var(--goldl); color: var(--gold); font: inherit; font-size: 0.86rem; font-weight: 700; text-align: left; cursor: pointer; }
-  .fl-more .fl-more-to { font-size: 0.76rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
   .fl-more:disabled { opacity: 0.6; cursor: default; }
   .fl-foot { font-size: 0.76rem; color: var(--muted); margin-top: 10px; }
   .fl-tabs { display: inline-flex; gap: 2px; padding: 4px; margin: 4px 0 16px; background: #efe8dc; border: 1px solid var(--border); border-radius: 8px; }
@@ -2160,8 +2158,8 @@ async function submitProfileClaim() {
 // when no father is recorded; see akt_ancestor_chain in
 // supabase_ancestor_chain.sql), this person, then a count of their children.
 // The whole known line is fetched in one call (it is small and fast) so the
-// header can say how many generations exist; 7 are shown at first and
-// "Show N earlier ancestors" reveals 7 more at a time.
+// header can say how many generations exist. Three views: Timeline (compact
+// list, 7 generations by default with 14/21/... preview chips), Nasab and By era (default).
 const ANCESTOR_CHAIN_STEP = 7;
 const ANCESTOR_CHAIN_FETCH = 50;
 let ancestorChainState = null;
@@ -2196,9 +2194,7 @@ function splitAncestorName(raw) {
   const notes = [];
   const lead = name.match(/^(\d{1,3})\s*-\s*(?=\D)/);
   if (lead) {
-    const n = Number(lead[1]);
-    const suf = (n % 100 >= 11 && n % 100 <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
-    notes.push(n + suf);
+    notes.push('Family ' + Number(lead[1]));
     name = name.slice(lead[0].length);
   }
   // Keep honorifics such as (RA) / (AS) / (SAW) as part of the name.
@@ -2307,45 +2303,53 @@ function femaleMark(a) {
   return a.sex === 'F' ? ' <span title="No father recorded, so this follows the mother" style="color:#9d174d">♀</span>' : '';
 }
 
+function setFamilyLinePreview(n) {
+  const state = ancestorChainState;
+  const v = Number(n);
+  if (!state || !Number.isFinite(v) || v < ANCESTOR_CHAIN_STEP) return;
+  state.shown = v;
+  renderAncestorChain();
+}
+
 function renderFamilyTimeline(state) {
+  // Compact list, oldest at the top. 7 generations by default; the preview
+  // chips show 14 / 21 / ... (in steps of 7) up to the whole line, and 7 brings it back.
   const total = state.ancestors.length;
   const shown = Math.min(state.shown, total);
-  const hiddenCount = total - shown;
-  const rows = [];
-  if (hiddenCount > 0 || state.hasMoreBeyond) {
-    const next = Math.min(ANCESTOR_CHAIN_STEP, hiddenCount) || ANCESTOR_CHAIN_STEP;
-    const label = hiddenCount > 0 ? `Show ${next} earlier ancestor${next === 1 ? '' : 's'}` : 'Show earlier ancestors';
-    const toGen = hiddenCount > 0 ? `<span class="fl-more-to">to gen ${shown + next}</span>` : '';
-    rows.push(`<li class="fl-row">
-      <div class="fl-rail"><span class="fl-dot ghost"></span></div>
-      <button type="button" class="fl-more" onclick="loadMoreAncestors(this)"><span>↑ ${label}</span>${toGen}</button>
-    </li>`);
+  const chips = [];
+  for (let n = ANCESTOR_CHAIN_STEP; ; n += ANCESTOR_CHAIN_STEP) {
+    const all = n >= total;
+    const active = all ? state.shown >= total : state.shown === n;
+    const label = all && n > ANCESTOR_CHAIN_STEP && n !== total ? `All ${total} generations` : `${n} generations`;
+    chips.push(`<button type="button" class="fl-chip${active ? ' active' : ''}" aria-pressed="${active}" onclick="setFamilyLinePreview(${all ? Math.max(n, total) : n})">${label}</button>`);
+    if (all) break;
   }
-  state.ancestors.slice(0, shown).reverse().forEach(a => {
-    rows.push(`<li class="fl-row">
-      <div class="fl-rail"><span class="fl-dot${a.depth <= 3 ? ' near' : ''}"></span><span class="fl-num">${a.depth}↑</span></div>
-      <a class="fl-body" href="person.html?uid=${encodeURIComponent(a.uid)}">
-        <div class="fl-gen">${escHtml(ancestorGenLabel(a.depth, a.sex))}</div>
-        <div class="fl-name">${escHtml(a.name)}${femaleMark(a)}</div>
-        ${a.note ? `<div class="fl-sub">${escHtml(a.note)}</div>` : ''}
-      </a>
-    </li>`);
+  const preview = total > ANCESTOR_CHAIN_STEP || state.hasMoreBeyond
+    ? `<div class="fl-preview"><span class="fl-preview-label">Preview with</span>${chips.join('')}${
+        state.hasMoreBeyond && shown >= total ? '<button type="button" class="fl-chip" onclick="loadMoreAncestors(this)">↑ Load earlier ancestors</button>' : ''}</div>`
+    : '';
+
+  const rows = state.ancestors.slice(0, shown).reverse().map(a => {
+    const rel = a.depth <= 3 ? ancestorGenLabel(a.depth, a.sex) : `${a.depth} generations up`;
+    const sub = [rel, a.note, a.depth === total && !state.hasMoreBeyond ? 'Earliest recorded ancestor' : ''].filter(Boolean).join(' · ');
+    return `<li><a class="fl-crow" href="person.html?uid=${encodeURIComponent(a.uid)}">
+      <span class="fl-cnum">${a.depth}↑</span>
+      <span class="fl-ctext"><div class="fl-name">${escHtml(a.name)}${femaleMark(a)}</div><div class="fl-sub">${escHtml(sub)}</div></span>
+      <span class="fl-chev" aria-hidden="true">›</span>
+    </a></li>`;
   });
-  rows.push(`<li class="fl-row">
-      <div class="fl-rail"><span class="fl-dot self"></span>${state.isOwnProfile ? '<span class="fl-num">You</span>' : ''}</div>
-      <div class="fl-body self">
-        <div class="fl-gen">This profile</div>
-        <div class="fl-name">${escHtml(state.displayName || '(unnamed)')}</div>
-      </div>
-    </li>`);
+  rows.push(`<li><div class="fl-crow self">
+      <span class="fl-cnum">★</span>
+      <span class="fl-ctext"><div class="fl-name">${escHtml(state.displayName || '(unnamed)')}</div><div class="fl-sub">${state.isOwnProfile ? 'You' : 'This profile'}</div></span>
+    </div></li>`);
   const kids = childrenSummaryText(state.children);
   if (kids) {
-    rows.push(`<li class="fl-row">
-      <div class="fl-rail"><span class="fl-dot ghost"></span></div>
-      <div class="fl-body kids"><div class="fl-gen">Children</div><div class="fl-name">${escHtml(kids)}</div></div>
-    </li>`);
+    rows.push(`<li><div class="fl-crow kids">
+      <span class="fl-cnum">↓</span>
+      <span class="fl-ctext"><div class="fl-name">${escHtml(kids)}</div><div class="fl-sub">Children</div></span>
+    </div></li>`);
   }
-  return `<ul class="fl-list">${rows.join('')}</ul>`;
+  return preview + `<ul class="fl-compact">${rows.join('')}</ul>`;
 }
 
 function renderFamilyNasab(state) {

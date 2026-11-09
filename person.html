@@ -424,6 +424,42 @@
   .conn-route { padding: 6px 0; }
   .conn-route-h { margin-bottom: 6px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
   .conn-divider { border: 0; border-top: 1px solid var(--border); margin: 12px 0; }
+  /* Shared-ancestor tree */
+  .ca-tree { --ca-gap: 28px; margin-top: 4px; padding: 16px 14px 12px; border: 1px solid var(--border); border-radius: 8px; background: #faf6ec; }
+  .ca-apex { display: block; width: fit-content; min-width: 240px; max-width: 100%; margin: 0 auto; padding: 10px 22px; border: 1px solid var(--gold2); outline: 3px double var(--gold2); outline-offset: 2px; border-radius: 4px; background: var(--goldl); color: var(--ink); text-align: center; text-decoration: none; }
+  .ca-apex .ca-label { color: var(--gold); letter-spacing: 0.14em; }
+  .ca-fork { height: 22px; margin: 0 calc(25% - var(--ca-gap) / 4); border: 2px solid var(--gold2); border-bottom: 0; border-radius: 6px 6px 0 0; position: relative; margin-top: 12px; }
+  .ca-fork::before { content: ''; position: absolute; left: 50%; top: -14px; height: 12px; border-left: 2px solid var(--gold2); }
+  .ca-row { position: relative; display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--ca-gap); padding-top: 30px; }
+  .ca-cell { position: relative; min-width: 0; }
+  .ca-box { position: relative; display: block; padding: 9px 12px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--ink); text-decoration: none; }
+  a.ca-box:hover, a.ca-apex:hover { border-color: var(--gold); }
+  .ca-box::before { content: ''; position: absolute; left: 50%; top: -31px; height: 30px; border-left: 2px solid var(--border); }
+  .ca-label { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .ca-name { font-size: 0.86rem; font-weight: 700; overflow-wrap: anywhere; }
+  .ca-note { font-size: 0.74rem; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
+  .ca-box.ca-start { background: var(--goldl); border-color: var(--gold2); }
+  .ca-box.ca-start .ca-label { color: var(--gold); }
+  .ca-box.ca-end { background: #eef5ef; border: 2px solid var(--green); }
+  .ca-box.ca-end .ca-label { color: var(--green); }
+  .ca-box.ca-spouse::before { border-left-style: dashed; }
+  .ca-pill { position: absolute; top: 4px; left: 0; right: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+  .ca-pill::before, .ca-pill::after { content: ''; width: 60px; border-top: 1px dashed var(--gold2); }
+  .ca-pill span { padding: 2px 10px; border: 1px dashed var(--gold2); border-radius: 999px; background: #faf6ec; color: var(--gold); font-size: 0.64rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+  .ca-married { position: absolute; top: -24px; left: calc(50% + 8px); font-size: 0.66rem; font-style: italic; color: var(--muted); }
+  .ca-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 0.72rem; color: var(--muted); }
+  .ca-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .ca-legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--gold2); }
+  .ca-legend .sw-apex { background: var(--goldl); border: 2px solid var(--gold2); }
+  .ca-legend .sw-start { background: var(--goldl); }
+  .ca-legend .sw-end { background: #eef5ef; border: 2px solid var(--green); }
+  @media(max-width:600px){
+    .ca-tree { --ca-gap: 12px; padding: 12px 8px 10px; }
+    .ca-apex { min-width: 0; padding: 8px 12px; }
+    .ca-box { padding: 7px 8px; }
+    .ca-name { font-size: 0.8rem; }
+    .ca-pill::before, .ca-pill::after { width: 16px; }
+  }
   .fl-gen { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
   .fl-name { font-size: 1rem; font-weight: 700; overflow-wrap: anywhere; }
   .fl-sub { font-size: 0.8rem; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
@@ -2271,7 +2307,7 @@ function splitAncestorName(raw) {
     name = name.slice(0, open).trim();
     const rel = name.match(/\s+(S\/O|D\/O|W\/O|so|do)$/i);
     if (rel) { name = name.slice(0, rel.index).trim(); inner = rel[1].toUpperCase().replace(/^(S|D|W)O$/, '$1/O') + ' ' + inner; }
-    if (inner) notes.push(inner.charAt(0).toUpperCase() + inner.slice(1));
+    if (inner) notes.push(/^[a-z][./]/.test(inner) ? inner : inner.charAt(0).toUpperCase() + inner.slice(1));
   }
   name = name.replace(/\u2039/g, '(').replace(/\u203a/g, ')');
   name = name.replace(/(\w)- (?=\w)/g, '$1-').trim();
@@ -2718,8 +2754,86 @@ function renderConnectionRoute(route, opts = {}) {
       ? `<span class="conn-step${cls}">${inner}</span>`
       : `<a class="conn-step${cls}" href="person.html?uid=${encodeURIComponent(p.uid)}">${inner}</a>`;
   });
+  if (route.up >= 1 && route.down >= 1) {
+    return `<div class="conn-tag">${escHtml(tag)}</div>${renderConnectionTree(route, labels, opts)}`;
+  }
   return `<div class="conn-tag">${escHtml(tag)}</div>
       <div class="conn-path">${steps.join('<span class="conn-arrow" aria-hidden="true">→</span>')}</div>`;
+}
+
+// Shared-ancestor view: the shared ancestor on top, then two columns going
+// down to the two people: left = the starting person's side, right = the other
+// person's side, one row per generation below the ancestor. Between rows, a
+// small label says how that row's pair are related (brothers, 1st cousins...).
+// A spouse reached through marriage sits under their partner as "married".
+function renderConnectionTree(route, labels, opts = {}) {
+  const path = route.path || [];
+  const fs = route.from_spouse ? 1 : 0;
+  const apexIdx = fs + route.up;
+  const lastIdx = path.length - 1;
+  const leftName = opts.perspective === 'profile' ? (opts.firstName || path[0]?.name) : 'You';
+  const rightName = opts.targetName || path[lastIdx]?.name;
+
+  const box = (idx, extraCls = '') => {
+    const p = path[idx] || {};
+    const isStart = idx === 0, isEnd = idx === lastIdx;
+    const split = splitAncestorName(p.name || '');
+    const rawName = isStart && opts.firstName ? opts.firstName : (isEnd && opts.targetName ? opts.targetName : split.name);
+    const cls = isStart ? ' ca-start' : (isEnd ? ' ca-end' : '');
+    const linkable = !(isStart && opts.perspective === 'profile') && !(isEnd && opts.perspective !== 'profile');
+    const inner = `<div class="ca-label">${escHtml(labels[idx] || '')}</div>
+        <div class="ca-name">${escHtml(rawName || '(unnamed)')}</div>
+        ${split.note && !isStart && !isEnd ? `<div class="ca-note">${escHtml(split.note)}</div>` : ''}`;
+    return linkable
+      ? `<a class="ca-box${cls}${extraCls}" href="person.html?uid=${encodeURIComponent(p.uid)}">${inner}</a>`
+      : `<div class="ca-box${cls}${extraCls}">${inner}</div>`;
+  };
+
+  const apex = path[apexIdx] || {};
+  const apexSplit = splitAncestorName(apex.name || '');
+  const apexSub = [apexSplit.note, labels[apexIdx]].filter(Boolean).join(' · ');
+  let html = `<div class="ca-tree">
+    <a class="ca-apex" href="person.html?uid=${encodeURIComponent(apex.uid || '')}">
+      <div class="ca-label">Common ancestor</div>
+      <div class="ca-name">${escHtml(apexSplit.name || '(unnamed)')}</div>
+      ${apexSub ? `<div class="ca-note">${escHtml(apexSub)}</div>` : ''}
+    </a>
+    <div class="ca-fork" aria-hidden="true"></div>`;
+
+  const pairWord = (k, a, b) => {
+    if (k === 1) {
+      if (a.sex === 'M' && b.sex === 'M') return 'Brothers';
+      if (a.sex === 'F' && b.sex === 'F') return 'Sisters';
+      return 'Brother & sister';
+    }
+    return `${ordinalWord(k - 1)} cousins`;
+  };
+
+  const rows = Math.max(route.up, route.down);
+  for (let k = 1; k <= rows; k++) {
+    const li = k <= route.up ? apexIdx - k : null;        // left: k generations below the ancestor
+    const ri = k <= route.down ? apexIdx + k : null;      // right
+    const pill = li !== null && ri !== null
+      ? `<div class="ca-pill"><span>${escHtml(pairWord(k, path[li] || {}, path[ri] || {}))}</span></div>` : '';
+    html += `<div class="ca-row">${pill}
+      <div class="ca-cell">${li !== null ? box(li) : ''}</div>
+      <div class="ca-cell">${ri !== null ? box(ri) : ''}</div>
+    </div>`;
+  }
+  if (route.from_spouse || route.to_spouse) {
+    html += `<div class="ca-row ca-row-spouse">
+      <div class="ca-cell">${route.from_spouse ? `<span class="ca-married">married</span>${box(0, ' ca-spouse')}` : ''}</div>
+      <div class="ca-cell">${route.to_spouse ? `<span class="ca-married">married</span>${box(lastIdx, ' ca-spouse')}` : ''}</div>
+    </div>`;
+  }
+  html += `<div class="ca-legend">
+      <span><i class="sw sw-apex"></i>Shared ancestor</span>
+      <span><i class="sw sw-start"></i>${escHtml(leftName || '')}</span>
+      <span><i class="sw sw-end"></i>${escHtml(rightName || '')}</span>
+      <span class="ca-legend-note">Left: ${escHtml(leftName === 'You' ? 'your' : (leftName || '') + "'s")} side · Right: ${escHtml((rightName || '') + "'s")} side · Rows = same generation</span>
+    </div>
+  </div>`;
+  return html;
 }
 
 // ===== "HOW IS ANOTHER PERSON CONNECTED TO THIS PROFILE?" =====

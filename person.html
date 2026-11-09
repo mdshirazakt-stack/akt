@@ -2545,7 +2545,7 @@ function ordinalWord(n) {
 
 // Blood relationship of someone `down` generations below my ancestor that is
 // `up` generations above me. sex = that person's sex, side = 'paternal'|'maternal'.
-function bloodRelation(up, down, sex, side) {
+function bloodRelation(up, down, sex, side, detailed) {
   const f = sex === 'F';
   const sideText = side ? ` (${side} side)` : '';
   const greats = n => n <= 0 ? '' : (n === 1 ? 'great-' : `${n}× great-`);
@@ -2561,10 +2561,26 @@ function bloodRelation(up, down, sex, side) {
   if (up === 1 && down === 1) return f ? 'Sister' : 'Brother';
   if (down === 1) return greats(up - 2) + (f ? 'aunt' : 'uncle') + sideText;
   if (up === 1) return greats(down - 2) + (f ? 'niece' : 'nephew');
-  const degree = Math.min(up, down) - 1;
-  const removed = Math.abs(up - down);
-  const rem = removed === 0 ? '' : removed === 1 ? ' once removed' : removed === 2 ? ' twice removed' : ` ${removed} times removed`;
-  return `${ordinalWord(degree)} cousin${rem}${sideText}`;
+  // Cousins. Same generation as me: "Nth cousin". A different generation is
+  // named the way families say it, not "N times removed": one generation
+  // below me is a nephew/niece, one above is an uncle/aunt, two is grand-, etc.
+  // With `detailed`, the exact cousin link is added in brackets, e.g.
+  // "Nephew (son of your 3rd cousin, paternal side)".
+  const gap = down - up;
+  if (gap === 0) return `${ordinalWord(up - 1)} cousin${sideText}`;
+  const k = Math.abs(gap);
+  const sideBit = side ? `, ${side} side` : '';
+  if (gap > 0) {
+    const word = (k === 1 ? '' : greats(k - 2) + 'grand-') + (f ? 'niece' : 'nephew');
+    if (!detailed) return word;
+    const childWord = k === 1 ? (f ? 'daughter' : 'son') : greats(k - 2) + (f ? 'granddaughter' : 'grandson');
+    return `${word} (${childWord} of your ${ordinalWord(up - 1)} cousin${sideBit})`;
+  }
+  const word = (k === 1 ? '' : greats(k - 2) + 'grand-') + (f ? 'aunt' : 'uncle');
+  if (!detailed) return word;
+  const parentWord = k === 1 ? (side === 'maternal' ? "mother's" : side === 'paternal' ? "father's" : "parent's")
+    : greats(k - 2) + "grandparent's";
+  return `${word} (your ${parentWord} ${ordinalWord(down - 1)} cousin)`;
 }
 
 function capFirst(t) { return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
@@ -2593,7 +2609,7 @@ function connectionTag(r) {
     if (r.up === 0 && r.down === 1) return f ? 'Stepdaughter' : 'Stepson';
     return `${spouseWord}'s ${bloodRelation(r.up, r.down, target.sex, side).toLowerCase()}`;
   }
-  return capFirst(bloodRelation(r.up, r.down, target.sex, side));
+  return capFirst(bloodRelation(r.up, r.down, target.sex, side, true));
 }
 
 // Caption for every person on the path, relative to me.

@@ -372,23 +372,34 @@
   .children-list { list-style: none; padding: 0; }
   .children-list li { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.87rem; cursor: pointer; }
   .children-list li:hover { color: var(--gold); }
-  /* Family line: paternal ancestor chain down to this person and their children */
-  .ancestor-chain { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; font-size: 0.84rem; }
-  .ancestor-step { display: inline-flex; flex-direction: column; min-width: 0; max-width: 220px; padding: 6px 10px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); text-decoration: none; }
-  a.ancestor-step:hover { border-color: var(--gold); color: var(--gold); }
-  .ancestor-step .gen { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-  .ancestor-step .nm { font-weight: 700; overflow-wrap: anywhere; }
-  .ancestor-step.self { background: var(--goldl); border-color: var(--gold); }
-  .ancestor-step.kids { background: var(--bg); border-style: dashed; }
-  .ancestor-arrow { color: var(--gold); font-weight: 700; padding: 0 2px; }
-  .ancestor-more { min-height: 44px; padding: 6px 12px; border: 1px dashed var(--gold); background: var(--goldl); color: var(--accent); font-size: 0.8rem; font-weight: 700; cursor: pointer; }
-  .ancestor-more:disabled { opacity: 0.6; cursor: default; }
-  .ancestor-note { width: 100%; font-size: 0.74rem; color: var(--muted); margin-top: 4px; }
-  @media(max-width:600px){
-    .ancestor-chain { flex-direction: column; align-items: flex-start; gap: 2px; }
-    .ancestor-step { max-width: 100%; }
-    .ancestor-arrow { transform: rotate(90deg); padding: 0 0 0 14px; line-height: 1.1; }
-  }
+  /* Family line: vertical timeline of the father's line down to this person and their children */
+  .fl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .fl-head .section-h-title { font-family: 'Amiri', serif; font-size: 1.1rem; color: var(--gold); }
+  .fl-head .fl-meta { font-size: 0.78rem; color: var(--muted); }
+  .fl-list { list-style: none; padding: 0; margin: 0; max-width: 640px; }
+  .fl-row { position: relative; display: flex; align-items: stretch; }
+  .fl-rail { position: relative; flex: 0 0 44px; display: flex; flex-direction: column; align-items: center; }
+  .fl-rail::before { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; margin-left: -1px; background: var(--border); }
+  .fl-row:first-child .fl-rail::before { top: 50%; }
+  .fl-row:last-child .fl-rail::before { bottom: auto; height: 50%; }
+  .fl-dot { position: relative; z-index: 1; margin-top: 16px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--gold2); background: var(--surface); box-sizing: border-box; }
+  .fl-dot.near { background: var(--gold2); }
+  .fl-dot.ghost { border-style: dashed; border-color: var(--muted); }
+  .fl-dot.self { width: 22px; height: 22px; margin-top: 18px; background: var(--green); border: 3px solid var(--surface); box-shadow: 0 0 0 2px var(--green); }
+  .fl-num { position: relative; z-index: 1; font-size: 0.66rem; font-weight: 700; color: var(--muted); background: var(--surface); padding: 1px 0; }
+  .fl-body { flex: 1; min-width: 0; display: block; margin: 4px 0; padding: 8px 14px; color: var(--ink); text-decoration: none; border: 1px solid transparent; }
+  a.fl-body:hover { border-color: var(--border); background: var(--bg); }
+  a.fl-body:hover .fl-name { color: var(--gold); }
+  .fl-gen { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .fl-name { font-size: 1rem; font-weight: 700; overflow-wrap: anywhere; }
+  .fl-sub { font-size: 0.8rem; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
+  .fl-body.self { background: var(--goldl); border-color: var(--gold2); }
+  .fl-body.self .fl-gen { color: var(--gold); }
+  .fl-body.kids { border: 1px dashed var(--border); }
+  .fl-more { flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 44px; margin: 4px 0; padding: 8px 14px; border: 1px dashed var(--gold2); background: var(--goldl); color: var(--gold); font: inherit; font-size: 0.86rem; font-weight: 700; text-align: left; cursor: pointer; }
+  .fl-more .fl-more-to { font-size: 0.76rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
+  .fl-more:disabled { opacity: 0.6; cursor: default; }
+  .fl-foot { font-size: 0.76rem; color: var(--muted); margin-top: 10px; }
   .fc-children { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
   .fc-children-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 4px; }
   .badge { display: inline-block; padding: 2px 7px; font-size: 0.68rem; border-radius: 2px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -2108,12 +2119,14 @@ async function submitProfileClaim() {
 
 // ===== RENDER PERSON DETAIL =====
 // ===== FAMILY LINE (ancestor chain) =====
-// Shows up to 7 generations above this person (father first, mother only
+// A vertical timeline: the father's line above this person (mother only
 // when no father is recorded; see akt_ancestor_chain in
-// supabase_ancestor_chain.sql), then this person, then a count of their
-// children. When the top ancestor has parents of their own, "Show 7 more"
-// extends the chain upward in place, 7 generations at a time.
+// supabase_ancestor_chain.sql), this person, then a count of their children.
+// The whole known line is fetched in one call (it is small and fast) so the
+// header can say how many generations exist; 7 are shown at first and
+// "Show N earlier ancestors" reveals 7 more at a time.
 const ANCESTOR_CHAIN_STEP = 7;
+const ANCESTOR_CHAIN_FETCH = 50;
 let ancestorChainState = null;
 
 function ancestorGenLabel(depth, sex) {
@@ -2137,41 +2150,46 @@ function childrenSummaryText(children) {
   return parts.join(', ');
 }
 
-async function loadAncestorChain(uid, displayName, displayGender, children) {
-  const state = { uid, displayName, displayGender, children: children || [], ancestors: [], hasMore: false, loading: false };
+async function loadAncestorChain(uid, displayName, children, isOwnProfile) {
+  const state = { uid, displayName, isOwnProfile: !!isOwnProfile, children: children || [], ancestors: [], shown: ANCESTOR_CHAIN_STEP, hasMoreBeyond: false, loading: false };
   ancestorChainState = state;
-  const { data, error } = await sb.rpc('akt_ancestor_chain', { p_uid: uid, p_max: ANCESTOR_CHAIN_STEP });
+  const { data, error } = await sb.rpc('akt_ancestor_chain', { p_uid: uid, p_max: ANCESTOR_CHAIN_FETCH });
   if (ancestorChainState !== state) return;
   if (error) { console.warn('Ancestor chain unavailable:', error.message); return; }
   state.ancestors = data || [];
-  state.hasMore = state.ancestors.length ? !!state.ancestors[state.ancestors.length - 1].has_more : false;
+  const last = state.ancestors[state.ancestors.length - 1];
+  state.hasMoreBeyond = state.ancestors.length >= ANCESTOR_CHAIN_FETCH && !!last?.has_more;
   renderAncestorChain();
 }
 
 async function loadMoreAncestors(btn) {
   const state = ancestorChainState;
-  if (!state || state.loading || !state.hasMore || !state.ancestors.length) return;
-  state.loading = true;
-  if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
-  const top = state.ancestors[state.ancestors.length - 1];
-  const seen = new Set([state.uid, ...state.ancestors.map(a => a.uid)]);
-  const { data, error } = await sb.rpc('akt_ancestor_chain', { p_uid: top.uid, p_max: ANCESTOR_CHAIN_STEP });
-  if (ancestorChainState !== state) return;
-  state.loading = false;
-  if (error) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Could not load. Try again'; }
+  if (!state || state.loading) return;
+  if (state.shown < state.ancestors.length) {
+    state.shown += ANCESTOR_CHAIN_STEP;
+    renderAncestorChain();
     return;
   }
+  if (!state.hasMoreBeyond) return;
+  // Very long line: fetch the next stretch above the oldest one loaded.
+  state.loading = true;
+  if (btn) btn.disabled = true;
+  const top = state.ancestors[state.ancestors.length - 1];
+  const seen = new Set([state.uid, ...state.ancestors.map(a => a.uid)]);
+  const { data, error } = await sb.rpc('akt_ancestor_chain', { p_uid: top.uid, p_max: ANCESTOR_CHAIN_FETCH });
+  if (ancestorChainState !== state) return;
+  state.loading = false;
+  if (error) { if (btn) btn.disabled = false; return; }
   const more = [];
   for (const row of (data || [])) {
-    if (seen.has(row.uid)) break; // data loop back into the chain
+    if (seen.has(row.uid)) break; // data loop back into the line
     seen.add(row.uid);
     more.push({ ...row, depth: top.depth + row.depth });
   }
   state.ancestors = state.ancestors.concat(more);
-  state.hasMore = more.length === (data || []).length && more.length
-    ? !!more[more.length - 1].has_more
-    : false;
+  const last = more[more.length - 1];
+  state.hasMoreBeyond = more.length === (data || []).length && more.length >= ANCESTOR_CHAIN_FETCH && !!last?.has_more;
+  state.shown += ANCESTOR_CHAIN_STEP;
   renderAncestorChain();
 }
 
@@ -2179,34 +2197,65 @@ function renderAncestorChain() {
   const state = ancestorChainState;
   const box = document.getElementById('ancestor-chain');
   const section = document.getElementById('family-line-section');
+  const meta = document.getElementById('family-line-meta');
   if (!state || !box || !section) return;
-  if (!state.ancestors.length) { section.style.display = 'none'; return; }
+  const total = state.ancestors.length;
+  if (!total) { section.style.display = 'none'; return; }
 
-  const arrow = '<span class="ancestor-arrow" aria-hidden="true">→</span>';
-  const parts = [];
-  if (state.hasMore) {
-    parts.push(`<button type="button" class="ancestor-more" onclick="loadMoreAncestors(this)" title="Show ${ANCESTOR_CHAIN_STEP} more generations above ${escHtml(state.ancestors[state.ancestors.length - 1].name || '')}">↑ More ancestors: show ${ANCESTOR_CHAIN_STEP} more</button>`);
+  const shown = Math.min(state.shown, total);
+  const visible = state.ancestors.slice(0, shown);
+  const hiddenCount = total - shown;
+  const rows = [];
+
+  if (hiddenCount > 0 || state.hasMoreBeyond) {
+    const next = Math.min(ANCESTOR_CHAIN_STEP, hiddenCount) || ANCESTOR_CHAIN_STEP;
+    const label = hiddenCount > 0
+      ? `Show ${next} earlier ancestor${next === 1 ? '' : 's'}`
+      : 'Show earlier ancestors';
+    const toGen = hiddenCount > 0 ? `<span class="fl-more-to">to gen ${shown + next}</span>` : '';
+    rows.push(`<li class="fl-row">
+      <div class="fl-rail"><span class="fl-dot ghost"></span></div>
+      <button type="button" class="fl-more" onclick="loadMoreAncestors(this)"><span>↑ ${label}</span>${toGen}</button>
+    </li>`);
   }
-  state.ancestors.slice().reverse().forEach(a => {
-    parts.push(`<a class="ancestor-step" href="person.html?uid=${encodeURIComponent(a.uid)}">
-      <span class="gen">${escHtml(ancestorGenLabel(a.depth, a.sex))}</span>
-      <span class="nm">${escHtml(a.name || '(unnamed)')}${a.sex === 'F' ? ' <span title="Mother\'s side: no father recorded" style="color:#9d174d">♀</span>' : ''}</span>
-    </a>`);
+
+  visible.slice().reverse().forEach(a => {
+    const femaleLink = a.sex === 'F';
+    rows.push(`<li class="fl-row">
+      <div class="fl-rail"><span class="fl-dot${a.depth <= 3 ? ' near' : ''}"></span><span class="fl-num">${a.depth}↑</span></div>
+      <a class="fl-body" href="person.html?uid=${encodeURIComponent(a.uid)}">
+        <div class="fl-gen">${escHtml(ancestorGenLabel(a.depth, a.sex))}</div>
+        <div class="fl-name">${escHtml(a.name || '(unnamed)')}${femaleLink ? ' <span title="No father recorded, so this follows the mother" style="color:#9d174d">♀</span>' : ''}</div>
+        ${a.place ? `<div class="fl-sub">${escHtml(a.place)}</div>` : ''}
+      </a>
+    </li>`);
   });
-  parts.push(`<span class="ancestor-step self">
-      <span class="gen">This profile</span>
-      <span class="nm">${escHtml(state.displayName || '(unnamed)')}</span>
-    </span>`);
+
+  rows.push(`<li class="fl-row">
+      <div class="fl-rail"><span class="fl-dot self"></span>${state.isOwnProfile ? '<span class="fl-num">You</span>' : ''}</div>
+      <div class="fl-body self">
+        <div class="fl-gen">This profile</div>
+        <div class="fl-name">${escHtml(state.displayName || '(unnamed)')}</div>
+      </div>
+    </li>`);
+
   const kids = childrenSummaryText(state.children);
   if (kids) {
-    parts.push(`<span class="ancestor-step kids">
-      <span class="gen">Children</span>
-      <span class="nm">${escHtml(kids)}</span>
-    </span>`);
+    rows.push(`<li class="fl-row">
+      <div class="fl-rail"><span class="fl-dot ghost"></span></div>
+      <div class="fl-body kids">
+        <div class="fl-gen">Children</div>
+        <div class="fl-name">${escHtml(kids)}</div>
+      </div>
+    </li>`);
   }
+
   const hasFemaleLink = state.ancestors.some(a => a.sex === 'F');
-  box.innerHTML = parts.join(arrow) +
-    `<div class="ancestor-note">Follows the father's line${hasFemaleLink ? '; ♀ marks a generation where only the mother is recorded' : ''}. ${state.ancestors.length} generation${state.ancestors.length === 1 ? '' : 's'} shown.</div>`;
+  if (meta) {
+    meta.textContent = (hasFemaleLink ? "Father's line (♀ = mother's side)" : "Father's line") +
+      ' · ' + total + (state.hasMoreBeyond ? '+' : '') + ' generation' + (total === 1 ? '' : 's');
+  }
+  box.innerHTML = `<ul class="fl-list">${rows.join('')}</ul><div class="fl-foot">Tap any ancestor to open their profile.</div>`;
   section.style.display = '';
 }
 
@@ -2483,8 +2532,8 @@ async function renderPerson(uid, el) {
       </div>
 
       <div id="family-line-section" style="display:none">
-        <div class="section-h">Family Line</div>
-        <div id="ancestor-chain" class="ancestor-chain"></div>
+        <div class="section-h fl-head"><span class="section-h-title">Family Line</span><span class="fl-meta" id="family-line-meta"></span></div>
+        <div id="ancestor-chain"></div>
       </div>
 
       ${siblings.length ? `
@@ -2690,7 +2739,7 @@ async function renderPerson(uid, el) {
   `;
 
   // Family line loads after the page so it never holds up the profile.
-  loadAncestorChain(uid, displayName, displayGender, allChildren);
+  loadAncestorChain(uid, displayName, allChildren, isOwnProfile);
 
   // Pre-fill correction form hidden fields
   document.getElementById('cf-person-uid').value    = p.uid;

@@ -11,9 +11,12 @@
 --
 -- The row at the last depth also says whether that ancestor has a parent of
 -- their own (has_more), so the page can offer "show more generations".
+-- place = root place, else birth place (the small line under each name).
+
+drop function if exists public.akt_ancestor_chain(text, int);
 
 create or replace function public.akt_ancestor_chain(p_uid text, p_max int default 7)
-returns table (depth int, uid text, name text, sex text, death_flag text, has_more boolean)
+returns table (depth int, uid text, name text, sex text, death_flag text, place text, has_more boolean)
 language sql
 stable
 security invoker
@@ -38,6 +41,7 @@ as $$
        and not nxt.parent_uid = any (c.path)
   )
   select c.depth, c.uid, p.name, p.sex, p.death_flag::text,
+         nullif(trim(coalesce(nullif(trim(p.root_place), ''), p.birth_place)), ''),
          exists (select 1 from chain c2 where c2.depth = c.depth + 1)
     from chain c
     left join public.people p on p.uid = c.uid

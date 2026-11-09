@@ -2649,8 +2649,40 @@ function bloodRelation(up, down, sex, side, detailed) {
 
 function capFirst(t) { return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
 
+// Every route's steps as 'up' | 'down' | 'spouse' (the database sends them;
+// rebuilt from the classic fields for older results).
+function routeDirs(r) {
+  if (Array.isArray(r.dirs)) return r.dirs;
+  const d = [];
+  if (r.from_spouse) d.push('spouse');
+  for (let i = 0; i < (r.up || 0); i++) d.push('up');
+  for (let i = 0; i < (r.down || 0); i++) d.push('down');
+  if (r.to_spouse) d.push('spouse');
+  return d;
+}
+
+// Tag for a route with a marriage in the middle: each blood stretch named on
+// its own, joined through the marriages, e.g. "Brother's wife's uncle's wife".
+function segmentedConnectionTag(r) {
+  const dirs = routeDirs(r), path = r.path || [];
+  const parts = [];
+  let up = 0, down = 0;
+  const flush = endIdx => {
+    if (up || down) parts.push(bloodRelation(up, down, path[endIdx]?.sex, null).toLowerCase());
+    up = 0; down = 0;
+  };
+  dirs.forEach((d, k) => {
+    if (d === 'up') up++;
+    else if (d === 'down') down++;
+    else { flush(k); parts.push(spouseWord(path[k + 1]?.sex)); }
+  });
+  flush(path.length - 1);
+  return capFirst(parts.join("'s "));
+}
+
 // Final relationship tag, including in-laws.
 function connectionTag(r) {
+  if (r.segmented) return segmentedConnectionTag(r);
   const path = r.path || [];
   const target = path[path.length - 1] || {};
   const f = target.sex === 'F';
@@ -2755,7 +2787,7 @@ function relationStepWord(type, sex) {
 function connectionTagText(route, ctx) {
   let tag = connectionTag(route);
   if (ctx.mode === 'me') {
-    if (/^(Wife|Husband)'s /.test(tag)) tag = 'Your ' + lowerFirst(tag);
+    if (route.segmented || /^(Wife|Husband)'s /.test(tag)) tag = 'Your ' + lowerFirst(tag);
     return tag;
   }
   return tag.replace(/\byour\b/g, 'their');
@@ -2763,9 +2795,9 @@ function connectionTagText(route, ctx) {
 
 function renderConnectionRoute(route, idx, ctx) {
   const path = route.path || [];
-  const byMarriage = route.from_spouse || route.to_spouse;
+  const byMarriage = routeDirs(route).includes('spouse');
   const tag = connectionTagText(route, ctx);
-  const useTree = route.up >= 2 && route.down >= 2;
+  const useTree = !route.segmented && route.up >= 2 && route.down >= 2;
   const body = useTree ? renderConnectionTree(route, ctx) : renderConnectionChain(route, ctx);
   return `<div class="cf-route">
       <div class="cf-route-h"><span class="cf-route-n">Route ${idx + 1}</span><span class="cf-badge">${byMarriage ? 'By marriage' : 'By blood'}</span></div>
@@ -2779,19 +2811,17 @@ function renderConnectionRoute(route, idx, ctx) {
 // shared parent between two siblings is left out of the chain.
 function renderConnectionChain(route, ctx) {
   const path = route.path || [];
-  const fs = route.from_spouse ? 1 : 0;
-  const apexIdx = fs + route.up;
-  const last = path.length - 1;
-  const bloodTo = route.to_spouse ? last - 1 : last;
+  const dirs = routeDirs(route);
+  // one step per person; "up to a parent then down to their child" becomes a
+  // single sibling step (the shared parent is left out of the chain)
   const steps = [{ idx: 0, type: 'start' }];
-  if (fs) steps.push({ idx: 1, type: 'spouse' });
-  for (let i = fs + 1; i <= apexIdx; i++) steps.push({ idx: i, type: 'parent' });
-  for (let i = apexIdx + 1; i <= bloodTo; i++) steps.push({ idx: i, type: 'child' });
-  if (route.to_spouse) steps.push({ idx: last, type: 'spouse' });
-  if (route.up >= 1 && route.down >= 1) {
-    // collapse "up to the parent, down to their child" into one sibling step
-    const at = steps.findIndex(st => st.idx === apexIdx);
-    if (at > 0 && steps[at + 1]) { steps[at + 1].type = 'sibling'; steps.splice(at, 1); }
+  for (let k = 0; k < dirs.length; k++) {
+    if (dirs[k] === 'up' && dirs[k + 1] === 'down') {
+      steps.push({ idx: k + 2, type: 'sibling' });
+      k++;
+    } else {
+      steps.push({ idx: k + 1, type: dirs[k] === 'up' ? 'parent' : dirs[k] === 'down' ? 'child' : 'spouse' });
+    }
   }
 
   const startPossessive = ctx.mode === 'me' ? 'your' : `${shortPersonName(ctx.profileName)}'s`;
@@ -3428,7 +3458,7 @@ async function renderPerson(uid, el) {
             </div>
             <button type="submit" class="conn-go">Find connection</button>
           </form>
-          <div class="conn-help">Start typing a name and pick the right person (father's name and place help tell same-named people apart), or paste their profile link or ID.</div>
+          <div class="conn-help">Start typing a name and pick the right person (father's name and place help tell same-named people apart), or paste their profile link or ID, copied using the 📤 Share button on their profile.</div>
         </div>
         <div id="cf-results"></div>
       </div>

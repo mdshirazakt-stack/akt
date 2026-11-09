@@ -400,6 +400,43 @@
   .fl-more .fl-more-to { font-size: 0.76rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
   .fl-more:disabled { opacity: 0.6; cursor: default; }
   .fl-foot { font-size: 0.76rem; color: var(--muted); margin-top: 10px; }
+  .fl-tabs { display: inline-flex; gap: 2px; padding: 4px; margin: 4px 0 16px; background: #efe8dc; border: 1px solid var(--border); border-radius: 8px; }
+  .fl-tab { min-height: 36px; padding: 6px 16px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font: inherit; font-size: 0.84rem; font-weight: 700; cursor: pointer; }
+  .fl-tab.active { background: var(--surface); color: var(--green); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+  .fl-eras { max-width: 760px; display: flex; flex-direction: column; gap: 12px; }
+  .fl-era { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); overflow: hidden; }
+  .fl-era.self { border-color: var(--gold2); }
+  .fl-era-head { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; padding: 12px 16px; border: 0; background: #faf6ec; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+  .fl-era-title { font-family: 'Amiri', serif; font-size: 1.15rem; font-weight: 700; line-height: 1.2; }
+  .fl-era-sub { font-size: 0.76rem; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
+  .fl-era-caret { color: var(--gold); font-size: 0.8rem; flex-shrink: 0; }
+  .fl-grid { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--border); }
+  .fl-cell { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--ink); text-decoration: none; min-width: 0; }
+  .fl-cell:nth-child(odd) { border-right: 1px solid var(--border); }
+  .fl-cell.filler { background: #efe8dc; }
+  a.fl-cell:hover { background: var(--bg); }
+  a.fl-cell:hover .fl-name { color: var(--gold); }
+  .fl-grid .fl-cell:nth-last-child(-n+2):nth-child(odd), .fl-grid .fl-cell:last-child { border-bottom: 0; }
+  .fl-circle { flex: 0 0 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--gold2); color: var(--gold); display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; }
+  .fl-circle.solid { background: var(--green); border-color: var(--green); color: #fff; font-size: 0.85rem; }
+  .fl-cell-text { min-width: 0; }
+  .fl-era.self .fl-cell { background: var(--goldl); }
+  .fl-nasab { max-width: 720px; font-family: 'Amiri', serif; font-size: 1.12rem; line-height: 2; }
+  .fl-nasab .self-name { color: var(--green); font-weight: 700; }
+  .fl-nasab a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--border); }
+  .fl-nasab a:hover { color: var(--gold); border-color: var(--gold); }
+  .fl-nasab sup { color: var(--gold); font-size: 0.62rem; font-weight: 700; margin-left: 1px; }
+  .fl-nasab .of { font-style: italic; color: var(--muted); font-size: 0.95rem; }
+  .fl-notes { max-width: 720px; list-style: none; padding: 12px 0 0; margin: 14px 0 0; border-top: 1px solid var(--border); font-size: 0.78rem; }
+  .fl-notes li { display: flex; gap: 14px; padding: 3px 0; }
+  .fl-notes .k { flex: 0 0 28px; color: var(--gold); font-weight: 700; }
+  @media(max-width:600px){
+    .fl-grid { grid-template-columns: 1fr; }
+    .fl-cell:nth-child(odd) { border-right: 0; }
+    .fl-cell.filler { display: none; }
+    .fl-grid .fl-cell { border-bottom: 1px solid var(--border); }
+    .fl-grid .fl-cell:last-child, .fl-grid .fl-cell:nth-last-child(2):has(+ .filler) { border-bottom: 0; }
+  }
   .fc-children { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
   .fc-children-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 4px; }
   .badge { display: inline-block; padding: 2px 7px; font-size: 0.68rem; border-radius: 2px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -2150,13 +2187,52 @@ function childrenSummaryText(children) {
   return parts.join(', ');
 }
 
-async function loadAncestorChain(uid, displayName, children, isOwnProfile) {
-  const state = { uid, displayName, isOwnProfile: !!isOwnProfile, children: children || [], ancestors: [], shown: ANCESTOR_CHAIN_STEP, hasMoreBeyond: false, loading: false };
+// Old records pack extra facts into the name itself, e.g.
+// "21- Shaikh Habibullah  (Paschim, Lar,Deoria,UP)" or
+// "Syedna Shaikh Nabiu- Allah sb  ( Shifted from ... to Lar". Split that into a
+// clean name and a short note (shown under the name), without changing data.
+function splitAncestorName(raw) {
+  let name = String(raw || '').replace(/\s+/g, ' ').trim();
+  const notes = [];
+  const lead = name.match(/^(\d{1,3})\s*-\s*(?=\D)/);
+  if (lead) {
+    const n = Number(lead[1]);
+    const suf = (n % 100 >= 11 && n % 100 <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
+    notes.push(n + suf);
+    name = name.slice(lead[0].length);
+  }
+  // Keep honorifics such as (RA) / (AS) / (SAW) as part of the name.
+  name = name.replace(/\(\s*(RA|AS|SAW|SAWS|RH|RAH)\s*\)/gi, (m, h) => '\u2039' + h.toUpperCase() + '\u203a');
+  const open = name.indexOf('(');
+  if (open > 0) {
+    let inner = name.slice(open + 1);
+    const close = inner.lastIndexOf(')');
+    if (close >= 0) inner = inner.slice(0, close) + inner.slice(close + 1);
+    inner = inner.replace(/[()]/g, '').replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim();
+    name = name.slice(0, open).trim();
+    const rel = name.match(/\s+(S\/O|D\/O|W\/O|so|do)$/i);
+    if (rel) { name = name.slice(0, rel.index).trim(); inner = rel[1].toUpperCase().replace(/^(S|D|W)O$/, '$1/O') + ' ' + inner; }
+    if (inner) notes.push(inner.charAt(0).toUpperCase() + inner.slice(1));
+  }
+  name = name.replace(/\u2039/g, '(').replace(/\u203a/g, ')');
+  name = name.replace(/(\w)- (?=\w)/g, '$1-').trim();
+  return { name: name || String(raw || '(unnamed)').trim(), note: notes.join(' · ') };
+}
+
+const FAMILY_LINE_RECENT = 4;   // By era: generations 1-4 are the "Recent line"
+const FAMILY_LINE_ERA_SIZE = 5; // older generations are grouped in fives
+
+async function loadAncestorChain(uid, displayName, displayGender, children, isOwnProfile) {
+  const state = {
+    uid, displayName, displayGender, isOwnProfile: !!isOwnProfile, children: children || [],
+    ancestors: [], shown: ANCESTOR_CHAIN_STEP, hasMoreBeyond: false, loading: false,
+    tab: 'era', openEras: new Set(['self'])
+  };
   ancestorChainState = state;
   const { data, error } = await sb.rpc('akt_ancestor_chain', { p_uid: uid, p_max: ANCESTOR_CHAIN_FETCH });
   if (ancestorChainState !== state) return;
   if (error) { console.warn('Ancestor chain unavailable:', error.message); return; }
-  state.ancestors = data || [];
+  state.ancestors = (data || []).map(a => ({ ...a, ...splitAncestorName(a.name) }));
   const last = state.ancestors[state.ancestors.length - 1];
   state.hasMoreBeyond = state.ancestors.length >= ANCESTOR_CHAIN_FETCH && !!last?.has_more;
   renderAncestorChain();
@@ -2184,13 +2260,152 @@ async function loadMoreAncestors(btn) {
   for (const row of (data || [])) {
     if (seen.has(row.uid)) break; // data loop back into the line
     seen.add(row.uid);
-    more.push({ ...row, depth: top.depth + row.depth });
+    more.push({ ...row, ...splitAncestorName(row.name), depth: top.depth + row.depth });
   }
   state.ancestors = state.ancestors.concat(more);
   const last = more[more.length - 1];
   state.hasMoreBeyond = more.length === (data || []).length && more.length >= ANCESTOR_CHAIN_FETCH && !!last?.has_more;
   state.shown += ANCESTOR_CHAIN_STEP;
   renderAncestorChain();
+}
+
+function setFamilyLineTab(tab) {
+  const state = ancestorChainState;
+  if (!state || !['timeline', 'nasab', 'era'].includes(tab)) return;
+  state.tab = tab;
+  renderAncestorChain();
+}
+
+function toggleFamilyEra(key) {
+  const state = ancestorChainState;
+  if (!state) return;
+  const k = String(key);
+  if (state.openEras.has(k)) state.openEras.delete(k); else state.openEras.add(k);
+  renderAncestorChain();
+}
+
+function familyEras(ancestors) {
+  // Oldest era first. Recent = 1..4, then fives above that; the top one is the Founding line.
+  const total = ancestors.length;
+  const eras = [];
+  if (total) eras.push({ from: 1, to: Math.min(FAMILY_LINE_RECENT, total) });
+  for (let from = FAMILY_LINE_RECENT + 1; from <= total; from += FAMILY_LINE_ERA_SIZE) {
+    eras.push({ from, to: Math.min(from + FAMILY_LINE_ERA_SIZE - 1, total) });
+  }
+  eras.forEach((e, i) => {
+    e.key = String(e.from);
+    e.title = i === 0 ? 'Recent line'
+      : i === eras.length - 1 ? 'Founding line'
+      : i === 1 ? 'Middle line' : 'Earlier line';
+    e.rows = ancestors.filter(a => a.depth >= e.from && a.depth <= e.to).sort((a, b) => b.depth - a.depth);
+  });
+  if (eras.length === 1) eras[0].title = 'Recent line';
+  return eras.reverse();
+}
+
+function femaleMark(a) {
+  return a.sex === 'F' ? ' <span title="No father recorded, so this follows the mother" style="color:#9d174d">♀</span>' : '';
+}
+
+function renderFamilyTimeline(state) {
+  const total = state.ancestors.length;
+  const shown = Math.min(state.shown, total);
+  const hiddenCount = total - shown;
+  const rows = [];
+  if (hiddenCount > 0 || state.hasMoreBeyond) {
+    const next = Math.min(ANCESTOR_CHAIN_STEP, hiddenCount) || ANCESTOR_CHAIN_STEP;
+    const label = hiddenCount > 0 ? `Show ${next} earlier ancestor${next === 1 ? '' : 's'}` : 'Show earlier ancestors';
+    const toGen = hiddenCount > 0 ? `<span class="fl-more-to">to gen ${shown + next}</span>` : '';
+    rows.push(`<li class="fl-row">
+      <div class="fl-rail"><span class="fl-dot ghost"></span></div>
+      <button type="button" class="fl-more" onclick="loadMoreAncestors(this)"><span>↑ ${label}</span>${toGen}</button>
+    </li>`);
+  }
+  state.ancestors.slice(0, shown).reverse().forEach(a => {
+    rows.push(`<li class="fl-row">
+      <div class="fl-rail"><span class="fl-dot${a.depth <= 3 ? ' near' : ''}"></span><span class="fl-num">${a.depth}↑</span></div>
+      <a class="fl-body" href="person.html?uid=${encodeURIComponent(a.uid)}">
+        <div class="fl-gen">${escHtml(ancestorGenLabel(a.depth, a.sex))}</div>
+        <div class="fl-name">${escHtml(a.name)}${femaleMark(a)}</div>
+        ${a.note ? `<div class="fl-sub">${escHtml(a.note)}</div>` : ''}
+      </a>
+    </li>`);
+  });
+  rows.push(`<li class="fl-row">
+      <div class="fl-rail"><span class="fl-dot self"></span>${state.isOwnProfile ? '<span class="fl-num">You</span>' : ''}</div>
+      <div class="fl-body self">
+        <div class="fl-gen">This profile</div>
+        <div class="fl-name">${escHtml(state.displayName || '(unnamed)')}</div>
+      </div>
+    </li>`);
+  const kids = childrenSummaryText(state.children);
+  if (kids) {
+    rows.push(`<li class="fl-row">
+      <div class="fl-rail"><span class="fl-dot ghost"></span></div>
+      <div class="fl-body kids"><div class="fl-gen">Children</div><div class="fl-name">${escHtml(kids)}</div></div>
+    </li>`);
+  }
+  return `<ul class="fl-list">${rows.join('')}</ul>`;
+}
+
+function renderFamilyNasab(state) {
+  // "X son of Y¹ son of Z² ..." - the relation follows the sex of the person on its left.
+  const ofWord = sex => sex === 'F' ? 'daughter of' : 'son of';
+  const parts = [`<span class="self-name">${escHtml(state.displayName || '(unnamed)')}</span>`];
+  let leftSex = state.displayGender;
+  const notes = [];
+  state.ancestors.forEach(a => {
+    const mark = a.note ? '*' : '';
+    if (a.note) notes.push(a);
+    parts.push(` <span class="of">${ofWord(leftSex)}</span> <a href="person.html?uid=${encodeURIComponent(a.uid)}">${escHtml(a.name)}</a><sup>${a.depth}${mark}</sup>`);
+    leftSex = a.sex;
+  });
+  const more = state.hasMoreBeyond
+    ? ` <button type="button" class="fl-more" style="display:inline-flex;flex:none;margin-left:6px" onclick="loadMoreAncestors(this)">↑ Load earlier ancestors</button>`
+    : '.';
+  return `<div class="fl-nasab">${parts.join('')}${more}</div>` +
+    (notes.length ? `<ul class="fl-notes">${notes.map(a => `<li><span class="k">${a.depth}*</span><span><strong>${escHtml(a.name)}</strong> — ${escHtml(a.note)}</span></li>`).join('')}</ul>` : '');
+}
+
+function renderFamilyEras(state) {
+  const cell = a => `<a class="fl-cell" href="person.html?uid=${encodeURIComponent(a.uid)}">
+      <span class="fl-circle">${a.depth}</span>
+      <span class="fl-cell-text">
+        <div class="fl-gen">${escHtml(ancestorGenLabel(a.depth, a.sex))}</div>
+        <div class="fl-name">${escHtml(a.name)}${femaleMark(a)}</div>
+        ${a.note ? `<div class="fl-sub">${escHtml(a.note)}</div>` : ''}
+      </span>
+    </a>`;
+  const card = (key, title, sub, open, body, extraClass = '') => `<div class="fl-era${extraClass}">
+      <button type="button" class="fl-era-head" aria-expanded="${open}" onclick="toggleFamilyEra('${key}')">
+        <span><div class="fl-era-title">${title}</div><div class="fl-era-sub">${sub}</div></span>
+        <span class="fl-era-caret" aria-hidden="true">${open ? '▲' : '▼'}</span>
+      </button>
+      ${open ? `<div class="fl-grid">${body}</div>` : ''}
+    </div>`;
+
+  const out = familyEras(state.ancestors).map(e => {
+    const open = state.openEras.has(e.key);
+    const range = e.from === e.to ? `Generation ${e.from}` : `Generations ${e.from}–${e.to}`;
+    const ends = e.rows.length > 1 ? `${escHtml(e.rows[0].name)} → ${escHtml(e.rows[e.rows.length - 1].name)}` : escHtml(e.rows[0]?.name || '');
+    const cells = e.rows.map(cell).join('') + (e.rows.length % 2 ? '<span class="fl-cell filler"></span>' : '');
+    return card(e.key, e.title, `${range} · ${ends}`, open, cells);
+  });
+  if (state.hasMoreBeyond) {
+    out.unshift(`<button type="button" class="fl-more" onclick="loadMoreAncestors(this)"><span>↑ Load earlier ancestors</span></button>`);
+  }
+
+  const kids = childrenSummaryText(state.children);
+  const selfOpen = state.openEras.has('self');
+  const selfCells = `<div class="fl-cell">
+      <span class="fl-circle solid">★</span>
+      <span class="fl-cell-text"><div class="fl-gen">${state.isOwnProfile ? 'You' : 'This profile'}</div><div class="fl-name">${escHtml(state.displayName || '(unnamed)')}</div></span>
+    </div>` + (kids ? `<div class="fl-cell">
+      <span class="fl-circle solid">↓</span>
+      <span class="fl-cell-text"><div class="fl-gen">Children</div><div class="fl-name">${escHtml(kids)}</div></span>
+    </div>` : '<span class="fl-cell filler"></span>');
+  out.push(card('self', 'This profile', kids ? 'and the next generation' : 'no children recorded', selfOpen, selfCells, ' self'));
+  return `<div class="fl-eras">${out.join('')}</div>`;
 }
 
 function renderAncestorChain() {
@@ -2202,60 +2417,18 @@ function renderAncestorChain() {
   const total = state.ancestors.length;
   if (!total) { section.style.display = 'none'; return; }
 
-  const shown = Math.min(state.shown, total);
-  const visible = state.ancestors.slice(0, shown);
-  const hiddenCount = total - shown;
-  const rows = [];
-
-  if (hiddenCount > 0 || state.hasMoreBeyond) {
-    const next = Math.min(ANCESTOR_CHAIN_STEP, hiddenCount) || ANCESTOR_CHAIN_STEP;
-    const label = hiddenCount > 0
-      ? `Show ${next} earlier ancestor${next === 1 ? '' : 's'}`
-      : 'Show earlier ancestors';
-    const toGen = hiddenCount > 0 ? `<span class="fl-more-to">to gen ${shown + next}</span>` : '';
-    rows.push(`<li class="fl-row">
-      <div class="fl-rail"><span class="fl-dot ghost"></span></div>
-      <button type="button" class="fl-more" onclick="loadMoreAncestors(this)"><span>↑ ${label}</span>${toGen}</button>
-    </li>`);
-  }
-
-  visible.slice().reverse().forEach(a => {
-    const femaleLink = a.sex === 'F';
-    rows.push(`<li class="fl-row">
-      <div class="fl-rail"><span class="fl-dot${a.depth <= 3 ? ' near' : ''}"></span><span class="fl-num">${a.depth}↑</span></div>
-      <a class="fl-body" href="person.html?uid=${encodeURIComponent(a.uid)}">
-        <div class="fl-gen">${escHtml(ancestorGenLabel(a.depth, a.sex))}</div>
-        <div class="fl-name">${escHtml(a.name || '(unnamed)')}${femaleLink ? ' <span title="No father recorded, so this follows the mother" style="color:#9d174d">♀</span>' : ''}</div>
-        ${a.place ? `<div class="fl-sub">${escHtml(a.place)}</div>` : ''}
-      </a>
-    </li>`);
-  });
-
-  rows.push(`<li class="fl-row">
-      <div class="fl-rail"><span class="fl-dot self"></span>${state.isOwnProfile ? '<span class="fl-num">You</span>' : ''}</div>
-      <div class="fl-body self">
-        <div class="fl-gen">This profile</div>
-        <div class="fl-name">${escHtml(state.displayName || '(unnamed)')}</div>
-      </div>
-    </li>`);
-
-  const kids = childrenSummaryText(state.children);
-  if (kids) {
-    rows.push(`<li class="fl-row">
-      <div class="fl-rail"><span class="fl-dot ghost"></span></div>
-      <div class="fl-body kids">
-        <div class="fl-gen">Children</div>
-        <div class="fl-name">${escHtml(kids)}</div>
-      </div>
-    </li>`);
-  }
-
   const hasFemaleLink = state.ancestors.some(a => a.sex === 'F');
   if (meta) {
     meta.textContent = (hasFemaleLink ? "Father's line (♀ = mother's side)" : "Father's line") +
       ' · ' + total + (state.hasMoreBeyond ? '+' : '') + ' generation' + (total === 1 ? '' : 's');
   }
-  box.innerHTML = `<ul class="fl-list">${rows.join('')}</ul><div class="fl-foot">Tap any ancestor to open their profile.</div>`;
+  const tabs = [['timeline', 'Timeline'], ['nasab', 'Nasab'], ['era', 'By era']]
+    .map(([k, label]) => `<button type="button" class="fl-tab${state.tab === k ? ' active' : ''}" aria-pressed="${state.tab === k}" onclick="setFamilyLineTab('${k}')">${label}</button>`)
+    .join('');
+  const body = state.tab === 'timeline' ? renderFamilyTimeline(state)
+    : state.tab === 'nasab' ? renderFamilyNasab(state)
+    : renderFamilyEras(state);
+  box.innerHTML = `<div class="fl-tabs" role="group" aria-label="Family line view">${tabs}</div>${body}<div class="fl-foot">Tap any ancestor to open their profile.</div>`;
   section.style.display = '';
 }
 
@@ -2739,7 +2912,7 @@ async function renderPerson(uid, el) {
   `;
 
   // Family line loads after the page so it never holds up the profile.
-  loadAncestorChain(uid, displayName, allChildren, isOwnProfile);
+  loadAncestorChain(uid, displayName, displayGender, allChildren, isOwnProfile);
 
   // Pre-fill correction form hidden fields
   document.getElementById('cf-person-uid').value    = p.uid;

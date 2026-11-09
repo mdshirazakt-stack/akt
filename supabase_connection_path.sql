@@ -16,9 +16,19 @@
 --
 -- What counts as a different route:
 --   * a route may not pass through the same person twice (no going up to a
---     great-grandfather and back down through the grandfather already used);
+--     great-grandfather and back down through the grandfather already used).
+--     Duplicate records of one person, linked in person_identity_members (the
+--     same person imported from two family-tree files), count as that one
+--     person, so a route can't loop from someone to their own duplicate;
 --   * routes that differ only in meeting at the husband or the wife of the
---     same couple (via father vs via mother of full siblings) count once.
+--     same couple (via father vs via mother of full siblings) count once, and
+--     so do routes that are the same people recorded under different records;
+--   * a direct marriage is reported once (as the target being the spouse),
+--     not again from the other end;
+--   * a route may not come back DOWN through one of the starting person's own
+--     ancestors (or go UP through one of the target's): e.g. from you up your
+--     father's line and back down through your own mother to your brother is
+--     a loop through your own line, not another way of being related.
 --
 -- Each route is jsonb:
 --   up, down       generations from `from` up to the shared ancestor, and
@@ -47,6 +57,7 @@ declare
   cand record;
   uids text[];
   dedupe_key text;
+  canon text[];
   seen text[] := '{}';
   steps jsonb;
   routes jsonb := '[]'::jsonb;
@@ -97,13 +108,21 @@ begin
              u.female_links + case when pe.is_father then 0 else 1 end
         from up_b u join parent_edge pe on pe.child = u.uid
        where u.depth < m and not pe.parent = any (u.path)
-    )
+    ),
+    anc_from as (select coalesce(array_agg(uid), '{}') as uids from up_a where not via_spouse and depth > 0),
+    anc_to   as (select coalesce(array_agg(uid), '{}') as uids from up_b where not via_spouse and depth > 0)
     select a.via_spouse as from_spouse, b.via_spouse as to_spouse,
            a.depth as up, b.depth as down, a.path as a_path, b.path as b_path,
            a.first_father
       from up_a a
       join up_b b on b.uid = a.uid
-     where not (a.via_spouse and b.via_spouse)
+      cross join anc_from
+      cross join anc_to
+     where not (b.path[1:b.depth] && anc_from.uids)
+       and not (a.path[1:a.depth] && anc_to.uids)
+       and not (a.via_spouse and b.via_spouse)
+       -- a direct marriage: keep the to_spouse form only
+       and not (a.via_spouse and a.depth = 0 and b.depth = 0)
        -- the two climbs may only share the meeting ancestor itself
        and not (a.path[1:a.depth] && b.path)
        and not (b.path[1:b.depth] && a.path)
@@ -124,10 +143,22 @@ begin
                        where i < array_length(cand.b_path, 1)), '{}'::text[])
          || case when cand.to_spouse then array[p_to] else '{}'::text[] end;
 
+    -- each record as its real person (identity-linked duplicates share one id)
+    select array_agg(coalesce(g.gid, u.uid) order by u.i)
+      into canon
+      from unnest(uids) with ordinality u(uid, i)
+      left join lateral (
+        select min(m.group_id::text) as gid
+          from person_identity_members m
+         where m.person_uid = u.uid
+      ) g on true;
+    -- the same real person twice on one route (incl. back to the start): skip
+    continue when (select count(distinct x) from unnest(canon) x) < array_length(canon, 1);
+
     -- same route except for which spouse of a couple it meets at: count once
     dedupe_key := cand.up || ':' || cand.down || ':' || array_to_string(
-      uids[1:(case when cand.from_spouse then 1 else 0 end) + cand.up]
-      || uids[(case when cand.from_spouse then 1 else 0 end) + cand.up + 2:], '>');
+      canon[1:(case when cand.from_spouse then 1 else 0 end) + cand.up]
+      || canon[(case when cand.from_spouse then 1 else 0 end) + cand.up + 2:], '>');
     continue when dedupe_key = any (seen);
     seen := seen || dedupe_key;
 

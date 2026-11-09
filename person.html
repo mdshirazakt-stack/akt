@@ -377,10 +377,39 @@
   .fl-head .section-h-title { font-family: 'Amiri', serif; font-size: 1.1rem; color: var(--gold); }
   .fl-head .fl-meta { font-size: 0.78rem; color: var(--muted); }
   .fl-head { align-items: center; }
-  .fl-head-right { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; font-family: 'Lato', sans-serif; }
-  .fl-fold { min-height: 44px; min-width: 44px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--gold); font: inherit; font-size: 0.76rem; font-weight: 700; cursor: pointer; }
-  .fl-fold:hover { border-color: var(--gold2); }
+  .fl-head .fl-meta { font-family: 'Lato', sans-serif; }
+  .fl-head-left { display: inline-flex; align-items: center; gap: 6px; }
+  .fl-fold { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 6px; border: 0; background: transparent; cursor: pointer; font-family: 'Lato', sans-serif; }
+  .fl-fold-icon { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--gold2); color: var(--gold); display: inline-flex; align-items: center; justify-content: center; background: var(--surface); transition: transform 0.15s ease, background 0.15s ease; }
+  #family-line-section:not(.folded) .fl-fold-icon { transform: rotate(90deg); }
+  .fl-fold:hover .fl-fold-icon, .fl-fold:focus-visible .fl-fold-icon { background: var(--goldl); }
+  .fl-fold-label { font-size: 0.8rem; font-weight: 700; color: var(--muted); opacity: 0; transition: opacity 0.15s ease; }
+  .fl-fold:hover .fl-fold-label, .fl-fold:focus-visible .fl-fold-label { opacity: 1; }
+  @media (hover: none) { .fl-fold-label { opacity: 1; } }
+  .fl-summary { display: none; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 14px; border: 1px solid var(--border); border-radius: 6px; background: #faf6ec; font-size: 0.82rem; }
+  #family-line-section.folded .fl-summary { display: flex; }
   #family-line-section.folded #ancestor-chain { display: none; }
+  .fl-summary-line { min-width: 0; color: var(--ink); overflow-wrap: anywhere; }
+  .fl-summary-line .self { font-weight: 700; }
+  .fl-summary-line .arr { color: var(--gold2); margin: 0 6px; }
+  .fl-summary-line .more { color: var(--muted); }
+  .fl-summary-btn { min-height: 44px; padding: 0 4px; border: 0; background: transparent; color: var(--gold); font: inherit; font-weight: 700; cursor: pointer; }
+  /* "How am I connected?" bar above the profile */
+  .conn-bar { margin: 0 0 14px; padding: 6px 14px; border: 1px solid var(--border); border-left: 3px solid var(--gold2); background: #faf6ec; font-size: 0.84rem; }
+  .conn-link { min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--gold); font: inherit; font-weight: 700; cursor: pointer; text-align: left; }
+  .conn-link:hover { text-decoration: underline; }
+  .conn-status { padding: 10px 0; color: var(--muted); }
+  .conn-result { padding: 8px 0 6px; }
+  .conn-tag { display: inline-block; margin-bottom: 8px; padding: 2px 10px; border-radius: 999px; background: var(--green); color: #fff; font-size: 0.78rem; font-weight: 700; }
+  .conn-path { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; }
+  .conn-step { display: inline-flex; flex-direction: column; padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--ink); text-decoration: none; max-width: 240px; }
+  a.conn-step:hover { border-color: var(--gold2); }
+  .conn-step .r { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .conn-step .n { font-size: 0.82rem; overflow-wrap: anywhere; }
+  .conn-step.me { background: var(--goldl); border-color: var(--gold2); }
+  .conn-step.target { border-color: var(--green); }
+  .conn-arrow { color: var(--gold2); }
+  .conn-note { margin-top: 8px; font-size: 0.76rem; color: var(--muted); }
   .fl-gen { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
   .fl-name { font-size: 1rem; font-weight: 700; overflow-wrap: anywhere; }
   .fl-sub { font-size: 0.8rem; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
@@ -2283,10 +2312,12 @@ function familyLineFolded() {
 function applyFamilyLineFold(folded) {
   const section = document.getElementById('family-line-section');
   const btn = document.getElementById('family-line-fold');
+  const label = document.getElementById('family-line-fold-label');
   if (section) section.classList.toggle('folded', folded);
+  if (label) label.textContent = folded ? 'Show' : 'Hide';
   if (btn) {
-    btn.textContent = folded ? 'Show ▼' : 'Hide ▲';
     btn.setAttribute('aria-expanded', String(!folded));
+    btn.setAttribute('aria-label', folded ? 'Show family line' : 'Hide family line');
   }
 }
 
@@ -2465,8 +2496,175 @@ function renderAncestorChain() {
     : state.tab === 'nasab' ? renderFamilyNasab(state)
     : renderFamilyEras(state);
   box.innerHTML = `<div class="fl-tabs" role="group" aria-label="Family line view">${tabs}</div>${body}<div class="fl-foot">Tap any ancestor to open their profile.</div>`;
+  const summary = document.getElementById('family-line-summary');
+  if (summary) {
+    const arr = '<span class="arr" aria-hidden="true">←</span>';
+    const firstFew = state.ancestors.slice(0, 3).map(a => escHtml(a.name));
+    const rest = total - firstFew.length;
+    const line = [`<span class="self">${escHtml(state.isOwnProfile ? 'You' : (state.displayName || '(unnamed)'))}</span>`, ...firstFew]
+      .join(arr) + (rest > 0 || state.hasMoreBeyond ? `${arr}<span class="more">… ${rest}${state.hasMoreBeyond ? '+' : ''} more</span>` : '');
+    summary.innerHTML = `<span class="fl-summary-line">${line}</span><button type="button" class="fl-summary-btn" onclick="toggleFamilyLineFold()">View all</button>`;
+  }
   section.style.display = '';
   applyFamilyLineFold(familyLineFolded());
+}
+
+// ===== "HOW AM I CONNECTED?" =====
+// Runs only when the viewer clicks the bar above a profile. "Me" is the
+// profile the viewer has an approved claim on. akt_connection_path
+// (supabase_connection_path.sql) looks up to 4 generations on both sides
+// first; if nothing turns up the viewer can search 4 more (8 in all, the max).
+let connectionTarget = null;
+let viewerPersonUidCache;
+
+async function viewerPersonUid() {
+  if (viewerPersonUidCache !== undefined) return viewerPersonUidCache;
+  viewerPersonUidCache = null;
+  try {
+    const { data: sessionData } = await sb.auth.getSession();
+    const user = sessionData?.session?.user;
+    if (!user) return null;
+    const rawEmail = String(user.email || user.user_metadata?.email || '').trim();
+    // Exact match only (no ilike: "_" in an email would act as a wildcard).
+    const emails = [...new Set([rawEmail, rawEmail.toLowerCase()].filter(Boolean))];
+    const queries = [sb.from('profile_claims').select('person_uid,status,applied_at').eq('auth_user_id', user.id).limit(5)];
+    if (emails.length) queries.push(sb.from('profile_claims').select('person_uid,status,applied_at').in('claimant_email', emails).limit(5));
+    const rows = (await Promise.all(queries)).flatMap(r => r.data || []);
+    const own = rows.find(r => r.person_uid && (r.status === 'applied' || r.applied_at));
+    viewerPersonUidCache = own ? own.person_uid : null;
+  } catch (e) {
+    viewerPersonUidCache = null;
+  }
+  return viewerPersonUidCache;
+}
+
+function ordinalWord(n) {
+  const suf = (n % 100 >= 11 && n % 100 <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
+  return n + suf;
+}
+
+// Blood relationship of someone `down` generations below my ancestor that is
+// `up` generations above me. sex = that person's sex, side = 'paternal'|'maternal'.
+function bloodRelation(up, down, sex, side) {
+  const f = sex === 'F';
+  const sideText = side ? ` (${side} side)` : '';
+  const greats = n => n <= 0 ? '' : (n === 1 ? 'great-' : `${n}× great-`);
+  if (up === 0 && down === 0) return 'You';
+  if (down === 0) {
+    if (up === 1) return f ? 'Mother' : 'Father';
+    return greats(up - 2) + (f ? 'grandmother' : 'grandfather') + (up === 2 ? sideText : '');
+  }
+  if (up === 0) {
+    if (down === 1) return f ? 'Daughter' : 'Son';
+    return greats(down - 2) + (f ? 'granddaughter' : 'grandson');
+  }
+  if (up === 1 && down === 1) return f ? 'Sister' : 'Brother';
+  if (down === 1) return greats(up - 2) + (f ? 'aunt' : 'uncle') + sideText;
+  if (up === 1) return greats(down - 2) + (f ? 'niece' : 'nephew');
+  const degree = Math.min(up, down) - 1;
+  const removed = Math.abs(up - down);
+  const rem = removed === 0 ? '' : removed === 1 ? ' once removed' : removed === 2 ? ' twice removed' : ` ${removed} times removed`;
+  return `${ordinalWord(degree)} cousin${rem}${sideText}`;
+}
+
+function capFirst(t) { return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
+
+// Final relationship tag, including in-laws.
+function connectionTag(r) {
+  const path = r.path || [];
+  const target = path[path.length - 1] || {};
+  const f = target.sex === 'F';
+  const side = r.first_father ? 'paternal' : 'maternal';
+  if (r.to_spouse) {
+    // target is the spouse of my blood relative (path's second-to-last person)
+    const rel = path[path.length - 2] || {};
+    const relLabel = bloodRelation(r.up, r.down, rel.sex, side);
+    if (r.up === 0 && r.down === 0) return f ? 'Wife' : 'Husband';
+    if (r.up === 1 && r.down === 1) return f ? 'Sister-in-law' : 'Brother-in-law';
+    if (r.up === 0 && r.down === 1) return f ? 'Daughter-in-law' : 'Son-in-law';
+    if (r.up === 1 && r.down === 0) return f ? 'Stepmother' : 'Stepfather';
+    return `${f ? 'Wife' : 'Husband'} of your ${relLabel.charAt(0).toLowerCase() + relLabel.slice(1)}`;
+  }
+  if (r.from_spouse) {
+    const me = path[0] || {};
+    const spouseWord = me.sex === 'F' ? 'Husband' : 'Wife';
+    if (r.up === 1 && r.down === 0) return f ? 'Mother-in-law' : 'Father-in-law';
+    if (r.up === 1 && r.down === 1) return f ? 'Sister-in-law' : 'Brother-in-law';
+    if (r.up === 0 && r.down === 1) return f ? 'Stepdaughter' : 'Stepson';
+    return `${spouseWord}'s ${bloodRelation(r.up, r.down, target.sex, side).toLowerCase()}`;
+  }
+  return capFirst(bloodRelation(r.up, r.down, target.sex, side));
+}
+
+// Caption for every person on the path, relative to me.
+function connectionStepLabels(r) {
+  const path = r.path || [];
+  const side = null; // the side is shown once, on the final tag
+  const labels = [];
+  let i = 0;
+  labels.push('You'); i++;
+  let prefix = '';
+  if (r.from_spouse) {
+    const spouse = path[i] || {};
+    labels.push(spouse.sex === 'F' ? 'Wife' : 'Husband'); i++;
+    prefix = (spouse.sex === 'F' ? 'Wife' : 'Husband') + "'s ";
+  }
+  for (let d = 1; d <= r.up; d++, i++) {
+    labels.push(prefix ? prefix + bloodRelation(d, 0, path[i]?.sex, side).toLowerCase() : capFirst(bloodRelation(d, 0, path[i]?.sex, side)));
+  }
+  for (let d = 1; d <= r.down; d++, i++) {
+    labels.push(prefix ? prefix + bloodRelation(r.up, d, path[i]?.sex, side).toLowerCase() : capFirst(bloodRelation(r.up, d, path[i]?.sex, side)));
+  }
+  if (r.to_spouse) {
+    const tag = connectionTag(r);
+    const last = path[path.length - 1] || {};
+    labels.push(tag.includes(' of your ') ? (last.sex === 'F' ? 'His wife' : 'Her husband') : tag);
+  }
+  return labels;
+}
+
+async function findMyConnection(maxGen) {
+  const bar = document.getElementById('connection-bar');
+  if (!bar || !connectionTarget) return;
+  const target = connectionTarget;
+  bar.innerHTML = `<div class="conn-status"><span class="spinner"></span> Discovering your connection${maxGen > 4 ? ' (searching up to 8 generations)' : ''}…</div>`;
+
+  const me = await viewerPersonUid();
+  if (connectionTarget !== target) return;
+  if (!me) {
+    bar.innerHTML = `<div class="conn-status">We don't know which profile is yours yet. Find yourself in the archive and use <strong>“Claim this profile as yours”</strong>; once it's approved, this will show how you're connected.</div>`;
+    return;
+  }
+  if (me === target.uid) { bar.remove(); return; }
+
+  const { data, error } = await sb.rpc('akt_connection_path', { p_from: me, p_to: target.uid, p_max: maxGen });
+  if (connectionTarget !== target) return;
+  if (error) {
+    bar.innerHTML = `<div class="conn-status">Couldn't look up the connection right now. <button type="button" class="conn-link" onclick="findMyConnection(${maxGen})">Try again</button></div>`;
+    return;
+  }
+  if (!data) {
+    bar.innerHTML = maxGen < 8
+      ? `<div class="conn-status">No connection found within 4 generations. <button type="button" class="conn-link" onclick="findMyConnection(8)">Search 4 more generations?</button></div>`
+      : `<div class="conn-status">No connection found within 8 generations.</div>`;
+    return;
+  }
+
+  const path = data.path || [];
+  const labels = connectionStepLabels(data);
+  const steps = path.map((p, idx) => {
+    const cls = idx === 0 ? ' me' : (idx === path.length - 1 ? ' target' : '');
+    const name = idx === path.length - 1 ? (target.displayName || p.name) : p.name;
+    const inner = `<span class="r">${escHtml(labels[idx] || '')}</span><span class="n">${escHtml(name || '(unnamed)')}</span>`;
+    return idx === path.length - 1
+      ? `<span class="conn-step${cls}">${inner}</span>`
+      : `<a class="conn-step${cls}" href="person.html?uid=${encodeURIComponent(p.uid)}">${inner}</a>`;
+  });
+  bar.innerHTML = `<div class="conn-result">
+      <div class="conn-tag">${escHtml(connectionTag(data))}</div>
+      <div class="conn-path">${steps.join('<span class="conn-arrow" aria-hidden="true">→</span>')}</div>
+      <div class="conn-note">Closest connection found through the recorded family tree.</div>
+    </div>`;
 }
 
 async function renderPerson(uid, el) {
@@ -2675,6 +2873,9 @@ async function renderPerson(uid, el) {
     <div style="margin-bottom:16px">
       <a class="btn-back" href="index.html">← Back to Search</a>
     </div>
+    ${isOwnProfile ? '' : `<div class="conn-bar" id="connection-bar">
+      <button type="button" class="conn-link" onclick="findMyConnection(4)">🔗 Show me how I am connected to this person?</button>
+    </div>`}
     <div class="person-detail">
       <div class="detail-header">
         <div>
@@ -2742,7 +2943,17 @@ async function renderPerson(uid, el) {
       </div>
 
       <div id="family-line-section" style="display:none">
-        <div class="section-h fl-head"><span class="section-h-title">Family Line</span><span class="fl-head-right"><span class="fl-meta" id="family-line-meta"></span><button type="button" class="fl-fold" id="family-line-fold" aria-expanded="true" aria-controls="ancestor-chain" onclick="toggleFamilyLineFold()">Hide ▲</button></span></div>
+        <div class="section-h fl-head">
+          <span class="fl-head-left">
+            <span class="section-h-title">Family Line</span>
+            <button type="button" class="fl-fold" id="family-line-fold" aria-expanded="true" aria-controls="ancestor-chain" onclick="toggleFamilyLineFold()">
+              <span class="fl-fold-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg></span>
+              <span class="fl-fold-label" id="family-line-fold-label">Hide</span>
+            </button>
+          </span>
+          <span class="fl-meta" id="family-line-meta"></span>
+        </div>
+        <div id="family-line-summary" class="fl-summary"></div>
         <div id="ancestor-chain"></div>
       </div>
 
@@ -2947,6 +3158,8 @@ async function renderPerson(uid, el) {
       ` : ''}
     </div>
   `;
+
+  connectionTarget = { uid, displayName };
 
   // Family line loads after the page so it never holds up the profile.
   loadAncestorChain(uid, displayName, displayGender, allChildren, isOwnProfile);

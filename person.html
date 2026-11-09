@@ -386,10 +386,13 @@
   .fl-chip:hover { border-color: var(--gold2); }
   .fl-compact { list-style: none; padding: 0; margin: 0; max-width: 760px; border-top: 3px solid #efe8dc; }
   .fl-compact li { border-bottom: 1px solid var(--border); }
-  .fl-crow { display: flex; align-items: center; gap: 14px; min-height: 52px; padding: 10px 12px; color: var(--ink); text-decoration: none; }
+  .fl-crow { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 7px 12px; color: var(--ink); text-decoration: none; }
   a.fl-crow:hover { background: var(--bg); }
   a.fl-crow:hover .fl-name { color: var(--gold); }
-  .fl-cnum { flex: 0 0 44px; color: var(--gold); font-weight: 700; font-size: 0.9rem; }
+  .fl-cnum { flex: 0 0 40px; color: var(--gold); font-weight: 400; font-size: 0.76rem; }
+  /* Timeline rows stay quieter than Siblings/Children (0.87rem): one step smaller, no bold. */
+  .fl-compact .fl-name { font-size: 0.8rem; font-weight: 400; }
+  .fl-compact .fl-sub { font-size: 0.72rem; margin-top: 1px; }
   .fl-ctext { flex: 1; min-width: 0; }
   .fl-chev { color: var(--muted); font-size: 1.1rem; }
   .fl-crow.self { background: var(--goldl); }

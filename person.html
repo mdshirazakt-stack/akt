@@ -2159,7 +2159,7 @@ async function submitProfileClaim() {
 // supabase_ancestor_chain.sql), this person, then a count of their children.
 // The whole known line is fetched in one call (it is small and fast) so the
 // header can say how many generations exist. Three views: Timeline (compact
-// list, 7 generations by default with 14/21/... preview chips), Nasab and By era (default).
+// list, 7 generations by default with 14/21/... preview chips), Nasab and By era. Timeline opens by default.
 const ANCESTOR_CHAIN_STEP = 7;
 const ANCESTOR_CHAIN_FETCH = 50;
 let ancestorChainState = null;
@@ -2222,7 +2222,7 @@ async function loadAncestorChain(uid, displayName, displayGender, children, isOw
   const state = {
     uid, displayName, displayGender, isOwnProfile: !!isOwnProfile, children: children || [],
     ancestors: [], shown: ANCESTOR_CHAIN_STEP, hasMoreBeyond: false, loading: false,
-    tab: 'era', openEras: new Set(['self'])
+    tab: 'timeline', openEras: new Set(['self'])
   };
   ancestorChainState = state;
   const { data, error } = await sb.rpc('akt_ancestor_chain', { p_uid: uid, p_max: ANCESTOR_CHAIN_FETCH });

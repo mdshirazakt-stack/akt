@@ -1052,6 +1052,7 @@
         <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('roleapps', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l3 6 6 .9-4.5 4.4 1.1 6.2L12 17.5 6.4 20.5l1.1-6.2L3 9.9 9 9z"/></svg></span><span class="nav-label">Role applications</span><span class="nav-badge" id="badge-roleapps"></span></button>
         <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('dropoffs', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v5H4z"/><path d="M4 15h10"/><path d="M4 20h7"/><path d="M18 14v6"/><path d="m15 17 3 3 3-3"/></svg></span><span class="nav-label">Signup drop-offs</span><span class="nav-badge" id="badge-dropoffs"></span></button>
         <button class="nav-tab" data-min-role="admin" onclick="switchTab('activity', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-7 5 14 2.5-7h4"/></svg></span><span class="nav-label">Visitor activity</span></button>
+        <button class="nav-tab" data-min-role="admin" onclick="switchTab('connfinder', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span><span class="nav-label">Connection finder</span></button>
         <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('staffactivity', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span class="nav-label">Staff activity</span></button>
         <button class="nav-tab" data-min-role="superadmin" onclick="switchTab('forum', this)"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-12.1 7.7L3 21l1.8-5.4A8.5 8.5 0 1 1 21 11.5Z"/></svg></span><span class="nav-label">Forum</span><span class="nav-badge" id="badge-forum"></span></button>
       </div>
@@ -1309,6 +1310,21 @@
     </div>
 
     <!-- ACTIVITY HISTORY -->
+    <div id="panel-connfinder" class="panel">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+          <h2 style="margin:0">Connection finder usage <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">who is using it and what they look up</span></h2>
+          <div class="activity-filters" style="margin:0">
+            <button class="activity-filter-btn active" onclick="setConnFinderRange(7,this)">7 days</button>
+            <button class="activity-filter-btn" onclick="setConnFinderRange(30,this)">30 days</button>
+            <button class="activity-filter-btn" onclick="setConnFinderRange(90,this)">90 days</button>
+            <button class="btn-sm" onclick="loadConnectionFinderUsage()">↻ Refresh</button>
+          </div>
+        </div>
+        <div id="connfinder-usage"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+      </div>
+    </div>
+
     <div id="panel-activity" class="panel">
       <div class="card">
         <h2>Activity History <span style="font-size:0.75rem;font-family:'Lato',sans-serif;color:var(--muted);font-weight:400">(last 24 hours)</span></h2>
@@ -2017,6 +2033,7 @@ function switchTab(name, btn) {
   if (name === 'dropoffs') loadSignupDropoffs();
   if (name === 'settings') loadDbStats();
   if (name === 'activity') { loadActivity(); }
+  if (name === 'connfinder') loadConnectionFinderUsage();
   if (name === 'staffactivity') loadStaffActivity();
   if (name === 'changelog') loadChangeLog();
   if (name === 'corrections') loadCorrections();
@@ -6102,12 +6119,14 @@ function activityIcon(action) {
     print_tree: '🖨️',
     open_index: '📋',
     open_index_file: '📂',
-    index_filter: '🔎'
+    index_filter: '🔎',
+    connection_search: '🔗'
   };
   return icons[action] || '•';
 }
 
 function describeActivity(item) {
+  if (item.action === 'connection_search') return 'Connection finder';
   const action = String(item.action || '').replace(/_/g, ' ');
   return action ? action.charAt(0).toUpperCase() + action.slice(1) : 'Activity';
 }
@@ -6414,6 +6433,115 @@ function setActivityRange(range, btn) {
   document.querySelectorAll('#panel-activity .activity-filter-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   loadActivity();
+}
+
+// ===================== CONNECTION FINDER USAGE =====================
+// Reads activity_logs rows with action 'connection_search' (logged by the
+// profile page's Connection finder): totals, who uses it, Me vs Someone else,
+// how often a connection is found, most-searched profiles, recent searches.
+let connFinderRangeDays = 7;
+
+function setConnFinderRange(days, btn) {
+  connFinderRangeDays = days;
+  btn?.parentElement?.querySelectorAll('.activity-filter-btn').forEach(b => b.classList.remove('active'));
+  btn?.classList.add('active');
+  loadConnectionFinderUsage();
+}
+
+async function loadConnectionFinderUsage() {
+  const box = document.getElementById('connfinder-usage');
+  if (!box) return;
+  box.innerHTML = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+  const since = new Date(Date.now() - connFinderRangeDays * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await sb.from('activity_logs')
+    .select('visitor_name,target,details,created_at')
+    .eq('action', 'connection_search')
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(5000);
+  if (error) { box.innerHTML = `<div class="empty" style="color:var(--red)">${escapeHtml(error.message)}</div>`; return; }
+  const rows = data || [];
+  if (!rows.length) {
+    box.innerHTML = `<div class="empty">No connection searches in the last ${connFinderRangeDays} days yet.</div>`;
+    return;
+  }
+
+  const d = r => r.details || {};
+  const users = new Map();
+  const profiles = new Map();
+  let meCount = 0, otherCount = 0, found = 0;
+  rows.forEach(r => {
+    const det = d(r);
+    if (det.mode === 'me') meCount++; else otherCount++;
+    if (det.found) found++;
+    const u = users.get(r.visitor_name) || { name: r.visitor_name, count: 0, found: 0, last: r.created_at };
+    u.count++; if (det.found) u.found++;
+    users.set(r.visitor_name, u);
+    if (det.profile_uid) {
+      const p = profiles.get(det.profile_uid) || { uid: det.profile_uid, name: det.profile_name || det.profile_uid, count: 0, users: new Set() };
+      p.count++; p.users.add(r.visitor_name);
+      profiles.set(det.profile_uid, p);
+    }
+  });
+  const pct = n => rows.length ? Math.round(n * 100 / rows.length) : 0;
+  const stat = (value, label, color = 'var(--ink)') => `<div style="padding:10px 16px;background:var(--bg);border:1px solid var(--border);text-align:center;min-width:110px">
+      <div style="font-size:1.6rem;font-weight:700;color:${color}">${value}</div>
+      <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase">${label}</div>
+    </div>`;
+  const profileLink = (uid, name) => uid
+    ? `<a href="person.html?uid=${encodeURIComponent(uid)}" target="_blank" rel="noopener" style="color:var(--gold)">${escapeHtml(name || uid)}</a>`
+    : '—';
+
+  const topUsers = [...users.values()].sort((a, b) => b.count - a.count).slice(0, 15);
+  const topProfiles = [...profiles.values()].sort((a, b) => b.count - a.count).slice(0, 15);
+  const recent = rows.slice(0, 200);
+
+  box.innerHTML = `
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px">
+      ${stat(rows.length, 'Searches')}
+      ${stat(users.size, 'People using it', 'var(--green)')}
+      ${stat(meCount, '“Me” searches')}
+      ${stat(otherCount, '“Someone else”')}
+      ${stat(pct(found) + '%', 'Connection found', 'var(--gold)')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:18px">
+      <div>
+        <h3 style="margin:0 0 8px;font-size:0.95rem">Who is using it</h3>
+        <div style="overflow-x:auto"><table style="width:100%">
+          <thead><tr><th>Visitor</th><th>Searches</th><th>Found</th><th>Last used</th></tr></thead>
+          <tbody>${topUsers.map(u => `<tr><td>${escapeHtml(u.name || '—')}</td><td>${u.count}</td><td>${u.found}</td><td>${escapeHtml(formatIST(u.last))}</td></tr>`).join('')}</tbody>
+        </table></div>
+      </div>
+      <div>
+        <h3 style="margin:0 0 8px;font-size:0.95rem">Most-searched profiles</h3>
+        <div style="overflow-x:auto"><table style="width:100%">
+          <thead><tr><th>Profile</th><th>Searches</th><th>By</th></tr></thead>
+          <tbody>${topProfiles.map(p => `<tr><td>${profileLink(p.uid, p.name)}</td><td>${p.count}</td><td>${p.users.size} visitor${p.users.size === 1 ? '' : 's'}</td></tr>`).join('')}</tbody>
+        </table></div>
+      </div>
+    </div>
+    <h3 style="margin:0 0 8px;font-size:0.95rem">Recent searches</h3>
+    <div style="overflow-x:auto"><table style="width:100%">
+      <thead><tr><th>When</th><th>Visitor</th><th>Type</th><th>Profile</th><th>Compared with</th><th>Result</th></tr></thead>
+      <tbody>${recent.map(r => {
+        const det = d(r);
+        const other = det.mode === 'me'
+          ? (det.viewer_person_uid ? profileLink(det.viewer_person_uid, 'their own profile') : '<span style="color:var(--muted)">their own profile</span>')
+          : profileLink(det.other_uid, det.other_name || det.other_uid);
+        const result = det.found
+          ? `<span style="color:var(--green);font-weight:700">${escapeHtml(det.top_tag || 'Connected')}</span> <span style="color:var(--muted)">· ${Number(det.routes) || 0} route${Number(det.routes) === 1 ? '' : 's'}</span>`
+          : `<span style="color:var(--muted)">${escapeHtml(det.reason || 'No connection within 7 generations')}</span>`;
+        return `<tr>
+          <td style="white-space:nowrap">${escapeHtml(formatIST(r.created_at))}</td>
+          <td>${escapeHtml(r.visitor_name || '—')}</td>
+          <td>${det.mode === 'me' ? 'Me' : 'Someone else'}</td>
+          <td>${profileLink(det.profile_uid, det.profile_name)}</td>
+          <td>${other}</td>
+          <td>${result}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>
+    ${rows.length > recent.length ? `<div style="margin-top:8px;font-size:0.76rem;color:var(--muted)">Showing the latest ${recent.length} of ${rows.length} searches.</div>` : ''}`;
 }
 
 async function loadActivity() {

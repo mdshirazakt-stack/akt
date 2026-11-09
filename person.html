@@ -395,42 +395,20 @@
   .fl-summary-line .more { color: var(--muted); }
   .fl-summary-btn { min-height: 44px; padding: 0 4px; border: 0; background: transparent; color: var(--gold); font: inherit; font-weight: 700; cursor: pointer; }
   /* "How am I connected?" bar above the profile */
-  .conn-bar { margin: 0 0 14px; padding: 6px 14px; border: 1px solid var(--border); border-left: 3px solid var(--gold2); background: #faf6ec; font-size: 0.84rem; }
   .conn-status { padding: 10px 0; color: var(--muted); }
-  .conn-result { padding: 8px 0 6px; }
   .conn-tag { display: inline-block; margin-bottom: 8px; padding: 2px 10px; border-radius: 999px; background: var(--green); color: #fff; font-size: 0.78rem; font-weight: 700; }
   .conn-path { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; }
   .conn-step { display: inline-flex; flex-direction: column; padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--ink); text-decoration: none; max-width: 240px; }
   a.conn-step:hover { border-color: var(--gold2); }
   .conn-step .r { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
   .conn-step .n { font-size: 0.82rem; overflow-wrap: anywhere; }
-  .conn-step.me { background: var(--goldl); border-color: var(--gold2); }
-  .conn-step.target { border-color: var(--green); }
   .conn-arrow { color: var(--gold2); }
-  .conn-note { margin-top: 8px; font-size: 0.76rem; color: var(--muted); }
-  .conn-ribbon { display: flex; align-items: center; justify-content: space-between; gap: 8px 14px; flex-wrap: wrap; }
-  .conn-ribbon-title { font-weight: 700; color: var(--gold); }
-  .conn-ribbon-actions { display: inline-flex; gap: 8px; flex-wrap: wrap; }
-  .conn-opt { min-height: 44px; padding: 0 16px; border: 1px solid var(--gold2); border-radius: 999px; background: var(--surface); color: var(--gold); font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
-  .conn-opt:hover { background: var(--goldl); }
-  .conn-modes { display: inline-flex; gap: 2px; padding: 3px; margin: 0 0 12px; background: #efe8dc; border: 1px solid var(--border); border-radius: 8px; }
-  .conn-mode { min-height: 44px; padding: 4px 16px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font: inherit; font-size: 0.84rem; font-weight: 700; cursor: pointer; }
-  .conn-mode.active { background: var(--surface); color: var(--green); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
-  .conn-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-start; justify-content: center; padding: 6vh 12px 12px; background: rgba(42,35,24,0.45); overflow-y: auto; }
-  .conn-dialog { position: relative; width: 100%; max-width: 760px; padding: 22px 20px 18px; border-top: 3px solid var(--gold2); border-radius: 6px; background: var(--surface); box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
-  .conn-dialog h3 { margin: 0 44px 12px 0; font-family: 'Amiri', serif; font-size: 1.15rem; color: var(--gold); }
-  .conn-close { position: absolute; top: 6px; right: 6px; width: 44px; height: 44px; border: 0; background: transparent; color: var(--muted); font-size: 1.6rem; line-height: 1; cursor: pointer; }
   .conn-form { display: flex; gap: 8px; flex-wrap: wrap; }
   .conn-form input { flex: 1 1 260px; min-width: 0; min-height: 44px; padding: 8px 12px; border: 1px solid var(--border); font: inherit; font-size: 0.86rem; }
   .conn-go { min-height: 44px; padding: 0 18px; border: 0; background: var(--green); color: #fff; font: inherit; font-size: 0.84rem; font-weight: 700; cursor: pointer; }
   .conn-help { margin-top: 6px; font-size: 0.74rem; color: var(--muted); }
-  .conn-results { margin-top: 14px; }
-  .conn-found { margin-bottom: 10px; font-size: 0.82rem; color: var(--ink); }
-  .conn-route { padding: 6px 0; }
-  .conn-route-h { margin-bottom: 6px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
-  .conn-divider { border: 0; border-top: 1px solid var(--border); margin: 12px 0; }
   /* Shared-ancestor tree */
-  .ca-tree { --ca-gap: 28px; margin-top: 4px; padding: 16px 14px 12px; border: 1px solid var(--border); border-radius: 8px; background: #faf6ec; }
+  .ca-tree { --ca-gap: 28px; margin-top: 4px; padding: 16px 14px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
   .ca-apex { display: block; width: fit-content; min-width: 240px; max-width: 100%; margin: 0 auto; padding: 10px 22px; border: 1px solid var(--gold2); outline: 3px double var(--gold2); outline-offset: 2px; border-radius: 4px; background: var(--goldl); color: var(--ink); text-align: center; text-decoration: none; }
   .ca-apex .ca-label { color: var(--gold); letter-spacing: 0.14em; }
   .ca-fork { height: 22px; margin: 0 calc(25% - var(--ca-gap) / 4); border: 2px solid var(--gold2); border-bottom: 0; border-radius: 6px 6px 0 0; position: relative; margin-top: 12px; }
@@ -450,14 +428,35 @@
   .ca-box.ca-spouse::before { border-left-style: dashed; }
   .ca-pill { position: absolute; top: 4px; left: 0; right: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
   .ca-pill::before, .ca-pill::after { content: ''; width: 60px; border-top: 1px dashed var(--gold2); }
-  .ca-pill span { padding: 2px 10px; border: 1px dashed var(--gold2); border-radius: 999px; background: #faf6ec; color: var(--gold); font-size: 0.64rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+  .ca-pill span { padding: 2px 10px; border: 1px dashed var(--gold2); border-radius: 999px; background: var(--surface); color: var(--gold); font-size: 0.64rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
   .ca-married { position: absolute; top: -24px; left: calc(50% + 8px); font-size: 0.66rem; font-style: italic; color: var(--muted); }
-  .ca-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 0.72rem; color: var(--muted); }
-  .ca-legend span { display: inline-flex; align-items: center; gap: 6px; }
-  .ca-legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--gold2); }
-  .ca-legend .sw-apex { background: var(--goldl); border: 2px solid var(--gold2); }
-  .ca-legend .sw-start { background: var(--goldl); }
-  .ca-legend .sw-end { background: #eef5ef; border: 2px solid var(--green); }
+  .ca-legend { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 0.72rem; color: var(--muted); }
+  .conn-step.ca-start { background: var(--goldl); border-color: var(--gold2); }
+  .conn-step.ca-end { background: #eef5ef; border: 2px solid var(--green); }
+  /* Connection finder: inline panel above the profile */
+  .conn-finder { margin: 0 0 14px; border: 1px solid var(--border); border-left: 3px solid var(--gold2); background: #faf6ec; font-size: 0.84rem; }
+  .cf-head { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding: 10px 14px; }
+  .cf-icon { font-size: 1.2rem; }
+  .cf-head-text { flex: 1 1 200px; min-width: 0; }
+  .cf-title { font-family: 'Amiri', serif; font-size: 1.15rem; font-weight: 700; color: var(--gold); line-height: 1.2; }
+  .cf-sub { font-size: 0.8rem; color: var(--muted); }
+  .cf-actions { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+  .cf-opt { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border: 1.5px solid var(--gold2); border-radius: 999px; background: var(--surface); color: var(--gold); font: inherit; font-size: 0.84rem; font-weight: 700; cursor: pointer; }
+  .cf-opt:hover { background: var(--goldl); }
+  .cf-opt.active { background: var(--green); border-color: var(--green); color: #fff; box-shadow: 0 0 0 3px var(--goldl), 0 0 0 4px var(--gold2); }
+  .cf-initials { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; margin-left: -8px; border-radius: 50%; background: rgba(255,255,255,0.18); border: 1px solid currentColor; font-size: 0.7rem; letter-spacing: 0.04em; }
+  .cf-body { padding: 4px 14px 14px; border-top: 1px solid var(--border); }
+  .cf-body-head { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 0.8rem; }
+  .cf-close { width: 44px; height: 44px; margin-right: -10px; border: 0; background: transparent; color: var(--ink); font-size: 1.5rem; line-height: 1; cursor: pointer; }
+  .cf-found { padding: 10px 0 10px; border-bottom: 1px solid var(--border); font-size: 0.86rem; color: var(--ink); }
+  .cf-chip { display: inline-block; margin-left: 6px; padding: 1px 10px; border: 1px dashed var(--gold2); border-radius: 999px; color: var(--gold); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+  .cf-route { padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .cf-route-h { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .cf-route-n { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
+  .cf-badge { padding: 1px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--muted); font-size: 0.64rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+  .cf-sentence { margin: 2px 0 12px; font-size: 0.86rem; line-height: 1.6; color: var(--ink); }
+  .cf-more-btn { min-height: 44px; margin-top: 10px; padding: 0 16px; border: 1px dashed var(--gold2); border-radius: 999px; background: var(--surface); color: var(--gold); font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+  .conn-finder .conn-form { margin-top: 4px; }
   @media(max-width:600px){
     .ca-tree { --ca-gap: 12px; padding: 12px 8px 10px; }
     .ca-apex { min-width: 0; padding: 8px 12px; }
@@ -1031,24 +1030,6 @@
     <a href="terms.html#privacy-policy">Privacy Policy</a>
   </footer>
 
-  <div id="other-conn-modal" class="conn-modal" style="display:none" onclick="if(event.target===this)closeOtherConnection()">
-    <div class="conn-dialog" role="dialog" aria-modal="true" aria-labelledby="other-conn-title">
-      <button type="button" class="conn-close" onclick="closeOtherConnection()" aria-label="Close">×</button>
-      <h3 id="other-conn-title">Connection finder for <span id="other-conn-profile"></span></h3>
-      <div class="conn-modes" role="group" aria-label="Find the connection of">
-        <button type="button" class="conn-mode" id="conn-mode-me" onclick="openConnectionFinder('me')">Me</button>
-        <button type="button" class="conn-mode" id="conn-mode-other" onclick="openConnectionFinder('other')">Someone else</button>
-      </div>
-      <div id="other-conn-form-wrap">
-        <form class="conn-form" onsubmit="findOtherConnection(event)">
-          <input id="other-conn-input" placeholder="Paste their profile link or profile ID" autocomplete="off"/>
-          <button type="submit" class="conn-go">Find connection</button>
-        </form>
-        <div class="conn-help">Open the other person's profile, copy the address from your browser (or use 📤 Share) and paste it here.</div>
-      </div>
-      <div id="other-conn-results" class="conn-results"></div>
-    </div>
-  </div>
   <div id="edit-backdrop" class="edit-backdrop" onclick="closeEditProfile()"></div>
   <aside id="edit-drawer" class="edit-drawer" aria-hidden="true">
     <div class="edit-head">
@@ -2686,141 +2667,18 @@ function connectionTag(r) {
   return capFirst(bloodRelation(r.up, r.down, target.sex, side, true));
 }
 
-// Caption for every person on the path, relative to me.
-function connectionStepLabels(r) {
-  const path = r.path || [];
-  const side = null; // the side is shown once, on the final tag
-  const labels = [];
-  let i = 0;
-  labels.push('You'); i++;
-  let prefix = '';
-  if (r.from_spouse) {
-    const spouse = path[i] || {};
-    labels.push(spouse.sex === 'F' ? 'Wife' : 'Husband'); i++;
-    prefix = (spouse.sex === 'F' ? 'Wife' : 'Husband') + "'s ";
-  }
-  for (let d = 1; d <= r.up; d++, i++) {
-    labels.push(prefix ? prefix + bloodRelation(d, 0, path[i]?.sex, side).toLowerCase() : capFirst(bloodRelation(d, 0, path[i]?.sex, side)));
-  }
-  for (let d = 1; d <= r.down; d++, i++) {
-    labels.push(prefix ? prefix + bloodRelation(r.up, d, path[i]?.sex, side).toLowerCase() : capFirst(bloodRelation(r.up, d, path[i]?.sex, side)));
-  }
-  if (r.to_spouse) {
-    const tag = connectionTag(r);
-    const last = path[path.length - 1] || {};
-    labels.push(tag.includes(' of your ') ? (last.sex === 'F' ? 'His wife' : 'Her husband') : tag);
-  }
-  return labels;
-}
-
-// One route as a relationship tag + the people along it. perspective 'you'
-// reads it from the viewer ("You", "your cousin"); 'profile' reads it from the
-// profile being viewed ("This profile", "their cousin").
-function renderConnectionRoute(route, opts = {}) {
-  const path = route.path || [];
-  const labels = connectionStepLabels(route);
-  let tag = connectionTag(route);
-  if (opts.perspective === 'profile') {
-    labels[0] = 'This profile';
-    tag = tag.replace(/\byour\b/g, 'their');
-  }
-  const steps = path.map((p, idx) => {
-    const last = idx === path.length - 1;
-    const cls = idx === 0 ? ' me' : (last ? ' target' : '');
-    const name = idx === 0 && opts.firstName ? opts.firstName : (last && opts.targetName ? opts.targetName : p.name);
-    const inner = `<span class="r">${escHtml(labels[idx] || '')}</span><span class="n">${escHtml(name || '(unnamed)')}</span>`;
-    return (last && opts.perspective !== 'profile') || (idx === 0 && opts.perspective === 'profile')
-      ? `<span class="conn-step${cls}">${inner}</span>`
-      : `<a class="conn-step${cls}" href="person.html?uid=${encodeURIComponent(p.uid)}">${inner}</a>`;
-  });
-  if (route.up >= 1 && route.down >= 1) {
-    return `<div class="conn-tag">${escHtml(tag)}</div>${renderConnectionTree(route, labels, opts)}`;
-  }
-  return `<div class="conn-tag">${escHtml(tag)}</div>
-      <div class="conn-path">${steps.join('<span class="conn-arrow" aria-hidden="true">→</span>')}</div>`;
-}
-
-// Shared-ancestor view: the shared ancestor on top, then two columns going
-// down to the two people: left = the starting person's side, right = the other
-// person's side, one row per generation below the ancestor. Between rows, a
-// small label says how that row's pair are related (brothers, 1st cousins...).
-// A spouse reached through marriage sits under their partner as "married".
-function renderConnectionTree(route, labels, opts = {}) {
-  const path = route.path || [];
-  const fs = route.from_spouse ? 1 : 0;
-  const apexIdx = fs + route.up;
-  const lastIdx = path.length - 1;
-  const leftName = opts.perspective === 'profile' ? (opts.firstName || path[0]?.name) : 'You';
-  const rightName = opts.targetName || path[lastIdx]?.name;
-
-  const box = (idx, extraCls = '') => {
-    const p = path[idx] || {};
-    const isStart = idx === 0, isEnd = idx === lastIdx;
-    const split = splitAncestorName(p.name || '');
-    const rawName = isStart && opts.firstName ? opts.firstName : (isEnd && opts.targetName ? opts.targetName : split.name);
-    const cls = isStart ? ' ca-start' : (isEnd ? ' ca-end' : '');
-    const linkable = !(isStart && opts.perspective === 'profile') && !(isEnd && opts.perspective !== 'profile');
-    const inner = `<div class="ca-label">${escHtml(labels[idx] || '')}</div>
-        <div class="ca-name">${escHtml(rawName || '(unnamed)')}</div>
-        ${split.note && !isStart && !isEnd ? `<div class="ca-note">${escHtml(split.note)}</div>` : ''}`;
-    return linkable
-      ? `<a class="ca-box${cls}${extraCls}" href="person.html?uid=${encodeURIComponent(p.uid)}">${inner}</a>`
-      : `<div class="ca-box${cls}${extraCls}">${inner}</div>`;
-  };
-
-  const apex = path[apexIdx] || {};
-  const apexSplit = splitAncestorName(apex.name || '');
-  const apexSub = [apexSplit.note, labels[apexIdx]].filter(Boolean).join(' · ');
-  let html = `<div class="ca-tree">
-    <a class="ca-apex" href="person.html?uid=${encodeURIComponent(apex.uid || '')}">
-      <div class="ca-label">Common ancestor</div>
-      <div class="ca-name">${escHtml(apexSplit.name || '(unnamed)')}</div>
-      ${apexSub ? `<div class="ca-note">${escHtml(apexSub)}</div>` : ''}
-    </a>
-    <div class="ca-fork" aria-hidden="true"></div>`;
-
-  const pairWord = (k, a, b) => {
-    if (k === 1) {
-      if (a.sex === 'M' && b.sex === 'M') return 'Brothers';
-      if (a.sex === 'F' && b.sex === 'F') return 'Sisters';
-      return 'Brother & sister';
-    }
-    return `${ordinalWord(k - 1)} cousins`;
-  };
-
-  const rows = Math.max(route.up, route.down);
-  for (let k = 1; k <= rows; k++) {
-    const li = k <= route.up ? apexIdx - k : null;        // left: k generations below the ancestor
-    const ri = k <= route.down ? apexIdx + k : null;      // right
-    const pill = li !== null && ri !== null
-      ? `<div class="ca-pill"><span>${escHtml(pairWord(k, path[li] || {}, path[ri] || {}))}</span></div>` : '';
-    html += `<div class="ca-row">${pill}
-      <div class="ca-cell">${li !== null ? box(li) : ''}</div>
-      <div class="ca-cell">${ri !== null ? box(ri) : ''}</div>
-    </div>`;
-  }
-  if (route.from_spouse || route.to_spouse) {
-    html += `<div class="ca-row ca-row-spouse">
-      <div class="ca-cell">${route.from_spouse ? `<span class="ca-married">married</span>${box(0, ' ca-spouse')}` : ''}</div>
-      <div class="ca-cell">${route.to_spouse ? `<span class="ca-married">married</span>${box(lastIdx, ' ca-spouse')}` : ''}</div>
-    </div>`;
-  }
-  html += `<div class="ca-legend">
-      <span><i class="sw sw-apex"></i>Shared ancestor</span>
-      <span><i class="sw sw-start"></i>${escHtml(leftName || '')}</span>
-      <span><i class="sw sw-end"></i>${escHtml(rightName || '')}</span>
-      <span class="ca-legend-note">Left: ${escHtml(leftName === 'You' ? 'your' : (leftName || '') + "'s")} side · Right: ${escHtml((rightName || '') + "'s")} side · Rows = same generation</span>
-    </div>
-  </div>`;
-  return html;
-}
-
-// ===== CONNECTION FINDER =====
-// One ribbon above the profile opens a popup: "Me" (the viewer's own claimed
-// profile) or "Someone else" (a pasted profile link or ID). Up to 5 different
-// routes, 7 generations each way.
+// ===== CONNECTION FINDER (inline, under the ribbon above the profile) =====
+// "Me" = the viewer's own claimed profile, "Someone else" = a pasted profile
+// link or ID. Up to 5 different routes, 7 generations each way, from
+// akt_connection_paths (supabase_connection_path.sql). Each route gets a
+// "By blood" / "By marriage" badge, a relationship tag, a plain-English
+// sentence, and either a chain of people (close relatives, in-laws) or the
+// shared-ancestor tree (cousins: shared ancestor two or more generations up on
+// both sides). In the tree, this profile is always the LEFT column.
 const OTHER_CONNECTION_GENERATIONS = 7;
 const OTHER_CONNECTION_ROUTES = 5;
+const CONNECTION_ROUTES_OPEN = 2;
+let connectionFinderRequest = 0;
 
 function parsePersonUidInput(raw) {
   const text = String(raw || '').trim();
@@ -2835,52 +2693,273 @@ function parsePersonUidInput(raw) {
   return text.replace(/^uid\s*[:=]\s*/i, '').trim();
 }
 
-// The finder popup has two modes: "me" (the viewer's claimed profile) and
-// "other" (a profile link or ID the viewer pastes). Both list up to 5 routes,
-// searching up to 7 generations each way.
-let connectionFinderRequest = 0;
+// Leading titles skipped when a short form of a name is needed
+// ("Mohammad Shiraz Anwar" -> "Shiraz", "Dr. Anwar Ahmad" -> "Anwar").
+const NAME_TITLE_RE = /^(dr\.?|haji|hajji|hafiz|hakeem|hakim|moulvi|moulana|maulana|maulvi|mohammad|mohammed|muhammad|mohd\.?|md\.?|sheikh|shaikh|shekh|syedna|sayedna|syedana|syed|sayed|mr\.?|mrs\.?|ms\.?|miss|late|\(late\)|al-?haj|prof\.?|er\.?|adv\.?|janab|begum)$/i;
+
+function shortPersonName(name) {
+  const clean = splitAncestorName(name || '').name;
+  const words = clean.split(/\s+/).filter(Boolean);
+  return words.find(w => !NAME_TITLE_RE.test(w)) || words[0] || 'this person';
+}
+
+function personInitials(name) {
+  const clean = splitAncestorName(name || '').name;
+  let words = clean.split(/\s+/).filter(w => w && !NAME_TITLE_RE.test(w));
+  if (!words.length) words = clean.split(/\s+/).filter(Boolean);
+  return ((words[0] || '')[0] || '').toUpperCase() + ((words[1] || '')[0] || '').toUpperCase();
+}
+
+function lowerFirst(t) { return t ? t.charAt(0).toLowerCase() + t.slice(1) : t; }
+function heShe(sex) { return sex === 'F' ? 'She' : 'He'; }
+function hisHer(sex) { return sex === 'F' ? 'Her' : 'His'; }
+function spouseWord(sex) { return sex === 'F' ? 'wife' : 'husband'; }
+
+function generationsAboveWord(n, sex) {
+  const f = sex === 'F';
+  if (n === 1) return f ? 'mother' : 'father';
+  if (n === 2) return f ? 'grandmother' : 'grandfather';
+  if (n === 3) return f ? 'great-grandmother' : 'great-grandfather';
+  return `${n - 2}× great-grand${f ? 'mother' : 'father'}`;
+}
+
+function relationStepWord(type, sex) {
+  const f = sex === 'F';
+  if (type === 'parent') return f ? 'mother' : 'father';
+  if (type === 'child') return f ? 'daughter' : 'son';
+  if (type === 'sibling') return f ? 'sister' : 'brother';
+  return f ? 'wife' : 'husband';
+}
+
+// ctx: { mode: 'me'|'other', profileName, profileSex, otherName }
+//   'me'    route runs viewer -> profile; the tag says what the profile is to you.
+//   'other' route runs profile -> other;  the tag says what the other is to the profile.
+function connectionTagText(route, ctx) {
+  let tag = connectionTag(route);
+  if (ctx.mode === 'me') {
+    if (/^(Wife|Husband)'s /.test(tag)) tag = 'Your ' + lowerFirst(tag);
+    return tag;
+  }
+  return tag.replace(/\byour\b/g, 'their');
+}
+
+function renderConnectionRoute(route, idx, ctx) {
+  const path = route.path || [];
+  const byMarriage = route.from_spouse || route.to_spouse;
+  const tag = connectionTagText(route, ctx);
+  const useTree = route.up >= 2 && route.down >= 2;
+  const body = useTree ? renderConnectionTree(route, ctx) : renderConnectionChain(route, ctx);
+  return `<div class="cf-route">
+      <div class="cf-route-h"><span class="cf-route-n">Route ${idx + 1}</span><span class="cf-badge">${byMarriage ? 'By marriage' : 'By blood'}</span></div>
+      <div class="conn-tag">${escHtml(tag)}</div>
+      ${body}
+    </div>`;
+}
+
+// Close relatives and in-laws: a chain of people, each named by how they
+// relate to the one before ("Your wife → Her sister → Her daughter"). The
+// shared parent between two siblings is left out of the chain.
+function renderConnectionChain(route, ctx) {
+  const path = route.path || [];
+  const fs = route.from_spouse ? 1 : 0;
+  const apexIdx = fs + route.up;
+  const last = path.length - 1;
+  const bloodTo = route.to_spouse ? last - 1 : last;
+  const steps = [{ idx: 0, type: 'start' }];
+  if (fs) steps.push({ idx: 1, type: 'spouse' });
+  for (let i = fs + 1; i <= apexIdx; i++) steps.push({ idx: i, type: 'parent' });
+  for (let i = apexIdx + 1; i <= bloodTo; i++) steps.push({ idx: i, type: 'child' });
+  if (route.to_spouse) steps.push({ idx: last, type: 'spouse' });
+  if (route.up >= 1 && route.down >= 1) {
+    // collapse "up to the parent, down to their child" into one sibling step
+    const at = steps.findIndex(st => st.idx === apexIdx);
+    if (at > 0 && steps[at + 1]) { steps[at + 1].type = 'sibling'; steps.splice(at, 1); }
+  }
+
+  const startPossessive = ctx.mode === 'me' ? 'your' : `${shortPersonName(ctx.profileName)}'s`;
+  const words = [];
+  const boxes = steps.map((st, n) => {
+    const p = path[st.idx] || {};
+    const isStart = n === 0, isEnd = n === steps.length - 1;
+    let label;
+    if (isStart) label = ctx.mode === 'me' ? 'You' : 'This profile';
+    else {
+      const w = relationStepWord(st.type, p.sex);
+      words.push(w);
+      const prev = path[steps[n - 1].idx] || {};
+      label = (n === 1 && ctx.mode === 'me' ? 'Your' : hisHer(prev.sex)) + ' ' + w;
+    }
+    const name = isStart && ctx.mode === 'other' ? ctx.profileName
+      : (isEnd && ctx.mode === 'me' ? ctx.profileName : splitAncestorName(p.name || '').name);
+    const linkable = !(ctx.mode === 'other' && isStart) && !(ctx.mode === 'me' && isEnd);
+    const cls = isStart ? ' ca-start' : (isEnd ? ' ca-end' : '');
+    const inner = `<span class="r">${escHtml(label)}</span><span class="n">${escHtml(name || '(unnamed)')}</span>`;
+    return linkable
+      ? `<a class="conn-step${cls}" href="person.html?uid=${encodeURIComponent(p.uid)}">${inner}</a>`
+      : `<span class="conn-step${cls}">${inner}</span>`;
+  });
+
+  const endPerson = path[steps[steps.length - 1].idx] || {};
+  const endShort = ctx.mode === 'me' ? shortPersonName(ctx.profileName) : shortPersonName(ctx.otherName || endPerson.name);
+  const phrase = startPossessive + ' ' + words.join("'s ");
+  const tagLower = lowerFirst(connectionTagText(route, ctx));
+  const extra = words.length > 1 && tagLower !== words[words.length - 1] ? ` — ${ctx.mode === 'me' ? '' : `${escHtml(shortPersonName(ctx.profileName))}'s `}<strong>${escHtml(ctx.mode === 'me' && !/^your /.test(tagLower) ? (/^(wife|husband) of your /.test(tagLower) ? 'the ' + tagLower : 'your ' + tagLower) : tagLower)}</strong>` : '';
+  const sentence = `<strong>${escHtml(endShort)}</strong> is ${escHtml(phrase)}${extra}.`;
+  return `<p class="cf-sentence">${sentence}</p>
+    <div class="conn-path">${boxes.join('<span class="conn-arrow" aria-hidden="true">→</span>')}</div>`;
+}
+
+// Cousins: the shared ancestor on top, this profile's side on the LEFT, the
+// other side (you / the other person) on the RIGHT, one row per generation.
+function renderConnectionTree(route, ctx) {
+  const path = route.path || [];
+  const fs = route.from_spouse ? 1 : 0;
+  const apexIdx = fs + route.up;
+  const last = path.length - 1;
+  const fromSide = { depth: route.up, at: k => apexIdx - k, endIdx: 0, bloodIdx: fs, spouse: !!route.from_spouse };
+  const toSide = { depth: route.down, at: k => apexIdx + k, endIdx: last, bloodIdx: route.to_spouse ? last - 1 : last, spouse: !!route.to_spouse };
+  // which end is which person
+  const profileSide = ctx.mode === 'me' ? toSide : fromSide;
+  const otherSide = ctx.mode === 'me' ? fromSide : toSide;
+  profileSide.isProfile = true;
+  profileSide.endName = ctx.profileName;
+  profileSide.endLabel = 'This profile';
+  profileSide.possessive = hisHer(ctx.profileSex || path[profileSide.endIdx]?.sex);
+  profileSide.short = shortPersonName(ctx.profileName);
+  if (ctx.mode === 'me') {
+    otherSide.endName = path[otherSide.endIdx]?.name;
+    otherSide.endLabel = 'You';
+    otherSide.possessive = 'Your';
+    otherSide.short = 'you';
+  } else {
+    otherSide.endName = ctx.otherName || path[otherSide.endIdx]?.name;
+    otherSide.endLabel = shortPersonName(otherSide.endName);
+    otherSide.possessive = hisHer(path[otherSide.endIdx]?.sex);
+    otherSide.short = shortPersonName(otherSide.endName);
+  }
+  const left = profileSide, right = otherSide;
+
+  const sideLabel = (side, k) => {
+    const node = path[side.at(k)] || {};
+    const above = side.depth - k;
+    const endSex = path[side.endIdx]?.sex;
+    if (above === 0) {
+      return side.spouse ? `${side.possessive} ${spouseWord(node.sex)}` : side.endLabel;
+    }
+    const owner = side.spouse ? `${side.possessive} ${spouseWord(path[side.bloodIdx]?.sex)}'s` : side.possessive;
+    return `${owner} ${generationsAboveWord(above, node.sex)}`;
+  };
+  const box = (side, idx, label, isEnd) => {
+    const p = path[idx] || {};
+    const split = splitAncestorName(p.name || '');
+    const name = isEnd ? (side.endName || split.name) : split.name;
+    const linkable = !(isEnd && side.isProfile) && !(isEnd && ctx.mode === 'me' && !side.isProfile);
+    const cls = isEnd ? (side.isProfile ? ' ca-start' : ' ca-end') : '';
+    const inner = `<div class="ca-label">${escHtml(label)}</div>
+        <div class="ca-name">${escHtml(name || '(unnamed)')}</div>
+        ${split.note && !isEnd ? `<div class="ca-note">${escHtml(split.note)}</div>` : ''}`;
+    return linkable
+      ? `<a class="ca-box${cls}" href="person.html?uid=${encodeURIComponent(p.uid)}">${inner}</a>`
+      : `<div class="ca-box${cls}">${inner}</div>`;
+  };
+  const cellFor = (side, k) => {
+    if (k > side.depth) return '';
+    const idx = side.at(k);
+    const isEnd = k === side.depth && !side.spouse;
+    return box(side, idx, sideLabel(side, k), isEnd);
+  };
+  const pairWord = (k, a, b) => {
+    if (k === 1) {
+      if (a.sex === 'M' && b.sex === 'M') return 'Brothers';
+      if (a.sex === 'F' && b.sex === 'F') return 'Sisters';
+      return 'Brother & sister';
+    }
+    return `${ordinalWord(k - 1)} cousins`;
+  };
+
+  const apex = path[apexIdx] || {};
+  const apexSplit = splitAncestorName(apex.name || '');
+  let html = `<div class="ca-tree">
+    <a class="ca-apex" href="person.html?uid=${encodeURIComponent(apex.uid || '')}">
+      <div class="ca-label">Common ancestor</div>
+      <div class="ca-name">${escHtml(apexSplit.name || '(unnamed)')}</div>
+      ${apexSplit.note ? `<div class="ca-note">${escHtml(apexSplit.note)}</div>` : ''}
+    </a>
+    <div class="ca-fork" aria-hidden="true"></div>`;
+  const rows = Math.max(left.depth, right.depth);
+  for (let k = 1; k <= rows; k++) {
+    const pill = k <= left.depth && k <= right.depth
+      ? `<div class="ca-pill"><span>${escHtml(pairWord(k, path[left.at(k)] || {}, path[right.at(k)] || {}))}</span></div>` : '';
+    html += `<div class="ca-row">${pill}
+      <div class="ca-cell">${cellFor(left, k)}</div>
+      <div class="ca-cell">${cellFor(right, k)}</div>
+    </div>`;
+  }
+  if (left.spouse || right.spouse) {
+    const spouseCell = side => side.spouse
+      ? `<span class="ca-married">married</span>${box(side, side.endIdx, side.endLabel, true).replace('class="ca-box', 'class="ca-box ca-spouse')}` : '';
+    html += `<div class="ca-row ca-row-spouse"><div class="ca-cell">${spouseCell(left)}</div><div class="ca-cell">${spouseCell(right)}</div></div>`;
+  }
+  html += `<div class="ca-legend">Left: ${escHtml(left.short)}'s side · Right: ${escHtml(right.short === 'you' ? 'your' : right.short + "'s")} side · Rows = same generation</div></div>`;
+
+  // Plain-English summary
+  const genText = n => `${n} generation${n === 1 ? '' : 's'}`;
+  const endText = side => side.spouse
+    ? `${side.short === 'you' ? 'your' : side.short + "'s"} ${spouseWord(path[side.bloodIdx]?.sex)}`
+    : (side.short === 'you' ? 'you' : side.short);
+  const tagLower = lowerFirst(connectionTagText(route, ctx));
+  let conclusion;
+  if (ctx.mode === 'me') {
+    conclusion = route.up === route.down && !route.from_spouse && !route.to_spouse
+      ? `you are <strong>${escHtml(ordinalWord(route.up - 1))} cousins</strong>`
+      : `${escHtml(left.short)} is <strong>${escHtml(/^your /.test(tagLower) ? tagLower : (/^(wife|husband) of your /.test(tagLower) ? 'the ' + tagLower : 'your ' + tagLower))}</strong>`;
+  } else {
+    conclusion = `${escHtml(right.short)} is ${escHtml(left.short)}'s <strong>${escHtml(tagLower.replace(/\btheir\b/g, left.short + "'s"))}</strong>`;
+  }
+  const sentence = `Both descend from <strong>${escHtml(apexSplit.name || '(unnamed)')}</strong>${apexSplit.note ? ` (${escHtml(apexSplit.note)})` : ''}. ${heShe(apex.sex)} is ${genText(left.depth)} above ${escHtml(endText(left))} and ${genText(right.depth)} above ${escHtml(endText(right))} — so ${conclusion}.`;
+  return `<p class="cf-sentence">${sentence}</p>${html}`;
+}
+
+function renderConnectionResults(routes, ctx, whoHtml) {
+  const shown = routes.slice(0, CONNECTION_ROUTES_OPEN).map((r, i) => renderConnectionRoute(r, i, ctx));
+  const rest = routes.slice(CONNECTION_ROUTES_OPEN).map((r, i) => renderConnectionRoute(r, i + CONNECTION_ROUTES_OPEN, ctx));
+  return `<div class="cf-found">${routes.length} route${routes.length === 1 ? '' : 's'} found between <strong>${escHtml(ctx.profileName || 'this profile')}</strong> and ${whoHtml}, closest first. <span class="cf-chip">Searched ${OTHER_CONNECTION_GENERATIONS} generations</span></div>
+    ${shown.join('')}
+    ${rest.length ? `<div class="cf-more-routes" style="display:none">${rest.join('')}</div>
+      <button type="button" class="cf-more-btn" onclick="this.previousElementSibling.style.display='';this.remove()">Show ${rest.length} more route${rest.length === 1 ? '' : 's'}</button>` : ''}`;
+}
 
 function openConnectionFinder(mode) {
-  const modal = document.getElementById('other-conn-modal');
-  if (!modal || !connectionTarget) return;
   const target = connectionTarget;
+  const body = document.getElementById('cf-body');
+  if (!target || !body) return;
   const useMe = mode === 'me' && !target.isOwnProfile;
-  document.getElementById('other-conn-profile').textContent = target.displayName || 'this profile';
-  const meBtn = document.getElementById('conn-mode-me');
-  const otherBtn = document.getElementById('conn-mode-other');
-  meBtn.style.display = target.isOwnProfile ? 'none' : '';
-  meBtn.classList.toggle('active', useMe);
-  otherBtn.classList.toggle('active', !useMe);
-  meBtn.setAttribute('aria-pressed', String(useMe));
-  otherBtn.setAttribute('aria-pressed', String(!useMe));
-  document.getElementById('other-conn-form-wrap').style.display = useMe ? 'none' : '';
-  document.getElementById('other-conn-results').innerHTML = '';
+  document.getElementById('cf-btn-me')?.classList.toggle('active', useMe);
+  document.getElementById('cf-btn-other')?.classList.toggle('active', !useMe);
+  document.getElementById('cf-body-title').textContent = useMe ? 'Results for you' : 'Someone else';
+  document.getElementById('cf-form-wrap').style.display = useMe ? 'none' : '';
+  document.getElementById('cf-results').innerHTML = '';
+  body.style.display = '';
   connectionFinderRequest++;
-  modal.style.display = 'flex';
   if (useMe) {
     findMeConnections();
   } else {
-    const input = document.getElementById('other-conn-input');
+    const input = document.getElementById('cf-input');
     input.value = '';
     setTimeout(() => input.focus(), 30);
   }
 }
 
-function closeOtherConnection() {
-  const modal = document.getElementById('other-conn-modal');
-  if (modal) modal.style.display = 'none';
+function closeConnectionFinder() {
+  const body = document.getElementById('cf-body');
+  if (body) body.style.display = 'none';
+  document.getElementById('cf-btn-me')?.classList.remove('active');
+  document.getElementById('cf-btn-other')?.classList.remove('active');
   connectionFinderRequest++;
 }
 
-function renderConnectionRoutes(routes, opts) {
-  return routes.map((r, i) => `<div class="conn-route">
-      <div class="conn-route-h">Route ${i + 1}</div>
-      ${renderConnectionRoute(r, opts)}
-    </div>`).join('<hr class="conn-divider"/>');
-}
-
 async function findMeConnections() {
-  const results = document.getElementById('other-conn-results');
+  const results = document.getElementById('cf-results');
   const target = connectionTarget;
   if (!results || !target) return;
   const req = ++connectionFinderRequest;
@@ -2889,6 +2968,7 @@ async function findMeConnections() {
   const me = await viewerPersonUid();
   if (req !== connectionFinderRequest) return;
   if (!me) {
+    logConnectionSearch({ mode: 'me', found: false, reason: 'no claimed profile' });
     results.innerHTML = `<div class="conn-status">We don't know which profile is yours yet. Find yourself in the archive and use <strong>“Claim this profile as yours”</strong>; once it's approved, this will show how you're connected. Meanwhile you can use <strong>Someone else</strong> and paste your own profile link.</div>`;
     return;
   }
@@ -2901,31 +2981,38 @@ async function findMeConnections() {
   if (error) { results.innerHTML = `<div class="conn-status">Couldn't look up the connection right now. Please try again.</div>`; return; }
   const routes = Array.isArray(data) ? data : [];
   if (!routes.length) {
+    logConnectionSearch({ mode: 'me', viewerUid: me, found: false });
     results.innerHTML = `<div class="conn-status">No connection found between you and ${escHtml(target.displayName || 'this profile')} within ${OTHER_CONNECTION_GENERATIONS} generations.</div>`;
     return;
   }
-  results.innerHTML = `<div class="conn-found">${routes.length} route${routes.length === 1 ? '' : 's'} found between <strong>you</strong> and <strong>${escHtml(target.displayName || 'this profile')}</strong>, closest first.</div>` +
-    renderConnectionRoutes(routes, { perspective: 'you', targetName: target.displayName });
+  const meCtx = { mode: 'me', profileName: target.displayName, profileSex: target.sex };
+  logConnectionSearch({ mode: 'me', viewerUid: me, found: true, routes: routes.length, topTag: connectionTagText(routes[0], meCtx) });
+  results.innerHTML = renderConnectionResults(routes, meCtx, '<strong>you</strong>');
 }
 
 async function findOtherConnection(event) {
   if (event) event.preventDefault();
-  const results = document.getElementById('other-conn-results');
+  const results = document.getElementById('cf-results');
   const target = connectionTarget;
   if (!results || !target) return;
   const req = ++connectionFinderRequest;
-  const otherUid = parsePersonUidInput(document.getElementById('other-conn-input').value);
+  const otherUid = parsePersonUidInput(document.getElementById('cf-input').value);
   if (!otherUid) { results.innerHTML = `<div class="conn-status">Paste a profile link or profile ID first.</div>`; return; }
   results.innerHTML = `<div class="conn-status"><span class="spinner"></span> Discovering connections (up to ${OTHER_CONNECTION_GENERATIONS} generations)…</div>`;
 
-  let { data: other } = await sb.from('people').select('uid,name').eq('uid', otherUid).maybeSingle();
+  let { data: other } = await sb.from('people').select('uid,name,sex').eq('uid', otherUid).maybeSingle();
   if (!other) {
     const { data: redirect } = await sb.from('person_redirects').select('new_uid').eq('old_uid', otherUid).maybeSingle();
-    if (redirect?.new_uid) ({ data: other } = await sb.from('people').select('uid,name').eq('uid', redirect.new_uid).maybeSingle());
+    if (redirect?.new_uid) ({ data: other } = await sb.from('people').select('uid,name,sex').eq('uid', redirect.new_uid).maybeSingle());
   }
   if (req !== connectionFinderRequest) return;
-  if (!other) { results.innerHTML = `<div class="conn-status">No profile found for that link or ID.</div>`; return; }
+  if (!other) {
+    logConnectionSearch({ mode: 'other', otherUid, found: false, reason: 'profile not found' });
+    results.innerHTML = `<div class="conn-status">No profile found for that link or ID.</div>`;
+    return;
+  }
   if (other.uid === target.uid) { results.innerHTML = `<div class="conn-status">That is this same profile.</div>`; return; }
+  document.getElementById('cf-body-title').textContent = `Results for ${other.name || 'this person'}`;
 
   const { data, error } = await sb.rpc('akt_connection_paths', {
     p_from: target.uid, p_to: other.uid, p_max: OTHER_CONNECTION_GENERATIONS, p_limit: OTHER_CONNECTION_ROUTES
@@ -2935,11 +3022,61 @@ async function findOtherConnection(event) {
   const routes = Array.isArray(data) ? data : [];
   const otherLink = `<a class="person-link" href="person.html?uid=${encodeURIComponent(other.uid)}">${escHtml(other.name || '(unnamed)')}</a>`;
   if (!routes.length) {
+    logConnectionSearch({ mode: 'other', otherUid: other.uid, otherName: other.name, found: false });
     results.innerHTML = `<div class="conn-status">No connection found between ${escHtml(target.displayName || 'this profile')} and ${otherLink} within ${OTHER_CONNECTION_GENERATIONS} generations.</div>`;
     return;
   }
-  results.innerHTML = `<div class="conn-found">${routes.length} route${routes.length === 1 ? '' : 's'} found between <strong>${escHtml(target.displayName || 'this profile')}</strong> and ${otherLink}, closest first.</div>` +
-    renderConnectionRoutes(routes, { perspective: 'profile', firstName: target.displayName });
+  const otherCtx = { mode: 'other', profileName: target.displayName, profileSex: target.sex, otherName: other.name };
+  logConnectionSearch({ mode: 'other', otherUid: other.uid, otherName: other.name, found: true, routes: routes.length, topTag: connectionTagText(routes[0], otherCtx) });
+  results.innerHTML = renderConnectionResults(routes, otherCtx, otherLink);
+}
+
+// Log every finder search to activity_logs (action 'connection_search') so the
+// admin panel's "Connection finder" tab and each visitor's history show who
+// uses it and what they look up. Fire-and-forget; never blocks the result.
+function logConnectionSearch(info) {
+  if (!currentUser) return;
+  try {
+    if (!currentActivitySessionId) {
+      currentActivitySessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      sessionStorage.setItem('akt_activity_session_id', currentActivitySessionId);
+    }
+    const t = connectionTarget || {};
+    const who = info.mode === 'me' ? 'Me' : (info.otherName || info.otherUid || 'someone else');
+    const outcome = info.found
+      ? `${info.topTag || 'connected'} (${info.routes} route${info.routes === 1 ? '' : 's'})`
+      : (info.reason || 'no connection within 7 generations');
+    sb.from('activity_logs').insert({
+      visitor_name: currentUser,
+      action: 'connection_search',
+      target: `Connection finder: ${who} ↔ ${t.displayName || '(unnamed)'} — ${outcome}`,
+      details: {
+        mode: info.mode,
+        profile_uid: t.uid || null,
+        profile_name: t.displayName || null,
+        viewer_person_uid: info.viewerUid || null,
+        other_uid: info.otherUid || null,
+        other_name: info.otherName || null,
+        found: !!info.found,
+        routes: info.routes || 0,
+        top_tag: info.topTag || null,
+        reason: info.reason || null,
+        generations: OTHER_CONNECTION_GENERATIONS,
+        session_id: currentActivitySessionId
+      }
+    }).then(() => {});
+  } catch (e) { /* logging must never break the finder */ }
+}
+
+// Initials on the "Me" button, from the viewer's claimed profile (if any).
+async function fillConnectionFinderInitials() {
+  const el = document.getElementById('cf-initials');
+  if (!el) return;
+  const me = await viewerPersonUid();
+  if (!me) return;
+  const { data } = await sb.from('people').select('name').eq('uid', me).maybeSingle();
+  const ini = personInitials(data?.name || '');
+  if (ini && document.getElementById('cf-initials') === el) { el.textContent = ini; el.style.display = ''; }
 }
 
 async function renderPerson(uid, el) {
@@ -3148,12 +3285,29 @@ async function renderPerson(uid, el) {
     <div style="margin-bottom:16px">
       <a class="btn-back" href="index.html">← Back to Search</a>
     </div>
-    <div class="conn-bar conn-ribbon">
-      <span class="conn-ribbon-title">🔗 Connection finder for this profile</span>
-      <span class="conn-ribbon-actions">
-        ${isOwnProfile ? '' : `<button type="button" class="conn-opt" onclick="openConnectionFinder('me')">Me</button>`}
-        <button type="button" class="conn-opt" onclick="openConnectionFinder('other')">Someone else</button>
-      </span>
+    <div class="conn-finder" id="conn-finder">
+      <div class="cf-head">
+        <span class="cf-icon" aria-hidden="true">🔗</span>
+        <div class="cf-head-text">
+          <div class="cf-title">Connection finder</div>
+          <div class="cf-sub">How is someone related to ${escHtml(shortPersonName(displayName))}?</div>
+        </div>
+        <div class="cf-actions">
+          ${isOwnProfile ? '' : `<button type="button" class="cf-opt cf-opt-me" id="cf-btn-me" onclick="openConnectionFinder('me')"><span class="cf-initials" id="cf-initials" style="display:none"></span>Me</button>`}
+          <button type="button" class="cf-opt" id="cf-btn-other" onclick="openConnectionFinder('other')">Someone else</button>
+        </div>
+      </div>
+      <div class="cf-body" id="cf-body" style="display:none">
+        <div class="cf-body-head"><span id="cf-body-title">Results for you</span><button type="button" class="cf-close" onclick="closeConnectionFinder()" aria-label="Close results">×</button></div>
+        <div id="cf-form-wrap">
+          <form class="conn-form" onsubmit="findOtherConnection(event)">
+            <input id="cf-input" placeholder="Paste their profile link or profile ID" autocomplete="off"/>
+            <button type="submit" class="conn-go">Find connection</button>
+          </form>
+          <div class="conn-help">Open the other person's profile, copy the address from your browser (or use 📤 Share) and paste it here.</div>
+        </div>
+        <div id="cf-results"></div>
+      </div>
     </div>
     <div class="person-detail">
       <div class="detail-header">
@@ -3438,7 +3592,8 @@ async function renderPerson(uid, el) {
     </div>
   `;
 
-  connectionTarget = { uid, displayName, isOwnProfile };
+  connectionTarget = { uid, displayName, isOwnProfile, sex: displayGender };
+  if (!isOwnProfile) fillConnectionFinderInitials();
 
   // Family line loads after the page so it never holds up the profile.
   loadAncestorChain(uid, displayName, displayGender, allChildren, isOwnProfile);

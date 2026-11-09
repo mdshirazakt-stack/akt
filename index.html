@@ -3795,6 +3795,30 @@ function crossFieldPatterns(token) {
     np.add('%' + stem + 'eek'  + '%');
   }
 
+  // ee↔e, combined with j↔z — Zeeshan/Zeshan/Jeshan/Jeeshan, Naeem/Naem,
+  // Zainab/Jainab, Zameer/Jamir.
+  //   fuzzyPatterns already swaps j↔z on its own, but not together with a vowel
+  //   change, so "jeshan" could not reach "Zeeshan". Run the vowel rules on the
+  //   typed word AND on its j↔z spelling:
+  //   - has 'ee': add the single-e form (zeeshan→zeshan) and the ee→i form (zameer→zamir)
+  //   - no 'ee': double the first standalone e (zeshan→zeeshan); the guard stops
+  //     "zeeeshan" being generated from "zeeshan".
+  {
+    const jz = t.includes('j') ? t.replace(/j/g, 'z')
+             : t.includes('z') ? t.replace(/z/g, 'j')
+             : null;
+    for (const base of new Set([t, jz].filter(Boolean))) {
+      if (base !== t) np.add('%' + base + '%');
+      if (base.includes('ee')) {
+        np.add('%' + base.replace(/ee/g, 'e') + '%');
+        np.add('%' + base.replace(/ee/g, 'i') + '%');
+      } else {
+        const eToEE = base.replace(/e(?!e)/, 'ee'); // first standalone e → ee
+        if (eToEE !== base) np.add('%' + eToEE + '%');
+      }
+    }
+  }
+
   // ── Place-field patterns ────────────────────────────────────────────────────
 
   const pp = new Set();

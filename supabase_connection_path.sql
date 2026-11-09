@@ -68,6 +68,11 @@ declare
   anc_to text[];
   anc_from_sp text[];
   anc_to_sp text[];
+  anc_from_d int[];
+  anc_to_d int[];
+  anc_from_sp_d int[];
+  anc_to_sp_d int[];
+  pos int;
   desc_both text[];
   bad boolean;
   k_i int;
@@ -143,13 +148,18 @@ begin
   -- ancestors of each end (or of their spouse): routes must not loop through them
   -- (the spouse's ancestors only count when the route starts / ends through
   --  that marriage)
-  select coalesce(array_agg(r.uid), '{}') into anc_from from _cf_reach r
+  -- each with how many generations up it sits (its straight-climb distance)
+  select coalesce(array_agg(r.uid order by r.d), '{}'), coalesce(array_agg(r.d order by r.d), '{}')
+    into anc_from, anc_from_d from _cf_reach r
    where r.side = 'a' and r.d > 0 and array_to_string(r.dirs, ',') ~ '^up(,up)*$';
-  select coalesce(array_agg(r.uid), '{}') into anc_to from _cf_reach r
+  select coalesce(array_agg(r.uid order by r.d), '{}'), coalesce(array_agg(r.d order by r.d), '{}')
+    into anc_to, anc_to_d from _cf_reach r
    where r.side = 'b' and r.d > 0 and array_to_string(r.dirs, ',') ~ '^up(,up)*$';
-  select coalesce(array_agg(r.uid), '{}') into anc_from_sp from _cf_reach r
+  select coalesce(array_agg(r.uid order by r.d), '{}'), coalesce(array_agg(r.d order by r.d), '{}')
+    into anc_from_sp, anc_from_sp_d from _cf_reach r
    where r.side = 'a' and r.d > 1 and array_to_string(r.dirs, ',') ~ '^spouse,up(,up)*$';
-  select coalesce(array_agg(r.uid), '{}') into anc_to_sp from _cf_reach r
+  select coalesce(array_agg(r.uid order by r.d), '{}'), coalesce(array_agg(r.d order by r.d), '{}')
+    into anc_to_sp, anc_to_sp_d from _cf_reach r
    where r.side = 'b' and r.d > 1 and array_to_string(r.dirs, ',') ~ '^spouse,up(,up)*$';
 
   -- people descended from BOTH ends (e.g. a couple's own children): a route
@@ -195,25 +205,32 @@ begin
          || coalesce((select array_agg(case x when 'up' then 'down' when 'down' then 'up' else x end order by oi desc)
                         from unnest(cand.b_dirs) with ordinality t(x, oi)), '{}'::text[]);
 
-    -- no looping back into either end's own line: an ancestor of the start
-    -- may only be reached by climbing straight up from the start (or from
-    -- their spouse, when the route starts through that marriage), and an
-    -- ancestor of the target only on the straight climb down to the target
+    -- no looping back into either end's own line: reaching one of the start's
+    -- ancestors any way other than the straight climb is a loop when it takes
+    -- MORE steps than that climb (e.g. down through your own mother to your
+    -- brother). Reaching the same ancestor in the same number of steps through
+    -- another line is a genuine second connection (cousin marriages), so it
+    -- stays. Same for the target's ancestors, counted from the target's end.
     bad := false;
     for k_i in 2 .. array_length(uids, 1) loop
-      if uids[k_i] = any (anc_from)
+      pos := array_position(anc_from, uids[k_i]);
+      if pos is not null and k_i - 1 > anc_from_d[pos]
          and coalesce(array_to_string(v_dirs[1:k_i - 1], ','), '') !~ '^up(,up)*$' then
         bad := true; exit;
       end if;
-      if v_dirs[1] = 'spouse' and uids[k_i] = any (anc_from_sp)
+      pos := array_position(anc_from_sp, uids[k_i]);
+      if v_dirs[1] = 'spouse' and pos is not null and k_i - 1 > anc_from_sp_d[pos]
          and coalesce(array_to_string(v_dirs[2:k_i - 1], ','), '') !~ '^up(,up)*$' then
         bad := true; exit;
       end if;
-      if uids[k_i] = any (anc_to)
+      pos := array_position(anc_to, uids[k_i]);
+      if pos is not null and array_length(uids, 1) - k_i > anc_to_d[pos]
          and coalesce(array_to_string(v_dirs[k_i:], ','), '') !~ '^down(,down)*$' then
         bad := true; exit;
       end if;
-      if v_dirs[array_length(v_dirs, 1)] = 'spouse' and uids[k_i] = any (anc_to_sp)
+      pos := array_position(anc_to_sp, uids[k_i]);
+      if v_dirs[array_length(v_dirs, 1)] = 'spouse' and pos is not null
+         and array_length(uids, 1) - k_i > anc_to_sp_d[pos]
          and coalesce(array_to_string(v_dirs[k_i:array_length(v_dirs, 1) - 1], ','), '') !~ '^down(,down)*$' then
         bad := true; exit;
       end if;

@@ -396,8 +396,6 @@
   .fl-summary-btn { min-height: 44px; padding: 0 4px; border: 0; background: transparent; color: var(--gold); font: inherit; font-weight: 700; cursor: pointer; }
   /* "How am I connected?" bar above the profile */
   .conn-bar { margin: 0 0 14px; padding: 6px 14px; border: 1px solid var(--border); border-left: 3px solid var(--gold2); background: #faf6ec; font-size: 0.84rem; }
-  .conn-link { min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--gold); font: inherit; font-weight: 700; cursor: pointer; text-align: left; }
-  .conn-link:hover { text-decoration: underline; }
   .conn-status { padding: 10px 0; color: var(--muted); }
   .conn-result { padding: 8px 0 6px; }
   .conn-tag { display: inline-block; margin-bottom: 8px; padding: 2px 10px; border-radius: 999px; background: var(--green); color: #fff; font-size: 0.78rem; font-weight: 700; }
@@ -410,7 +408,14 @@
   .conn-step.target { border-color: var(--green); }
   .conn-arrow { color: var(--gold2); }
   .conn-note { margin-top: 8px; font-size: 0.76rem; color: var(--muted); }
-  .conn-bar + .conn-bar { margin-top: -6px; }
+  .conn-ribbon { display: flex; align-items: center; justify-content: space-between; gap: 8px 14px; flex-wrap: wrap; }
+  .conn-ribbon-title { font-weight: 700; color: var(--gold); }
+  .conn-ribbon-actions { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+  .conn-opt { min-height: 44px; padding: 0 16px; border: 1px solid var(--gold2); border-radius: 999px; background: var(--surface); color: var(--gold); font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+  .conn-opt:hover { background: var(--goldl); }
+  .conn-modes { display: inline-flex; gap: 2px; padding: 3px; margin: 0 0 12px; background: #efe8dc; border: 1px solid var(--border); border-radius: 8px; }
+  .conn-mode { min-height: 44px; padding: 4px 16px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font: inherit; font-size: 0.84rem; font-weight: 700; cursor: pointer; }
+  .conn-mode.active { background: var(--surface); color: var(--green); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
   .conn-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-start; justify-content: center; padding: 6vh 12px 12px; background: rgba(42,35,24,0.45); overflow-y: auto; }
   .conn-dialog { position: relative; width: 100%; max-width: 760px; padding: 22px 20px 18px; border-top: 3px solid var(--gold2); border-radius: 6px; background: var(--surface); box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
   .conn-dialog h3 { margin: 0 44px 12px 0; font-family: 'Amiri', serif; font-size: 1.15rem; color: var(--gold); }
@@ -1029,12 +1034,18 @@
   <div id="other-conn-modal" class="conn-modal" style="display:none" onclick="if(event.target===this)closeOtherConnection()">
     <div class="conn-dialog" role="dialog" aria-modal="true" aria-labelledby="other-conn-title">
       <button type="button" class="conn-close" onclick="closeOtherConnection()" aria-label="Close">×</button>
-      <h3 id="other-conn-title">How is another person connected to <span id="other-conn-profile"></span>?</h3>
-      <form class="conn-form" onsubmit="findOtherConnection(event)">
-        <input id="other-conn-input" placeholder="Paste their profile link or UID" autocomplete="off"/>
-        <button type="submit" class="conn-go">Find connection</button>
-      </form>
-      <div class="conn-help">Open the other person's profile, copy the address from your browser (or use 📤 Share) and paste it here.</div>
+      <h3 id="other-conn-title">Connection finder for <span id="other-conn-profile"></span></h3>
+      <div class="conn-modes" role="group" aria-label="Find the connection of">
+        <button type="button" class="conn-mode" id="conn-mode-me" onclick="openConnectionFinder('me')">Me</button>
+        <button type="button" class="conn-mode" id="conn-mode-other" onclick="openConnectionFinder('other')">Someone else</button>
+      </div>
+      <div id="other-conn-form-wrap">
+        <form class="conn-form" onsubmit="findOtherConnection(event)">
+          <input id="other-conn-input" placeholder="Paste their profile link or profile ID" autocomplete="off"/>
+          <button type="submit" class="conn-go">Find connection</button>
+        </form>
+        <div class="conn-help">Open the other person's profile, copy the address from your browser (or use 📤 Share) and paste it here.</div>
+      </div>
       <div id="other-conn-results" class="conn-results"></div>
     </div>
   </div>
@@ -2702,38 +2713,6 @@ function connectionStepLabels(r) {
   return labels;
 }
 
-async function findMyConnection(maxGen) {
-  const bar = document.getElementById('connection-bar');
-  if (!bar || !connectionTarget) return;
-  const target = connectionTarget;
-  bar.innerHTML = `<div class="conn-status"><span class="spinner"></span> Discovering your connection${maxGen > 4 ? ' (searching up to 8 generations)' : ''}…</div>`;
-
-  const me = await viewerPersonUid();
-  if (connectionTarget !== target) return;
-  if (!me) {
-    bar.innerHTML = `<div class="conn-status">We don't know which profile is yours yet. Find yourself in the archive and use <strong>“Claim this profile as yours”</strong>; once it's approved, this will show how you're connected.</div>`;
-    return;
-  }
-  if (me === target.uid) { bar.remove(); return; }
-
-  const { data, error } = await sb.rpc('akt_connection_path', { p_from: me, p_to: target.uid, p_max: maxGen });
-  if (connectionTarget !== target) return;
-  if (error) {
-    bar.innerHTML = `<div class="conn-status">Couldn't look up the connection right now. <button type="button" class="conn-link" onclick="findMyConnection(${maxGen})">Try again</button></div>`;
-    return;
-  }
-  if (!data) {
-    bar.innerHTML = maxGen < 8
-      ? `<div class="conn-status">No connection found within 4 generations. <button type="button" class="conn-link" onclick="findMyConnection(8)">Search 4 more generations?</button></div>`
-      : `<div class="conn-status">No connection found within 8 generations.</div>`;
-    return;
-  }
-
-  bar.innerHTML = `<div class="conn-result">${renderConnectionRoute(data, { perspective: 'you', targetName: target.displayName })}
-      <div class="conn-note">Closest connection found through the recorded family tree.</div>
-    </div>`;
-}
-
 // One route as a relationship tag + the people along it. perspective 'you'
 // reads it from the viewer ("You", "your cousin"); 'profile' reads it from the
 // profile being viewed ("This profile", "their cousin").
@@ -2836,9 +2815,10 @@ function renderConnectionTree(route, labels, opts = {}) {
   return html;
 }
 
-// ===== "HOW IS ANOTHER PERSON CONNECTED TO THIS PROFILE?" =====
-// Popup: the viewer pastes another person's profile link or UID; we list up to
-// 5 different routes (7 generations each way) between this profile and them.
+// ===== CONNECTION FINDER =====
+// One ribbon above the profile opens a popup: "Me" (the viewer's own claimed
+// profile) or "Someone else" (a pasted profile link or ID). Up to 5 different
+// routes, 7 generations each way.
 const OTHER_CONNECTION_GENERATIONS = 7;
 const OTHER_CONNECTION_ROUTES = 5;
 
@@ -2855,20 +2835,77 @@ function parsePersonUidInput(raw) {
   return text.replace(/^uid\s*[:=]\s*/i, '').trim();
 }
 
-function openOtherConnection() {
+// The finder popup has two modes: "me" (the viewer's claimed profile) and
+// "other" (a profile link or ID the viewer pastes). Both list up to 5 routes,
+// searching up to 7 generations each way.
+let connectionFinderRequest = 0;
+
+function openConnectionFinder(mode) {
   const modal = document.getElementById('other-conn-modal');
   if (!modal || !connectionTarget) return;
-  document.getElementById('other-conn-profile').textContent = connectionTarget.displayName || 'this profile';
+  const target = connectionTarget;
+  const useMe = mode === 'me' && !target.isOwnProfile;
+  document.getElementById('other-conn-profile').textContent = target.displayName || 'this profile';
+  const meBtn = document.getElementById('conn-mode-me');
+  const otherBtn = document.getElementById('conn-mode-other');
+  meBtn.style.display = target.isOwnProfile ? 'none' : '';
+  meBtn.classList.toggle('active', useMe);
+  otherBtn.classList.toggle('active', !useMe);
+  meBtn.setAttribute('aria-pressed', String(useMe));
+  otherBtn.setAttribute('aria-pressed', String(!useMe));
+  document.getElementById('other-conn-form-wrap').style.display = useMe ? 'none' : '';
   document.getElementById('other-conn-results').innerHTML = '';
+  connectionFinderRequest++;
   modal.style.display = 'flex';
-  const input = document.getElementById('other-conn-input');
-  input.value = '';
-  setTimeout(() => input.focus(), 30);
+  if (useMe) {
+    findMeConnections();
+  } else {
+    const input = document.getElementById('other-conn-input');
+    input.value = '';
+    setTimeout(() => input.focus(), 30);
+  }
 }
 
 function closeOtherConnection() {
   const modal = document.getElementById('other-conn-modal');
   if (modal) modal.style.display = 'none';
+  connectionFinderRequest++;
+}
+
+function renderConnectionRoutes(routes, opts) {
+  return routes.map((r, i) => `<div class="conn-route">
+      <div class="conn-route-h">Route ${i + 1}</div>
+      ${renderConnectionRoute(r, opts)}
+    </div>`).join('<hr class="conn-divider"/>');
+}
+
+async function findMeConnections() {
+  const results = document.getElementById('other-conn-results');
+  const target = connectionTarget;
+  if (!results || !target) return;
+  const req = ++connectionFinderRequest;
+  results.innerHTML = `<div class="conn-status"><span class="spinner"></span> Discovering your connection (up to ${OTHER_CONNECTION_GENERATIONS} generations)…</div>`;
+
+  const me = await viewerPersonUid();
+  if (req !== connectionFinderRequest) return;
+  if (!me) {
+    results.innerHTML = `<div class="conn-status">We don't know which profile is yours yet. Find yourself in the archive and use <strong>“Claim this profile as yours”</strong>; once it's approved, this will show how you're connected. Meanwhile you can use <strong>Someone else</strong> and paste your own profile link.</div>`;
+    return;
+  }
+  if (me === target.uid) { results.innerHTML = `<div class="conn-status">This is your own profile.</div>`; return; }
+
+  const { data, error } = await sb.rpc('akt_connection_paths', {
+    p_from: me, p_to: target.uid, p_max: OTHER_CONNECTION_GENERATIONS, p_limit: OTHER_CONNECTION_ROUTES
+  });
+  if (req !== connectionFinderRequest) return;
+  if (error) { results.innerHTML = `<div class="conn-status">Couldn't look up the connection right now. Please try again.</div>`; return; }
+  const routes = Array.isArray(data) ? data : [];
+  if (!routes.length) {
+    results.innerHTML = `<div class="conn-status">No connection found between you and ${escHtml(target.displayName || 'this profile')} within ${OTHER_CONNECTION_GENERATIONS} generations.</div>`;
+    return;
+  }
+  results.innerHTML = `<div class="conn-found">${routes.length} route${routes.length === 1 ? '' : 's'} found between <strong>you</strong> and <strong>${escHtml(target.displayName || 'this profile')}</strong>, closest first.</div>` +
+    renderConnectionRoutes(routes, { perspective: 'you', targetName: target.displayName });
 }
 
 async function findOtherConnection(event) {
@@ -2876,8 +2913,9 @@ async function findOtherConnection(event) {
   const results = document.getElementById('other-conn-results');
   const target = connectionTarget;
   if (!results || !target) return;
+  const req = ++connectionFinderRequest;
   const otherUid = parsePersonUidInput(document.getElementById('other-conn-input').value);
-  if (!otherUid) { results.innerHTML = `<div class="conn-status">Paste a profile link or UID first.</div>`; return; }
+  if (!otherUid) { results.innerHTML = `<div class="conn-status">Paste a profile link or profile ID first.</div>`; return; }
   results.innerHTML = `<div class="conn-status"><span class="spinner"></span> Discovering connections (up to ${OTHER_CONNECTION_GENERATIONS} generations)…</div>`;
 
   let { data: other } = await sb.from('people').select('uid,name').eq('uid', otherUid).maybeSingle();
@@ -2885,14 +2923,14 @@ async function findOtherConnection(event) {
     const { data: redirect } = await sb.from('person_redirects').select('new_uid').eq('old_uid', otherUid).maybeSingle();
     if (redirect?.new_uid) ({ data: other } = await sb.from('people').select('uid,name').eq('uid', redirect.new_uid).maybeSingle());
   }
-  if (connectionTarget !== target) return;
-  if (!other) { results.innerHTML = `<div class="conn-status">No profile found for that link or UID.</div>`; return; }
+  if (req !== connectionFinderRequest) return;
+  if (!other) { results.innerHTML = `<div class="conn-status">No profile found for that link or ID.</div>`; return; }
   if (other.uid === target.uid) { results.innerHTML = `<div class="conn-status">That is this same profile.</div>`; return; }
 
   const { data, error } = await sb.rpc('akt_connection_paths', {
     p_from: target.uid, p_to: other.uid, p_max: OTHER_CONNECTION_GENERATIONS, p_limit: OTHER_CONNECTION_ROUTES
   });
-  if (connectionTarget !== target) return;
+  if (req !== connectionFinderRequest) return;
   if (error) { results.innerHTML = `<div class="conn-status">Couldn't look up the connection right now. Please try again.</div>`; return; }
   const routes = Array.isArray(data) ? data : [];
   const otherLink = `<a class="person-link" href="person.html?uid=${encodeURIComponent(other.uid)}">${escHtml(other.name || '(unnamed)')}</a>`;
@@ -2901,10 +2939,7 @@ async function findOtherConnection(event) {
     return;
   }
   results.innerHTML = `<div class="conn-found">${routes.length} route${routes.length === 1 ? '' : 's'} found between <strong>${escHtml(target.displayName || 'this profile')}</strong> and ${otherLink}, closest first.</div>` +
-    routes.map((r, i) => `<div class="conn-route">
-        <div class="conn-route-h">Route ${i + 1}</div>
-        ${renderConnectionRoute(r, { perspective: 'profile', firstName: target.displayName })}
-      </div>`).join('<hr class="conn-divider"/>');
+    renderConnectionRoutes(routes, { perspective: 'profile', firstName: target.displayName });
 }
 
 async function renderPerson(uid, el) {
@@ -3113,11 +3148,12 @@ async function renderPerson(uid, el) {
     <div style="margin-bottom:16px">
       <a class="btn-back" href="index.html">← Back to Search</a>
     </div>
-    ${isOwnProfile ? '' : `<div class="conn-bar" id="connection-bar">
-      <button type="button" class="conn-link" onclick="findMyConnection(4)">🔗 Show me how I am connected to this person?</button>
-    </div>`}
-    <div class="conn-bar">
-      <button type="button" class="conn-link" onclick="openOtherConnection()">🔗 Show me how another person is connected to this profile</button>
+    <div class="conn-bar conn-ribbon">
+      <span class="conn-ribbon-title">🔗 Connection finder for this profile</span>
+      <span class="conn-ribbon-actions">
+        ${isOwnProfile ? '' : `<button type="button" class="conn-opt" onclick="openConnectionFinder('me')">Me</button>`}
+        <button type="button" class="conn-opt" onclick="openConnectionFinder('other')">Someone else</button>
+      </span>
     </div>
     <div class="person-detail">
       <div class="detail-header">
@@ -3402,7 +3438,7 @@ async function renderPerson(uid, el) {
     </div>
   `;
 
-  connectionTarget = { uid, displayName };
+  connectionTarget = { uid, displayName, isOwnProfile };
 
   // Family line loads after the page so it never holds up the profile.
   loadAncestorChain(uid, displayName, displayGender, allChildren, isOwnProfile);

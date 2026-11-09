@@ -2646,6 +2646,15 @@ function connectionTag(r) {
   const target = path[path.length - 1] || {};
   const f = target.sex === 'F';
   const side = r.first_father ? 'paternal' : 'maternal';
+  if (r.from_spouse && r.to_spouse) {
+    // two marriages: target is the spouse of my spouse's blood relative,
+    // e.g. my wife's sister's husband
+    const me = path[0] || {};
+    const mySpouse = me.sex === 'F' ? 'Husband' : 'Wife';
+    const rel = path[path.length - 2] || {};
+    if (r.up === 0 && r.down === 0) return `${mySpouse}'s other ${f ? 'wife' : 'husband'}`;
+    return `${mySpouse}'s ${bloodRelation(r.up, r.down, rel.sex, side).toLowerCase()}'s ${f ? 'wife' : 'husband'}`;
+  }
   if (r.to_spouse) {
     // target is the spouse of my blood relative (path's second-to-last person)
     const rel = path[path.length - 2] || {};
@@ -2803,7 +2812,8 @@ function renderConnectionChain(route, ctx) {
   const endShort = ctx.mode === 'me' ? shortPersonName(ctx.profileName) : shortPersonName(ctx.otherName || endPerson.name);
   const phrase = startPossessive + ' ' + words.join("'s ");
   const tagLower = lowerFirst(connectionTagText(route, ctx));
-  const extra = words.length > 1 && tagLower !== words[words.length - 1] ? ` — ${ctx.mode === 'me' ? '' : `${escHtml(shortPersonName(ctx.profileName))}'s `}<strong>${escHtml(ctx.mode === 'me' && !/^your /.test(tagLower) ? (/^(wife|husband) of your /.test(tagLower) ? 'the ' + tagLower : 'your ' + tagLower) : tagLower)}</strong>` : '';
+  const extra = words.length > 1 && tagLower !== words[words.length - 1]
+      && tagLower !== phrase && 'your ' + tagLower !== phrase && !/'s .*'s /.test(tagLower) ? ` — ${ctx.mode === 'me' ? '' : `${escHtml(shortPersonName(ctx.profileName))}'s `}<strong>${escHtml(ctx.mode === 'me' && !/^your /.test(tagLower) ? (/^(wife|husband) of your /.test(tagLower) ? 'the ' + tagLower : 'your ' + tagLower) : tagLower)}</strong>` : '';
   const sentence = `<strong>${escHtml(endShort)}</strong> is ${escHtml(phrase)}${extra}.`;
   return `<p class="cf-sentence">${sentence}</p>
     <div class="conn-path">${boxes.join('<span class="conn-arrow" aria-hidden="true">→</span>')}</div>`;

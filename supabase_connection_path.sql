@@ -4,9 +4,10 @@
 -- akt_connection_paths(from, to, max, limit) lists the closest DIFFERENT
 -- routes between two people, best first. It walks UP from each of them
 -- through BOTH parents, at most p_max generations (1..8), and joins the two
--- climbs where they meet at a shared ancestor. One marriage may be used at
--- either end, never both, which covers in-laws (a brother's wife, a wife's
--- brother, a son's wife, ...).
+-- climbs where they meet at a shared ancestor. A marriage may be used at
+-- either end, or at both ends, which covers in-laws: a brother's wife, a
+-- wife's brother, a son's wife, and a wife's sister's husband (two marriages:
+-- yours and hers).
 --
 -- Ranking: the fewest steps first (a marriage counts as one step, so a
 -- brother's wife comes before a 9-step blood link to the same person), then
@@ -28,7 +29,8 @@
 --   * a route may not come back DOWN through one of the starting person's own
 --     ancestors (or go UP through one of the target's): e.g. from you up your
 --     father's line and back down through your own mother to your brother is
---     a loop through your own line, not another way of being related.
+--     a loop through your own line, not another way of being related. When a
+--     route starts through a marriage, the same applies to the spouse's line.
 --
 -- Each route is jsonb:
 --   up, down       generations from `from` up to the shared ancestor, and
@@ -109,20 +111,21 @@ begin
         from up_b u join parent_edge pe on pe.child = u.uid
        where u.depth < m and not pe.parent = any (u.path)
     ),
-    anc_from as (select coalesce(array_agg(uid), '{}') as uids from up_a where not via_spouse and depth > 0),
-    anc_to   as (select coalesce(array_agg(uid), '{}') as uids from up_b where not via_spouse and depth > 0)
+    -- ancestors of each starting person (the person, or their spouse when the
+    -- route starts through the marriage), to keep routes out of their own line
+    anc_from as (select path[1] as s, array_agg(uid) as uids from up_a where depth > 0 group by path[1]),
+    anc_to   as (select path[1] as s, array_agg(uid) as uids from up_b where depth > 0 group by path[1])
     select a.via_spouse as from_spouse, b.via_spouse as to_spouse,
            a.depth as up, b.depth as down, a.path as a_path, b.path as b_path,
            a.first_father
       from up_a a
       join up_b b on b.uid = a.uid
-      cross join anc_from
-      cross join anc_to
-     where not (b.path[1:b.depth] && anc_from.uids)
-       and not (a.path[1:a.depth] && anc_to.uids)
-       and not (a.via_spouse and b.via_spouse)
+      left join anc_from on anc_from.s = a.path[1]
+      left join anc_to   on anc_to.s   = b.path[1]
+     where not (b.path[1:b.depth] && coalesce(anc_from.uids, '{}'))
+       and not (a.path[1:a.depth] && coalesce(anc_to.uids, '{}'))
        -- a direct marriage: keep the to_spouse form only
-       and not (a.via_spouse and a.depth = 0 and b.depth = 0)
+       and not (a.via_spouse and not b.via_spouse and a.depth = 0 and b.depth = 0)
        -- the two climbs may only share the meeting ancestor itself
        and not (a.path[1:a.depth] && b.path)
        and not (b.path[1:b.depth] && a.path)

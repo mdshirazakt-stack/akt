@@ -2340,9 +2340,11 @@ async function loadMoreAncestors(btn) {
   if (state.shown < state.ancestors.length) {
     state.shown += ANCESTOR_CHAIN_STEP;
     renderAncestorChain();
+    logFamilyLineEvent('earlier', 'showed earlier ancestors', { shown: state.shown });
     return;
   }
   if (!state.hasMoreBeyond) return;
+  logFamilyLineEvent('earlier', 'loaded earlier ancestors (beyond 50)', {});
   // Very long line: fetch the next stretch above the oldest one loaded.
   state.loading = true;
   if (btn) btn.disabled = true;
@@ -2385,26 +2387,68 @@ function applyFamilyLineFold(folded) {
   }
 }
 
-function toggleFamilyLineFold() {
+// Log Family Line interactions to activity_logs (action 'family_line') so they
+// show in the admin panel's visitor activity / visitor history. Only clicks
+// are logged (never the automatic fold on page load); an identical event
+// repeated within 1.5 s is ignored so double-clicks don't flood the log.
+let lastFamilyLineLog = { key: '', at: 0 };
+
+function logFamilyLineEvent(event, label, extra = {}) {
+  if (!currentUser) return;
+  try {
+    const key = event + '|' + label;
+    const now = Date.now();
+    if (key === lastFamilyLineLog.key && now - lastFamilyLineLog.at < 1500) return;
+    lastFamilyLineLog = { key, at: now };
+    if (!currentActivitySessionId) {
+      currentActivitySessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      sessionStorage.setItem('akt_activity_session_id', currentActivitySessionId);
+    }
+    const state = ancestorChainState || {};
+    sb.from('activity_logs').insert({
+      visitor_name: currentUser,
+      action: 'family_line',
+      target: `Family Line: ${label} — ${state.displayName || '(unnamed)'}`,
+      details: {
+        event,
+        profile_uid: state.uid || null,
+        profile_name: state.displayName || null,
+        tab: state.tab || null,
+        generations: state.ancestors ? state.ancestors.length : null,
+        ...extra,
+        session_id: currentActivitySessionId
+      }
+    }).then(() => {});
+  } catch (e) { /* logging must never break the page */ }
+}
+
+function toggleFamilyLineFold(source) {
   const section = document.getElementById('family-line-section');
   const folded = !(section && section.classList.contains('folded'));
   try { localStorage.setItem(FAMILY_LINE_FOLD_KEY, folded ? '1' : '0'); } catch (e) { /* storage blocked: fold for this page only */ }
   applyFamilyLineFold(folded);
+  logFamilyLineEvent(folded ? 'hide' : 'show',
+    folded ? 'hidden' : (source === 'view_all' ? 'opened with View all' : 'shown'), { source: source || 'arrow' });
 }
 
 function setFamilyLineTab(tab) {
   const state = ancestorChainState;
   if (!state || !['timeline', 'nasab', 'era'].includes(tab)) return;
+  if (state.tab === tab) return;
   state.tab = tab;
   renderAncestorChain();
+  logFamilyLineEvent('tab', `switched to ${({ timeline: 'Timeline', nasab: 'Nasab', era: 'By era' })[tab]}`, { tab });
 }
 
 function toggleFamilyEra(key) {
   const state = ancestorChainState;
   if (!state) return;
   const k = String(key);
-  if (state.openEras.has(k)) state.openEras.delete(k); else state.openEras.add(k);
+  const opening = !state.openEras.has(k);
+  if (opening) state.openEras.add(k); else state.openEras.delete(k);
   renderAncestorChain();
+  const what = k === 'self' ? 'This profile' : `generations ${k}+`;
+  logFamilyLineEvent(opening ? 'era_open' : 'era_close', `${opening ? 'opened' : 'closed'} ${what} (By era)`, { era: k });
 }
 
 function familyEras(ancestors) {
@@ -2434,8 +2478,10 @@ function setFamilyLinePreview(n) {
   const state = ancestorChainState;
   const v = Number(n);
   if (!state || !Number.isFinite(v) || v < ANCESTOR_CHAIN_STEP) return;
+  if (state.shown === v) return;
   state.shown = v;
   renderAncestorChain();
+  logFamilyLineEvent('preview', `previewed ${Math.min(v, (state.ancestors || []).length || v)} generations`, { shown: v });
 }
 
 function renderFamilyTimeline(state) {
@@ -2567,7 +2613,7 @@ function renderAncestorChain() {
     const rest = total - firstFew.length;
     const line = [`<span class="self">${escHtml(state.isOwnProfile ? 'You' : (state.displayName || '(unnamed)'))}</span>`, ...firstFew]
       .join(arr) + (rest > 0 || state.hasMoreBeyond ? `${arr}<span class="more">… ${rest}${state.hasMoreBeyond ? '+' : ''} more</span>` : '');
-    summary.innerHTML = `<span class="fl-summary-line">${line}</span><button type="button" class="fl-summary-btn" onclick="toggleFamilyLineFold()">View all</button>`;
+    summary.innerHTML = `<span class="fl-summary-line">${line}</span><button type="button" class="fl-summary-btn" onclick="toggleFamilyLineFold('view_all')">View all</button>`;
   }
   section.style.display = '';
   applyFamilyLineFold(familyLineFolded());

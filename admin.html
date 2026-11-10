@@ -6120,13 +6120,15 @@ function activityIcon(action) {
     open_index: '📋',
     open_index_file: '📂',
     index_filter: '🔎',
-    connection_search: '🔗'
+    connection_search: '🔗',
+    family_line: '🌿'
   };
   return icons[action] || '•';
 }
 
 function describeActivity(item) {
   if (item.action === 'connection_search') return 'Connection finder';
+  if (item.action === 'family_line') return 'Family Line';
   const action = String(item.action || '').replace(/_/g, ' ');
   return action ? action.charAt(0).toUpperCase() + action.slice(1) : 'Activity';
 }
@@ -6468,7 +6470,6 @@ async function loadConnectionFinderUsage() {
 
   const d = r => r.details || {};
   const users = new Map();
-  const profiles = new Map();
   let meCount = 0, otherCount = 0, found = 0;
   rows.forEach(r => {
     const det = d(r);
@@ -6477,11 +6478,6 @@ async function loadConnectionFinderUsage() {
     const u = users.get(r.visitor_name) || { name: r.visitor_name, count: 0, found: 0, last: r.created_at };
     u.count++; if (det.found) u.found++;
     users.set(r.visitor_name, u);
-    if (det.profile_uid) {
-      const p = profiles.get(det.profile_uid) || { uid: det.profile_uid, name: det.profile_name || det.profile_uid, count: 0, users: new Set() };
-      p.count++; p.users.add(r.visitor_name);
-      profiles.set(det.profile_uid, p);
-    }
   });
   const pct = n => rows.length ? Math.round(n * 100 / rows.length) : 0;
   const stat = (value, label, color = 'var(--ink)') => `<div style="padding:10px 16px;background:var(--bg);border:1px solid var(--border);text-align:center;min-width:110px">
@@ -6493,7 +6489,6 @@ async function loadConnectionFinderUsage() {
     : '—';
 
   const topUsers = [...users.values()].sort((a, b) => b.count - a.count).slice(0, 15);
-  const topProfiles = [...profiles.values()].sort((a, b) => b.count - a.count).slice(0, 15);
   const recent = rows.slice(0, 200);
 
   box.innerHTML = `
@@ -6504,19 +6499,12 @@ async function loadConnectionFinderUsage() {
       ${stat(otherCount, '“Someone else”')}
       ${stat(pct(found) + '%', 'Connection found', 'var(--gold)')}
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:18px">
+    <div style="margin-bottom:18px">
       <div>
         <h3 style="margin:0 0 8px;font-size:0.95rem">Who is using it</h3>
         <div style="overflow-x:auto"><table style="width:100%">
           <thead><tr><th>Visitor</th><th>Searches</th><th>Found</th><th>Last used</th></tr></thead>
           <tbody>${topUsers.map(u => `<tr><td>${escapeHtml(u.name || '—')}</td><td>${u.count}</td><td>${u.found}</td><td>${escapeHtml(formatIST(u.last))}</td></tr>`).join('')}</tbody>
-        </table></div>
-      </div>
-      <div>
-        <h3 style="margin:0 0 8px;font-size:0.95rem">Most-searched profiles</h3>
-        <div style="overflow-x:auto"><table style="width:100%">
-          <thead><tr><th>Profile</th><th>Searches</th><th>By</th></tr></thead>
-          <tbody>${topProfiles.map(p => `<tr><td>${profileLink(p.uid, p.name)}</td><td>${p.count}</td><td>${p.users.size} visitor${p.users.size === 1 ? '' : 's'}</td></tr>`).join('')}</tbody>
         </table></div>
       </div>
     </div>

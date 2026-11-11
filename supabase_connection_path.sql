@@ -16,7 +16,9 @@
 --     back up (that would be "your son's mother", which the marriage link
 --     already covers); never two marriages in a row; at most 3 marriages;
 --   * no person twice on a route, counting duplicate records linked in
---     person_identity_members as one person;
+--     person_identity_members as one person; the search also steps across
+--     those links (a 'same' hop, free and never shown), so a line recorded
+--     partly under one copy of a person and partly under another is found;
 --   * a route may not come back DOWN through an ancestor of the starting
 --     person (or of their spouse), nor go UP through an ancestor of the
 --     target: that is a loop through their own line, not another relation;
@@ -138,6 +140,20 @@ begin
             left join people p2 on p2.uid = sp.uid
            where r.side = s and r.d = lvl - 1 and r.last <> 'spouse' and r.marr < 3
              and sp.uid is not null and not sp.uid = any (r.path)
+          union all
+          -- same person: hop to a duplicate record of this person (linked in
+          -- person_identity_members), so a line recorded partly under one copy
+          -- and partly under another is still followed. Not a real step: it
+          -- keeps the direction and the last move, is never taken twice in a
+          -- row, and is removed from the route before it is shown.
+          select r.side, m2.person_uid, r.ph, lvl, r.path || m2.person_uid, r.dirs || 'same'::text,
+                 r.marr, r.fem, r.father_first, r.last, r.wed
+            from _cf_reach r
+            join person_identity_members m1 on m1.person_uid = r.uid
+            join person_identity_members m2 on m2.group_id = m1.group_id and m2.person_uid <> r.uid
+           where r.side = s and r.d = lvl - 1
+             and r.dirs[cardinality(r.dirs)] is distinct from 'same'
+             and not m2.person_uid = any (r.path)
         ) x(side, uid, ph, d, path, dirs, marr, fem, father_first, last, wed)
        where not exists (select 1 from _cf_reach e where e.side = x.side and e.uid = x.uid and e.ph = x.ph and e.wed = x.wed)
        order by x.uid, x.ph, x.wed, x.marr, x.fem, x.father_first desc nulls last
@@ -149,26 +165,35 @@ begin
   -- (the spouse's ancestors only count when the route starts / ends through
   --  that marriage)
   -- each with how many generations up it sits (its straight-climb distance)
-  select coalesce(array_agg(r.uid order by r.d), '{}'), coalesce(array_agg(r.d order by r.d), '{}')
+  -- ('same' hops to a duplicate record are ignored: they are not a generation)
+  select coalesce(array_agg(r.uid order by r.d), '{}'),
+         coalesce(array_agg(cardinality(array_remove(r.dirs, 'same')) order by r.d), '{}')
     into anc_from, anc_from_d from _cf_reach r
-   where r.side = 'a' and r.d > 0 and array_to_string(r.dirs, ',') ~ '^up(,up)*$';
-  select coalesce(array_agg(r.uid order by r.d), '{}'), coalesce(array_agg(r.d order by r.d), '{}')
+   where r.side = 'a' and r.d > 0
+     and array_to_string(array_remove(r.dirs, 'same'), ',') ~ '^up(,up)*$';
+  select coalesce(array_agg(r.uid order by r.d), '{}'),
+         coalesce(array_agg(cardinality(array_remove(r.dirs, 'same')) order by r.d), '{}')
     into anc_to, anc_to_d from _cf_reach r
-   where r.side = 'b' and r.d > 0 and array_to_string(r.dirs, ',') ~ '^up(,up)*$';
-  select coalesce(array_agg(r.uid order by r.d), '{}'), coalesce(array_agg(r.d order by r.d), '{}')
+   where r.side = 'b' and r.d > 0
+     and array_to_string(array_remove(r.dirs, 'same'), ',') ~ '^up(,up)*$';
+  select coalesce(array_agg(r.uid order by r.d), '{}'),
+         coalesce(array_agg(cardinality(array_remove(r.dirs, 'same')) order by r.d), '{}')
     into anc_from_sp, anc_from_sp_d from _cf_reach r
-   where r.side = 'a' and r.d > 1 and array_to_string(r.dirs, ',') ~ '^spouse,up(,up)*$';
-  select coalesce(array_agg(r.uid order by r.d), '{}'), coalesce(array_agg(r.d order by r.d), '{}')
+   where r.side = 'a' and r.d > 1
+     and array_to_string(array_remove(r.dirs, 'same'), ',') ~ '^spouse,up(,up)*$';
+  select coalesce(array_agg(r.uid order by r.d), '{}'),
+         coalesce(array_agg(cardinality(array_remove(r.dirs, 'same')) order by r.d), '{}')
     into anc_to_sp, anc_to_sp_d from _cf_reach r
-   where r.side = 'b' and r.d > 1 and array_to_string(r.dirs, ',') ~ '^spouse,up(,up)*$';
+   where r.side = 'b' and r.d > 1
+     and array_to_string(array_remove(r.dirs, 'same'), ',') ~ '^spouse,up(,up)*$';
 
   -- people descended from BOTH ends (e.g. a couple's own children): a route
   -- through them is never a separate relation between the two
   select coalesce(array_agg(a.uid), '{}') into desc_both
     from _cf_reach a join _cf_reach b on b.uid = a.uid and b.side = 'b'
    where a.side = 'a' and a.d > 0 and b.d > 0
-     and array_to_string(a.dirs, ',') ~ '^down(,down)*$'
-     and array_to_string(b.dirs, ',') ~ '^down(,down)*$';
+     and array_to_string(array_remove(a.dirs, 'same'), ',') ~ '^down(,down)*$'
+     and array_to_string(array_remove(b.dirs, 'same'), ',') ~ '^down(,down)*$';
 
   for cand in
     -- every person along a route is a meeting point, so the same route shows up
@@ -178,7 +203,9 @@ begin
       from (
         select a.path as a_path, a.dirs as a_dirs, b.path as b_path, b.dirs as b_dirs,
                a.father_first,
-               a.d + b.d as total, a.marr + b.marr as marr, a.fem + b.fem as fem,
+               a.d + b.d - cardinality(array_positions(a.dirs || b.dirs, 'same')) as total,
+               cardinality(array_positions(a.dirs || b.dirs, 'same')) as sames,
+               a.marr + b.marr as marr, a.fem + b.fem as fem,
                a.path || coalesce((select array_agg(x order by oi desc)
                                      from unnest(b.path) with ordinality t(x, oi)
                                     where oi < array_length(b.path, 1)), '{}'::text[]) as full_path
@@ -191,9 +218,9 @@ begin
            and not (a.path[1:a.d] && b.path)
            and not (b.path[1:b.d] && a.path)
       ) c
-     order by full_path, total, marr, fem
+     order by full_path, total, marr, fem, sames
     ) u
-     order by total + marr, marr, fem, father_first desc nulls last
+     order by total + marr, marr, fem, sames, father_first desc nulls last
      limit 1500
     loop
     -- full route: from ... meeting person ... to
@@ -204,6 +231,17 @@ begin
     v_dirs := cand.a_dirs
          || coalesce((select array_agg(case x when 'up' then 'down' when 'down' then 'up' else x end order by oi desc)
                         from unnest(cand.b_dirs) with ordinality t(x, oi)), '{}'::text[]);
+
+    -- drop the duplicate-record hops: keep the record the route continues
+    -- from (but always keep the two ends themselves)
+    if 'same' = any (v_dirs) then
+      select array_agg(t.x order by t.i) into uids
+        from unnest(uids) with ordinality t(x, i)
+       where not ((t.i > 1 and t.i <= cardinality(v_dirs) and v_dirs[t.i] = 'same')
+                  or (t.i = 2 and v_dirs[1] = 'same' and cardinality(v_dirs) > 1));
+      v_dirs := array_remove(v_dirs, 'same');
+      continue when cardinality(v_dirs) = 0;
+    end if;
 
     -- no looping back into either end's own line: reaching one of the start's
     -- ancestors any way other than the straight climb is a loop when it takes

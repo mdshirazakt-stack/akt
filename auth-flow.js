@@ -401,7 +401,10 @@
     const banner = document.createElement('div');
     banner.id = 'pending-preview-banner';
     banner.setAttribute('role', 'status');
-    banner.style.cssText = 'position:sticky;top:0;z-index:900;background:#fef3c7;color:#78350f;border-bottom:1px solid #f59e0b;padding:10px 16px;font-size:14px;line-height:1.45;text-align:center';
+    // Not sticky: the site header is already sticky at top:0, and a second
+    // sticky bar would cover it (and its Logout button) on scroll — badly on
+    // phones, where this text wraps to several lines. It scrolls away instead.
+    banner.style.cssText = 'position:relative;background:#fef3c7;color:#78350f;border-bottom:1px solid #f59e0b;padding:10px 16px;font-size:clamp(12.5px,3.4vw,14px);line-height:1.45;text-align:center';
     const until = formatClaimDeadline(expiresAt);
     banner.innerHTML = `<strong>Preview access.</strong> Your account is still waiting for admin approval.
       You can use the archive until you sign out${until ? ` or until <strong>${escapeHtmlLocal(until)}</strong> IST, whichever comes first` : ''}.

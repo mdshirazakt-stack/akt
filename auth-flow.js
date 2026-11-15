@@ -92,16 +92,21 @@
     if (note) note.textContent = message;
   }
 
-  function showPendingApprovalMessage() {
+  function showPendingApprovalMessage(previewUsed = false) {
     const err = byId('auth-err');
     if (!err) return;
     setNote('');
     err.style.color = '#2e6e4a';
     err.style.display = 'block';
-    err.innerHTML = `
-      Thank you for registering. Your account is pending review by the site admin and is not
+    const lead = previewUsed
+      ? `Your preview session has ended. Your account is still pending review by the site admin —
+      you will be able to enter the archive again once it is approved. This usually takes up to
+      24 hours. Please check back later by signing in again.`
+      : `Thank you for registering. Your account is pending review by the site admin and is not
       active yet — you will not be able to view the archive until it is approved. This usually
-      takes up to 24 hours. Please check back later by signing in again.
+      takes up to 24 hours. Please check back later by signing in again.`;
+    err.innerHTML = `
+      ${lead}
       <br><br>
       While you wait, please read
       <a href="trouble.html" target="_blank" rel="noopener" style="color:#2e6e4a;font-weight:700">Trouble Signing In?</a>
@@ -342,6 +347,91 @@
 
   let appLaunched = false; // guard against re-init on tab focus / token refresh
 
+  // ── One-time preview session for pending (not yet approved) visitors ──────
+  // See supabase_pending_preview.sql. The database decides whether a preview
+  // is open (akt_is_visitor() gates every RLS policy on it); the page only
+  // mirrors that: banner, auto sign-out at expiry, ending it on sign-out.
+  let previewMode = false;
+  let previewTimer = null;
+
+  async function startPendingPreview() {
+    if (!sb) return null;
+    const { data, error } = await sb.rpc('start_pending_preview');
+    if (error) {
+      // SQL not applied yet → behave exactly as before (no preview).
+      if (!/does not exist|schema cache|function/i.test(error.message || '')) {
+        console.warn('Pending preview check failed:', error.message);
+      }
+      return null;
+    }
+    return data || null;
+  }
+
+  // Sends a pending visitor into the archive for their preview if it's open;
+  // otherwise shows the pending-approval message. Returns true if they entered.
+  async function enterPendingPreviewOrWait(visitor, stage) {
+    const preview = isOnboardingComplete(visitor) ? await startPendingPreview() : null;
+    if (preview?.active) {
+      await logSignupEvent('pending_preview_entered', {
+        stage,
+        visitor_id: visitor?.id || null,
+        preview_started_at: preview.started_at || null
+      });
+      await enterVisitor(visitor, { preview });
+      return true;
+    }
+    await logSignupEvent(stage === 'signin' ? 'pending_access_attempt' : 'pending_after_onboarding', {
+      stage,
+      status: 'pending',
+      email: userEmail(currentSession?.user) || '',
+      visitor_id: visitor?.id || null,
+      preview_used: Boolean(preview?.started_at)
+    });
+    setView('message');
+    showPendingApprovalMessage(Boolean(preview?.started_at));
+    return false;
+  }
+
+  function removePreviewBanner() {
+    document.getElementById('pending-preview-banner')?.remove();
+  }
+
+  function renderPreviewBanner(expiresAt) {
+    removePreviewBanner();
+    const banner = document.createElement('div');
+    banner.id = 'pending-preview-banner';
+    banner.setAttribute('role', 'status');
+    banner.style.cssText = 'position:sticky;top:0;z-index:900;background:#fef3c7;color:#78350f;border-bottom:1px solid #f59e0b;padding:10px 16px;font-size:14px;line-height:1.45;text-align:center';
+    const until = formatClaimDeadline(expiresAt);
+    banner.innerHTML = `<strong>Preview access.</strong> Your account is still waiting for admin approval.
+      You can use the archive until you sign out${until ? ` or until <strong>${escapeHtmlLocal(until)}</strong> IST, whichever comes first` : ''}.
+      After that you can sign in again once your account is approved.`;
+    document.body.prepend(banner);
+  }
+
+  async function endPendingPreview() {
+    if (!previewMode || !sb) return;
+    previewMode = false;
+    if (previewTimer) { clearTimeout(previewTimer); previewTimer = null; }
+    try { await sb.rpc('end_pending_preview'); } catch (_) { /* best effort */ }
+  }
+
+  // Admin-approved ("applied") profile claim → 7-day login instead of 24h.
+  async function hasApprovedProfileClaim(visitor) {
+    const email = userEmail(currentSession?.user) || visitor?.email || '';
+    const authId = currentSession?.user?.id || visitor?.auth_user_id || '';
+    const clauses = [];
+    if (authId) clauses.push(`auth_user_id.eq.${authId}`);
+    if (email) clauses.push(`claimant_email.eq.${email}`);
+    if (!clauses.length) return false;
+    const { data, error } = await sb.from('profile_claims')
+      .select('id,status,applied_at')
+      .or(clauses.join(','))
+      .limit(20);
+    if (error) return false;
+    return (data || []).some(c => c.status === 'applied' || c.applied_at);
+  }
+
   async function redirectForGuideIfNeeded(visitor) {
     if (!visitor?.id || !sb) return false;
 
@@ -372,15 +462,22 @@
     return true;
   }
 
-  async function enterVisitor(visitor) {
-    // Enforce 24-hour session limit — sign out and force a fresh login
+  async function enterVisitor(visitor, options = {}) {
+    const preview = options.preview || null;
+    previewMode = Boolean(preview);
+    // Enforce a session limit — sign out and force a fresh login after 24
+    // hours, or after 7 days once an admin has approved the visitor's profile
+    // claim. Skipped for a pending preview (its 24h is enforced by the
+    // database from preview_started_at).
     const _uid = currentSession?.user?.id || '';
-    if (_uid) {
+    const claimApproved = !preview && await hasApprovedProfileClaim(visitor);
+    const sessionLimitMs = (claimApproved ? 7 * 24 : 24) * 60 * 60 * 1000;
+    if (_uid && !preview) {
       const _sk = 'akt_session_start_' + _uid;
       const _t  = parseInt(localStorage.getItem(_sk) || '0', 10);
       if (!_t) {
         localStorage.setItem(_sk, Date.now().toString());
-      } else if (Date.now() - _t > 24 * 60 * 60 * 1000) {
+      } else if (Date.now() - _t > sessionLimitMs) {
         localStorage.removeItem(_sk);
         await signOut();
         return;
@@ -405,7 +502,8 @@
     // entry into the archive (i.e. after admin approval), not at signup —
     // a user approved a week after registering still gets a fair window.
     // Set once; never overwritten on later logins.
-    if (!visitor?.claim_clock_started_at) {
+    // A pending preview never starts it (the clock is for after approval).
+    if (!preview && !visitor?.claim_clock_started_at) {
       updatePayload.claim_clock_started_at = now;
     }
     let { error: updateError } = await sb.from('visitors').update(updatePayload).eq('id', visitor.id);
@@ -429,7 +527,18 @@
       await callbacks.onStart(name, role, updatedVisitor);
     }
     appLaunched = true; // mark app as fully initialised
-    await refreshProfileClaimBanner(updatedVisitor);
+    if (preview) {
+      // Preview banner instead of the claim banner: the 72h claim clock
+      // hasn't started, so a claim deadline would be wrong here.
+      const expiresAt = preview.expires_at ? new Date(preview.expires_at) : null;
+      renderPreviewBanner(expiresAt);
+      const msLeft = expiresAt ? expiresAt.getTime() - Date.now() : 0;
+      if (previewTimer) clearTimeout(previewTimer);
+      // setTimeout caps at ~24.8 days; a preview is at most 24h.
+      if (msLeft > 0) previewTimer = setTimeout(() => { signOut(); }, msLeft);
+    } else {
+      await refreshProfileClaimBanner(updatedVisitor);
+    }
     await showPendingNotifications(visitor);
   }
 
@@ -928,15 +1037,9 @@
     }
 
     if (status === 'pending') {
-      // Account exists but admin has not approved it yet — do not let them in.
-      await logSignupEvent('pending_access_attempt', {
-        stage: 'signin',
-        status,
-        email: userEmail(currentSession.user) || '',
-        visitor_id: visitor?.id || null
-      });
-      setView('message');
-      showPendingApprovalMessage();
+      // Account exists but admin has not approved it yet — let them in only
+      // for their one-time preview session, if it's still open.
+      await enterPendingPreviewOrWait(visitor, 'signin');
       return;
     }
 
@@ -1270,14 +1373,9 @@
 
     currentVisitor = saved;
     if (visitorStatus(saved) === 'pending') {
-      // Brand-new (or still-unapproved) accounts do not enter the archive —
-      // show the pending-approval message instead.
-      await logSignupEvent('pending_after_onboarding', {
-        stage: 'completed',
-        visitor_id: saved?.id || null
-      });
-      setView('message');
-      showPendingApprovalMessage();
+      // Brand-new (or still-unapproved) accounts start their one-time preview
+      // session here; once it's used up they see the pending-approval message.
+      await enterPendingPreviewOrWait(saved, 'completed');
       return;
     }
 
@@ -1316,6 +1414,10 @@
       localStorage.removeItem('akt_profile_shown_' + _authId);
       localStorage.removeItem('akt_session_start_' + _authId);
     }
+    // Signing out ends a pending visitor's preview for good (needs the auth
+    // session, so before sb.auth.signOut()).
+    await endPendingPreview();
+    removePreviewBanner();
     removeProfileClaimBanner();
     removeRoleApplicationCallout();
     closeRoleApplicationModal();

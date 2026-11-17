@@ -3,7 +3,7 @@
   const ONBOARDING_DRAFT_KEY = 'akt_onboarding_draft_v1';
   const REQUIRED_CONSENT_SECTIONS = ['6', '7', '8', '18'];
   const ROLE_LEVELS = { visitor: 1, moderator: 2, admin: 3, superadmin: 4 };
-  const WHATSAPP_COMMUNITY_URL = 'https://chat.whatsapp.com/HtSTOEqyDx644pLLdbnnlm';
+  const WHATSAPP_COMMUNITY_URL = 'https://chat.whatsapp.com/IhBUfMa4xDLFZrsFgo2XV5?s=sh&p=a&iam=2';
 
   function escapeHtmlLocal(value) {
     return String(value == null ? '' : value)
